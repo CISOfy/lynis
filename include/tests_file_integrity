@@ -1,0 +1,217 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+    FILE_INT_TOOL_FOUND=0     # Boolean, file integrity tool found
+#
+#################################################################################
+#
+    InsertSection "Software: file integrity"
+    Display --indent 2 --text "- Checking file integrity tools..."
+
+
+    # Test        : FINT-4310
+    # Description : Check if AFICK is installed
+    Register --test-no FINT-4310 --weight L --network NO --description "AFICK availability"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking AFICK binary"
+        if [ ! "${AFICKBINARY}" = "" ]; then
+            logtext "Result: AFICK is installed (${AFICKBINARY})"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 4 --text "- AFICK..." --result FOUND --color GREEN
+          else
+            logtext "Result: AFICK is not installed"
+            Display --indent 4 --text "- AFICK..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4314
+    # Description : Check if AIDE is installed
+    Register --test-no FINT-4314 --weight L --network NO --description "AIDE availability"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking AIDE binary"
+        if [ ! "${AIDEBINARY}" = "" ]; then
+            logtext "Result: AIDE is installed (${AIDEBINARY})"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 4 --text "- AIDE..." --result FOUND --color GREEN
+          else
+            logtext "Result: AIDE is not installed"
+            Display --indent 4 --text "- AIDE..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4315
+    # Description : Check AIDE configuration file
+    if [ ! "${AIDEBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FINT-4315 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check AIDE configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        AIDE_CONFIG_LOCS="/etc /etc/aide /usr/local/etc"
+        logtext "Test: search for aide.conf in ${AIDE_CONFIG_LOCS}"
+        for I in ${AIDE_CONFIG_LOCS}; do
+            if [ -f ${I}/aide.conf ]; then
+                 logtext "Result: found aide.conf in directory ${I}"
+                 AIDECONFIG="${I}/aide.conf"
+            fi
+        done
+        if [ "${AIDECONFIG}" = "" ]; then
+            Display --indent 6 --text "- AIDE config file" --result "NOT FOUND" --color YELLOW
+          else
+            Display --indent 6 --text "- AIDE config file" --result FOUND --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4316
+    # Description : Check if AIDE is configured to use SHA256 or SHA512 checksums
+    if [ ! "${AIDEBINARY}" = "" -a ! "${AIDECONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FINT-4316 --preqs-met ${PREQS_MET} --weight L --network NO --description "AIDE configuration: Checksums (SHA256 or SHA512)"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${GREPBINARY} "^Checksums" ${AIDECONFIG}`
+        FIND2=`${GREPBINARY} "^Checksums" ${AIDECONFIG} | ${EGREPBINARY} "sha256|sha512"` 
+        if [ "${FIND}" = "" ]; then
+            logtext "Result: Unclear how AIDE is dealing with checksums"
+            Display --indent 6 --text "- AIDE config (Checksums)" --result UNKNOWN --color YELLOW
+          else
+            if [ "${FIND2}" = "" ]; then
+                logtext "Result: No SHA256 or SHA512 found for creating checksums"
+                Display --indent 6 --text "- AIDE config (Checksum)" --result WARNING --color RED
+                ReportSuggestion ${TEST_NO} "Use SHA256 or SHA512 to create checksums in AIDE"
+                AddHP 1 3
+              else
+                logtext "Result: Found SHA256 or SHA512 found for creating checksums"
+                Display --indent 6 --text "- AIDE config (Checksum)" --result OK --color GREEN
+                AddHP 2 2
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4318
+    # Description : Check if Osiris is installed
+    Register --test-no FINT-4318 --weight L --network NO --description "Osiris availability"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking Osiris binary"
+        if [ ! "${OSIRISBINARY}" = "" ]; then
+            logtext "Result: Osiris is installed (${OSIRISBINARY})"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 4 --text "- Osiris..." --result FOUND --color GREEN
+          else
+            logtext "Result: Osiris is not installed"
+            Display --indent 4 --text "- Osiris..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4322
+    # Description : Check if Samhain is installed
+    Register --test-no FINT-4322 --weight L --network NO --description "Samhain availability"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking Samhain binary"
+        if [ ! "${SAMHAINBINARY}" = "" ]; then
+            logtext "Result: Samhain is installed (${SAMHAINBINARY})"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 4 --text "- Samhain..." --result FOUND --color GREEN
+          else
+            logtext "Result: Samhain is not installed"
+            Display --indent 4 --text "- Samhain..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4326
+    # Description : Check if Tripwire is installed
+    Register --test-no FINT-4326 --weight L --network NO --description "Tripwire availability"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking Tripwire binary"
+        if [ ! "${TRIPWIREBINARY}" = "" ]; then
+            logtext "Result: Tripwire is installed (${TRIPWIREBINARY})"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 4 --text "- Tripwire..." --result FOUND --color GREEN
+          else
+            logtext "Result: Tripwire is not installed"
+            Display --indent 4 --text "- Tripwire..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4328
+    # Description : Check if OSSEC system integrity tool is running
+    Register --test-no FINT-4328 --weight L --network NO --description "OSSEC syscheck daemon running"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking if OSSEC syscheck daemon is running"
+        IsRunning ossec-syscheckd
+        if [ ${RUNNING} -eq 1 ]; then
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 4 --text "- OSSEC (syscheck)..." --result FOUND --color GREEN
+          else
+            Display --indent 4 --text "- OSSEC (syscheck)..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4330
+    # Description : Check if mtree is installed
+    # Note        : Usually on BSD and similar
+    Register --test-no FINT-4330 --weight L --network NO --description "mtree availability"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking mtree binary"
+        if [ ! "${MTREEBINARY}" = "" ]; then
+            logtext "Result: mtree is installed (${MTREEBINARY})"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 4 --text "- mtree..." --result FOUND --color GREEN
+          else
+            logtext "Result: mtree is not installed"
+            Display --indent 4 --text "- mtree..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4350
+    # Description : Check if at least one file integrity tool is installed
+    Register --test-no FINT-4350 --weight L --network NO --description "File integrity software installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Check if at least on file integrity tool is available/installed"
+        if [ ${FILE_INT_TOOL_FOUND} -eq 1 ]; then
+            logtext "Result: found at least one file integrity tool"
+            Display --indent 2 --text "- Checking presence integrity tool..." --result FOUND --color GREEN
+            AddHP 5 5
+          else
+            logtext "Result: No file integrity tools found"
+            Display --indent 2 --text "- Checking presence integrity tool..." --result "NOT FOUND" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Install a file integrity tool"
+            AddHP 0 5
+        fi
+    fi
+#
+#################################################################################
+#
+
+report "file_integrity_installed=${FILE_INT_TOOL_FOUND}"
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

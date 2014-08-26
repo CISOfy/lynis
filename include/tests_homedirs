@@ -1,0 +1,125 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Home directories
+#
+#################################################################################
+#
+    InsertSection "Home directories"
+#
+#################################################################################
+#
+    # Ignore some top level directories (not the sub directories below)
+    IGNORE_HOME_DIRS="/bin /boot /cdrom /dev /etc /home /lib /lib64 /media /mnt
+                      /opt /proc /sbin /selinux /srv /sys /tmp /usr /var"
+    
+#
+#################################################################################
+#
+
+    # Test        : HOME-9302
+    # Description : Create list with home directories
+    Register --test-no HOME-9302 --weight L --network NO --description "Create list with home directories"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	# Read sixth field of /etc/passwd
+	logtext "Test: query /etc/passwd to obtain home directories"
+        FIND=`${AWKBINARY} -F: '{ if ($1 !~ "#") print $6 }' /etc/passwd | sort | uniq`
+	for I in ${FIND}; do
+	    if [ -d ${I} ]; then
+	        logtext "Result: found home directory: ${I} (directory exists)"
+	        report "home_directory[]=${I}"
+	      else
+	        logtext "Result: found home directory: ${I} (directory does not exist)"
+	    fi
+	done
+    fi	
+#
+#################################################################################
+#
+    # Test        : HOME-9310
+    # Description : Check for suspicious shell history files
+    Register --test-no HOME-9310 --weight L --network NO --description "Checking for suspicious shell history files"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	if [ ! "${HOMEDIRS}" = "" ]; then
+	    if [ "${OS}" = "Solaris" ]; then
+	        # Solaris doesn't support -maxdepth
+	        FIND=`find ${HOMEDIRS} -name ".*history" -not -type f -print`
+	      else
+	        FIND=`find ${HOMEDIRS} -maxdepth 1 -name ".*history" -not -type f -print`
+	    fi
+	    if [ "${FIND}" = "" ]; then
+		Display --indent 2 --text "- Checking shell history files... " --result OK --color GREEN
+	        logtext "Result: Ok, history files are type 'file'."
+	      else
+		Display --indent 2 --text "- Checking shell history files... " --result WARNING --color RED
+	        logtext "Result: the following files seem to be of the wrong file type:"
+	        logtext "Output: ${FIND}"
+		logtext "Info: above files could be redirected files to avoid logging and should be investigated"
+		ReportWarning ${TEST_NO} "M" "Incorrect file type found for shell history file"
+	        fi
+	    logtext "Remarks: ${HOME_HISTORY_LOG_TEXT}"
+          else
+	    Display --indent 2 --text "- Checking shell history files... " --result SKIPPED --color WHITE
+	    logtext "Result: Homedirs is empty, test will be skipped"
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : HOME-9314
+    # Description : Check if non local paths are found in PATH, which can be a risk, but also bad for performance
+    #               (like searching on a filer, instead of local disk)
+    #Register --test-no HOME-9314 --weight L --network NO --description "Create list with home directories"
+#
+#################################################################################
+#
+    # Test        : HOME-9350
+    # Description : Scan home directories for specific files, used in different tests later
+    # Notes       : For performance reasons we combine the scanning of different files, so inode caching is used
+    #               as much as possible for every find command
+    # Profile opt : ignore_home_dir (multiple lines allowed), ignores home directory
+    if [ ! "${REPORTFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no HOME-9350 --preqs-met ${PREQS_MET} --weight L --network NO --description "Collecting information from home directories"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        IGNORE_HOME_DIRS=`grep "^config:ignore_home_dir:" ${PROFILE} | awk -F: '{ print $3 }'`
+        if [ "${IGNORE_HOME_DIRS}" = "" ]; then
+            logtext "Result: IGNORE_HOME_DIRS empty, no paths excluded"
+          else
+            logtext "Output: ${IGNORE_HOME_DIRS}"
+        fi
+    fi
+
+    #YYY
+    #echo -n "      - Checking PATH variable vulnerabilities... "
+    #
+    #FIND=`find ${HOMEDIRS} -name * | grep -r 'PATH=' | egrep '=.:|:.:|:.;' | grep -v 'CDPATH'`
+    #if [ "${FIND}" = "" ]
+    #  then
+    #    logtext "Result: Ok, no special things found in the PATH variable"
+    #  else
+    #    echo "[ ${WARNING}WARNING${NORMAL} ]"
+    #    logtext "Warning: Probably found \".\" in the PATH. Details: ${FIND}"
+    #fi
+    #
+#
+#################################################################################
+#
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

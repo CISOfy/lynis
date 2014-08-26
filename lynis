@@ -1,0 +1,748 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Lynis is an automated auditing tool for Unix based operating systems.
+#
+#################################################################################
+#
+    # Program information
+    PROGRAM_name="Lynis"
+    PROGRAM_version="1.6.0"
+    PROGRAM_releasedate="xx August 2014"
+    PROGRAM_author="Michael Boelen"
+    PROGRAM_author_contact="michael@cisofy.com"
+    PROGRAM_website="http://cisofy.com"
+    PROGRAM_copyright="Copyright 2007-2014 - ${PROGRAM_author}, ${PROGRAM_website}"
+    PROGRAM_license="${PROGRAM_name} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+ welcome to redistribute it under the terms of the GNU General Public License.
+ See the LICENSE file for details about using this software."
+
+    PROGRAM_extrainfo="Enterprise support and plugins available via CISOfy - http://cisofy.com"
+    # Release version (beta or final)
+    PROGRAM_releasetype="final"
+    # Version number of report files (when format changes in future)
+    REPORT_version_major="1"; REPORT_version_minor="0"
+    REPORT_version="${REPORT_version_major}.${REPORT_version_minor}"
+#
+#################################################################################
+#
+# Configure Include path and files
+#
+#################################################################################
+#   Test from which directories we can use all functions and tests
+#################################################################################
+#
+    # Set default to none for later testing
+    INCLUDEDIR=""
+    # Default paths to check (CWD as last option, in case we run from standalone)
+    tINCLUDE_TARGETS="/usr/local/include/lynis /usr/local/lynis/include /usr/share/lynis/include ./include"
+
+    for I in ${tINCLUDE_TARGETS}; do if [ -d ${I} ]; then INCLUDEDIR=${I}; fi; done
+    # Drop out if our include directory can't be found
+    if [ "${INCLUDEDIR}" = "" ]; then
+        echo "Fatal error: can't find include directory"
+        echo "Make sure to execute ${PROGRAM_name} from untarred directory or check your installation."
+        exit 1
+    fi
+
+    tDB_TARGETS="/usr/local/share/lynis/db /usr/local/lynis/db /usr/share/lynis/db ./db"
+    for I in ${tDB_TARGETS};      do if [ -d ${I} ]; then DBDIR=${I};      fi; done
+#
+#################################################################################
+#
+    MYID=""
+    # Check user. We need root to be able to audit and use all required system tools
+    # If we encounter Solaris, use that instead
+    if [ -x /usr/xpg4/bin/id ]; then
+        MYID=`/usr/xpg4/bin/id -u`
+      else
+        MYID=`id -u`
+    fi
+    if [ ! ${MYID} -eq 0 ]; then
+        echo ""; echo ""; echo "Fatal error: Lynis can not be executed with this user ID."
+        echo ""
+        echo " * You have to be root (or equivalent) to perform an audit. Please su(do) and try again."
+        echo ""; echo ""
+        exit 1
+    fi
+#
+#################################################################################
+#
+# Consts
+# (bin paths, text strings, colors)
+#
+#################################################################################
+#
+    # Perform a basic check for permissions. After including functions, using SafePerms()
+    PERMS=`ls -l ${INCLUDEDIR}/consts | cut -c 2-10`
+    PERMS2=`ls -l ${INCLUDEDIR}/functions | cut -c 2-10`
+    OWNER=`ls -l ${INCLUDEDIR}/consts | awk -F" " '{ print $3 }'`
+    OWNER2=`ls -l ${INCLUDEDIR}/functions | awk -F" " '{ print $3 }'`
+    ISSUE=0
+    # Check permissions of include/consts file
+    if [ ! "${PERMS}" = "r--------" -a ! "${PERMS}" = "rw-------" ]; then
+        ISSUE=1
+        echo "[!] Change file permissions of ${INCLUDEDIR}/consts to 600"
+    fi
+    # Check permissions of include/functions file
+    if [ ! "${PERMS2}" = "r--------" -a ! "${PERMS2}" = "rw-------" ]; then
+        ISSUE=1
+        echo "[!] Change file permissions of ${INCLUDEDIR}/functions to 600"
+    fi
+    # Check if owner of both files is root user
+    if [ ! "${OWNER}" = "root" -o ! "${OWNER2}" = "root" ]; then
+        ISSUE=1
+        echo "[!] Change ownership of ${INCLUDEDIR}/consts and ${INCLUDEDIR}/functions to 'root'"
+    fi
+    if [ ${ISSUE} -eq 0 ]; then
+        . ${INCLUDEDIR}/consts
+        . ${INCLUDEDIR}/functions
+      else
+        echo ""; echo "";
+        echo "[X] Security check failed: See action above to correct this issue."
+        echo "    Please change ownership and permissions of the related files and start Lynis again."
+        echo ""
+        echo "Related commands:"
+        echo "chown root ${INCLUDEDIR}/*"
+        echo "chmod 600 ${INCLUDEDIR}/*"
+        echo ""; echo "";
+        exit 1
+    fi
+#
+#################################################################################
+#
+# Traps
+#
+#################################################################################
+#
+    trap Maid INT
+
+    # Use safe umask for the files we create
+    umask 027
+
+    # Drop out on unintialised variables / fatal errors
+    #set -u
+#
+#################################################################################
+#
+# Plugins
+#
+#################################################################################
+#
+    # Plugin directory test
+    if [ "${PLUGINDIR}" = "" ]; then
+        #logtext "Result: Searching for plugindir"
+        tPLUGIN_TARGETS="/usr/local/lynis/plugins /usr/local/share/lynis/plugins /usr/share/lynis/plugins /etc/lynis/plugins ./plugins"
+        for I in ${tPLUGIN_TARGETS}; do
+            if [ -d ${I} ]; then
+                PLUGINDIR=${I}
+                Debug "Result: found plugindir ${PLUGINDIR}"
+            fi
+        done
+    fi
+
+    # Drop out if our plugin directory can't be found
+    if [ ! -d ${PLUGINDIR} ]; then
+        echo "Fatal error: can't find plugin directory ${PLUGINDIR}"
+        echo "Make sure to execute ${PROGRAM_name} from untarred directory or check your installation."
+        exit 1
+    fi
+#
+#################################################################################
+#
+# Parameter checks
+#
+#################################################################################
+#
+    SafePerms ${INCLUDEDIR}/parameters
+    . ${INCLUDEDIR}/parameters
+
+#
+#################################################################################
+#
+# Program information
+#
+#################################################################################
+#
+    # CV - Current Version
+    PROGRAM_AC=`echo ${PROGRAM_version} | awk '{ print $1 }' | sed 's/[.]//g'`
+    PROGRAM_LV=0
+    #DB_MALWARE_CV=`grep "^#version=" ${DBDIR}/malware.db | cut -d '=' -f2`
+    #DB_FILEPERMS_CV=`grep "^#version=" ${DBDIR}/fileperms.db | cut -d '=' -f2`
+
+    # Number of signatures
+    #DB_MALWARE_IC=`grep -v "^#" ${DBDIR}/malware.db | wc -l | tr -s ' ' | tr -d ' '`
+
+    if [ ${VIEWUPDATEINFO} -eq 1 ]; then
+
+        CheckUpdates
+
+        # Reset everything if we can't determine our current version or the latest
+        # available version (due lack of internet connectivity for example)
+        if [ "${PROGRAM_AC}" = "" -o "${PROGRAM_LV}" = "" ]; then
+            # Set both to safe values
+            PROGRAM_AC=0
+            #DB_MALWARE_LV=0; DB_MALWARE_CV=0
+            #DB_FILEPERMS_LV=0; DB_FILEPERMS_CV=0
+        fi
+
+        echo ""; echo " == ${WHITE}${PROGRAM_name}${NORMAL} =="; echo ""
+        echo -n "  Version         :   ${PROGRAM_version}"
+        if [ ${PROGRAM_LV} -gt ${PROGRAM_AC} ]; then
+            echo " [ ${YELLOW}Outdated${NORMAL} ]";
+          else
+            echo " [ ${GREEN}Up-to-date${NORMAL} ]"
+        fi
+        echo "  Release date    :   ${PROGRAM_releasedate}"
+        echo "  Update location :   ${PROGRAM_website}"
+#        echo ""
+#        echo " == ${WHITE}Plugins${NORMAL} =="
+#        echo ""
+#        echo " == ${WHITE}Databases${NORMAL} =="
+#        echo "                      Current          Latest           Status"
+#        echo "  -----------------------------------------------------------------------------"    
+#        echo -n "  Malware         :   ${DB_MALWARE_CV}       ${DB_MALWARE_LV}       "
+#        if [ ${DB_MALWARE_LV} -gt ${DB_MALWARE_CV} ]; then echo "${WARNING}Outdated${NORMAL}"; else echo "${OK}Up-to-date${NORMAL}"; fi
+#        echo -n "  File perms      :   ${DB_FILEPERMS_CV}       ${DB_FILEPERMS_LV}       "
+#        if [ ${DB_FILEPERMS_LV} -gt ${DB_FILEPERMS_CV} ]; then echo "${WARNING}Outdated${NORMAL}"; else echo "${OK}Up-to-date${NORMAL}"; fi
+        echo ""; echo ""
+        echo "${PROGRAM_copyright}"; echo ""
+
+        # Quit program
+        ExitClean
+    fi
+#
+#################################################################################
+#
+# Initialize and default settings
+#
+#################################################################################
+#
+    if [ "${PROGRAM_releasetype}" = "beta" ]; then
+        echo "${YELLOW}"
+        echo "  #########################################################"
+        echo "  #   BETA SOFTWARE                                       #"
+        echo "  #########################################################"
+        echo ""
+        echo "  Thank you for testing a beta release. Make sure to read"
+        echo "  all available documentation before proceeding and/or"
+        echo "  requesting support. Due the nature of beta releases, it"
+        echo "  is possible new features give unexpected warnings."
+        echo ""
+        echo "  Press [ENTER] to continue or [CTRL] + C to break"
+        echo ""
+        echo "  #########################################################"
+        echo "${NORMAL}"; echo ""
+        if [ ${NEVERBREAK} -eq 0 ]; then read void; fi
+    fi
+
+    if [ ${QUIET} -eq 0 ]; then
+        echo ""
+        echo "${WHITE}[ ${PROGRAM_name} ${PROGRAM_version} ]${NORMAL}"
+        echo ""
+        echo "################################################################################"
+        echo " ${PROGRAM_license}"
+        echo ""
+        echo " ${PROGRAM_copyright}"
+        echo " ${PROGRAM_extrainfo}"
+        echo "################################################################################"
+    fi
+#
+#################################################################################
+#
+    InsertSection "Initializing program"
+
+    # Try to find a default profile file, if none is specified
+    if [ "${PROFILE}" = "" ]; then
+        tPROFILE_TARGETS="/usr/local/etc/lynis/default.prf /etc/lynis/default.prf ./default.prf"
+        for I in ${tPROFILE_TARGETS}; do
+            if [ -f ${I} ]; then PROFILE=${I}; fi
+        done
+    fi
+    # Initialize and check profile file, auditor name, log file and report file
+    if [ ! -r ${PROFILE} ];             then echo "Fatal error: Can't open profile file (${PROFILE})"; exit 1; fi
+    if [ "${AUDITORNAME}" = "" ];       then AUDITORNAME="[Unknown]"; fi
+    if [ "${LOGFILE}" = "" ];           then LOGFILE="/var/log/lynis.log"; fi
+    if [ "${REPORTFILE}" = "" ];        then REPORTFILE="/var/log/lynis-report.dat"; fi
+
+#
+#################################################################################
+#
+# PID :: Check PID file, to avoid multiple instances running at the same time.
+#
+#################################################################################
+#
+
+    # Check if there is already a PID file (incorrect termination of previous instance)
+    if [ -f lynis.pid -o -f /var/run/lynis.pid ]; then
+        echo ""
+        echo "      ${WARNING}Warning${NORMAL}: ${WHITE}PID file exists, probably another Lynis process is running.${NORMAL}"
+        echo "      ------------------------------------------------------------------------------"
+        echo "      If you are unsure another Lynis process is running currently, you are adviced "
+        echo "      to stop current process and check the process list first. If you cancelled"
+        echo "      (by using CTRL+C) a previous instance, you can ignore this message."
+        echo "      "
+        echo "      You are adviced to check for temporary files after program completion."
+        echo "      ------------------------------------------------------------------------------"
+        echo ""
+        echo "      ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${NORMAL}"
+        echo ""
+        wait_for_keypress
+        if [ -f lynis.pid ]; then rm -f lynis.pid; fi
+        if [ -f /var/run/lynis.pid ]; then rm -f /var/run/lynis.pid; fi
+        #YYY Display function not working yet from here, due to OS detection
+        #Display --indent 2 --text "- Deleting old PID file..." --result DONE --color GREEN
+    fi
+
+    # Create new PID file (use work directory if /var/run is not available)
+    if [ -d /var/run ]; then PIDFILE="/var/run/lynis.pid"; else PIDFILE="lynis.pid"; fi
+    OURPID=`echo $$`
+    echo ${OURPID} > ${PIDFILE}
+    chmod 600 ${PIDFILE}
+#
+#################################################################################
+#
+# Check program parameters
+#
+#################################################################################
+#
+    # Bail out if we didn't get any parameter, or incorrect ones
+    if [ ${PARAMCOUNT} -eq 0 -o ${WRONGOPTION} -eq 1 -o ${VIEWHELP} -eq 1 ]; then
+        #echo "  =================================================="
+        echo "  ${WHITE}Scan options:${NORMAL}"
+        echo "    --auditor \"<name>\"            : Auditor name"
+        echo "    --check-all (-c)              : Check system"
+        echo "    --no-log                      : Don't create a log file"
+        echo "    --profile <profile>           : Scan the system with the given profile file"
+        echo "    --quick (-Q)                  : Quick mode, don't wait for user input"
+        echo "    --tests \"<tests>\"             : Run only tests defined by <tests>"
+        echo "    --tests-category \"<category>\" : Run only tests defined by <category>"
+        echo ""
+        echo "  ${WHITE}Layout options:${NORMAL}"
+        echo "    --no-colors                   : Don't use colors in output"
+        echo "    --quiet (-q)                  : No output, except warnings"
+        echo "    --reverse-colors              : Optimize color display for light backgrounds"
+        echo ""
+        echo "  ${WHITE}Misc options:${NORMAL}"
+        echo "    --check-update                : Check for updates"
+        echo "    --debug                       : Debug logging to screen"
+        echo "    --view-manpage (--man)        : View man page"
+        echo "    --version (-V)                : Display version number and quit"
+        echo ""
+        echo "  ${GREEN}Enterprise options:${NORMAL}"
+        echo "    --plugin-dir \"<path\">         : Define path of available plugins"
+        echo "    --upload                      : Upload data to central node"
+        echo ""
+
+        if [ ${WRONGOPTION} -eq 1 ]; then
+            echo "  ${RED}Error${NORMAL}: ${WHITE}Invalid option ${WRONGOPTION_value}!${NORMAL}"
+          else
+            if [ ${VIEWHELP} -eq 0 ]; then
+                echo "  ${RED}Error${NORMAL}: ${WHITE}No parameters specified!${NORMAL}"
+            fi
+        fi
+        echo "  See man page and documentation for all available options."
+        echo ""
+        echo "Exiting.."
+        # Cleanup PID file if we drop out earlier
+        RemovePIDFile
+        # Exit with exit code 1
+        exit 1
+    fi
+#
+#################################################################################
+#
+# OS Detection
+#
+#################################################################################
+#
+    SafePerms ${INCLUDEDIR}/osdetection
+    . ${INCLUDEDIR}/osdetection
+    Display --indent 2 --text "- Detecting OS... " --result DONE --color GREEN
+
+    # Check hostname
+    case ${OS} in
+        HP-UX)
+                    HOSTNAME=`hostname` ;;
+        Solaris)
+                    HOSTNAME=`uname -n` ;;
+        *)
+                    HOSTNAME=`hostname -s 2> /dev/null` ;;
+    esac
+    FQDN=`hostname 2> /dev/null`
+    if [ "${OS}" = "Linux" -a "${HOSTNAME}" = "${FQDN}" ]; then
+        FQDN=`hostname -f 2> /dev/null`
+    fi
+#
+#################################################################################
+#
+# Clear log and report files 
+#
+#################################################################################
+#
+    # Clear log file and test if it's writable
+    logtext "### Starting ${PROGRAM_name} ${PROGRAM_version} with PID ${OURPID}, build date ${PROGRAM_releasedate} ###" > ${LOGFILE}
+    if [ $? -eq 0 ]; then
+        Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result DONE --color GREEN
+      else
+        Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result WARNING --color RED
+        echo "${WARNING}Fatal error${NORMAL}: problem while writing to log file. Check location and permissions."
+        RemovePIDFile
+        exit 1
+    fi
+    logtext "### ${PROGRAM_copyright} ###"
+
+    # Clear report file (to avoid appending to an existing file)
+    echo "# ${PROGRAM_name} Report" > ${REPORTFILE}
+    report "report_version_major=${REPORT_version_major}"
+    report "report_version_minor=${REPORT_version_minor}"
+    CDATE=`date "+%F %H:%M:%S"`
+    report "report_datetime_start=${CDATE}"
+    report "auditor=${AUDITORNAME}"
+    report "lynis_version=${PROGRAM_version}"
+    report "os=${OS}"
+    report "os_name=${OS_NAME}"
+    report "os_fullname=${OS_FULLNAME}"
+    report "os_version=${OS_VERSION}"
+    if [ "${OS}" = "Linux" ]; then report "linux_version=${LINUX_VERSION}"; fi
+    report "hostname=${HOSTNAME}"
+#
+#################################################################################
+#
+# Show program information to display
+#
+#################################################################################
+#
+    if [ ${QUIET} -eq 0 ]; then
+        echo ""
+        echo "  ---------------------------------------------------"
+        echo "  Program version:           ${PROGRAM_version}"
+        echo "  Operating system:          ${OS}"
+        echo "  Operating system name:     ${OS_NAME}"
+        echo "  Operating system version:  ${OS_VERSION}" 
+        if [ ! "${OS_MODE}" = "" ]; then echo "  Operating system mode:     ${OS_MODE}"; fi
+        echo "  Kernel version:            ${OS_KERNELVERSION}"
+        echo "  Hardware platform:         ${HARDWARE}"
+        echo "  Hostname:                  ${HOSTNAME}"
+        echo "  Auditor:                   ${AUDITORNAME}"
+        echo "  Profile:                   ${PROFILE}"
+        echo "  Log file:                  ${LOGFILE}"
+        echo "  Report file:               ${REPORTFILE}"
+        echo "  Report version:            ${REPORT_version}"
+        echo "  Plugin directory:          ${PLUGINDIR}"
+        #echo "  Database directory:        ${DBDIR}"
+        echo "  ---------------------------------------------------"
+    fi
+
+    logtext "Program version:           ${PROGRAM_version}"
+    logtext "Operating system:          ${OS}"
+    logtext "Operating system name:     ${OS_NAME}"
+    logtext "Operating system version:  ${OS_VERSION}"
+    if [ ! "${OS_MODE}" = "" ]; then logtext "Operating system mode:     ${OS_MODE}"; fi
+    logtext "Kernel version:            ${OS_KERNELVERSION}"
+    logtext "Hardware platform:         ${HARDWARE}"
+    logtext "Hostname:                  ${HOSTNAME}"
+    logtext "Auditor:                   ${AUDITORNAME}"
+    logtext "Profile:                   ${PROFILE}"
+    logtext "Log file:                  ${LOGFILE}"
+    logtext "Report file:               ${REPORTFILE}"
+    logtext "Report version:            ${REPORT_version}"
+    logtext "-----------------------------------------------------"
+    logtext "Include directory:         ${INCLUDEDIR}"
+    logtext "Plugin directory:          ${PLUGINDIR}"
+    logtext "Database directory:        ${DBDIR}"
+    logtextbreak
+    wait_for_keypress
+
+#
+#################################################################################
+#
+# Read profile/template/plugins
+#
+#################################################################################
+#
+    SafePerms ${INCLUDEDIR}/profiles
+    . ${INCLUDEDIR}/profiles
+#
+#################################################################################
+#
+# Check for program update (people tend to be lazy and don't perform updates =))
+#
+#################################################################################
+#
+    logtext "Test: Checking for program update..."
+    UPDATE_AVAILABLE=0
+    if [ ${SKIP_UPGRADE_TEST} -eq 1 ]; then
+        logtext "Upgrade test skipped due profile option set (skip_upgrade_test)"
+        PROGRAM_LV="${PROGRAM_AC}"
+      else
+        CheckUpdates
+    fi
+    if [ "${PROGRAM_AC}" = "" -o "${PROGRAM_LV}" = "" ]; then
+        Display --indent 2 --text "- Program update status... " --result UNKNOWN --color YELLOW
+        logtext "Result: Update check failed. No network connection?"
+        logtext "Info: to perform an automatic update check, outbound DNS connections should be allowed (TXT record)."
+        # Set both to safe values
+        PROGRAM_AC=0; PROGRAM_LV=0
+      else
+        logtext "Current installed version  : ${PROGRAM_AC}"
+        logtext "Latest stable version      : ${PROGRAM_LV}"
+        if [ ${PROGRAM_LV} -gt ${PROGRAM_AC} ]; then
+            # Check if current version is REALLY outdated (10 versions ago)
+            PROGRAM_MINVERSION=`expr ${PROGRAM_LV} - 10`
+            logtext "Minimum required version   : ${PROGRAM_MINVERSION}"
+            if [ ${PROGRAM_MINVERSION} -gt ${PROGRAM_AC} ]; then
+                Display --indent 2 --text "- Program update status... " --result "WARNING" --color RED
+                logtext "Result: This version is VERY outdated. Newer ${PROGRAM_name} release available!"
+                ReportWarning "NONE" "Version of Lynis is very old and should be updated"
+                report "lynis_update_available=1"
+                UPDATE_AVAILABLE=1
+              else
+                Display --indent 2 --text "- Program update status... " --result "UPDATE AVAILABLE" --color YELLOW
+                logtext "Result: newer ${PROGRAM_name} release available!"
+                ReportSuggestion "NONE" "Version of Lynis outdated, consider upgrading to the latest version"
+                report "lynis_update_available=1"
+                UPDATE_AVAILABLE=1
+            fi
+            echo ""
+            echo "      ==============================================================================="
+            echo "        ${NOTICE}${PROGRAM_name} update available${NORMAL}"
+            echo "      ==============================================================================="
+            echo ""
+            echo "        Current version : ${YELLOW}${PROGRAM_AC}${NORMAL}   Latest version : ${GREEN}${PROGRAM_LV}${NORMAL}"
+            echo ""
+            echo "        ${WHITE}Please update to the latest version for new features, bug fixes, tests"
+            echo "        and baselines.${NORMAL}"
+            echo ""
+            echo "        http://cisofy.com/downloads/"
+            echo ""
+            echo "      ==============================================================================="
+            echo ""
+            sleep 5
+            #wait_for_keypress
+          else
+            if [ ${UPDATE_CHECK_SKIPPED} -eq 0 ]; then
+                Display --indent 2 --text "- Program update status... " --result "NO UPDATE" --color GREEN
+                logtext "No ${PROGRAM_name} update available."
+                report "lynis_update_available=0"
+              else
+                Display --indent 2 --text "- Program update status... " --result "SKIPPED" --color YELLOW
+                logtext "Update check skipped due to constraints (e.g. missing dig binary)"
+                report "lynis_update_available=-1"
+            fi
+        fi
+    fi
+
+    logtextbreak
+#
+#################################################################################
+#
+    # Check which binaries are available to the scanning process
+    if [ -f ${INCLUDEDIR}/binaries ]; then
+        SafePerms ${INCLUDEDIR}/binaries
+        . ${INCLUDEDIR}/binaries
+    fi
+#
+#################################################################################
+#
+    logtextbreak
+    InsertPluginSection "Plugins (phase 1)"
+    logtext "Searching plugins..."
+    N_PLUGIN=0
+    N_PLUGIN_ENABLED=0
+
+    # Search plugins
+    FIND=`find ${PLUGINDIR} -type f -name "plugin_[a-z]*" -exec echo \{\} \;`
+    for I in ${FIND}; do
+        logtext "Found plugin file: ${I}"
+        # Double check if output is a valid file name
+        if [ -f ${I} ]; then
+            FIND2=`grep "^# PLUGIN_NAME=" ${I} | awk -F= '{ print $2 }'`
+            if [ ! "${FIND2}" = "" -a ! "${FIND2}" = "[plugin_name]" ]; then
+                N_PLUGIN=`expr ${N_PLUGIN} + 1`
+                FIND3=`grep "^plugin=${FIND2}" ${PROFILE}`
+                if [ ! "${FIND3}" = "" ]; then
+                    logtext "Plugin ${FIND2} is enabled"
+                    # Plugins should have at least a _post part, _pre is optional (future)
+                    PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase1"
+                    if [ -f ${PLUGINFILE} ]; then
+                        PLUGIN_VERSION=`grep "^# PLUGIN_VERSION=" ${I} | awk -F= '{ print $2 }'`
+                        PLUGIN_VERSION_NODOTS=`echo ${PLUGIN_VERSION} | sed 's/.//g'`
+                        FIND4=`ls -l ${PLUGINFILE} | cut -c 2-10`
+                        if [ "${FIND4}" = "rw-r-----" -o "${FIND4}" = "rw-------" -o "${FIND4}" = "r--------" ]; then
+                            logtext "Including plugin file: ${PLUGINFILE} (version: ${PLUGIN_VERSION})"
+                            report "plugin_enabled_phase1[]=${FIND2}|${PLUGIN_VERSION}|"
+                            N_PLUGIN_ENABLED=`expr ${N_PLUGIN_ENABLED} + 1`
+                            #logtext "PLUGIN EXECUTION SKIPPED, STILL EXPERIMENTAL"
+                            Display --indent 2 --text "- ${CYAN}Plugin${NORMAL}: ${WHITE}${FIND2}${NORMAL}"
+                            . ${PLUGINFILE}
+                            logtextbreak
+                            logtext "Result: ${FIND2} plugin (phase 1) finished"
+                          else
+                            logtext "Plugin ${FIND2}: Skipped (bad file permissions, should be 640, 600 or 400)"
+                        fi
+                      else
+                        logtext "Plugin ${FIND2}: Skipped (can't find file ${PLUGINFILE})"
+                    fi
+                  else
+                    logtext "Plugin ${FIND2}: Skipped (not enabled)"
+                fi
+              else
+                logtext "Skipping plugin file ${I} (no valid plugin name found)"
+            fi
+        fi
+        logtext "--"
+    done
+    logtext "Plugins finished"
+
+    if [ ${N_PLUGIN_ENABLED} -eq 0 ]; then
+        Display --indent 2 --text "- Plugins enabled " --result "NONE" --color WHITE
+        report "plugins_enabled=0"
+      else
+        report "plugins_enabled=1"
+    fi
+
+#
+#################################################################################
+#
+    # Get host ID
+    logtextbreak
+    GetHostID
+    # Check if result is not empty (no blank, or hash of blank value, or minus)
+    if [ ! "${HOSTID}" = "-" -a ! "${HOSTID}" = "" -a ! "${HOSTID}" = "adc83b19e793491b1c6ea0fd8b46cd9f32e592fc" ]; then
+        logtext "Info: found valid HostID ${HOSTID}"
+        report "hostid=${HOSTID}"
+      else
+        logtext "Info: no HostID found or invalid one"
+    fi
+#
+#################################################################################
+#
+    logtextbreak
+    # Test sections
+    if [ "${TESTS_CATEGORY_TO_PERFORM}" = "" ]; then
+        #YYY insert plugin support
+        logtext "Info: perform tests from all categories"
+
+        INCLUDE_TESTS="boot_services kernel memory_processes authentication shells \
+                       filesystems storage storage_nfs \
+                       nameservices ports_packages networking printers_spools \
+                       mail_messaging firewalls \
+                       webservers ssh snmp databases ldap php squid logging \
+                       insecure_services banners scheduling accounting \
+                       time crypto virtualization mac_frameworks file_integrity hardening_tools tooling \
+                       malware file_permissions homedirs kernel_hardening hardening"
+      else
+        INCLUDE_TESTS="${TESTS_CATEGORY_TO_PERFORM}"
+        logtext "Info: only performing tests from categories: ${TESTS_CATEGORY_TO_PERFORM}"
+    fi
+
+    # Include available tests
+    for INCLUDE_TEST in ${INCLUDE_TESTS}; do
+
+            # Test if file exists, then if permissions are correct
+            if [ -f ${INCLUDEDIR}/tests_${INCLUDE_TEST} ]; then
+                FIND=`ls -l ${INCLUDEDIR}/tests_${INCLUDE_TEST} | cut -c 2-10`
+                if [ "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-------" -o "${FIND}" = "r--------" ]; then
+                    . ${INCLUDEDIR}/tests_${INCLUDE_TEST}
+                  else
+                    logtext "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDEDIR}/tests_${INCLUDE_TEST} has bad permissions (should be 640, 600 or 400)"
+                    ReportWarning "NONE" "H" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
+                    # Insert a section and warn user also on screen
+                    InsertSection "General"
+                    Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "SKIPPED" --color RED
+                fi
+              else
+                echo "Error: Can't find file (category: ${INCLUDE_TEST})"
+        fi
+
+    done
+#
+#################################################################################
+#
+    logtextbreak
+    InsertSection "Custom Tests"
+    logtext "Test: Checking for tests_custom file"
+    # Custom tests
+    if [ -f ${INCLUDEDIR}/tests_custom ]; then
+        logtext "Result: tests_custom file found in include directory"
+        logtext "Test: checking file permissions of tests_custom file"
+        FIND=`ls -l ${INCLUDEDIR}/tests_custom | cut -c 2-10`
+        if [ "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-------" -o "${FIND}" = "r--------" ]; then
+            Display --indent 2 --text "- Start custom tests... "
+            logtext "Result: file permissions fine, running custom tests"
+            SafePerms ${INCLUDEDIR}/tests_custom
+            . ${INCLUDEDIR}/tests_custom
+          else
+            logtext "Exception: skipping custom tests, file has bad permissions (should be 640, 600 or 400)"
+            ReportWarning "NONE" "H" "Invalid permissions on custom tests file"
+            Display --indent 2 --text "- Running custom tests... " --result "WARNING" --color RED
+        fi
+      else
+        Display --indent 2 --text "- Running custom tests... " --result "NONE" --color WHITE
+    fi
+#
+#################################################################################
+#
+# Show test results overview
+#
+#################################################################################
+#
+    # Store total performed tests
+    report "lynis_tests_done=${CTESTS_PERFORMED}"
+    CDATE=`date "+%F %H:%M:%S"`
+    report "report_datetime_end=${CDATE}"
+
+    # Show report
+    if [ -f ${INCLUDEDIR}/report ]; then SafePerms ${INCLUDEDIR}/report; . ${INCLUDEDIR}/report; fi
+
+    logtext "================================================================================"
+    logtext "Tests performed:     ${CTESTS_PERFORMED}"
+    logtext "Total tests:         ${TOTAL_TESTS}"
+    logtext "Active plugins:      ${N_PLUGIN_ENABLED}"
+    logtext "Total plugins:       ${N_PLUGIN}"
+    logtext "================================================================================"
+    logtext "${PROGRAM_name} ${PROGRAM_version}"
+    logtext "${PROGRAM_copyright}"
+    logtext "${PROGRAM_extrainfo}"
+    logtext "Program ended successfully"
+    report "tests_executed=${TESTS_EXECUTED}"
+    report "tests_skipped=${TESTS_SKIPPED}"
+    report "finish=true"
+
+
+    # Upload data
+    if [ ${UPLOAD_DATA} -eq 1 ]; then
+        if [ -f ${INCLUDEDIR}/data_upload ]; then
+            SafePerms ${INCLUDEDIR}/data_upload
+            . ${INCLUDEDIR}/data_upload
+          else
+            echo "Fatal error: can't find upload_data script"
+        fi
+    fi
+
+    # Clean exit (Delete PID file)
+    ExitClean
+
+    # The End
+
+###########################################################################
+##%HASH-SHA1%----------------------------%
+###########################################################################
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

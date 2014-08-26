@@ -1,0 +1,97 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Virtualization
+#
+#################################################################################
+#
+    InsertSection "Virtualization"
+#
+#################################################################################
+#
+    # Test        : VIRT-1902
+    # Description : Query running Solaris zones
+    if [ -x /usr/sbin/zoneadm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no VIRT-1902 --os Solaris --weight L --network NO --description "Query running Solaris zones"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: query zoneadm to list all running zones"
+        FIND=`/usr/sbin/zoneadm list -p | awk -F: '{ if ($2!="global") print $0 }'`
+        if [ ! "${FIND}" = "" ]; then
+            N=0
+            for I in ${FIND}; do
+                N=`expr ${N} + 1`
+                ZONEID=`echo ${I} | cut -d ':' -f1`
+                ZONENAME=`echo ${I} | cut -d ':' -f2`
+                logtext "Result: found zone ${ZONENAME} (running)"
+                report "solaris_running_zone[]=${ZONENAME} [id:${ZONEID}]"
+            done
+            logtext "Result: total of ${N} running zones"
+            Display --indent 2 --text "- Checking Solaris Zones..." --result "FOUND ${N} zones" --color GREEN
+          else
+            logtext "Result: no running zones found"
+            Display --indent 2 --text "- Checking Solaris Zones..." --result NONE --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : VIRT-1906
+    # Description : Query running Xen zones
+    #if [ -x /usr/bin/xm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #Register --test-no VIRT-1906 --weight L --network NO --description "Query Xen guests"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+        # Show Xen guests
+        #FIND=`xm list | awk '$1 != "Name|Domain-0" {print $1","$2}'`
+        #for I in ${FIND}; do
+            #XENGUESTNAME=`echo ${I} | cut -d ':' -f1`
+            #XENGUESTID=`echo ${I} | cut -d ':' -f2`
+            #logtext "Result: found Xen guest ${XENGUESTNAME} (ID: ${XENGUESTID})"
+        #done
+    #fi
+#
+#################################################################################
+#
+
+#    # Test        : VIRT-1920
+#    # Description : Checking VMware
+#    Register --test-no VIRT-1920 --weight L --network NO --description "Checking VMware guest status"
+#    if [ ${SKIPTEST} -eq 0 ]; then
+#        # Initialise
+#        VMWARE_GUEST=0
+#        Display --indent 2 --text "- Checking VMware guest status..."
+#        #YYY check memory driver file
+#        #YYY check LKM list
+#        #YYY check vmware tools
+#        logtext "Test: checking VMware tools daemon presence"
+#        if [ ! "${VMWARETOOLSBINARY}" = "" ]; then
+#            logtext "Result: VMware tools binary found"
+#            VMWARE_GUEST=1
+#            Display --indent 4 --text "- Checking VMware tools daemon" --result FOUND --color GREEN
+#          else
+#            Display --indent 4 --text "- Checking VMware tools daemon" --result "NOT FOUND" --color WHITE
+#        fi
+#
+#    fi
+#
+#################################################################################
+#
+
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

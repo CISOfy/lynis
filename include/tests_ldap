@@ -1,0 +1,105 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# LDAP Services
+#
+#################################################################################
+#
+    InsertSection "LDAP Services"
+#
+#################################################################################
+#
+    SLAPD_CONF_LOCS="/etc/ldap /etc/openldap /usr/local/etc/openldap"
+    SLAPD_CONF_LOCATION=""
+    SLAPD_RUNNING=0
+#
+#################################################################################
+#
+    # Test        : LDAP-2219
+    # Description : Check running OpenLDAP instance
+    Register --test-no LDAP-2219 --weight L --network NO --description "Check running OpenLDAP instance"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        #YYY add additional slash
+        FIND=`${PSBINARY} ax | grep "slapd" | grep -v "grep"`
+        if [ "${FIND}" = "" ]; then
+   	    Display --indent 2 --text "- Checking OpenLDAP instance..." --result "NOT FOUND" --color WHITE
+	    logtext "Result: No running slapd process found."
+          else
+    	    Display --indent 2 --text "- Checking OpenLDAP instance..." --result FOUND --color GREEN
+	    logtext "Result: Found running slapd process"
+	    SLAPDFOUND=1
+	    SLAPD_RUNNING=1
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : LDAP-2224
+    # Description : Search slapd.conf
+    if [ ${SLAPD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no LDAP-2224 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check presence slapd.conf"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	logtext "Test: Searching slapd.conf"
+	for I in ${SLAPD_CONF_LOCS}; do
+	    if [ -f ${I}/slapd.conf ]; then
+	        logtext "Result: found ${I}/slapd.conf"
+	        SLAPD_CONF_LOCATION="${I}/slapd.conf"
+	      else
+	        logtext "Result: ${I} does not contain slapd.conf"	
+	    fi
+	done
+	# Check if we found a valid location
+	if [ ! "${SLAPD_CONF_LOCATION}" = "" ]; then
+	    Display --indent 4 --text "- Checking slapd.conf..." --result FOUND --color GREEN
+          else
+	    Display --indent 4 --text "- Checking slapd.conf..." --result "NOT FOUND" --color YELLOW
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : LDAP-2228
+    # Description : Check OpenLDAP slapd.conf file permissions
+#
+#################################################################################
+#
+    # Test        : LDAP-2232
+    # Description : Check OpenLDAP ownership on files/directories
+#
+#################################################################################
+#
+    # Test        : LDAP-2236
+    # Description : Check OpenLDAP database permissions
+#
+#################################################################################
+#
+    # Test        : LDAP-2240
+    # Description : Check OpenLDAP unencrypted RootDN password
+#
+#################################################################################
+#
+    # Test        : LDAP-2244
+    # Description : Check for LDAP configured client (and inform about LDAPS)
+#
+#################################################################################
+#
+
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

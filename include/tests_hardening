@@ -1,0 +1,140 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+    InsertSection "Hardening"
+
+    # COMPILER_INSTALLED is initialised before
+    HARDEN_COMPILERS_NEEDED=0
+#
+#################################################################################
+#
+    # Test        : HRDN-7220
+    # Description : Check for installed compilers
+    Register --test-no HRDN-7220 --weight L --network NO --description "Check if one or more compilers are installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	logtext "Test: Check if one or more compilers can be found on the system"
+	if [ ${COMPILER_INSTALLED} -eq 0 ]; then
+	    logtext "Result: no compilers found"
+	    Display --indent 4 --text "- Installed compiler(s)..." --result "NOT FOUND" --color GREEN
+	    AddHP 3 3
+	  else
+	    logtext "Result: found installed compiler. See top of logfile which compilers have been found or use grep to filter on 'compiler'"
+	    Display --indent 4 --text "- Installed compiler(s)..." --result "FOUND" --color RED
+	    ReportSuggestion ${TEST_NO} "Harden the system by removing unneeded compilers. This can decrease the chance of customized trojans, backdoors and rootkits to be compiled and installed"
+	    AddHP 1 3
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : HRDN-7222
+    # Description : Check for permissions of installed compilers
+    Register --test-no HRDN-7222 --weight L --network NO --description "Check compiler permissions"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	logtext "Test: Check if one or more compilers can be found on the system"
+	HARDEN_COMPILERS_NEEDED=0
+	if [ ${COMPILER_INSTALLED} -eq 0 ]; then
+	    logtext "Result: no compilers found"
+	  else
+	    # as
+	    if [ ! "${ASBINARY}" = "" ]; then
+		logtext "Test: Check file permissions for as (Assembler)"
+		IsWorldExecutable ${ASBINARY}
+		if [ ${SYMLINK} -eq 0 ]; then
+		    logtext "Binary: ${ASBINARY} (world executable: ${FileIsWorldExecutable})"
+		  else
+		    logtext "Binary: ${GCCBINARY} (symlinked to: ${sFILE}) (world executable: ${FileIsWorldExecutable})"
+		fi  
+                if [ ${FileIsWorldExecutable} = "TRUE" ]; then
+                    AddHP 2 3
+                    HARDEN_COMPILERS_NEEDED=1
+                  else
+                    AddHP 3 3
+                fi
+	    fi
+	    # gcc
+	    if [ ! "${GCCBINARY}" = "" ]; then
+		logtext "Test: Check file permissions for GCC compiler"
+		IsWorldExecutable ${GCCBINARY}
+		if [ ${SYMLINK} -eq 0 ]; then
+		    logtext "Binary: ${GCCBINARY} (world executable: ${FileIsWorldExecutable})"
+		  else
+		    logtext "Binary: ${GCCBINARY} (symlinked to: ${sFILE}) (world executable: ${FileIsWorldExecutable})"
+		fi  
+                if [ ${FileIsWorldExecutable} = "TRUE" ]; then
+                    AddHP 2 3
+                    HARDEN_COMPILERS_NEEDED=1
+                  else
+                    AddHP 3 3
+                fi
+	    fi
+	    # Report suggestion is one or more compilers can be better hardened
+	    if [ ${HARDEN_COMPILERS_NEEDED} -eq 1 ]; then
+	        logtext "Result: at least one compiler could be better hardened by restricting executable access to root or group only"
+		ReportSuggestion ${TEST_NO} "Harden compilers and restrict access to world"
+	    fi
+
+	    #YYY check if compilers have a specific group (like compiler, or NOT root/wheel)
+#	    Display --indent 4 --text "- Installed compiler(s)..." --result "FOUND" --color RED
+	    # /usr/bin/*cc*
+	    # /usr/bin/*++*
+	    # /usr/bin/ld
+	    # (and 700 or 750 permissions)
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : HRDN-7230
+    # Description : Check for installed malware scanners
+    Register --test-no HRDN-7230 --weight L --network NO --description "Check for malware scanner"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	logtext "Test: Check if one or more compilers can be found on the system"
+	if [ ${MALWARE_SCANNER_INSTALLED} -eq 1 ]; then
+	    logtext "Result: found at least one malware scanner"
+	    Display --indent 4 --text "- Installed malware scanner..." --result "FOUND" --color GREEN
+	    AddHP 3 3
+	  else
+	    logtext "Result: no malware scanner found"
+	    Display --indent 4 --text "- Installed malware scanner..." --result "NOT FOUND" --color RED
+	    ReportSuggestion ${TEST_NO} "Harden the system by installing one or malware scanners to perform periodic file system scans"
+	    AddHP 1 3
+	fi
+    fi
+#
+#################################################################################
+#
+            
+#    logtext "--------------------------------------------------------------------"
+#    logtext "| System part                        | Preferred value | Actual value | Points |"
+#    logtext "| [!] Compiler installed               |              0  | [${COMPILER_INSTALLED}]     | x  |"
+#    logtext "| [V] Malware scanner installed        |              1  | [x]     | x  |"
+#    logtext "| [V] Packet filter enabled            |              1  | [x]     | x  |"
+#    logtext "--------------------------------------------------------------------"
+#    logtext "| [!]: Hardening possible,  [V]: Hardening performed,  [ ]: Unknown "
+#    logtext "--------------------------------------------------------------------"
+
+    
+#
+#################################################################################
+#
+
+report "compiler_installed=${COMPILER_INSTALLED}"
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

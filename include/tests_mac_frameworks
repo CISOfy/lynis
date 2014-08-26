@@ -1,0 +1,188 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+    APPARMORFOUND=0                     # Set default for test MACF-6208
+    GRSECFOUND=0                        # grsecurity
+    MAC_FRAMEWORK_ACTIVE=0              # Default no MAC framework active
+    RBAC_FRAMEWORK_ACTIVE=0             # Default no RBAC framework active
+    SELINUXFOUND=0
+
+    InsertSection "Security frameworks"
+#
+#################################################################################
+#
+    # Test        : MACF-6204
+    # Description : Check if AppArmor is installed
+    Register --test-no MACF-6204 --weight L --network NO --description "Check AppArmor presence"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	if [ "${AASTATUSBINARY}" = "" ]; then
+	    APPARMORFOUND=0	
+	    logtext "Result: aa-status binary not found, AppArmor not installed"
+	    Display --indent 2 --text "- Checking presence AppArmor" --result "NOT FOUND" --color WHITE
+	  else
+	    APPARMORFOUND=1
+	    logtext "Result: aa-status binary found, AppArmor is installed"	  
+	    Display --indent 2 --text "- Checking presence AppArmor" --result FOUND --color GREEN
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MACF-6208
+    # Description : Check AppArmor active status
+    if [ ${APPARMORFOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no MACF-6208 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check if AppArmor is enabled"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! "${AASTATUSBINARY}" = "" ]; then
+            # Checking AppArmor status
+            FIND=`${AASTATUSBINARY} > /dev/null; echo $?`
+            #0 if apparmor is enabled and policy is loaded.
+            #1 if apparmor is not enabled/loaded.
+            #2 if apparmor is enabled but no policy is loaded.
+            if [ ${FIND} -eq 0 ]; then
+                MAC_FRAMEWORK_ACTIVE=1
+                logtext "Result: AppArmor is enabled and a policy is loaded"
+                Display --indent 4 --text "- Checking AppArmor status" --result "ENABLED" --color GREEN	      
+              elif [ ${FIND} -eq 2 ]; then
+                logtext "Result: AppArmor is enabled, but no policy is loaded"
+                ReportSuggestion ${TEST_NO} "Disable AppArmor or load a policy"
+                Display --indent 4 --text "- Checking AppArmor status" --result "NON-ACTIVE" --color GREEN	      
+              elif [ ${FIND} -eq 1 ]; then
+                Display --indent 4 --text "- Checking AppArmor status" --result "DISABLED" --color YELLOW	      
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MACF-6232
+    # Description : Check SELINUX for installation
+    Register --test-no MACF-6232 --weight L --network NO --description "Check SELINUX presence"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: checking if we have sestatus binary"
+        if [ ! "${SESTATUSBINARY}" = "" ]; then
+            logtext "Result: found sestatus binary (${SESTATUSBINARY})"
+            Display --indent 2 --text "- Checking presence SELinux" --result "FOUND" --color GREEN
+          else
+            logtext "Result: sestatus binary NOT found"
+            Display --indent 2 --text "- Checking presence SELinux" --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MACF-6234
+    # Description : Check SELINUX status
+    if [ ! "${SESTATUSBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no MACF-6234 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SELINUX status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Status: Enabled/Disabled
+        FIND=`${SESTATUSBINARY} | grep "^SELinux status" | awk '{ print $3 }'`
+        if [ "${FIND}" = "enabled" ]; then
+                MAC_FRAMEWORK_ACTIVE=1
+                logtext "Result: SELinux framework is enabled"
+                report "selinux_status=1"
+                SELINUXFOUND=1
+                Display --indent 4 --text "- Checking SELinux status" --result "ENABLED" --color GREEN
+                FIND=`${SESTATUSBINARY} | grep "^Current mode" | awk '{ print $3 }'`
+                report "selinux_mode=${FIND}"
+                FIND2=`${SESTATUSBINARY} | grep "^Mode from config file" | awk '{ print $5 }'`
+                logtext "Result: current SELinux mode is ${FIND}"
+                logtext "Result: mode configured in config file is ${FIND2}"
+                if [ "${FIND}" = "${FIND2}" ]; then
+                    logtext "Result: Current SELinux mode is the same as in config file."
+                    Display --indent 6 --text "- Checking current mode and config file" --result "OK" --color GREEN
+                  else
+                    logtext "Result: Current SELinux mode (${FIND}) is NOT the same as in config file (${FIND2})."
+                    ReportWarning ${TEST_NO} "M" "Current SELinux mode is different from config file (current: ${FIND}, config file: ${FIND2})" 
+                    Display --indent 6 --text "- Checking current mode and config file" --result "WARNING" --color RED
+                fi
+                Display --indent 8 --text "Current SELinux mode: ${FIND}"
+          else
+                logtext "Result: SELinux framework is disabled"
+                Display --indent 4 --text "- Checking SELinux status" --result "DISABLED" --color YELLOW
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : RBAC-6272
+    # Description : Check if grsecurity is installed
+    # Notes       : Solaris doesn't support test -e
+    if [ ! "${OS}" = "Solaris" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no RBAC-6272 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check grsecurity presence"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -e /dev/grsec ]; then
+            GRSECFOUND=1
+            logtext "Result: grsecurity available (/dev/grsec found)"
+           else
+            logtext "Result: grsecurity not present (/dev/grsec not found)"
+        fi
+        # Check Linux kernel configuration
+        if [ ! "${LINUXCONFIGFILE}" = "" -a -f "${LINUXCONFIGFILE}" ]; then
+            FIND=`${GREPBINARY} ^CONFIG_GRKERNSEC=y ${LINUXCONFIGFILE}`
+            if [ ! "${FIND}" = "" ]; then
+                logtext "Result: grsecurity available (in kernel config)"
+                GRSECFOUND=1
+              else
+                logtext "Result: no grsecurity found in kernel config"
+            fi
+        fi
+        # Found grsecurity?
+        if [ ${GRSECFOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Checking presence grsecurity" --result FOUND --color GREEN
+            AddHP 3 3
+          else
+            Display --indent 2 --text "- Checking presence grsecurity" --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MACF-6290
+    # Description : Check if at least one MAC framework is implemented
+    Register --test-no MACF-6290 --weight L --network NO --description "Check for implemented MAC framework"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ${MAC_FRAMEWORK_ACTIVE} -eq 1 ]; then
+            Display --indent 2 --text "- Checking for implemented MAC framework" --result OK --color GREEN
+            AddHP 3 3
+            logtext "Result: found implemented MAC framework"
+          else
+            Display --indent 2 --text "- Checking for implemented MAC framework" --result NONE --color YELLOW
+            AddHP 2 3
+            logtext "Result: found no implemented MAC framework"
+        fi
+     fi
+#
+#################################################################################
+#
+
+report "framework_grsecurity=${GRSECFOUND}"
+report "framework_selinux=${SELINUXFOUND}"
+
+wait_for_keypress
+
+# To implement:
+#   FMAC (OpenSolaris, MAC)
+#   LSM (Linux Security Modules)
+#   TrustedBSD (MAC)
+#   RSBAC (RBAC)
+#   Apple sandbox technology
+#   PAX
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

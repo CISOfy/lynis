@@ -1,0 +1,269 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# E-mail and messaging
+#
+#################################################################################
+#
+    InsertSection "Software: e-mail and messaging"
+#
+#################################################################################
+#
+    DOVECOT_RUNNING=0
+    EXIM_RUNNING=0
+    SMTP_DAEMON=""
+    POSTFIX_RUNNING=0
+    QMAIL_RUNNING=0
+    SENDMAIL_RUNNING=0
+    SMTPD_RUNNING=0
+#
+#################################################################################
+#
+    # Test        : MAIL-8802
+    # Description : Check Exim process status
+    Register --test-no MAIL-8802 --weight L --network NO --description "Check Exim status"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        logtext "Test: check Exim status"
+        IsRunning exim
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: found running Exim process"
+            Display --indent 2 --text "- Checking Exim status..." --result RUNNING --color GREEN
+            EXIM_RUNNING=1
+            SMTP_DAEMON="exim"
+          else
+            logtext "Result: no running Exim processes found"
+            Display --indent 2 --text "- Checking Exim status..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8804
+    # Description : Check Exim configuration
+    #if [ ${EXIM_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #Register --test-no MAIL-8804 --weight L --network NO --description "Check Exim configuration"
+    #if [ ${SKIPTEST} -eq 0  ]; then
+    #    if [ ! "${EXIMBINARY}" = "" ]; then
+    #        logtext "Test: Searching Exim configuration file..."
+    #	FIND=`${EXIMBINARY} -d | grep "configuration file is" | sed 's/configuration file is//'`
+    #	if [ ! "${FIND}" = "" ]; then	
+    #	    Display --indent 2 --text "- Checking Exim configuration..." --result FOUND --color GREEN
+    #	    Display --indent 4 --text "Result: configuration file is ${FIND}"
+    #	    logtext "Result: found Exim"
+    #	    logtext "Result: configuration file is ${FIND}"
+    #	  else
+    #	    Display --indent 2 --text "- Checking Exim configuration..." --result WARNING --color RED
+    #	    logtext "Couldn't find the Exim configuration file, however Exim seems to be installed."
+    #	fi
+    #      else
+    #	logtext "Exim binary not found, no tests performed"
+    #    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8814
+    # Description : Check Postfix process
+    # Notes       : qmgr and pickup run under postfix uid, without full path to binary
+    Register --test-no MAIL-8814 --weight L --network NO --description "Check postfix process status"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        logtext "Test: check Postfix status"
+        # Some other processes also use master, therefore it should include both master and postfix
+        FIND1=`${PSBINARY} ax | grep "master" | grep "postfix" | grep -v "grep"`
+        FIND2=`${PSBINARY} ax | grep "qmgr" | grep "postfix" | grep -v "grep"`
+        FIND3=`${PSBINARY} ax | grep "pickup" | grep "postfix" | grep -v "grep"`
+        if [ ! "${FIND1}" = "" -a ! "${FIND2}" = "" -a ! "${FIND3}" = "" ]; then
+            logtext "Result: found running Postfix process"
+            Display --indent 2 --text "- Checking Postfix status..." --result RUNNING --color GREEN
+            POSTFIX_RUNNING=1
+            SMTP_DAEMON="postfix"
+          else
+            logtext "Result: no running Postfix processes found"
+            Display --indent 2 --text "- Checking Postfix status..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8816
+    # Description : Check Postfix configuration
+    if [ ${POSTFIX_RUNNING} -eq 1 -a ! "${POSTFIXBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no MAIL-8816 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check Postfix configuration"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        Display --indent 2 --text "- Checking Postfix configuration..." --result FOUND --color GREEN
+        POSTFIX_CONFIGDIR=`${POSTCONFBINARY} | grep '^config_directory' | awk '{ print $3 }'`
+        POSTFIX_CONFIGFILE="${POSTFIX_CONFIGDIR}/main.cf"
+        logtext "Postfix configuration directory: ${POSTFIX_CONFIGDIR}"
+        logtext "Postfix configuration file: ${POSTFIX_CONFIGFILE}"    
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8818
+    # Description : Check Postfix configuration
+    if [ ${POSTFIX_RUNNING} -eq 1 -a ! "${POSTFIXBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no MAIL-8818 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check Postfix configuration: banner"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        logtext "Test: Checking Postfix banner"
+        FIND1=`${POSTCONFBINARY} | grep '^smtpd_banner' | grep 'postfix'`
+        FIND2=`${POSTCONFBINARY} | grep '^smtpd_banner' | grep '$mail_name'`
+        FIND3=`${POSTCONFBINARY} | grep '^mail_name' | grep -i 'postfix'`
+        #YYY Check if OS name shows up in banner
+        #FIND4=`${POSTCONFBINARY} | grep '^smtpd_banner' | egrep "${OS}|${LINUX_VERSION}`	
+        SHOWWARNING=0
+        if [ ! "${FIND1}" = "" ]; then
+            SHOWWARNING=1
+          else
+            if [ ! "${FIND2}" = "" -a ! "${FIND3}" = "" ]; then
+                SHOWWARNING=1
+              else
+                Display --indent 4 --text "- Checking Postfix banner..." --result OK --color GREEN
+            fi
+        fi
+        if [ ${SHOWWARNING} -eq 1 ]; then
+            Display --indent 4 --text "- Checking Postfix banner..." --result WARNING --color RED
+            logtext "Result: found mail_name in SMTP banner, and/or mail_name contains 'Postfix'."
+            ReportWarning ${TEST_NO} "L" "Found mail_name in SMTP banner, and/or mail_name contains 'Postfix'"
+            ReportSuggestion ${TEST_NO} "You are adviced to hide the mail_name (option: smtpd_banner) from your postfix configuration. Use postconf -e or change your main.cf file (${POSTFIX_CONFIGFILE})"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8838
+    # Description : Check Dovecot process
+    Register --test-no MAIL-8838 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check dovecot process"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        logtext "Test: check dovecot status"
+        IsRunning dovecot
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: found running dovecot process"
+            Display --indent 2 --text "- Checking Dovecot status..." --result RUNNING --color GREEN
+            DOVECOT_RUNNING=1
+            IMAP_DAEMON="dovecot"
+            POP3_DAEMON="dovecot"
+          else
+            logtext "Result: dovecot not found"
+            Display --indent 2 --text "- Checking Dovecot status..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8842
+    # Description : Check Dovecot logging locations
+    #Register --test-no MAIL-8842 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check dovecot logging locations"
+    #if [ ${SKIPTEST} -eq 0  ]; then
+#         ParseDovecot
+#	CONF="/etc/dovecot/dovecot.conf"
+#	FIND=`cat ${CONF} | grep "^log_path" | awk '{ if ($1=="") { print "syslog" } else { print $3 } }'`
+#	if [ ! "${FIND}" = "" ]; then
+#	    logtext "Result: output for error messages = ${FIND}"
+#	fi
+#
+#	FIND=`cat ${CONF} | grep "^log_info_path" | awk '{ if ($1=="") { print "syslog" } else { print $3 } }'`
+#	if [ ! "${FIND}" = "" ]; then
+#	    logtext "Result: output for informational messages = ${FIND}"
+#	fi
+#
+#    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8860
+    # Description : Check Qmail process status
+    Register --test-no MAIL-8860 --weight L --network NO --description "Check Qmail status"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        logtext "Test: check Qmail status"
+        IsRunning qmail-smtpd
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: found running Qmail process"
+            Display --indent 2 --text "- Checking Qmail status..." --result RUNNING --color GREEN
+            QMAIL_RUNNING=1
+            SMTP_DAEMON="sendmail"
+          else
+            logtext "Result: no running Qmail processes found"
+            Display --indent 2 --text "- Checking Qmail status..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8880
+    # Description : Check Sendmail process status
+    Register --test-no MAIL-8880 --weight L --network NO --description "Check Sendmail status"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        logtext "Test: check sendmail status"
+        IsRunning sendmail
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: found running Sendmail process"
+            Display --indent 2 --text "- Checking Sendmail status..." --result RUNNING --color GREEN
+            SENDMAIL_RUNNING=1
+            SMTP_DAEMON="sendmail"
+          else
+            logtext "Result: no running Sendmail processes found"
+            Display --indent 2 --text "- Checking Sendmail status..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8920
+    # Description : Check OpenBSD smtpd process status
+    Register --test-no MAIL-8920 --os OpenBSD --weight L --network NO --description "Check smtpd status"
+    if [ ${SKIPTEST} -eq 0  ]; then
+        logtext "Test: check smtpd status"
+        FIND=`${PSBINARY} ax | grep "/smtpd" | grep -v "grep"`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Result: found running smtpd process"
+            Display --indent 2 --text "- Checking OpenBSD smtpd status..." --result RUNNING --color GREEN
+            SMTPD_RUNNING=1
+            SMTP_DAEMON="smtpd"
+          else
+            logtext "Result: smtpd not found"
+            Display --indent 2 --text "- Checking OpenBSD smtpd status..." --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MAIL-xxxx
+    # Description : Check if outgoing mail is obscured (increased privacy)
+    #Register --test-no MAIL-xxxx --weight L --network NO --description "Check XXX"
+    #if [ ${SKIPTEST} -eq 0  ]; then
+#
+#################################################################################
+#
+    #YYY Add support for mail, procmail
+    #YYY Add support for MUAs: Thunderbird, Kmail, Evolution
+    # Other software : Cyrus-IMAP, Amavisd-new, SpamAssassin, Fetchmail, Procmail, maildrop
+    #- Dovecot : \'/usr/local/etc/dovecot.conf\'
+    #- For Sendmail : \'/var/mail/sendmail.cf\'
+    #- Fetchmail : \'~/.fetchmailrc\' (not only root)
+    #- Cyrus-IMAP : \'/usr/local/etc/imapd.conf\' for parameters and \'/usr/local/etc/cyrus.conf\' for the services launched
+#
+#################################################################################
+#
+
+report "imap_daemon=${IMAP_DAEMON}"
+report "pop3_daemon=${POP3_DAEMON}"
+report "smtp_daemon=${SMTP_DAEMON}"
+
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

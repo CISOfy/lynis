@@ -1,0 +1,59 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+#  File permissions
+#
+#################################################################################
+#
+    InsertSection "System Tools"
+#
+#################################################################################
+#
+    # Test        : FILE-7524
+    # Description : Perform file permissions check
+    Register --test-no FILE-7524 --weight L --network NO --description "Perform file permissions check"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        Display --indent 2 --text "- Starting file permissions check..."
+        logtext "Test: Checking file permissions"
+        logtext "Using profile ${PROFILE} for baseline."
+        FIND=`cat ${PROFILE} | egrep '^permfile:|^permdir:' | cut -d: -f2`
+        for I in ${FIND}; do
+            logtext "Checking ${I}"
+            CheckFilePermissions ${I}
+            logtext "  Expected permissions: ${PROFILEVALUE}"
+            logtext "  Actual permissions: ${FILEVALUE}"
+            logtext "  Result: $PERMS"
+            if [ "${PERMS}" = "FILE_NOT_FOUND" ]; then
+    	        Display --indent 4 --text "${I}" --result "NOT FOUND" --color WHITE
+    	      elif [ "${PERMS}" = "OK" ]; then
+    	        Display --indent 4 --text "${I}" --result OK --color GREEN
+	      elif [ "${PERMS}" = "BAD" ]; then
+	        Display --indent 4 --text "${I}" --result WARNING --color RED
+		ReportWarning ${TEST_NO} "M" "Incorrect permissions for file ${I}"
+	      else
+	        logtext "UNKNOWN status for file"
+	  fi
+        done
+    fi    
+#
+#################################################################################
+#
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

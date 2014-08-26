@@ -1,0 +1,78 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+    AUTOMATION_TOOL_FOUND=0
+    BACKUP_AGENT_FOUND=0
+#
+#################################################################################
+#
+    InsertSection "Software: System tooling"
+
+PUPPET_MASTER_RUNNING=0
+
+#
+#################################################################################
+#
+# Automation
+#
+#################################################################################
+#
+    # Test        : TOOL-5002
+    # Description : Check if automation tools are found
+    Register --test-no TOOL-5002 --weight L --network NO --description "Checking for automation tools"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        Display --indent 2 --text "- Checking automation tooling..."
+
+        # Cfengine
+        if [ ! "${CFAGENTBINARY}" = "" ]; then
+            logtext "Result: Cfengine (cfagent) is installed (${CFAGENTBINARY})"
+            AUTOMATION_TOOL_FOUND=1
+            Display --indent 4 --text "Found: Cfengine (cfagent)" --result FOUND --color GREEN
+        fi
+
+        # Puppet
+        if [ ! "${PUPPETBINARY}" = "" ]; then
+            logtext "Result: Puppet is installed (${PUPPETBINARY})"
+            AUTOMATION_TOOL_FOUND=1
+            Display --indent 4 --text "Found: Puppet (agent)" --result FOUND --color GREEN
+        fi
+        IsRunning "puppet master"
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: found puppet master"
+            PUPPET_MASTER_RUNNING=1
+            Display --indent 4 --text "Found: Puppet (master)" --result FOUND --color GREEN
+        fi
+
+        if [ ${AUTOMATION_TOOL_FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Automation tooling" --result FOUND --color GREEN
+          else
+            Display --indent 2 --text "- Automation tooling" --result "NOT FOUND" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Determine if automation tools are present for system management"
+        fi
+    fi
+#
+#################################################################################
+#
+# Backup tools
+#
+#################################################################################
+#
+    wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

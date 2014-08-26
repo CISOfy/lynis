@@ -1,0 +1,216 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Shells
+#
+#################################################################################
+#
+    IDLE_TIMEOUT=0
+    InsertSection "Shells"
+#
+#################################################################################
+#
+    # bash
+    # Files (interactive login shells):     /etc/profile $HOME/.bash_profile
+    #                                       $HOME/.bash_login $HOME/.profile
+    # Files (interactive non-login shells): $HOME/.bash_rc
+
+    # csh/tcsh
+    # Files: /etc/csh.cshrc /etc/csh.login
+    # zsh
+    # Files: /etc/zshenv /etc/zsh/zshenv $HOME/.zshenv /etc/zprofile
+    #        /etc/zsh/zprofile $HOME/.zprofile /etc/zshrc /etc/zsh/zshrc
+    #        $ZDOTDIR/.zshrc /etc/zlogin /etc/zsh/zlogin
+
+    SHELL_LOGIN_FILES="/etc/csh.cshrc /etc/csh.login /etc/zshenv /etc/zsh/zshenv
+                       /etc/zprofile /etc/zsh/zprofile /etc/zshrc /etc/zsh/zshrc
+                       /etc/zlogin /etc/zsh/zlogin"
+#
+#################################################################################
+#
+
+    # Test        : SHLL-6202
+    # Description : check all console TTYs in which root user can enter single user mode without password
+    Register --test-no SHLL-6202 --os FreeBSD --weight L --network NO --description "Check console TTYs"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking console TTYs..."
+        FIND=`cat /etc/ttys | egrep '^console' | grep -v 'insecure'`
+        if [ "${FIND}" = "" ]; then
+            Display --indent 2 --text "- Checking console TTYs... " --result OK --color GREEN
+            logtext "Result: console is secured against single user mode without password."
+          else
+            Display --indent 2 --text "- Checking console TTYs... " --result WARNING --color RED
+            logtext "Result: Found insecure console in /etc/ttys. Single user mode login without password allowed!"
+            logtext "Output /etc/ttys:"
+            logtext "${FIND}"
+            ReportWarning ${TEST_NO} "M" "Found unprotected console in /etc/ttys"
+            #ReportSuggestion ${TEST_NO} "Change the console line from 'secure' to 'insecure'."
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : SHLL-6214
+    # Description : check for idle session killing tools (timeoutd)
+
+
+#
+#################################################################################
+#
+    # Test        : SHLL-6211
+    # Description : which shells are available according /etc/shells
+    Register --test-no SHLL-6211 --weight L --network NO --description "Checking available and valid shells"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Searching for /etc/shells..."
+        if [ -f /etc/shells ]; then
+            logtext "Result: Found /etc/shells file"
+            logtext "Test: Reading available shells from /etc/shells"
+            SSHELLS=`cat /etc/shells | grep "^/"`
+            CSSHELLS=0; CSSHELLS_ALL=0
+            Display --indent 2 --text "- Checking shells from /etc/shells..."
+            for I in ${SSHELLS}; do
+                CSSHELLS_ALL=`expr ${CSSHELLS_ALL} + 1`
+                report "available_shell[]=${I}"
+                # YYY add check for symlinked shells
+                if [ -f ${I} ]; then
+                    logtext "Found installed shell: ${I}"
+                    CSSHELLS=`expr ${CSSHELLS} + 1`
+                  else
+                    logtext "Shell ${I} not installed. Probably a dummy or non existing shell."
+                fi
+             done
+            Display --indent 4 --text "Result: found ${CSSHELLS_ALL} shells (valid shells: ${CSSHELLS})."
+          else
+            logtext "Result: /etc/shells not found, skipping test"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : SHLL-6220
+    # Description : check for idle session killing tools or settings
+    Register --test-no SHLL-6220 --weight L --network NO --description "Checking available and valid shells"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Search for session timeout tools or settings in shell"
+        IsRunning timeoutd
+        if [ ${RUNNING} -eq 1 ]; then
+            IDLE_TIMEOUT=1
+            logtext "Result: found timeoutd process to kill idle sesions"
+            report="session_timeout_method=timeout daemon"
+        fi
+        IsRunning autolog
+        if [ ${RUNNING} -eq 1 ]; then
+            IDLE_TIMEOUT=1
+            logtext "Result: found autolog process to kill idle sesions"
+            report="session_timeout_method[]=autolog"
+        fi
+
+        if [ -f /etc/profile ]; then
+            FIND=`cat /etc/profile | grep '\(export[ \t]*\)\?TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//'`
+            if [ ! "${FIND}" = "" ]; then
+                N=0; IDLE_TIMEOUT=1
+                for I in ${FIND}; do
+                    logtext "Output: ${I}"
+                    N=`expr ${N} + 1`
+                done
+                if [ ${N} -eq 1 ]; then
+                    logtext "Result: found TMOUT value configured in /etc/profile"
+                  else
+                    logtext "Result: found several TMOUT values configured in /etc/profile"
+                fi
+                report "session_timeout_method[]=profile"
+              else
+                logtext "Result: could not find TMOUT setting in /etc/profile"
+            fi
+          else
+            logtext "Result: skip /etc/profile test, file not available on this system"
+        fi
+
+        if [ -d /etc/profile.d ]; then
+            FIND=`cat /etc/profile.d/*.sh 2> /dev/null | grep '\(export[ \t]*\)\?TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//'`
+            if [ ! "${FIND}" = "" ]; then
+                N=0; IDLE_TIMEOUT=1
+                for I in ${FIND}; do
+                    logtext "Output: ${I}"
+                    N=`expr ${N} + 1`
+                done
+                if [ ${N} -eq 1 ]; then
+                    logtext "Result: found TMOUT value configured in one of the files in /etc/profile.d directory"
+                  else
+                    logtext "Result: found several TMOUT values configured in one of the files in /etc/profile.d directory"
+                fi
+                report "session_timeout_method[]=profile"
+              else
+                logtext "Result: could not find TMOUT setting in /etc/profile.d/*.sh"
+            fi
+          else
+            logtext "Result: skip /etc/profile.d directory test, directory not available on this system"
+        fi
+
+        if [ ${IDLE_TIMEOUT} -eq 1 ]; then
+            Display --indent 4 --text "- Session timeout settings/tools" --result "FOUND" --color GREEN
+            AddHP 3 3
+          else
+            Display --indent 4 --text "- Session timeout settings/tools" --result "NONE" --color YELLOW
+            AddHP 1 3
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : SHLL-6236
+    # Description : Check /etc/profile
+#
+#################################################################################
+#
+
+    # Test        : SHLL-6240
+    # Description : Check default umask
+#    Register --test-no SHLL-6240 --weight L --network NO --description "Check default umask"
+#    if [ ${SKIPTEST} -eq 0 ]; then
+#        logtext "Test: Checking /etc/profile..."
+#	if [ -f /etc/profile ]; then
+#    	    FIND=`grep "^umask" | awk '{ print $2 }'`
+#    	    if [ "${FIND}" = "" ]; then
+#		logtext "Result: xxx"
+#  		Display --indent 2 --text "- Checking default umask... " --result OK --color GREEN
+#              else
+#		logtext "Result: xxx"
+#    		Display --indent 2 --text "- Checking default umask... " --result WARNING --color RED
+#		#ReportWarning ${TEST_NO} "M" "xxx"
+#		#ReportSuggestion ${TEST_NO} "xxx"
+#	    fi
+#	fi
+#    fi
+#
+#################################################################################
+#
+    # Test        : SHLL-6250
+    # Description : Check /etc/bash.bashrc
+#    Register --test-no SHLL-6250 --weight L --network NO --description "Check default umask"
+#    if [ ${SKIPTEST} -eq 0 ]; then
+#
+#################################################################################
+#
+
+report "session_timeout_enabled=${IDLE_TIMEOUT}"
+
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

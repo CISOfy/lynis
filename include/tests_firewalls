@@ -1,0 +1,296 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Firewalls
+#
+#################################################################################
+#
+    InsertSection "Software: firewalls"
+#
+#################################################################################
+#
+    IPTABLES_ACTIVE=0
+    IPTABLES_INKERNEL_ACTIVE=0
+    IPTABLES_MODULE_ACTIVE=0
+    FIREWALL_ACTIVE=0
+    FIREWALL_SOFTWARE=""
+#
+#################################################################################
+#
+# YYY Improvement needed for iptables to check if kernel modules are used or not.
+# If they are not used and iptables is not found in configuration, no checks should be performed.
+#
+
+    # Test        : FIRE-4511
+    # Description : Check iptables kernel module
+    Register --test-no FIRE-4511 --os Linux --weight L --network NO --description "Check iptables kernel module"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`lsmod | awk '{ print $1 }' | grep "^ip*_tables"`
+        if [ ! "${FIND}" = "" ]; then
+            FIREWALL_ACTIVE=1
+            FIREWALL_SOFTWARE="iptables"
+            IPTABLES_ACTIVE=1
+            IPTABLES_MODULE_ACTIVE=1
+            Display --indent 2 --text "- Checking iptables kernel module" --result FOUND --color GREEN
+            logtext "Result: Found iptables in loaded kernel modules"
+            for I in ${FIND}; do
+                logtext "Found module: ${I}"
+            done
+          else
+            Display --indent 2 --text "- Checking iptables kernel module" --result "NOT FOUND" --color WHITE
+
+            # If we can't find an active module, try to find the Linux configuration file and check that
+            if [ -f /proc/config.gz ]; then
+                LINUXCONFIGFILE="/proc/config.gz"; tCATCMD="zcat";
+            fi
+            sLINUXCONFIGFILE="/boot/config-`uname -r`"
+            if [ -f ${sLINUXCONFIGFILE} ]; then
+                LINUXCONFIGFILE=${sLINUXCONFIGFILE}; tCATCMD="cat";
+            fi
+
+            # If we have a kernel configuration file, use it for testing
+            # Do not perform test if we already found it in kernel module list, to avoid triggered it in the upcoming
+            # tests, when using iptables --list
+            if [ ! "${LINUXCONFIGFILE}" = "" -a -f ${LINUXCONFIGFILE} -a ${IPTABLES_MODULE_ACTIVE} -eq 0 ]; then
+                logtext "Result: found kernel configuration file (${LINUXCONFIGFILE})"
+                FIND=`${tCATCMD} ${LINUXCONFIGFILE} | grep -v '^#' | grep "CONFIG_IP_NF_IPTABLES" | head -n 1`
+                if [ ! "${FIND}" = "" ]; then
+                    HAVEMOD=`echo ${FIND} | cut -d '=' -f2`
+                    # Do not use iptables if it's compiled as a module (=m), since we already tested for it in the
+                    # active list.
+                    if [ "${HAVEMOD}" = "y" ]; then
+                            logtext "Result: iptables available as a module in the configuration"
+                            IPTABLES_ACTIVE=1
+                            IPTABLES_INKERNEL_ACTIVE=1
+                            FIREWALL_ACTIVE=1
+                            FIREWALL_SOFTWARE="iptables"
+                            Display --indent 2 --text "- Checking iptables in config file" --result FOUND --color GREEN
+                      else
+                        logtext "Result: no iptables found in Linux kernel config file"
+                    fi
+                  else
+                    logtext "Result: no Linux configuration file found"
+                    Display --indent 2 --text "- Checking iptables in config file" --result "NOT FOUND" --color WHITE
+                fi
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4512
+    # Description : Check iptables for empty ruleset
+    if [ ! "${IPTABLESBINARY}" = "" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FIRE-4512 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --description "Check iptables for empty ruleset"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${IPTABLESBINARY} --list --numeric | egrep -v "^(Chain|target|$)" | wc -l | tr -d ' '`
+        if [ "${FIND}" = "0" ]; then
+            # Firewall is active, but clearly needs configuration
+            FIREWALL_ACTIVE=1
+            logtext "Result: iptables ruleset is empty"
+            Display --indent 4 --text "- Checking for empty ruleset" --result WARNING --color RED
+            ReportWarning ${TEST_NO} "L" "iptables module(s) loaded, but no rules active"
+            ReportSuggestion ${TEST_NO} "Disable iptables kernel module if not used or make sure rules are being used"
+          else
+            logtext "Result: one or more rules are available"
+            Display --indent 4 --text "- Checking for empty ruleset" --result OK --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4513
+    # Description : Check iptables for unused rules
+    if [ ! "${IPTABLESBINARY}" = "" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FIRE-4513 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --description "Check iptables for unused rules"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${IPTABLESBINARY} --list --numeric --line-numbers --verbose | awk '{ if ($2=="0") print $1 }' | xargs`
+        if [ "${FIND}" = "" ]; then
+            Display --indent 4 --text "- Checking for unused rules" --result OK --color GREEN
+            logtext "Result: There are no unused rules present"
+          else
+            Display --indent 4 --text "- Checking for unused rules" --result WARNING --color YELLOW
+            logtext "Result: Found one or more possible unused rules"
+            logtext "Description: Unused rules can be a sign that the firewall rules aren't optimized or up-to-date"
+            logtext "Note: Sometimes rules aren't triggered but still in use. Keep this in mind before cleaning up rules."
+            logtext "Output: iptables rule numbers: ${FIND}"
+            #ReportWarning ${TEST_NO} "L" "Found possible unused iptables rules ($FIND)"
+            ReportSuggestion ${TEST_NO} "Check iptables rules to see which rules are currently not used"
+            logtext "Tip: iptables --list --numeric --line-numbers --verbose"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4518
+    # Description : Checking status of pf firewall components
+    Register --test-no FIRE-4518 --weight L --network NO --description "Check pf firewall components"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        PFFOUND=0; PFLOGDFOUND=0
+
+        # Check status with pfctl
+        logtext "Test: checking pf status via pfctl"
+        if [ ! "${PFCTLBINARY}" = "" ]; then
+            FIND=`${PFCTLBINARY} -sa 2>&1 | grep "^Status" | head -1 | awk '{ print $2 }'`
+            if [ "${FIND}" = "Enabled" ]; then
+                Display --indent 2 --text "- Checking pf status (pfctl)" --result ENABLED --color GREEN
+                logtext "Result: pf is enabled"
+                PFFOUND=1
+                AddHP 3 3
+              else
+                if [ "${FIND}" = "Disabled" ]; then
+                    Display --indent 2 --text "- Checking pf status (pfctl)" --result DISABLED --color RED
+                    logtext "Result: pf is disabled"
+                    AddHP 0 3
+                  else
+                    Display --indent 2 --text "- Checking pf status (pfctl)" --result UNKNOWN --color YELLOW
+                    ReportException ${TEST_NO} "Unknown status of pf firewall"
+                fi
+            fi
+        fi
+
+        # If we didn't find the status to be enabled, stop searching
+        if [ ${PFFOUND} -eq 1 ]; then
+            # Check for pf kernel module (FreeBSD and similar)
+            logtext "Test: searching for pf kernel module"
+            if [ ! "${KLDSTATBINARY}" = "" ]; then
+                FIND=`${KLDSTATBINARY} | grep 'pf.ko'`
+                if [ "${FIND}" = "" ]; then
+                    logtext "Result: Can not find pf KLD"
+                  else
+                    logtext "Result: pf KLD loaded"
+                    PFFOUND=1
+                fi
+              else
+                logtext "Result: no kldstat binary, skipping this part"
+            fi
+
+            IsRunning pflogd
+            if [ ${RUNNING} -eq 1 ]; then
+                logtext "Result: found pflog daemon in process list"
+                Display --indent 4 --text "- Checking pflogd status" --result ACTIVE --color GREEN
+                PFFOUND=1
+                PFLOGDFOUND=1
+              else
+                logtext "Result: pflog daemon not found in process list"
+                Display --indent 4 --text "- Checking pflogd status" --result "NOT FOUND" --color YELLOW
+            fi
+        fi
+
+        if [ ${PFFOUND} -eq 1 ]; then
+            FIREWALL_ACTIVE=1
+            FIREWALL_SOFTWARE="pf"
+          else
+            logtext "Result: pf not running on this system"
+            Display --indent 2 --text "- Checking pf" --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4520
+    # Description : Check pf configuration consistency
+    if [ ${PFFOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FIRE-4520 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check pf configuration consistency"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: check /etc/pf.conf"
+        # Test for warnings (-n don't load the rules)
+        if [ -f /etc/pf.conf ]; then
+            logtext "Result: /etc/pf.conf exists"
+            # Check results from pfctl
+            PFWARNINGS=`pfctl -n -f /etc/pf.conf -vvv 2>&1 | grep -i 'warning'`
+            if [ "${PFWARNINGS}" = "" ]; then
+                Display --indent 4 --text "- Checking pf configuration consistency" --result OK --color GREEN
+                logtext "Result: no pf filter warnings found"
+              else
+                Display --indent 4 --text "- Checking pf configuration consistency" --result WARNING --color RED
+                logtext "Result: found one or more warnings in the pf filter rules"
+                ReportWarning ${TEST_NO} "H" "Found one or more warnings in pf configuration file"
+                ReportSuggestion ${TEST_NO} "Run 'pfctl -n -f /etc/pf.conf -vvv' to see available pf warnings"
+            fi
+          else
+            logtext "Result: /etc/pf.conf does NOT exist"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4522
+    # Description : Check ipchains
+#
+#################################################################################
+#
+    # Test        : FIRE-4526
+    # Description : Check ipf (Solaris)
+    if [ ! "${IPFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FIRE-4526 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check ipf status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${IPFBINARY} -n -V | grep "^Running" | awk '{ print $2 }'`
+        if [ "${FIND}" = "yes" ]; then
+            Display --indent 4 --text "- Checking ipf status" --result RUNNING --color GREEN
+            logtext "Result: ipf is enabled and running"
+            FIREWALL_ACTIVE=1
+            FIREWALL_SOFTWARE="ipf"
+          else
+            Display --indent 4 --text "- Checking ipf status" --result "NOT RUNNING" --color YELLOW
+            logtext "Result: ipf is not running"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4530
+    # Description : Check ipfw
+#
+#################################################################################
+#
+    # Test        : FIRE-4590
+    # Description : Check if at least one firewall if active
+    Register --test-no FIRE-4590 --weight L --network NO --description "Check firewall status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ${FIREWALL_ACTIVE} -eq 1 ]; then
+            Display --indent 2 --text "- Checking host based firewall" --result ACTIVE --color GREEN
+            logtext "Result: host based firewall or packet filter is active"
+            #YYY add manual item to report
+            report "manual[]=Verify if there is a formal process for testing and applying firewall rules"
+            report "manual[]=verify all traffic is filtered the right way between the different security zones"
+            report "manual[]=verify if a list is available with all required services"
+            # YYY Solaris ipf (determine default policy)
+            report "manual[]=Make sure an explicit deny all is the default policy for all unmatched traffic"
+            AddHP 5 5
+          else
+            Display --indent 2 --text "- Checking host based firewall" --result "NOT ACTIVE" --color YELLOW
+            logtext "Result: no host based firewall/packet filter found or configured"
+            ReportSuggestion ${TEST_NO} "Configure a firewall/packet filter to filter incoming and outgoing traffic"
+            AddHP 0 5
+        fi
+    fi
+#
+#################################################################################
+#
+
+# Report firewall installed for now, if we found one active. Next step would be determining binaries first and apply additional checks.
+report "firewall_installed=${FIREWALL_ACTIVE}"
+report "firewall_active=${FIREWALL_ACTIVE}"
+report "firewall_software=${FIREWALL_SOFTWARE}"
+
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

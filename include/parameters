@@ -1,0 +1,184 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Parameter checks
+#
+#################################################################################
+#
+
+    # Check number of parameters submitted (at least one is needed)
+    PARAMCOUNT=$#
+    while [ $# -ge 1 ]; do
+      case $1 in
+
+          # Assign auditor to report
+          --auditor)
+             shift
+             AUDITORNAME=$1
+          ;;
+
+          # Perform tests
+          -c | --check-all | --checkall)
+             CHECK=1
+          ;;
+
+          # Cronjob support
+          --cronjob | --cron)
+             CRONJOB=1;
+             # Use some defaults (-c, -Q, no colors)
+             CHECK=1; QUICKMODE=1; NEVERBREAK=1
+             # Get rid of the colors
+             NORMAL=""; WARNING=""; SECTION=""; NOTICE=""; OK=""; BAD=""; CYAN=""; MAGENTA=""; PURPLE=""; YELLOW=""; WHITE=""; GREEN=""; RED=""
+          ;;
+
+          # Perform tests with additional debugging information on screen
+          --debug)
+             DEBUG=1
+          ;;
+
+
+          # View help
+          --help | -h)
+              VIEWHELP=1
+          ;;
+
+          # View program/database information
+          --check-update | --info)
+              VIEWUPDATEINFO=1
+          ;;
+
+          # License key for Lynis Enterprise
+          --license-key)
+             shift
+             LICENSE_KEY=$1
+          ;;
+
+          # Adjust default logfile location
+          --logfile | --log-file)
+             shift
+             LOGFILE=$1
+          ;;
+
+          # Don't use colors
+          --no-colors)
+              NORMAL=""; WARNING=""; SECTION=""; NOTICE=""; OK=""; BAD=""; CYAN=""; MAGENTA=""; PURPLE=""; YELLOW=""; WHITE=""; GREEN=""; RED=""
+          ;;
+
+          # Disable logging
+          --no-log | --nolog)
+             LOGFILE="/dev/null"
+          ;;
+
+          # Define a custom profile file
+          --profile)
+             shift
+             PROFILE=$1
+          ;;
+
+          # Define a custom plugin directory
+          --plugin-dir)
+             shift
+             PLUGINDIR=$1
+             LASTCHAR=`echo $1 | awk '{ print substr($0, length($0))}'`
+             if [ "${LASTCHAR}" = "/" ]; then
+                 echo "${RED}Error:${WHITE} plugin directory path should not end with a slash${NORMAL}"
+                 ExitFatal
+             fi
+             if [ ! -d ${PLUGINDIR} ]; then
+                 echo "${RED}Error:${WHITE} invalid plugin directory ${PLUGINDIR}${NORMAL}"
+                 ExitFatal
+             fi
+          ;;
+
+          # Quiet mode
+          -q | --quiet)
+             QUIET=1
+             # Run non-interactive
+             QUICKMODE=1
+          ;;
+
+          # Non-interactive mode
+          -Q | --quick)
+             QUICKMODE=1
+          ;;
+
+          # Strip the colors which aren't clearly visible on light backgrounds
+          --reverse-colors)
+              #NORMAL="";
+              SECTION="${NORMAL}";
+              NOTICE="${NORMAL}";
+              #OK="";
+              #BAD="";
+              CYAN="${NORMAL}";
+              GREEN="${NORMAL}";
+              YELLOW="${NORMAL}";
+              WHITE="${NORMAL}";
+              PURPLE="${NORMAL}";
+              #GREEN="";
+              #RED=""
+          ;;
+
+          # Only scan these tests
+          --tests)
+              shift
+              TESTS_TO_PERFORM=$1
+          ;;
+
+          # Scan one or more categories only
+          --tests-category)
+              shift
+              TESTS_CATEGORY_TO_PERFORM=$1
+          ;;
+
+          # Lynis Enterprise: upload data to central node
+          --upload)
+             UPLOAD_DATA=1
+          ;;
+          # Version number
+          -V | --version)
+             echo "${PROGRAM_version}"
+             exit 0
+          ;;
+
+          --view-categories | --list-categories | --show-categories)
+             ViewCategories
+             exit 0
+          ;;
+
+          # View man page
+          --view-manpage | --man)
+             if [ -f lynis.8 ]; then
+                 nroff -man lynis.8
+                 exit 0
+               else
+                 echo "Error: man page file not found (lynis.8)"
+                 echo "If you are running an installed version of Lynis, use 'man lynis'"
+                 exit 1
+             fi
+          ;;
+
+          # Drop out when using wrong option(s)
+          *)
+              # Wrong option used, we bail out later
+              WRONGOPTION=1
+              WRONGOPTION_value=$1
+          ;;
+      esac
+      shift
+    done
+
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

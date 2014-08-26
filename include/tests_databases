@@ -1,0 +1,154 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Databases
+#
+#################################################################################
+#
+    # Status of database processes
+    MYSQL_RUNNING=0
+    ORACLE_RUNNING=0
+    POSTGRESQL_RUNNING=0
+    # Paths to DATADIR
+    sMYSQLDBPATHS="/var/lib/mysql"
+    # Paths to my.cnf
+    sMYCNFLOCS="/etc/mysql/my.cnf /usr/etc/my.cnf"
+#
+#################################################################################
+#
+    InsertSection "Databases"
+
+    # Test        : DBS-1804
+    # Description : Check if MySQL is being used
+    Register --test-no DBS-1804 --weight L --network NO --description "Checking active MySQL process"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${PSBINARY} ax | egrep "mysqld|mysqld_safe" | grep -v "grep"`
+        if [ "${FIND}" = "" ]; then
+            Display --indent 2 --text "- MySQL process status..." --result "NOT FOUND" --color WHITE
+            logtext "Result: MySQL process not active"
+          else
+            Display --indent 2 --text "- MySQL process status..." --result "FOUND" --color GREEN
+            logtext "Result: MySQL is active"
+            MYSQL_RUNNING=1
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1808
+    # Description : Check MySQL data directory
+    #Register --test-no DBS-1808 --weight L --network NO --description "Checking MySQL data directory"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    #fi
+#
+#################################################################################
+#
+    # Test        : DBS-1812
+    # Description : Check data directory permissions
+    #Register --test-no DBS-1812 --weight L --network NO --description "Checking MySQL data directory permissions"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    #fi
+#
+#################################################################################
+#
+    # Test        : DBS-1816
+    # Description : Check empty MySQL root password
+    # Notes       : Only perform test when MySQL is running and client is available
+    if [ ! "${MYSQLCLIENTBINARY}" = "" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking MySQL root password"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	logtext "Test: Trying to login to local MySQL server without password"
+	FIND=`${MYSQLCLIENTBINARY} -u root --password= --silent --batch --execute="" 2> /dev/null; echo $?`
+	if [ "${FIND}" = "0" ]; then
+	    logtext "Result: Login succeeded, no MySQL root password set!"
+	    ReportWarning ${TEST_NO} "H" "No MySQL root password set"
+	    ReportSuggestion ${TEST_NO} "Use mysqladmin to set a MySQL root password (mysqladmin -u root -p password MYPASSWORD)"
+	    Display --indent 4 --text "- Checking empty MySQL root password" --result WARNING --color RED
+	    AddHP 0 5
+	  else
+	    logtext "Result: Login did not succeed, so a MySQL root password is set"	    
+	    Display --indent 4 --text "- Checking MySQL root password" --result OK --color GREEN
+	    AddHP 2 2
+	fi
+      else
+        logtext "Test skipped, MySQL daemon not running or no MySQL client available"
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1826
+    # Description : Check if PostgreSQL is being used
+    Register --test-no DBS-1826 --weight L --network NO --description "Checking active PostgreSQL processes"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	FIND=`${PSBINARY} ax | grep "postgres:" | grep -v "grep"`
+	if [ "${FIND}" = "" ]; then
+	    Display --indent 2 --text "- PostgreSQL processes status..." --result "NOT FOUND" --color WHITE
+	    logtext "Result: PostgreSQL process not active"
+	  else
+	    Display --indent 2 --text "- PostgreSQL processes status..." --result "FOUND" --color GREEN
+	    logtext "Result: PostgreSQL is active"
+	    POSTGRESQL_RUNNING=1
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1840
+    # Description : Check if Oracle is being used
+    # Notes       : tnslsnr: Oracle listener
+    #               pmon: process monitor
+    #               smon: system monitor
+    #               dbwr: database writer
+    #               lgwr: log writer
+    #               arch: archiver (optional)
+    #               ckpt: checkpoint (optional)
+    #               reco: recovery (optional)
+    Register --test-no DBS-1840 --weight L --network NO --description "Checking active Oracle processes"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${PSBINARY} ax | egrep "ora_pmon|ora_smon|tnslsnr" | grep -v "grep"`
+        if [ "${FIND}" = "" ]; then
+            Display --indent 2 --text "- Oracle processes status..." --result "NOT FOUND" --color WHITE
+            logtext "Result: Oracle process(es) not active"
+          else
+            Display --indent 2 --text "- Oracle processes status..." --result "FOUND" --color GREEN
+            logtext "Result: Oracle is active"
+            ORACLE_RUNNING=1
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1842
+    # Description : Check Oracle home paths from oratab
+    #Register --test-no DBS-1842 --weight L --network NO --description "Checking Oracle home paths"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    # if [ -f /etc/oratab ]; then
+    #  FIND=`cat /etc/oratab | grep -v "#" | awk -F: "{ print $2 }"`
+    # fi
+    #fi
+#
+#################################################################################
+#
+report "mysql_running=${MYSQL_RUNNING}"
+report "oracle_running=${ORACLE_RUNNING}"
+report "postgresql_running=${POSTGRESQL_RUNNING}"
+
+wait_for_keypress
+
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

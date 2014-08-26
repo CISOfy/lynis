@@ -1,0 +1,974 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# This software is licensed under GPL, version 3. See LICENSE file for
+# usage of this software.
+#
+#################################################################################
+#
+# Functions
+#
+#################################################################################
+#
+#    Function                   Description
+#    -----------------------    -------------------------------------------------
+#    AddHP                      Add Hardening points to plot a graph later
+#    CheckFilePermissions       Check file permissions
+#    CheckUpdates               Determine if a new version of Lynis is available
+#    counttests                 Count number of performed tests
+#    Debug                      Display additional information on the screen (not suited for cronjob)
+#    DirectoryExists            Check if a directory exists on the disk
+#    Display                    Output text to screen with colors and identation
+#    ExitClean                  Stop the program (cleanly)
+#    ExitFatal                  Stop the program (cleanly), with fatal
+#    FileExists                 Check if a file exists on the disk
+#    GetHostID                  Retrieve an unique ID for this host
+#    InsertSection              Insert a section block
+#    InsertPluginSection        Insert a section block for plugins
+#    IsRunning                  Check if a process is running
+#    ParseNginx                 Parse nginx configuration lines
+#    ReportException            Add an exception to the report file (for debugging purposes)
+#    ReportSuggestion           Add a suggestion to report file
+#    ReportWarning              Add a warning and priority to report file
+#    Register                   Register a test (for logging and execution)
+#    SafePerms                  Check if a directory has safe permissions
+#    SearchItem                 Search a string in a file
+#    ViewCategories             Display tests categories
+#    logtext                    Log text strings to logfile, prefixed with date/time
+#
+#################################################################################
+
+    # Add Hardening Points
+    AddHP()
+      {
+        HPADD=$1; HPADDMAX=$2
+        HPPOINTS=`expr ${HPPOINTS} + ${HPADD}`
+        HPTOTAL=`expr ${HPTOTAL} + ${HPADDMAX}`
+        logtext "Hardening: assigned ${HPADD} hardening points (max for this item: ${HPADDMAX}), current: ${HPPOINTS}, total: ${HPTOTAL}"
+      }
+
+    # Check file permissions
+    # Parameter 1 is file/dir
+    # Result: FILE_NOT_FOUND | OK | BAD
+    CheckFilePermissions()
+      {
+        CHECKFILE=$1
+        if [ ! -d $CHECKFILE -a ! -f $CHECKFILE ]; then
+            PERMS="FILE_NOT_FOUND"
+          else
+            # If 'file' is an directory, use -d
+            if [ -d ${CHECKFILE} ]; then
+                FILEVALUE=`ls -d -l ${CHECKFILE} | cut -c 2-10`
+                PROFILEVALUE=`cat ${PROFILE} | grep '^permdir' | grep ":${CHECKFILE}:" | cut -d: -f3` 
+              else
+                FILEVALUE=`ls -l ${CHECKFILE} | cut -c 2-10`
+                PROFILEVALUE=`cat ${PROFILE} | grep '^permfile' | grep ":${CHECKFILE}:" | cut -d: -f3` 
+            fi
+            if [ "${FILEVALUE}" = "${PROFILEVALUE}" ]; then PERMS="OK"; else PERMS="BAD"; fi
+        fi
+      }
+
+    ################################################################################
+    # Name        : CheckItem()
+    # Description : Check if a specific item exists in the report
+    # Returns     : <nothing>
+    ################################################################################
+
+    CheckItem()
+      {
+         ITEM_FOUND=0
+         if [ $# -eq 2 ]; then
+            # Don't search in /dev/null, it's too empty there
+            if [ ! "${REPORTFILE}" = "/dev/null" ]; then
+                # Check if we can find the main type (with or without brackets)
+                logtext "Test: search string $2 in earlier discovered results"
+                FIND=`egrep "^$1(\[\])?=" ${REPORTFILE} | egrep "$2"`
+                if [ ! "${FIND}" = "" ]; then
+                    ITEM_FOUND=1
+                    logtext "Result: found string"
+                 else
+                    logtext "Result: search string NOT found"
+                fi
+              else
+                logtext "Skipping search, as /dev/null is being used"
+            fi
+          else
+            ReportException ${TEST_NO} "Error in function call to CheckItem"
+         fi
+      }
+
+    # Check updates
+    CheckUpdates()
+      {
+        # Possible improvement: determine if host binary exists YYY
+        PROGRAM_LV="0000000000"; DB_MALWARE_LV="0000000000"; DB_FILEPERMS_LV="0000000000"
+        FIND=`which dig 2> /dev/null`
+        if [ ! "${FIND}" = "" ]; then
+            PROGRAM_LV=`dig +short -t txt lynis-lv.rootkit.nl 2> /dev/null | sed 's/[".]//g'`
+            #DB_MALWARE_LV=`dig +short -t txt lynis-mw.rootkit.nl 2> /dev/null | sed 's/[".]//g'`
+            #DB_FILEPERMS_LV=`dig +short -t txt lynis-fp.rootkit.nl 2> /dev/null | sed 's/[".]//g'`
+          else
+            FIND=`which host 2> /dev/null`
+            if [ ! "${FIND}" = "" ]; then
+                PROGRAM_LV=`host -t txt lynis-lv.rootkit.nl | awk '{ if ($1=="lynis-lv.rootkit.nl" && $3=="text") { print $4 }}' | sed 's/"//g'`
+                if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
+              else
+                logtext "Result: dig and host not installed, update check skipped"
+                UPDATE_CHECK_SKIPPED=1
+            fi
+         fi
+      }
+
+    # Count the number of performed tests
+    counttests()
+      {
+        CTESTS_PERFORMED=`expr ${CTESTS_PERFORMED} + 1`
+      }
+
+    # Determine if a directory exists
+    DirectoryExists()
+      {
+        DIRECTORY_FOUND=0
+        logtext "Test: checking if directory $1 exists"
+        if [ -d $1 ]; then
+            logtext "Result: directory exists"
+            DIRECTORY_FOUND=1
+          else
+            logtext "Result: directory NOT found"
+        fi
+      }
+
+    # More information on the screen
+    Debug()
+      {
+        if [ ${DEBUG} -eq 1 ]; then echo "DEBUG: $1"; fi
+      }
+
+    # Display text
+    Display()
+      {
+        INDENT=0; TEXT=""; RESULT=""; COLOR=""
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --color)
+                    shift
+                        case $1 in
+                          GREEN)   COLOR=$GREEN   ;;
+                          RED)     COLOR=$RED     ;;
+                          WHITE)   COLOR=$WHITE   ;;
+                          YELLOW)  COLOR=$YELLOW  ;;
+                        esac
+                ;;
+                --indent)
+                    shift
+                    INDENT=$1
+                ;;
+                --no-break | --nobreak | -nb)
+                    ECHOCMD="echo -en"
+                ;;
+                --result)
+                    shift
+                    RESULT=$1
+                ;;
+                --text)
+                    shift
+                    TEXT=$1
+                ;;
+                *)
+                    echo "INVALID OPTION (Display): $1"
+                    exit 1
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+
+        if [ "${RESULT}" = "" ]; then
+            RESULTPART=""
+          else
+            if [ ${CRONJOB} -eq 0 ]; then
+                RESULTPART=" [ ${COLOR}${RESULT}${NORMAL} ]"
+              else
+                RESULTPART=" [ ${RESULT} ]"
+            fi
+        fi
+
+        if [ ! "${TEXT}" = "" ]; then
+            # Show warnings always, and other messages if no quiet is being used
+            if [ ${QUIET} -eq 0 -o "${RESULT}" = "WARNING" ]; then
+                # Display
+                LINESIZE=`echo "${TEXT}" | wc -c | tr -d ' '`
+                SPACES=`expr 62 - ${INDENT} - ${LINESIZE}`
+                if [ ${CRONJOB} -eq 0 ]; then
+                    ${ECHOCMD} "\033[${INDENT}C${TEXT}\033[${SPACES}C${RESULTPART}"
+                  else
+                    echo "${TEXT}${RESULTPART}"
+                fi
+            fi
+        fi
+      }
+
+    # Clean exit (removing temp files, PID files)
+    ExitClean()
+      {
+        RemovePIDFile
+        exit 0
+      }
+
+    # Clean exit (removing temp files, PID files), with error code 1
+    ExitFatal()
+      {
+        RemovePIDFile
+        exit 1
+      }
+
+    # Determine if a file exists
+    FileExists()
+      {
+        FILE_FOUND=0
+        logtext "Test: checking if file $1 exists"
+        if [ -f $1 ]; then
+            logtext "Result: file exists"
+            FILE_FOUND=1
+          else
+            logtext "Result: file NOT found"
+        fi
+      }
+
+    # Get Host ID
+    GetHostID()
+      {
+        HOSTID="-"
+        if [ ! "${SHA1SUMBINARY}" = "" ]; then
+
+            case "${OS}" in
+
+                "AIX")
+                     FIND=`entstat en0 2>/dev/null | grep "Hardware Address" | awk -F ": " '{ print $2 }'`
+                     if [ ! "${FIND}" = "" ]; then
+                         HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                       else
+                         ReportException "GetHostID" "No MAC address returned on AIX"
+                     fi
+                ;;
+
+                "DragonFly" | "FreeBSD")
+                     FIND=`${IFCONFIGBINARY} | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     if [ ! "${FIND}" = "" ]; then
+                         HOSTID=`echo ${FIND} | sha1`
+                       else
+                         ReportException "GetHostID" "No MAC address returned on DragonFly or FreeBSD"
+                     fi
+                ;;
+
+                "Linux")
+                        if [ ! "${IPBINARY}" = "" ]; then
+                            # Define preferred interfaces
+                            #PREFERRED_INTERFACES="eth0 eth1 eth2 enp0s25"
+                            # Determine if we have ETH0 at all (not all Linux distro have this, e.g. Arch)
+                            HASETH0=`${IFCONFIGBINARY} | grep "^eth0"`
+                            # Check if we can find it with HWaddr on the line
+                            FIND=`${IFCONFIGBINARY} 2> /dev/null | grep "^eth0" | grep -v "eth0:" | grep HWaddr | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]'`
+
+                            # If nothing found, then try first for alternative interface. Else other versions of ifconfig (e.g. Slackware/Arch)
+                            if [ "${FIND}" = "" ]; then
+                                FIND=`${IFCONFIGBINARY} 2> /dev/null | grep HWaddr`
+                                if [ "${FIND}" = "" ]; then
+                                    # If possible directly address eth0 to avoid risking gathering the incorrect MAC address.
+                                    # If not, then falling back to getting first interface. Better than nothing.
+                                    if [ ! "${HASETH0}" = "" ]; then
+                                        FIND=`${IFCONFIGBINARY} eth0 2> /dev/null | grep "ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                                      else
+                                        FIND=`${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -1 | tr '[:upper:]' '[:lower:]'`
+                                        if [ "${FIND}" = "" ]; then
+                                            report "exception[]=No eth0 found (and no ether was found)"
+                                          else
+                                            logtext "Result: No eth0 found (ether found), using first network interface to determine hostid"
+                                        fi
+                                    fi
+                                  else
+                                    FIND=`${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]'`
+                                    report "exception[]=No eth0 found (but HWaddr was found), using first network interface to determine hostid"
+                                fi
+                            fi
+
+                            if [ ! "${HASETH0}" = "" ]; then
+                                # Now determine the MAC with the ip command
+                                FIND2=`${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                              else
+                                # Forcing them to be the same. Unreliable to test with ip while knowing eth0 does not exist.
+                                # Additionally usually lo0 will show up first, making test not worth doing.
+                                FIND2="${FIND}"
+                            fi
+                            # Check if both commands give the same data
+                            if [ "${FIND}" = "${FIND2}" ]; then
+                                HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                                logtext "Result: Found HostID: ${HOSTID}"
+                              else
+                                report "exception[]=Can't create HOSTID, receiving different output from commands"
+                                logtext "Debug: output FIND (ifconfig): ${FIND}"
+                                logtext "Debug: output FIND2 (ip): ${FIND2}"
+                            fi
+                          else
+                            report "exception[]=Can't create HOSTID, command ip not found"
+                        fi
+                ;;
+
+                "MacOS")
+                     FIND=`${IFCONFIGBINARY} en0 | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     if [ ! "${FIND}" = "" ]; then
+                         HOSTID=`echo ${FIND} | shasum | awk '{ print $1 }'`
+                       else
+                         ReportException "GetHostID" "No MAC address returned on Mac OS"
+                     fi
+                ;;
+
+                "NetBSD")
+                     FIND=`${IFCONFIGBINARY} -a | grep "address:" | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     if [ ! "${FIND}" = "" ]; then
+                         HOSTID=`echo ${FIND} | sha1`
+                       else
+                         ReportException "GetHostID" "No MAC address returned on NetBSD"
+                     fi
+                ;;
+
+                "OpenBSD")
+                     FIND=`${IFCONFIGBINARY} | grep "lladdr " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     if [ ! "${FIND}" = "" ]; then
+                         HOSTID=`echo ${FIND} | sha1`
+                       else
+                         ReportException "GetHostID" "No MAC address returned on OpenBSD"
+                     fi
+                ;;
+
+                "Solaris")
+                    INTERFACES_TO_TEST="e1000g1 net0"
+                    FOUND=0
+                    for I in ${INTERFACES_TO_TEST}; do
+                         FIND=`${IFCONFIGBINARY} -a | grep "^${I}"`
+                         if [ ! "${FIND}" = "" ]; then
+                             FOUND=1; logtext "Found interface ${I} on Solaris"
+                         fi
+                    done
+                    if [ ${FOUND} -eq 1 ]; then
+                        FIND=`${IFCONFIGBINARY} ${I} | grep ether | awk '{ if ($1=="ether") { print $2 }}'`
+                        HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                      else
+                        ReportException "GetHostID" "No interface found op Solaris to create HostID"
+                    fi
+                ;;
+
+
+                *)
+                        ReportException "GetHostID" "Can't create HOSTID as OS is not supported by this function"
+                ;;
+            esac
+          else
+              report "exception[]=No SHA1/SHA1SUM binary found to create HOSTID"
+        fi
+
+      }
+
+    # Insert section block
+    InsertSection()
+      {
+        if [ ${QUIET} -eq 0 ]; then
+            echo ""
+            echo "[+] ${SECTION}$1${NORMAL}"
+            echo "------------------------------------"
+        fi
+        logtextbreak
+        logtext "Action: Performing tests from category: $1"
+      }
+
+    # Insert section block for plugins
+    InsertPluginSection()
+      {
+        if [ ${QUIET} -eq 0 ]; then
+            echo ""
+            echo "[+] ${MAGENTA}$1${NORMAL}"
+            echo "------------------------------------"
+        fi
+        logtext "Action: Performing plugin tests"
+      }
+
+    # Is a process running?
+    # Returns: RUNNING
+    IsRunning()
+      {
+        RUNNING=0
+        FIND=`${PSBINARY} ax | egrep "( |/)$1" | grep -v "grep"`
+        if [ ! "${FIND}" = "" ]; then
+            RUNNING=1
+            logtext "IsRunning: process '$1' found (${FIND})"
+          else
+            logtext "IsRunning: process '$1' not found"
+        fi
+      }
+
+
+    # Function IsWorldExecutable
+    IsWorldExecutable()
+      {
+        sFILE=$1
+        FileIsWorldExecutable=""
+        SYMLINK=0
+
+        # Check for symlink
+        if [ -L ${sFILE} ]; then
+            if [ ! "${READLINKBINARY}" = "" ]; then
+                tFILE=`${READLINKBINARY} ${sFILE}`
+                # Check if we can find the file now
+                if [ -f ${tFILE} ]; then
+                    sFILE="${tFILE}"
+                    logtext "Result: symlink found, pointing to ${sFILE}"
+                    SYMLINK=1
+                  else
+                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
+                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
+                    tFILE="${tDIR}/${tFILE}"
+                    if [ -f ${tFILE} ]; then
+                      sFILE="${tFILE}"
+                      logtext "Result: symlink found, seems to be ${sFILE}"
+                      SYMLINK=1
+                    fi
+                fi
+            fi
+        fi
+        # Only check the file if it isn't a symlink (after previous check)
+        if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
+            FINDVAL=`ls -l ${sFILE} | cut -c 10`
+            if [ "${FINDVAL}" = "x" ]; then FileIsWorldExecutable="TRUE"; else FileIsWorldExecutable="FALSE"; fi
+          else
+            FileIsWorldExecutable="NOSUCHFILE"
+        fi
+      }
+
+    # Function IsWorldWritable
+    IsWorldWritable()
+      {
+        sFILE=$1
+        FileIsWorldWritable=""
+
+        # Check for symlink
+        if [ -L ${sFILE} ]; then
+            if [ ! "${READLINKBINARY}" = "" ]; then
+                tFILE=`${READLINKBINARY} ${sFILE}`
+                # Check if we can find the file now
+                if [ -f ${tFILE} ]; then
+                    sFILE="${tFILE}"
+                    logtext "Result: symlink found, pointing to ${sFILE}"
+                    SYMLINK=1
+                  else
+                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
+                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
+                    tFILE="${tDIR}/${tFILE}"
+                    if [ -f ${tFILE} ]; then
+                      sFILE="${tFILE}"
+                      logtext "Result: symlink found, seems to be ${sFILE}"
+                      SYMLINK=1
+                    fi
+                fi
+            fi
+        fi
+
+        # Only check the file if it isn't a symlink (after previous check)	
+        if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
+            FINDVAL=`ls -l ${sFILE} | cut -c 9`
+            if [ "${FINDVAL}" = "w" ]; then FileIsWorldWritable="TRUE"; else FileIsWorldWritable="FALSE"; fi
+          else
+            FileIsWorldWritable="NOSUCHFILE"
+        fi
+      }
+
+    # Function logtext (redirect data ($1) to log file)
+    logtext()
+      {
+        if [ ! "${LOGFILE}" = "" ]; then
+            CDATE=`date "+[%H:%M:%S]"`
+            echo "${CDATE} $1" >> ${LOGFILE}
+        fi
+      }
+
+
+    ################################################################################
+    # Name        : logtextbreak()
+    # Description : Add a separator to log file between sections, tests etc
+    # Returns     : <nothing>
+    logtextbreak()
+      {
+        if [ ! "${LOGFILE}" = "" ]; then
+            CDATE=`date "+[%H:%M:%S]"`
+            echo "${CDATE} ===---------------------------------------------------------------===" >> ${LOGFILE}
+        fi
+      }
+
+
+    ################################################################################
+    # Name        : Maid()
+    # Description : Cleanup service
+    # Returns     : <nothing>
+    Maid()
+      {
+        echo ""; echo "Interrupt detected."
+        # Remove PID
+        RemovePIDFile
+
+        # Clean up temp files
+        if [ ! "${TMPFILE}" = "" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
+        if [ ! "${TMPFILE2}" = "" ]; then if [ -f ${TMPFILE2} ]; then rm -f ${TMPFILE2}; fi; fi
+
+        Display --text "Cleaning up..." --result DONE --color GREEN
+
+        # Exit with exit code 1
+        exit 1
+      }
+
+    # Parse nginx configuration lines
+    ParseNginx()
+      {
+        FIND=`cat ${REPORTFILE} | grep "^nginx_config_option=" | awk -F= '{ if ($1=="nginx_config_option") { print $2 }}' | sed 's/ /:space:/g'`
+        for I in ${FIND}; do
+            I=`echo ${I} | sed 's/:space:/ /g' | sed 's/;$//'`
+            OPTION=`echo ${I} | awk '{ print $1 }'`
+            VALUE=`echo ${I}| cut -d' ' -f2-`
+            logtext "Result: found option ${OPTION} with parameters ${VALUE}"
+            case ${OPTION} in
+                access_log)
+                    if [ "${VALUE}" = "off" ]; then
+                        logtext "Result: found logging disabled for one virtual host"
+                        NGINX_ACCESS_LOG_DISABLED=1
+                      else
+                        if [ ! -f ${VALUE} ]; then
+                            logtext "Result: could not find referenced log file ${VALUE} in nginx configuration"
+                            NGINX_ACCESS_LOG_MISSING=1
+                        fi
+                    fi
+                ;;
+                # Headers
+                add_header)
+                ;;
+                alias)
+                    NGINX_ALIAS_FOUND=1
+                ;;
+                allow)
+                    NGINX_ALLOW_FOUND=1
+                ;;
+                autoindex)
+                ;;
+                deny)
+                    NGINX_DENY_FOUND=1
+                ;;
+                expires)
+                    NGINX_EXPIRES_FOUND=1
+                ;;
+                error_log)
+                    # YYY Check if debug is appended
+                    FIND=`echo ${VALUE} | awk '{ if ($2=="debug") { print 1 } else { print 0 }}'`
+                    if [ ${FIND} -eq 1 ]; then
+                        NGINX_ERROR_LOG_DEBUG=1
+                    fi
+                    # YYY Check if file exists
+                    FILE=`echo ${VALUE} | awk '{ print $1 }'`
+                    if [ ! "${FILE}" = "" ]; then
+                        if [ ! -f ${FILE} ]; then
+                          NGINX_ERROR_LOG_MISSING=1
+                        fi
+                      else
+                        logtext "Warning: did not find a filename after error_log in nginx configuration"
+                    fi
+                ;;
+                error_page)
+                ;;
+                fastcgi_intercept_errors)
+                ;;
+                fastcgi_param)
+                    NGINX_FASTCGI_FOUND=1
+                    NGINX_FASTCGI_PARAMS_FOUND=1
+                ;;
+                fastcgi_pass)
+                    NGINX_FASTCGI_FOUND=1
+                    NGINX_FASTCGI_PASS_FOUND=1
+                ;;
+                fastcgi_pass_header)
+                ;;
+                index)
+                ;;
+                keepalive_timeout)
+                ;;
+                listen)
+                    NGINX_LISTEN_FOUND=1
+                    # Test for ssl on listen statement
+                    FIND_SSL=`echo ${VALUE} | grep ssl`
+                    if [ ! "${FIND_SSL}" = "" ]; then NGINX_SSL_ON=1; fi
+                ;;
+                location)
+                    NGINX_LOCATION_FOUND=1
+                ;;
+                return)
+                    NGINX_RETURN_FOUND=1
+                ;;
+                root)
+                    NGINX_ROOT_FOUND=1
+                ;;
+                server_name)
+                ;;
+                ssl)
+                    if [ "${VALUE}" = "on" ]; then NGINX_SSL_ON=1; fi
+                ;;
+                ssl_certificate)
+                    logtext "Found SSL certificate in nginx configuration"
+                ;;
+                ssl_certificate_key)
+                ;;
+                ssl_ciphers)
+                    NGINX_SSL_CIPHERS=1
+                ;;
+                ssl_prefer_server_ciphers)
+                    if [ "${VALUE}" = "on" ]; then NGINX_SSL_PREFER_SERVER_CIPHERS=1; fi
+                ;;
+                ssl_protocols)
+                ;;
+                ssl_session_cache)
+                ;;
+                ssl_session_timeout)
+                ;;
+                types)
+                ;;
+                *)
+                    logtext "Found unknown option ${OPTION} in nginx configuration"
+                ;;
+            esac
+        done
+      }
+
+
+    # Function to determine what the real file location is
+    RealFilename()
+      {
+        sFILE=$1
+        FileIsWorldExecutable=""
+        SYMLINK=0
+
+        # Check for symlink
+        if [ -L ${sFILE} ]; then
+            if [ ! "${READLINKBINARY}" = "" ]; then
+                tFILE=`${READLINKBINARY} ${sFILE}`
+                # Check if we can find the file now
+                if [ -f ${tFILE} ]; then
+                    rFILE="${tFILE}"
+                    logtext "Result: symlink found, pointing to ${sFILE}"
+                    SYMLINK=1
+                  else
+                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
+                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
+                    tFILE="${tDIR}/${tFILE}"
+                    if [ -f ${tFILE} ]; then
+                      rFILE="${tFILE}"
+                      logtext "Result: symlink found, seems to be ${sFILE}"
+                    fi
+                fi
+            fi
+          else
+            # No symlinke
+            rFILE="${sFILE}"
+        fi
+      }
+
+
+    ################################################################################
+    # Name        : Register()
+    # Description : Register a test and see if it has to be run
+    # Returns     : SKIPTEST (0 or 1)
+    Register()
+      {
+        # Do not insert a log break, if previous test was not logged
+        if [ ${SKIPLOGTEST} -eq 0 ]; then logtextbreak; fi
+        SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
+        TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
+        TOTAL_TESTS=`expr ${TOTAL_TESTS} + 1`
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --description)
+                    shift
+                    TEST_DESCRIPTION=$1
+                ;;
+                --platform)
+                    shift
+                    TEST_NEED_PLATFORM=$1
+                ;;
+                --network)
+                    shift
+                    TEST_NEED_NETWORK=$1
+                ;;
+                --os)
+                    shift
+                    TEST_NEED_OS=$1
+                ;;
+                --preqs-met)
+                    shift
+                    PREQS_MET=$1
+                ;;
+                --test-no)
+                    shift
+                    TEST_NO=$1
+                ;;
+                --weight)
+                    shift
+                    TEST_WEIGHT=$1
+                ;;
+
+                *)
+                    echo "INVALID OPTION (Register): $1"
+                    exit 1
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+
+        # Skip test if it's configured in profile
+        if [ ${SKIPTEST} -eq 0 ]; then
+            FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}"`
+            if [ ! "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration"; fi
+        fi
+
+        # Skip if test is not in the list 
+        if [ ${SKIPTEST} -eq 0 -a ! "${TESTS_TO_PERFORM}" = "" ]; then
+          FIND=`echo "${TESTS_TO_PERFORM}" | grep "${TEST_NO}"`
+          if [ "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Test not in list of tests to perform"; fi
+        fi
+
+        # Do not run scans which have a higher intensity than what we prefer
+        if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "H" -a "${SCAN_TEST_HEAVY}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (H)"; fi
+        if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "M" -a "${SCAN_TEST_MEDIUM}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (M)"; fi	
+
+        # Skip test if OS is different than requested	
+        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_OS}" -a ! "${OS}" = "${TEST_NEED_OS}" ]; then
+            SKIPTEST=1; SKIPREASON="Incorrect guest OS (${TEST_NEED_OS} only)"
+            if [ ${LOG_INCORRECT_OS} -eq 0 ]; then
+              SKIPLOGTEST=1
+            fi
+        fi
+
+        # Check for correct hardware platform
+        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
+
+        # Not all prerequisites met, like missing tool
+        if [ ${SKIPTEST} -eq 0 -a "${PREQS_MET}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Prerequisities not met (ie missing tool, other type of Linux distribution)"; fi
+
+        # Skip test?
+        if [ ${SKIPTEST} -eq 0 ]; then
+            # First wait X seconds (depending pause_between_tests)
+            if [ ${TEST_PAUSE_TIME} -gt 0 ]; then sleep ${TEST_PAUSE_TIME}; fi
+
+            # Increase counter for every registered test which is performed
+            counttests
+            if [ ${SKIPLOGTEST} -eq 0 ]; then logtext "Performing test ID ${TEST_NO} ($TEST_DESCRIPTION)"; fi
+            TESTS_EXECUTED="${TEST_NO}|${TESTS_EXECUTED}"
+          else
+            if [ ${SKIPLOGTEST} -eq 0 ]; then logtext "Skipped test ${TEST_NO} ($TEST_DESCRIPTION)"; fi
+            if [ ${SKIPLOGTEST} -eq 0 ]; then logtext "Reason to skip: ${SKIPREASON}"; fi
+            TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
+        fi
+
+      }
+
+    # Remove PID file
+    RemovePIDFile()
+      {
+        # Test if PIDFILE is defined, before checking file presence
+        if [ ! "${PIDFILE}" = "" ]; then
+          if [ -f ${PIDFILE} ]; then
+              rm -f $PIDFILE;
+              logtext "PID file removed (${PIDFILE})"
+            else
+              logtext "PID file not found (${PIDFILE})"
+          fi
+        fi
+      }
+
+    # Dump to report file
+    report()
+      {
+        echo "$1" >> ${REPORTFILE}
+      }
+
+
+    # Log exceptions
+    ReportException()
+      {
+        # 1 parameters
+        # <ID>:<2 char numeric>|text|
+        report "exception_event[]=$1|$2|"
+        logtext "Exception: test has an exceptional event ($1) with text $2"
+      }
+
+
+    # Log manual actions to report file
+    ReportManual()
+      {
+        # 1 parameters
+        # <ID>:<2 char numeric>
+        report "manual_event[]=$1"
+        logtext "Manual: one or more manual actions are required for further testing of this control/plugin"
+      }
+
+    # Report data (TESTID STATUS IMPACT MESSAGE)
+    ReportResult()
+      {
+        if [ $1 = "" ]; then TESTID="UNKNOWN"; fi
+        # Status: OK, WARNING, NEUTRAL, SUGGESTION
+        # Impact: HIGH, SEVERE, LOW, 
+        #report "result[]=TESTID-${TESTID},STATUS-$2,IMPACT-$3,MESSAGE-$4-"
+        # Reset ID before next test
+        TESTID=""
+      }
+
+    # Log suggestions to report file
+    ReportSuggestion()
+      {
+        # 2 parameters
+        # <ID> <suggestion text>
+        report "suggestion[]=$1|$2|"
+        logtext "Suggestion: $2 [$1]"
+      }
+
+    # Log warning to report file
+    ReportWarning()
+      {
+        # 3 parameters
+        # <ID> <priority/impact> <warning text>
+        if [ "$2" = "L" -o "$2" = "M" -o "$2" = "H" ]; then
+            # old style warning
+            report "warning[]=$1|$3|"
+            logtext "Warning: $3 [$1]"
+          else
+            # new style warning
+            report "warning[]=$1|$2|"
+            logtext "Warning: $2 [test:$1]"
+        fi
+      }
+
+    SafePerms()
+      {
+        PERMS_OK=0
+        logtext "Checking permissions of $1"
+        if [ $# -eq 1 ]; then
+            # Check file permissions
+              if [ ! -f "$1" ]; then
+                  logtext "Fatal error: file $1 does not exist. Quitting."
+                  echo "Fatal error: file $1 does not exist"
+                  ExitFatal
+                else
+                  PERMS=`ls -l $1`
+                  # Owner permissions
+                  OWNER=`echo ${PERMS} | awk -F" " '{ print $3 }'`
+                  if [ ! "${OWNER}" = "root" ]; then
+                      echo "Fatal error: file $1 should be owned by user 'root' (found: ${OWNER})"
+                      ExitFatal
+                  fi
+                  # Group permissions
+                  GROUP=`echo ${PERMS} | awk -F" " '{ print $4 }'`
+                  if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" ]; then
+                      echo "Fatal error: group owner of directory $1 should be owned by root user, or related group"
+                      ExitFatal
+                  fi
+                  # Other permissions
+                  OTHER_PERMS=`echo ${PERMS} | cut -c8-10`
+                  if [ ! "${OTHER_PERMS}" = "---" ]; then
+                      echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied."
+                      ExitFatal
+                  fi
+                  # Set PERMS_OK to 1 if no fatal errors occurred
+                  PERMS_OK=1
+                  logtext "File permissions are OK"
+              fi
+          else
+            logtext "Fatal error: invalid amount of parameters when calling function SafePerms()"
+            echo "Invalid amount of parameters for function SafePerms()"
+            ExitFatal
+        fi
+      }
+
+    ################################################################################
+    # Name        : SearchItem()
+    # Description : Search if a specific string exists in in a file
+    # Parameters  : $1 = search string
+    #             : $2 = file
+    # Returns     : <nothing>
+    ################################################################################
+
+    SearchItem()
+      {
+         ITEM_FOUND=0
+         if [ $# -eq 2 ]; then
+            # Don't search in /dev/null, it's too empty there
+            if [ -f $2 ]; then
+                # Check if we can find the main type (with or without brackets)
+                logtext "Test: search string $1 in file $2"
+                FIND=`egrep "$1" $2`
+                if [ ! "${FIND}" = "" ]; then
+                    ITEM_FOUND=1
+                    logtext "Result: found string"
+                    logtext "Full string: ${FILE}"
+                 else
+                    logtext "Result: search string NOT found"
+                fi
+              else
+                logtext "Skipping search, file does not exist"
+                ReportException ${TEST_NO} "Test is trying to search for a string in nonexistent file"
+            fi
+          else
+            ReportException ${TEST_NO} "Error in function call to CheckItem"
+         fi
+      }
+
+
+    # Show result code
+    ShowResult()
+      {
+        case $1 in
+        OK)
+            echo "[ ${OK}OK${NORMAL} ]"
+        ;;
+        WARNING)
+            echo "[ ${WARNING}WARNING${NORMAL} ]"
+            # log the warning to our log file
+            #logtext "Warning: $2"
+            # add the warning to our report file
+            #report "warning=$2"
+        ;;
+        esac
+      }
+
+    ViewCategories()
+      {
+        if [ ! "${INCLUDEDIR}" = "" ]; then
+            InsertSection "Available test categories"
+            for I in `ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"`; do
+              echo "  - ${I}"
+            done
+        fi
+        echo ""
+        exit 0
+      }
+    # Wait for [ENTER] or manually break
+    wait_for_keypress()
+      {
+        if [ ! ${QUICKMODE} -eq 1 ]; then
+          echo ""; echo "[ ${WHITE}Press [ENTER] to continue, or [CTRL]+C to stop${NORMAL} ]"
+          read void
+        fi
+      }
+
+
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

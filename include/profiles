@@ -1,0 +1,186 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Read profile/template
+#
+#################################################################################
+#
+    #YYY Enable check when profile files are complete and completely documented
+    # Check if default profile is used
+    if [ "${PROFILE}" = "defaultXXX.prf" ]; then
+        echo ""
+        echo "      ==============================================================================="
+        echo "        ${WARNING}Warning${NORMAL}: ${WHITE}Default profile is used.${NORMAL}"
+        echo "          Default profile contains only a small amount of options and settings."
+        echo "          Consult the documentation to create a custom profile!"
+        echo ""
+        echo "      [ ${WHITE}Press [ENTER] to continue with the default profile or [CTRL] + C to stop${NORMAL} ]"
+        echo "      ==============================================================================="
+        wait_for_keypress
+    fi
+
+#
+#################################################################################
+#
+    Display --indent 2 --text "- Checking profile file (${PROFILE})..."
+    logtext "Reading profile/configuration ${PROFILE}"
+    FIND=`cat ${PROFILE} | grep '^config:' | sed 's/ /!space!/g'`
+    for I in ${FIND}; do
+        OPTION=`echo ${I} | cut -d ':' -f2`
+        VALUE=`echo ${I} | cut -d ':' -f3 | sed 's/!space!/ /g'`    
+
+        logtext "Profile option set: ${OPTION} (with value ${VALUE})"
+
+        case ${OPTION} in
+
+            # Maximum number of WAITing connections
+            connections_max_wait_state)
+                OPTIONS_CONN_MAX_WAIT_STATE="${VALUE}"
+            ;;
+
+            # Do not check security repository in sources.list (Debian/Ubuntu)
+            debian_skip_security_repository)
+            OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY="${VALUE}"
+            ;;
+            debug)
+                if [ "${VALUE}" = "yes" -o "${VALUE}" = "true" ]; then
+                    DEBUG=1
+                fi
+            ;;
+            # Skip FreeBSD port audit
+            freebsd_skip_portaudit)
+                logtext "Option set: Skip FreeBSD portaudit"
+                OPTION_FREEBSD_SKIP_PORTAUDIT="${VALUE}"
+            ;;
+
+            # Lynis Enterprise: group name
+            group)
+                GROUP_NAME="${VALUE}"
+            ;;
+
+            # Lynis Enterprise license key
+            license_key)
+                LICENSE_KEY="${VALUE}"
+            ;;
+
+            # Do (not) log tests if they have an different operating system
+            log_tests_incorrect_os)
+                logtext "Option set: No logging for incorrect OS"
+                if [ "${VALUE}" = "no" ]; then LOG_INCORRECT_OS=0; else LOG_INCORRECT_OS=1; fi
+            ;;
+
+            # What type of machine we are scanning (eg. desktop, server, server with storage)
+            machine_role)
+                MACHINE_ROLE="${VALUE}"
+            ;;
+
+            # Define if any found NTP daemon instance is configured as a server or client
+            ntpd_role)
+                NTPD_ROLE="${VALUE}"
+            ;;
+
+            # How much seconds to wait between tests
+            pause_between_tests)
+                TEST_PAUSE_TIME="${VALUE}"
+            ;;
+
+            # Profile name
+            profile_name)
+                # YYY dummy 
+            ;;
+
+            # Inline tips about tool
+            show_tool_tips)
+                SHOW_TOOL_TIPS="${VALUE}"
+            ;;
+
+            # Tests to always skip (useful for false positives or problematic tests)
+            test_skip_always)
+                TEST_SKIP_ALWAYS="${VALUE}"
+                logtext "Tests to be skipped: ${VALUE}"
+            ;;
+
+            # Do not check the latest version on the internet
+            skip_upgrade_test)
+                if [ "${VALUE}" = "yes" -o "${VALUE}" = "YES" ]; then SKIP_UPGRADE_TEST=1; else SKIP_UPGRADE_TEST=0; fi
+            ;;
+
+            # Define what kind of scan we are performing
+            test_scan_mode)
+                if [ "${VALUE}" = "light" ]; then	     SCAN_TEST_LIGHT="YES";   SCAN_TEST_MEDIUM="NO";   SCAN_TEST_HEAVY="NO";	   fi
+                if [ "${VALUE}" = "normal" ]; then	     SCAN_TEST_LIGHT="YES";   SCAN_TEST_MEDIUM="YES";  SCAN_TEST_HEAVY="NO";	   fi
+                if [ "${VALUE}" = "full" ]; then	     SCAN_TEST_LIGHT="YES";   SCAN_TEST_MEDIUM="YES";  SCAN_TEST_HEAVY="YES";	   fi
+            ;;
+
+            # Catch all bad options and bail out
+            *)
+                logtext "Unknown option ${OPTION} (with value: ${VALUE})"
+                echo "Fatal error: found errors in profile"
+                echo "Unknown option '${OPTION}' found (with value: ${VALUE})"
+                RemovePIDFile    
+                exit 1
+            ;;
+
+        esac
+
+    done
+#
+#################################################################################
+#
+    # Add group name to report
+    if [ ! "${GROUP_NAME}" = "" ]; then
+        report "group=${GROUP_NAME}"
+    fi
+#
+#################################################################################
+#
+# Plugins
+#
+#################################################################################
+#
+    #FIND=`cat ${PROFILE} | grep '^plugin_enable=' | sed 's/ /!space!/g'`
+    #for I in ${FIND}; do
+    #    PLUGIN=`echo ${I} | cut -d '=' -f2`
+    #    if [ -f "${PLUGINDIR}/${PLUGIN}" ]; then
+    #        logtext "Found plugin: ${PLUGIN}"
+    #        # XXX - enable plugin
+    #      else
+    #        logtext "Couldn't find plugin: ${PLUGIN} (${PLUGINDIR}/${PLUGIN})"
+    #    fi
+    #done
+#
+#################################################################################
+#
+    # Set default values (only if not configured in profile)
+
+    if [ "${MACHINE_ROLE}" = "" ]; then
+        MACHINE_ROLE="server"
+        logtext "Set option to default value: MACHINE_ROLE --> ${MACHINE_ROLE}"
+    fi
+
+    if [ "${NTPD_ROLE}" = "" ]; then
+        NTPD_ROLE="client"
+        logtext "Set option to default value: NTPD_ROLE --> ${NTPD_ROLE}"
+    fi
+
+#
+#################################################################################
+#
+
+logtextbreak
+
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - cisofy.com - The Netherlands

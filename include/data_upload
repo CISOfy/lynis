@@ -1,0 +1,110 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@cisofy.com), The Netherlands
+# Web site: http://cisofy.com
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Data upload
+#
+#################################################################################
+#
+#    logtextbreak
+PROGRAM_VERSION="101"
+DATA_SERVER="https://cisofy.com"
+# Additional options to curl
+CURL_OPTIONS=""
+SETTINGS_FILE="${PROFILE}"
+#DEBUG=1
+
+# Only output text to stdout if DEBUG mode is not used
+output()
+  {
+    if [ ${DEBUG} -eq 1 ]; then echo "$1"; fi
+  }
+
+#####################################################################################
+#
+# SYSTEM CHECKS
+#
+#####################################################################################
+
+output "Lynis Enterprise data uploader starting"
+output "Settings file: ${SETTINGS_FILE}"
+
+    # Check if we can find curl
+    # Suggestion: If you want to keep the system hardened, copying the binary from a trusted source is a good alternative.
+    #             Restrict access to this binary to the user who is running this script.
+    if [ "${CURLBINARY}" = "" ]; then
+        echo "Fatal: can't find curl binary. Please install the related package or put the binary in the PATH. Quitting.."
+        exit 1
+    fi
+
+    # Extra the license key from the settings file
+    if [ "${LICENSE_KEY}" = "" ]; then
+        echo "Fatal: no license key found. Quitting.."
+        exit 1
+      else
+        output "License key = ${LICENSE_KEY}"
+    fi
+
+
+#####################################################################################
+#
+# JOB CONTROL
+#
+#####################################################################################
+
+    # Check report file
+    if [ -f ${REPORTFILE} ]; then
+        output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
+        # Quit if license is not valid, to reduce load on both client and server.
+        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${DATA_SERVER}/license/`
+        UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
+        if [ "${UPLOAD_CODE}" = "100" ]; then
+            output "${WHITE}License is valid{$NORMAL}"
+          else
+            echo "${RED}Fatal error: provided license key is unknown or invalid.${NORMAL}"
+            output "Debug information: ${UPLOAD}"
+            # Quit
+            ExitClean
+        fi
+        # Extract the hostid from the parse file
+        HOSTID=`cat ${REPORTFILE} | grep "^hostid=" | awk -F= '{ print $2 }'`
+        if [ ! "${HOSTID}" = "" ]; then
+            output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
+            # Try to connect
+            output "Uploading data.."
+            UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${DATA_SERVER}/upload/`
+            UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ print $2 }'`
+            output "Output code from upload: ${UPLOAD_CODE}"
+            if [ "${UPLOAD_CODE}" = "100" ]; then
+                output "${GREEN}Data uploaded successfully${NORMAL}"
+              else
+                echo "${RED}Error occured, please check documentation for code ${UPLOAD_CODE}.${NORMAL}"
+                output "Debug:"
+                output ${UPLOAD}
+                # Quit
+                ExitClean
+            fi
+          else
+            echo "${RED}Fatal error${NORMAL}: No hostid found in report file. Can not upload report file."
+            # Quit
+            ExitClean
+        fi
+      else
+         output "${YELLOW}No report file found to upload.${NORMAL}"
+    fi
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

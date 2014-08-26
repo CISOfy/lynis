@@ -1,0 +1,450 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Networking
+#
+#################################################################################
+#
+    FOUNDPROMISC=0                                  # Promiscuous interfaces
+    LOCAL_DNSRESOLVER_FOUND=0                       # Local DNS resolver
+    NUMBERACTIVENS=0                                # Number of active nameservers
+    DHCP_CLIENT_RUNNING=0                           # DHCP client availability
+#
+#################################################################################
+#
+    InsertSection "Networking"
+#
+#################################################################################
+#
+    # Test        : NETW-2704 (YYY move to nameservices section)
+    # Description : Basic nameserver configuration tests (connectivity)
+    Register --test-no NETW-2704 --weight L --network YES --description "Basic nameserver configuration tests"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        Display --indent 2 --text "- Checking configured nameservers..."
+        logtext "Test: Checking /etc/resolv.conf file"
+        if [ -f /etc/resolv.conf ]; then
+            logtext "Result: Found /etc/resolv.conf file"
+            FIND=`grep '^nameserver' /etc/resolv.conf | tr -d '\t' | sed 's/nameserver*//g'`
+            if [ ! "${FIND}" = "" ]; then
+                Display --indent 4 --text "- Testing nameservers..."
+                logtext "Test: Querying nameservers"
+                for I in ${FIND}; do
+                    logtext "Found nameserver: ${I}"
+                    report "nameserver[]=${I}"
+                    # Check if a local resolver is available (like DNSMasq) 
+                    if [ "${I}" = "::1" -o "${I}" = "127.0.0.1" -o "${I}" = "0.0.0.0" ]; then
+                         LOCAL_DNSRESOLVER_FOUND=1
+                    fi
+                    if [ ! "${DIGBINARY}" = "" ]; then
+                        # See if we can query something at the nameserver
+                        # 0=good, other=bad
+                        DNSRESPONSE=`${DIGBINARY} +noall +time=3 +retry=0 @${I} ${I} > /dev/null ; echo $?`
+                        if [ "${DNSRESPONSE}" = "0" ]; then
+                            Display --indent 8 --text "Nameserver: ${I}..." --result OK --color GREEN
+                            logtext "Nameserver ${I} seems to respond to queries from this host."
+                            # Count responsive nameservers
+                            NUMBERACTIVENS=`expr ${NUMBERACTIVENS} + 1`
+                          else
+                            Display --indent 8 --text "Nameserver: ${I}..." --result "NO RESPONSE" --color RED
+                            logtext "Result: nameserver ${I} does NOT respond"
+                            logtext "Exit-code from dig: ${DNSRESPONSE}"
+                            ReportSuggestion ${TEST_NO} "Check connection to this nameserver and make sure no outbound DNS queries are blocked (port 53 UDP and TCP)."
+                            ReportWarning ${TEST_NO} "L" "Nameserver ${I} does not respond"
+                        fi
+                      else
+                        logtext "Result: Nameserver test for ${I} skipped, 'dig' not installed"
+                        Display --indent 6 --text "Nameserver: ${I}... " --result SKIPPED --color YELLOW
+                    fi
+                done
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-2705
+    # Description : Basic nameserver configuration tests (connectivity)
+    if [ ${LOCAL_DNSRESOLVER_FOUND} -eq 0  ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NETW-2705 --preqs-met ${PREQS_MET} --weight L --network YES --description "Check availability two nameservers"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! "${DIGBINARY}" = "" ]; then
+            if [ ${NUMBERACTIVENS} -lt 2 ]; then
+                Display --indent 4 --text "- Minimal of 2 responsive nameservers..." --result WARNING --color RED
+                logtext "Result: less than 2 responsive nameservers found"
+                ReportWarning ${TEST_NO} "L" "Couldn't find 2 responsive nameservers"
+                logtext "Note: Non responsive nameservers can give problems for your system(s). Like the lack of recursive lookups, bad connectivity to update servers etc."
+                ReportSuggestion ${TEST_NO} "Check your resolv.conf file and fill in a backup nameserver if possible"
+                AddHP 1 2
+              else
+                Display --indent 4 --text "- Minimal of 2 responsive nameservers..." --result OK --color GREEN
+                logtext "Result: found at least 2 responsive nameservers"
+                AddHP 3 3
+            fi
+          else
+            Display --indent 4 --text "- Minimal of 2 responsive nameservers..." --result SKIPPED --color YELLOW
+            logtext "Result: dig not installed, test can't be fully performed"
+        fi
+      else
+        logtext "Result: Test most likely skipped due having local resolver in /etc/resolv.conf"
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3001
+    # Description : Find default gateway (route)
+    # More info   : BSD: ^default   Linux: 0.0.0.0
+    Register --test-no NETW-3001 --weight L --network NO --description "Find default gateway (route)"
+    if [ $SKIPTEST -eq 0 ]; then    
+        logtext "Test: Searching default gateway(s)..."
+        FIND=`netstat -rn | egrep "^0.0.0.0|default" | tr -s ' ' | cut -d ' ' -f2`
+        if [ ! "${FIND}" = "" ]; then
+            for I in ${FIND}; do
+                logtext "Result: Found default gateway ${I}"
+                report "default_gateway[]=${I}"
+            done
+            Display --indent 2 --text "- Checking default gateway..." --result DONE --color GREEN
+          else
+            logtext "Result: No default gateway found"
+            Display --indent 2 --text "- Checking default gateway..." --result "NONE FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3004
+    # Description : Find available network interfaces on FreeBSD and others
+    if [ "${OS}" = "DragonFly" -o "${OS}" = "FreeBSD" -o "${OS}" = "NetBSD" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NETW-3004 --preqs-met ${PREQS_MET} --weight L --network NO --description "Search available network interfaces on FreeBSD and others"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${IFCONFIGBINARY} -l`
+        N=0
+        for I in ${FIND}; do
+            logtext "Found network interface: ${I}"
+            N=`expr ${N} + 1`
+            report "network_interface[]=${I}"
+        done
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3006
+    # Description : Get network MAC addresses
+    Register --test-no NETW-3006 --weight L --network NO --description "Get network MAC addresses"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=""
+        case ${OS} in
+            AIX)
+                FIND=`lscfg -vl ent* | fgrep "Network Address" | cut -d"." -f14 | awk '{ ctr=1; i=1; while (ctr <= 6) { d[ctr++]=substr($0,i,2);i=i+2 } printf("%s:%s:%s:%s:%s:%s\n",d[1],d[2],d[3],d[4],d[5],d[6]) }'`
+                ;;
+            DragonFly|FreeBSD)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="ether") print $2 }' | sort | uniq`
+                ;;
+            Linux)
+                FIND=`${IFCONFIGBINARY} -a | grep "HWaddr" | awk '{ if ($4=="HWaddr") print $5 }' | sort | uniq`
+                ;;
+            MacOS)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="lladdr" || $1=="ether") print $2 }' | sort | uniq`
+                ;;
+            NetBSD)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="address:") print $2 }' | sort | uniq`
+                ;;
+            OpenBSD)
+                FIND=`${IFCONFIGBINARY} -A | awk '{ if ($1=="lladdr") print $2 }' | sort | uniq`
+                ;;
+            Solaris)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="ether") print $2 }' | sort | uniq`
+                ;;
+            *)
+                # Having a system currently unsupported? Share your details to determine MAC information
+                ReportException "${TEST_NO}:1" "No support for this OS (${OS}) to find MAC information"
+                ;;
+        esac
+        N=0
+        for I in ${FIND}; do
+            logtext "Found MAC address: ${I}"
+            N=`expr ${N} + 1`
+            report "network_mac_address[]=${I}"
+        done
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3008
+    # Description : Get network IPv4/6 addresses
+    Register --test-no NETW-3008 --weight L --network NO --description "Get network IP addresses"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=""; FIND2=""
+        case ${OS} in
+            AIX)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
+                # IPv6 support in AIX? (YYY)
+                ;;
+            DragonFly|FreeBSD|NetBSD)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
+                ;;
+            Linux)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }' | cut -d ':' -f2`
+                # Version which works for multiple types of ifconfig (e.g. Slackware)
+                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
+                ;;
+            MacOS)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
+                ;;
+            OpenBSD)
+                FIND=`${IFCONFIGBINARY} -A | awk '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -A | awk '{ if ($1=="inet6") print $2 }'`
+                ;;
+            Solaris)
+                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
+                ;;
+            *)
+                logtext "Warning: no support yet for this OS (${OS}) to find IP address information"
+                ReportException "${TEST_NO}:1" "IP address information test not implemented for this operating system"
+                ;;
+        esac
+        N=0
+        # IPv4
+        for I in ${FIND}; do
+            logtext "Found IPv4 address: ${I}"
+            N=`expr ${N} + 1`
+            report "network_ipv4_address[]=${I}"
+        done
+        # IPv6
+        for I in ${FIND2}; do
+            logtext "Found IPv6 address: ${I}"
+            N=`expr ${N} + 1`
+            report "network_ipv6_address[]=${I}"
+        done
+
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3012
+    # Description : Check listening ports
+    Register --test-no NETW-3012 --weight L --network NO --description "Check listening ports"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=""; FIND2=""
+        N=0
+        case ${OS} in
+            DragonFly|FreeBSD)
+                if [ ! "${SOCKSTATBINARY}" = "" ]; then
+                    FIND=`${SOCKSTATBINARY} | awk '{ if ($7 ~ /\*:\*/) print $5"|"$6"|"$2"|" }' | sort | uniq`
+                    # To strip off IP's: sed 's/|.*:/|/'
+                  else
+                    FIND=""
+                fi
+                FIND2=""
+                ;;
+            Linux)
+                # UDP
+                FIND=`netstat -nlp | grep "^udp" | awk '{ print $4"|"$1"|"$6"|" }' | sed 's:|[0-9]*/:|:'`
+                # TCP
+                FIND2=`netstat -nlp | grep "^tcp" | awk '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | sed 's:|[0-9]*/:|:'`
+                ;;
+
+            NetBSD)
+                if [ ! "${SOCKSTATBINARY}" = "" ]; then
+                    FIND=`${SOCKSTATBINARY} | awk '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | sort | uniq`
+                  else
+                    FIND=""
+                fi
+                FIND2=""
+                ;;
+            *)
+                # Got this exception? Provide your details and output of netstat or any other tool to determine this information.
+                ReportException "${TEST_NO}:1" "Unclear what method to use, to determine listening port information"
+                ;;
+        esac
+
+        # Retrieve information from sockstat, when available
+        logtext "Test: Retrieving sockstat information to find listening ports..."
+        if [ ! "${FIND}" = "" ]; then
+            for I in ${FIND}; do
+                N=`expr ${N} + 1`
+                logtext "Found listening info: ${I}"
+                report "network_listen_port=${I}"
+            done
+        fi
+
+        if [ ! "${FIND2}" = "" ]; then
+            for I in ${FIND2}; do
+                N=`expr ${N} + 1`
+                logtext "Found listening info: ${I}"
+                report "network_listen_port=${I}"
+            done
+        fi
+        if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
+             Display --indent 2 --text "- Getting listening ports (TCP/UDP)..." --result SKIPPED --color YELLOW
+           else
+             Display --indent 2 --text "- Getting listening ports (TCP/UDP)..." --result DONE --color GREEN
+             Display --indent 6 --text "* Found ${N} ports"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3014
+    # Description : Checking promiscuous interfaces (BSD)
+    # Note        : FreeBSD and others
+    if [ "${OS}" = "DragonFly" -o "${OS}" = "FreeBSD" -o "${OS}" = "NetBSD" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NETW-3014 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking promiscuous interfaces (BSD)"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking promiscuous interfaces (FreeBSD)..."
+        FIND=`${IFCONFIGBINARY} | grep PROMISC | cut -d ':' -f1`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Result: Promiscuous interfaces: ${FIND}"
+            for I in ${FIND}; do
+                ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
+                if [ "${ISWHITELISTED}" = "" ]; then
+                    FOUNDPROMISC=1
+                    ReportWarning ${TEST_NO} "H" "Found promiscuous interface (${I})"
+                    logtext "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
+                  else
+                    logtext "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
+                fi
+            done
+        fi
+
+        # Show result
+        if [ ${FOUNDPROMISC} -eq 0 ]; then
+            Display --indent 2 --text "- Checking promiscuous interfaces..." --result OK --color GREEN
+            logtext "Result: No promiscuous interfaces found"
+          else
+            Display --indent 2 --text "- Checking promiscuous interfaces..." --result WARNING --color RED
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3015
+    # Description : Checking promiscuous interfaces (Linux)
+    # Note        : Linux
+    Register --test-no NETW-3015 --os Linux --weight L --network NO --description "Checking promiscuous interfaces (Linux)"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking promiscuous interfaces (Linux)"
+        NETWORK=`${IFCONFIGBINARY} | grep Link | tr -s ' ' | cut -d ' ' -f1`
+        if [ ! "${NETWORK}" = "" ]; then
+            for I in ${NETWORK}; do
+                FIND=`${IFCONFIGBINARY} ${I} | grep PROMISC`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: Promiscuous interface: ${I}"
+                    ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
+                    if [ "${ISWHITELISTED}" = "" ]; then
+                        FOUNDPROMISC=1
+                        ReportWarning ${TEST_NO} "H" "Found promiscuous interface (${I})"
+                        logtext "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
+                      else
+                        logtext "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
+                    fi
+                fi
+            done
+        fi
+
+        # Show result
+        if [ ${FOUNDPROMISC} -eq 0 ]; then
+            Display --indent 2 --text "- Checking promiscuous interfaces..." --result OK --color GREEN
+            logtext "Result: No promiscuous interfaces found"
+          else
+            Display --indent 2 --text "- Checking promiscuous interfaces..." --result WARNING --color RED
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3020
+    # Description : Checking multipath configuration (Solaris)
+#
+#################################################################################
+#
+    # Test        : NETW-3024
+    # Description : Netstat/socktstat compare (FreeBSD)
+    #	    echo -n "        - Comparing output sockstat and netstat... "
+    #	    logtext "Comparing output of sockstat and netstat... "
+    #	    NETSTATOUTPUT=`netstat -an | grep -v 'TIME_WAIT' | grep -v 'ESTABLISHED' | grep -v 'SYN_SENT' | grep -v 'CLOSE_WAIT' | grep -v 'LAST_ACK' | grep -v 'SYN_RECV' | grep -v 'CLOSING' | cut -c 1-44 | grep '*.' | cut -c 24-32 | tr -d ' ' | tr -d '\t' | grep -v '*' | sort | uniq`
+    #
+    #	    if [ "${SOCKSTATOUTPUT}" = "${NETSTATOUTPUT}" ]; then
+    #	        ShowResult OK
+    #	      else
+    #	        echo "[ ${BAD}Warning!${NORMAL} ]"
+    #		logtext "WARNING!"
+    #		logtext "Sockstat tested output: ${SOCKSTAT}"
+    #		logtext "Netstat tested output: ${NETSTAT}"
+    #	    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3028
+    # Description : Checking for many waiting connections
+    # Type        : Performance
+    Register --test-no NETW-3028 --weight L --network NO --description "Checking connections in WAIT state"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Using netstat for check for connections in WAIT state..."
+        FIND=`netstat -an | grep WAIT | wc -l | awk '{ print $1 }'`
+        if [ "${OPTIONS_CONN_MAX_WAIT_STATE}" = "" ]; then OPTIONS_CONN_MAX_WAIT_STATE="100"; fi
+        logtext "Result: currently ${FIND} connections are in a waiting state (max configured: ${OPTIONS_CONN_MAX_WAIT_STATE})."
+        if [ ${FIND} -gt ${OPTIONS_CONN_MAX_WAIT_STATE} ]; then
+            Display --indent 2 --text "- Checking waiting connections..." --result WARNING --color YELLOW
+            ReportWarning ${TEST_NO} "H" "Found too much connections in WAIT state (${FIND})"
+          else
+            Display --indent 2 --text "- Checking waiting connections..." --result OK --color GREEN
+            logtext "Result: ${FIND} connections are in WAIT state"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3030
+    # Description : Checking for DHCP client
+    Register --test-no NETW-3030 --weight L --network NO --description "Checking DHCP client status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        IsRunning dhclient
+        if [ ${RUNNING} -eq 1 ]; then
+            Display --indent 2 --text "- Checking status DHCP client..." --result RUNNING --color WHITE
+            #YYY report if system type is server, that it is running with DHCP client, might be a badly configured machine
+            #report "manual[]=System is running DHCP client"
+            DHCP_CLIENT_RUNNING=1
+          else
+            Display --indent 2 --text "- Checking status DHCP client..." --result "NOT ACTIVE" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-3060
+    # Description : Check if IPv6 is configured AND used
+    # /etc/modprobe.d (add 'install ipv6 /bin/true' if IPv6 isn't used)
+    #  or
+    # aliased (/etc/modprobe.d/aliases?): alias net-pf-10 off ipv6 (to disable)
+    #Register --test-no NETW-3060 --weight L --network NO --description "Checking IPv6 connectivity"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+#
+#################################################################################
+#
+# Linux: net.ipv4.ip_always_defrag
+#
+#################################################################################
+#
+
+report "dhcp_client_running=${DHCP_CLIENT_RUNNING}"
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

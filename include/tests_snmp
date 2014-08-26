@@ -1,0 +1,105 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# SNMP
+#
+#################################################################################
+#
+    SNMP_DAEMON_CONFIG_LOCS="/etc/snmp"
+    SNMP_DAEMON_CONFIG=""
+    SNMP_DAEMON_RUNNING=0
+#
+#################################################################################
+#
+    InsertSection "SNMP Support"
+
+    # Test        : SNMP-3302
+    # Description : Check for a running SNMP daemon
+    Register --test-no SNMP-3302 --weight L --network NO --description "Check for running SNMP daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+	logtext "Test: Searching for a SNMP daemon..."
+	# Check running processes
+	FIND=`${PSBINARY} ax | grep "snmpd" | grep -v "grep"`
+	if [ ! "${FIND}" = "" ]; then
+	    SNMP_DAEMON_RUNNING=1	    
+	    logtext "Result: SNMP daemon is running"
+	    Display --indent 2 --text "- Checking running SNMP daemon..." --result FOUND --color GREEN
+	  else
+	    logtext "Result: No running SNMP daemon found"
+	    Display --indent 2 --text "- Checking running SNMP daemon..." --result "NOT FOUND" --color WHITE
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : SNMP-3304
+    # Description : Determine SNMP daemon configuration file location
+    if [ ${SNMP_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SNMP-3304 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SNMP daemon file location"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Action: searching for snmpd.conf file"
+	for I in ${SNMP_DAEMON_CONFIG_LOCS}; do
+	    if [ -f "${I}/snmpd.conf" ]; then
+	      logtext "Result: ${I}/snmpd.conf exists"
+	      SNMPD_DAEMON_CONFIG="${I}/snmpd.conf"
+	    fi    
+	done
+	if [ "${SNMPD_DAEMON_CONFIG}" = "" ]; then
+	    logtext "Result: No snmpd configuration found"
+	    Display --indent 4 --text "- Checking SNMP configuration..." --result "NOT FOUND" --color WHITE
+	  else
+	    logtext "Restult: using last found configuration file: ${SNMPD_DAEMON_CONFIG}"
+	    Display --indent 4 --text "- Checking SNMP configuration..." --result "FOUND" --color GREEN
+	fi
+    fi
+#
+#################################################################################
+#
+    # Test        : SNMP-3306
+    # Description : Determine SNMP communities
+    if [ ! "${SNMPD_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SNMP-3306 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SNMP communities"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        WARN=0
+        logtext "Test: reading active snmp communities"
+        FIND=`cat ${SNMPD_DAEMON_CONFIG} | grep "^com2sec" | ${AWKBINARY} '{ print $4 }'`
+        for I in ${FIND}; do
+            logtext "Output: ${I}"
+            if [ "${I}" = "public" -o "${I}" = "private" ]; then
+                logtext "Result: found easy guessable snmp community string (${I})"
+                WARN=1
+                AddHP 1 3
+            fi
+        done
+
+        # Check status of test
+        if [ ${WARN} -eq 0 ]; then
+            Display --indent 2 --text "- Checking SNMP community strings..." --result OK --color GREEN
+            AddHP 2 2
+          else
+            Display --indent 2 --text "- Checking SNMP community strings..." --result WARNING --color RED
+            ReportWarning ${TEST_NO} "M" "Found easy guessable SNMP community string"
+        fi
+    fi
+#
+#################################################################################
+#
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

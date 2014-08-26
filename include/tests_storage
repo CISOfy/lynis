@@ -1,0 +1,117 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+    InsertSection "Storage"
+#
+#################################################################################
+#
+    AUTOMOUNTER_DAEMON_RUNNING=0
+    NFS_DAEMON_RUNNING=0
+    AUTOMOUNTER_DAEMON_TOOL=""
+#
+#################################################################################
+#
+    # Test        : STRG-1840
+    # Description : Check for disabled USB storage
+    Register --test-no STRG-1840 --os Linux --weight L --network NO --description "Check if USB storage is disabled"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        logtext "Test: Checking USB storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
+        if [ -d /etc/modprobe.d ]; then
+            FIND=`ls /etc/modprobe.d/* 2>/dev/null`
+            if [ ! "${FIND}" = "" ]; then
+                FIND=`grep -r "install usb-storage /bin/true" /etc/modprobe.d/* | grep "usb-storage" | grep -v "#"`
+                FIND2=`egrep -r "^blacklist (usb_storage|usb-storage)" /etc/modprobe.d/*`
+                if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
+                    FOUND=1
+                    logtext "Result: found usb-storage driver in disabled state"
+                fi
+              else
+                logtext "Result: uncommon situation. Found /etc/modprobe.d directory, but no files in it."
+            fi
+        fi
+        if [ -f /etc/modprobe.conf ]; then
+            FIND=`grep "install usb-storage /bin/true" /etc/modprobe.conf | grep "usb-storage" | grep -v "#"`
+            if [ ! "${FIND}" = "" ]; then
+                FOUND=1
+                logtext "Result: found usb-storage driver in disabled state"
+            fi
+        fi
+        if [ ${FOUND} -eq 0 ]; then
+            logtext "Result: usb-storage driver is not explicitly disabled"
+            Display --indent 2 --text "- Checking usb-storage driver (modprobe config)..." --result "NOT DISABLED" --color WHITE
+            ReportSuggestion ${TEST_NO} "Disable drivers like USB storage when not used, to prevent unauthorized storage or data theft"
+            AddHP 2 3
+          else
+            logtext "Result: usb-storage driver is disabled"
+            Display --indent 2 --text "- Checking usb-storage driver (modprobe config)..." --result "DISABLED" --color GREEN
+            AddHP 3 3
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : STRG-1846
+    # Description : Check for disabled firewire storage
+    Register --test-no STRG-1846 --os Linux --weight L --network NO --description "Check if firewire storage is disabled"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        logtext "Test: Checking firewire storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
+        if [ -d /etc/modprobe.d ]; then
+            FIND1=`egrep "blacklist (ohci1394|firewire-ohci)" /etc/modprobe.d/* | grep "ohci" | grep -v "#"`	
+            FIND2=`egrep "install (ohci1394|firewire-ohci) /bin/true" /etc/modprobe.d/* | grep "ohci" | grep -v "#"`
+            if [ ! "${FIND1}" = "" -o ! "${FIND2}" = "" ]; then
+                FOUND=1
+                logtext "Result: found firewire ohci driver in disabled state"	    
+            fi
+        fi
+        if [ -f /etc/modprobe.conf ]; then
+            FIND1=`egrep -r "blacklist (ohci1394|firewire-ohci)" /etc/modprobe.conf | grep "ohci" | grep -v "#"`	
+            FIND2=`egrep -r "install (ohci1394|firewire-ohci) /bin/true" /etc/modprobe.conf | grep "ohci" | grep -v "#"`
+            if [ ! "${FIND1}" = "" -o ! "${FIND2}" = "" ]; then
+                FOUND=1
+                logtext "Result: found firewire ohci driver in disabled state"
+            fi
+        fi
+
+        if [ ${FOUND} -eq 0 ]; then
+            logtext "Result: firewire ohci driver is not explicitly disabled"
+            Display --indent 2 --text "- Checking firewire ohci driver (modprobe config)..." --result "NOT DISABLED" --color WHITE
+            ReportSuggestion ${TEST_NO} "Disable drivers like firewire storage when not used, to prevent unauthorized storage or data theft"
+            # after blacklisting modules, make sure to remove them from the initram filesystem: update-initramfs -u
+            AddHP 2 3
+          else
+            logtext "Result: firewire ohci driver is disabled"
+            Display --indent 2 --text "- Checking firewire ohci driver (modprobe config)..." --result "DISABLED" --color GREEN
+            AddHP 3 3
+        fi
+    fi
+#
+#################################################################################
+#
+
+# NetBSD: amd (auto mount daemon)
+
+#
+#################################################################################
+#
+
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

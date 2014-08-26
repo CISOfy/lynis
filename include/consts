@@ -1,0 +1,182 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Web site: http://www.rootkit.nl
+#
+# This software is licensed under GPL, version 3. See LICENSE file for
+# usage of this software.
+#
+#################################################################################
+#
+# Consts
+#
+#################################################################################
+#
+
+# Program information
+
+# Paths where system and program binaries are located
+# Includes Sun Solaris dirs
+BINPATHS="/bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin \
+          /usr/local/libexec /usr/libexec /usr/sfw/bin /usr/sfw/sbin \
+          /usr/sfw/libexec /opt/sfw/bin /opt/sfw/sbin /opt/sfw/libexec \
+          /usr/xpg4/bin /usr/css/bin /usr/ucb /usr/X11R6/bin /usr/X11R7/bin"
+
+# Do not use specific language, fall back to default
+unset LANG
+
+#
+#################################################################################
+#
+# Deprecated
+#
+#################################################################################
+#
+    HOME_HISTORY_AUDIT_TITLE="Incorrect history file types"
+    HOME_HISTORY_AUDIT_DESCRIPTION=""
+
+    HOME_HISTORY_LOG_TITLE="History files type check"
+    HOME_HISTORY_LOG_DESCRIPTION="History files type check"
+    HOME_HISTORY_LOG_TEXT="History files are normally of the type 'file'. Symbolic links and other types can be riskful"
+
+    HOME_PATH_LOG_MESSAGE="A single dot in the PATH variable of a user can be a risk, while executing commands in for example a home directory."
+
+    USER_PASSWD_DOUBLEUID_AUDIT_TITLE="Non unique UIDs"
+    USER_PASSWD_DOUBLEUID_AUDIT_DESCRIPTION="Non unique UIDs in passwd file"
+    USER_PASSWD_DOUBLEUID_AUDIT_TEXT="Non unique UIDs can riskful for the system or part of a configuration mistake"
+
+    KERNEL_ACTIVE_MODULES_TITLE="Active kernel modules (KLDs)"
+    KERNEL_ACTIVE_MODULES_DESCRIPTION="View all active kernel modules (including kernel)"
+    KERNEL_ACTIVE_MODULES_TEXT="Displays the loaded kernel modules in memory. Make sure to check the integrity of the kld tools."
+#
+#################################################################################
+#
+# Initialize defaults
+#
+#################################################################################
+#
+# == Variable initializing ==
+#
+    AUDITORNAME=""
+    PROFILE=""
+    REPORTFILE=""
+    AFICKBINARY=""
+    AIDEBINARY=""
+    AASTATUSBINARY=""
+    CHKROOTKITBINARY=""
+    CHKCONFIGBINARY=""
+    FILEVALUE=""
+    FIND=""
+    GRPCKBINARY=""
+    GROUP_NAME=""
+    IPTABLESBINARY=""
+    LINUX_VERSION=""
+    LINUXCONFIGFILE=""
+    LOGFILE=""
+    NGINX_ACCESS_LOG_DISABLED=0
+    NGINX_ACCESS_LOG_MISSING=0
+    NGINX_ALIAS_FOUND=0
+    NGINX_ALLOW_FOUND=0
+    NGINX_DENY_FOUND=0
+    NGINX_ERROR_LOG_DEBUG=0
+    NGINX_ERROR_LOG_MISSING=0
+    NGINX_EXPIRES_FOUND=0
+    NGINX_FASTCGI_FOUND=0
+    NGINX_FASTCGI_PARAMS_FOUND=0
+    NGINX_FASTCGI_PASS_FOUND=0
+    NGINX_LISTEN_FOUND=0
+    NGINX_LOCATION_FOUND=0
+    NGINX_SSL_CIPHERS=0
+    NGINX_SSL_ON=0
+    NGINX_SSL_PREFER_SERVER_CIPHERS=0
+    NGINX_SSL_PROTOCOLS=0
+    NGINX_RETURN_FOUND=0
+    NGINX_ROOT_FOUND=0
+    OS=""; OS_MODE=""
+    OS_REDHAT_OR_CLONE=0
+    OSIRISBINARY=""
+    PIDFILE=""
+    PFFOUND=0
+    PROFILEVALUE=""
+    RKHUNTERBINARY=""
+    RPMBINARY=""
+    SAMHAINBINARY=""
+    SCAN_TEST_HEAVY=""; SCAN_TEST_MEDIUM=""; SCAN_TEST_LOW=""
+    SESTATUSBINARY=""
+    SSHKEYSCANBINARY=""
+    SSHKEYSCANFOUND=0
+    SYSLOGNGBINARY=""
+    TEST_SKIP_ALWAYS=""
+    TESTS_EXECUTED=""
+    TESTS_SKIPPED=""
+    TRIPWIREBINARY=""
+    UPDATE_CHECK_SKIPPED=0
+    VALUE=""
+#
+#################################################################################
+#
+# == Options ==
+#
+#   Option			  Description
+# --------------------------------------------------------------------------
+    CRONJOB=0			# Run as a cronjob
+    CTESTS_PERFORMED=0		# Number of tests which are performed
+    DEBUG=0                     # Debugging mode (to screen)
+    HPPOINTS=0                  # Number of hardening points
+    HPTOTAL=0                   # Maximum number of hardening points
+    LOG_INCORRECT_OS=1		# Log tests with incorrect OS
+    NEVERBREAK=0		# Don't wait for user input
+    QUICKMODE=0			# Don't wait for user input
+    QUIET=0			# Show normal messages and warnings as well
+    SHOW_TOOL_TIPS=1		# Show inline tool tips (default true)
+    SKIPLOGTEST=0		# Skip logging for one test
+    SKIP_UPGRADE_TEST=0		# Skip upgrade test
+    TESTS_TO_PERFORM=""		# Which tests only to perform
+    TEST_PAUSE_TIME=0		# Default pause time
+    TOTAL_TESTS=0		# Total amount of tests (counter)
+    UPLOAD_DATA=0               # Upload of data to central node
+    VIEWHELP=0			# Show help
+    VIEWUPDATEINFO=0		# View program/database version
+    WRONGOPTION=0		# A wrong option is used
+#
+#################################################################################
+#
+    # Installed packages and other settings
+    COMPILER_INSTALLED=0
+#
+#################################################################################
+#
+# Colors
+#
+#################################################################################
+#
+#   Color name                  Description
+# --------------------------------------------------------------------------
+    NORMAL="[0;39m" 
+    WARNING="[1;31m"		# Bad (red)
+    SECTION="[1;33m"		# Section (yellow)
+    NOTICE="[1;33m"		# Notice (yellow)
+    OK="[1;32m"		# Ok (green)
+    BAD="[1;31m"		# Bad (red)
+
+    # Real color names
+    YELLOW="[1;33m"		# Yellow
+    WHITE="[1;37m"		# White
+    GREEN="[1;32m"		# Green
+    RED="[1;31m"		# Red
+    PURPLE="[0;35m"
+    MAGENTA="[1;35m"
+    BROWN="[0;33m"
+    CYAN="[0;36m"
+    BLUE="[0;34m"
+#
+#################################################################################
+#
+
+#================================================================================
+# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands

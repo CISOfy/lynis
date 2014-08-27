@@ -269,9 +269,11 @@
                 ;;
 
                 "Linux")
-                        if [ ! "${IPBINARY}" = "" ]; then
-                            # Define preferred interfaces
-                            #PREFERRED_INTERFACES="eth0 eth1 eth2 enp0s25"
+                        # Define preferred interfaces
+                        #PREFERRED_INTERFACES="eth0 eth1 eth2 enp0s25"
+
+                        # Only use ifconfig if no ip binary has been found
+                        if [ ! "${IFCONFIGBINARY}" = "" -a "${IPBINARY}" = "" ]; then
                             # Determine if we have ETH0 at all (not all Linux distro have this, e.g. Arch)
                             HASETH0=`${IFCONFIGBINARY} | grep "^eth0"`
                             # Check if we can find it with HWaddr on the line
@@ -288,33 +290,35 @@
                                       else
                                         FIND=`${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -1 | tr '[:upper:]' '[:lower:]'`
                                         if [ "${FIND}" = "" ]; then
-                                            report "exception[]=No eth0 found (and no ether was found)"
+                                            report "exception[]=No eth0 found (and no ether was found with ifconfig)"
                                           else
-                                            logtext "Result: No eth0 found (ether found), using first network interface to determine hostid"
+                                            logtext "Result: No eth0 found (ether found), using first network interface to determine hostid (with ifconfig)"
                                         fi
                                     fi
                                   else
                                     FIND=`${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]'`
-                                    report "exception[]=No eth0 found (but HWaddr was found), using first network interface to determine hostid"
+                                    report "exception[]=No eth0 found (but HWaddr was found), using first network interface to determine hostid, with ifconfig"
+                                fi
+                            fi
+                        fi
+
+                        # Check with ip binary (preferred to ifconfig)
+                        if [ ! "${IPBINARY}" = "" ]; then
+
+                            # Determine if we have the common available eth0 interface
+                            FIND=`${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                            if [ "${FIND}" = "" ]; then
+                                # Determine the MAC address of first interface with the ip command
+                                FIND=`${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                                if [ "${FIND}" = "" ]; then
+                                    report "exception[]=Can't create hostid (no MAC addresses found)"
                                 fi
                             fi
 
-                            if [ ! "${HASETH0}" = "" ]; then
-                                # Now determine the MAC with the ip command
-                                FIND2=`${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
-                              else
-                                # Forcing them to be the same. Unreliable to test with ip while knowing eth0 does not exist.
-                                # Additionally usually lo0 will show up first, making test not worth doing.
-                                FIND2="${FIND}"
-                            fi
                             # Check if both commands give the same data
-                            if [ "${FIND}" = "${FIND2}" ]; then
+                            if [ ! "${FIND}" = "" ]; then
                                 HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
                                 logtext "Result: Found HostID: ${HOSTID}"
-                              else
-                                report "exception[]=Can't create HOSTID, receiving different output from commands"
-                                logtext "Debug: output FIND (ifconfig): ${FIND}"
-                                logtext "Debug: output FIND2 (ip): ${FIND2}"
                             fi
                           else
                             report "exception[]=Can't create HOSTID, command ip not found"

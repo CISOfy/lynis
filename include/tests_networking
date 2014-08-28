@@ -106,10 +106,11 @@
     # Test        : NETW-3001
     # Description : Find default gateway (route)
     # More info   : BSD: ^default   Linux: 0.0.0.0
-    Register --test-no NETW-3001 --weight L --network NO --description "Find default gateway (route)"
-    if [ $SKIPTEST -eq 0 ]; then    
+    if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NETW-3001 --preqs-met ${PREQS_MET} --weight L --network NO --description "Find default gateway (route)"
+    if [ $SKIPTEST -eq 0 ]; then
         logtext "Test: Searching default gateway(s)..."
-        FIND=`netstat -rn | egrep "^0.0.0.0|default" | tr -s ' ' | cut -d ' ' -f2`
+        FIND=`${NETSTATBINARY} -rn | egrep "^0.0.0.0|default" | tr -s ' ' | cut -d ' ' -f2`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 logtext "Result: Found default gateway ${I}"
@@ -253,10 +254,14 @@
                 FIND2=""
                 ;;
             Linux)
-                # UDP
-                FIND=`netstat -nlp | grep "^udp" | awk '{ print $4"|"$1"|"$6"|" }' | sed 's:|[0-9]*/:|:'`
-                # TCP
-                FIND2=`netstat -nlp | grep "^tcp" | awk '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | sed 's:|[0-9]*/:|:'`
+                if [ ! "${NETSTATBINARY}" = "" ]; then
+                    # UDP
+                    FIND=`${NETSTATBINARY} -nlp | grep "^udp" | awk '{ print $4"|"$1"|"$6"|" }' | sed 's:|[0-9]*/:|:'`
+                    # TCP
+                    FIND2=`${NETSTATBINARY} -nlp | grep "^tcp" | awk '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | sed 's:|[0-9]*/:|:'`
+                  else
+                    ReportException "${TEST_NO}:1" "netstat binary is missing"
+                fi
                 ;;
 
             NetBSD)
@@ -269,7 +274,7 @@
                 ;;
             *)
                 # Got this exception? Provide your details and output of netstat or any other tool to determine this information.
-                ReportException "${TEST_NO}:1" "Unclear what method to use, to determine listening port information"
+                ReportException "${TEST_NO}:2" "Unclear what method to use, to determine listening port information"
                 ;;
         esac
 
@@ -393,10 +398,11 @@
     # Test        : NETW-3028
     # Description : Checking for many waiting connections
     # Type        : Performance
-    Register --test-no NETW-3028 --weight L --network NO --description "Checking connections in WAIT state"
+    if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NETW-3028 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking connections in WAIT state"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Using netstat for check for connections in WAIT state..."
-        FIND=`netstat -an | grep WAIT | wc -l | awk '{ print $1 }'`
+        FIND=`${NETSTATBINARY} -an | grep WAIT | wc -l | awk '{ print $1 }'`
         if [ "${OPTIONS_CONN_MAX_WAIT_STATE}" = "" ]; then OPTIONS_CONN_MAX_WAIT_STATE="100"; fi
         logtext "Result: currently ${FIND} connections are in a waiting state (max configured: ${OPTIONS_CONN_MAX_WAIT_STATE})."
         if [ ${FIND} -gt ${OPTIONS_CONN_MAX_WAIT_STATE} ]; then

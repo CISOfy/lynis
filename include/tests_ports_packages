@@ -678,11 +678,13 @@
           PKG_AUDIT_TOOL="apt-check"
           logtext "Result: found /usr/lib/update-notifier/apt-check"
           logtext "Action: checking if any of the updates contain security updates"
-          FIND=`/usr/lib/update-notifier/apt-check --human-readable | grep "are security updates" | awk -F" " '{ print $1 }'`
+          # apt-check binary is a script and translated. Do not search for normal text strings, but use numbered output only
+          FIND=`/usr/lib/update-notifier/apt-check 2>&1 | awk -F\; '{ print $2 }'`
           # Check if we get the proper line back and amount of security patches available
           if [ "${FIND}" = "" ]; then
               logtext "Result: did not find security updates line"
-              ReportSuggestion ${TEST_NO} "Check if system is up-to-date, security updates test gives an unexpected result"
+              ReportSuggestion ${TEST_NO} "Check if system is up-to-date, security updates test (apt-check) gives an unexpected result"
+              ReportException "${TEST_NO}:1" "Apt-check did not provide any result"
             else
               if [ "${FIND}" = "0" ]; then
                   logtext "Result: no vulnerable packages found via apt-check"

@@ -866,6 +866,7 @@
         PERMS_OK=0
         logtext "Checking permissions of $1"
         if [ $# -eq 1 ]; then
+            IS_PARAMETERS_FILE=`echo $1 | grep "/parameters"`
             # Check file permissions
               if [ ! -f "$1" ]; then
                   logtext "Fatal error: file $1 does not exist. Quitting."
@@ -876,16 +877,25 @@
                   # Owner permissions
                   OWNER=`echo ${PERMS} | awk -F" " '{ print $3 }'`
                   OWNERID=`ls -n $1 | awk -F" " '{ print $3 }'`
-                  if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
-                      echo "Fatal error: file $1 should be owned by user 'root' or similar (found: ${OWNER})."
-                      ExitFatal
+                  if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
+                      if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
+                          echo "Fatal error: file $1 should be owned by user 'root' or similar (found: ${OWNER})."
+                          ExitFatal
+                      fi
+                    else
+                      logtext "Note: Owner permissions of file $1 to be expected similar as the UID executing the process"
                   fi
                   # Group permissions
                   GROUP=`echo ${PERMS} | awk -F" " '{ print $4 }'`
                   GROUPID=`ls -n $1 | awk -F" " '{ print $4 }'`
-                  if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
-                      echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
-                      ExitFatal
+
+                  if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
+                      if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
+                          echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
+                          ExitFatal
+                      fi
+                    else
+                      logtext "Note: Group permissions of file $1 to be expected similar as the UID executing the process"
                   fi
                   # Other permissions
                   OTHER_PERMS=`echo ${PERMS} | cut -c8-10`

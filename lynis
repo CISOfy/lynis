@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2014, Michael Boelen (michael.boelen@cisofy.com), The Netherlands
+# Web site: http://www.cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -20,10 +20,10 @@
 #
     # Program information
     PROGRAM_name="Lynis"
-    PROGRAM_version="1.6.0"
-    PROGRAM_releasedate="27 August 2014"
+    PROGRAM_version="1.6.1"
+    PROGRAM_releasedate="8 September 2014"
     PROGRAM_author="Michael Boelen"
-    PROGRAM_author_contact="michael@cisofy.com"
+    PROGRAM_author_contact="michael.boelen@cisofy.com"
     PROGRAM_website="http://cisofy.com"
     PROGRAM_copyright="Copyright 2007-2014 - ${PROGRAM_author}, ${PROGRAM_website}"
     PROGRAM_license="${PROGRAM_name} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -32,7 +32,7 @@
 
     PROGRAM_extrainfo="Enterprise support and plugins available via CISOfy - http://cisofy.com"
     # Release version (beta or final)
-    PROGRAM_releasetype="final"
+    PROGRAM_releasetype="beta"
     # Version number of report files (when format changes in future)
     REPORT_version_major="1"; REPORT_version_minor="0"
     REPORT_version="${REPORT_version_major}.${REPORT_version_minor}"
@@ -71,13 +71,6 @@
       else
         MYID=`id -u`
     fi
-    if [ ! ${MYID} -eq 0 ]; then
-        echo ""; echo ""; echo "Fatal error: Lynis can not be executed with this user ID."
-        echo ""
-        echo " * You have to be root (or equivalent) to perform an audit. Please su(do) and try again."
-        echo ""; echo ""
-        exit 1
-    fi
 #
 #################################################################################
 #
@@ -104,12 +97,12 @@
     if [ ! "${PERMS2}" = "r--------" -a ! "${PERMS2}" = "rw-------" ]; then
         ISSUE=1; echo "[!] Change file permissions of ${INCLUDEDIR}/functions to 600."
     fi
-    # Check if owner of both files is root user
-    if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
+    # Check if owner of both files is root user, or the same user which is running Lynis (for pentester mode)
+    if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" -a ! "${MYID}" = "${OWNER2ID}" ]; then
         ISSUE=1; echo "[!] Change ownership of ${INCLUDEDIR}/consts to 'root' or similar (found: ${OWNER} with UID ${OWNERID})."
     fi
-    # Check if owner of both files is root user
-    if [ ! "${OWNER2}" = "root" -a ! "${OWNER2ID}" = "0" ]; then
+    # Check if owner of both files is root user, or the same user which is running Lynis (for pentester mode)
+    if [ ! "${OWNER2}" = "root" -a ! "${OWNER2ID}" = "0" -a ! "${MYID}" = "${OWNER2ID}" ]; then
         ISSUE=1; echo "[!] Change ownership of ${INCLUDEDIR}/functions to 'root' or similar (found: ${OWNER2} with UID ${OWNER2ID})."
     fi
 
@@ -142,6 +135,29 @@
     # Drop out on unintialised variables / fatal errors
     #set -u
 #
+#
+#################################################################################
+#
+# Parameter checks
+#
+#################################################################################
+#
+    SafePerms ${INCLUDEDIR}/parameters
+    . ${INCLUDEDIR}/parameters
+
+    # Now determine if we are root (UID 0), unless using pentesting mode
+    if [ ! ${MYID} -eq 0 -a ${PENTESTINGMODE} -eq 0 ]; then
+        echo ""; echo ""; echo "Fatal error: Lynis can not be executed with this user ID."
+        echo ""
+        echo " * You have to be root (or equivalent) to perform an audit."
+        echo ""
+        echo " How to solve:"
+        echo " - Option 1: su(do) and try again as root user"
+        echo " - Option 2: run Lynis in pentest mode (not preferred for normal audits)"
+        echo ""; echo ""
+        exit 1
+    fi
+#
 #################################################################################
 #
 # Plugins
@@ -166,16 +182,6 @@
         echo "Make sure to execute ${PROGRAM_name} from untarred directory or check your installation."
         exit 1
     fi
-#
-#################################################################################
-#
-# Parameter checks
-#
-#################################################################################
-#
-    SafePerms ${INCLUDEDIR}/parameters
-    . ${INCLUDEDIR}/parameters
-
 #
 #################################################################################
 #

@@ -695,7 +695,7 @@
       {
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then logtextbreak; fi
-        SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
+        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
         TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=`expr ${TOTAL_TESTS} + 1`
         while [ $# -ge 1 ]; do
@@ -720,6 +720,16 @@
                     shift
                     PREQS_MET=$1
                 ;;
+                --root-only)
+                    shift
+                    if [ "$1" = "YES" -o "$1" = "yes" ]; then
+                          ROOT_ONLY=1
+                      elif [ "$1" = "NO" -o "$1" = "no" ]; then
+                          ROOT_ONLY=0
+                      else
+                        Debug "Invalid option for --root-only parameter of Register function"
+                    fi
+                ;;
                 --test-no)
                     shift
                     TEST_NO=$1
@@ -738,6 +748,12 @@
             shift
         done
 
+        # Skip if a test is root only and we are running a non-privileged test
+        if [ ${ROOT_ONLY} -eq 1 -a ! ${MYID} = "0" ]; then
+            SKIPTEST=1; SKIPREASON="This test needs root permissions"
+            Debug "Test ${TEST_NO} skipped as this one required root permissions to work"
+        fi
+
         # Skip test if it's configured in profile
         if [ ${SKIPTEST} -eq 0 ]; then
             FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}"`
@@ -752,7 +768,7 @@
 
         # Do not run scans which have a higher intensity than what we prefer
         if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "H" -a "${SCAN_TEST_HEAVY}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (H)"; fi
-        if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "M" -a "${SCAN_TEST_MEDIUM}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (M)"; fi	
+        if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "M" -a "${SCAN_TEST_MEDIUM}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (M)"; fi
 
         # Skip test if OS is different than requested	
         if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_OS}" -a ! "${OS}" = "${TEST_NEED_OS}" ]; then

@@ -254,23 +254,69 @@
 
     FileIsReadable()
       {
-        CHECKFILE=$1
+        sFILE=$1
         CANREAD=0
-        if [ -d ${CHECKFILE} ]; then
-            OTHERPERMS=`ls -d -l ${CHECKFILE} | cut -c 8`
-          elif [ -f ${CHECKFILE} ]; then
-            OTHERPERMS=`ls -d -l ${CHECKFILE} | cut -c 8`
+        logtext "Test: testing if we can access ${sFILE}"
+
+        # Check for symlink
+        if [ -L ${sFILE} ]; then
+            if [ ! "${READLINKBINARY}" = "" ]; then
+                tFILE=`${READLINKBINARY} ${sFILE}`
+                # Check if we can find the file now
+                if [ -f ${tFILE} ]; then
+                    sFILE="${tFILE}"
+                    logtext "Result: symlink found, pointing to file ${sFILE}"
+                elif [ -d ${tFILE} ]; then
+                    sFILE="${tFILE}"
+                    logtext "Result: symlink found, pointing to directory ${sFILE}"
+                  else
+                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
+                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
+                    tFILE="${tDIR}/${tFILE}"
+                    if [ -f ${tFILE} ]; then
+                        sFILE="${tFILE}"
+                        logtext "Result: symlink found, seems to be file ${sFILE}"
+                      elif [ -d ${tFILE} ]; then
+                        sFILE="${tFILE}"
+                        logtext "Result: symlink found, seems to be directory ${sFILE}"
+                    fi
+                fi
+            fi
+        fi
+        # Only check the file if it isn't a symlink (after previous check)
+        if [ -L ${sFILE} ]; then
+            OTHERPERMS="-"
+            logtext "Result: unclear if we can read this file, as this is a symlink"
+            ReportException "FileIsReadable" "Can not determine symlink ${sFILE}"
+          elif [ -d ${sFILE} ]; then
+            OTHERPERMS=`ls -d -l ${sFILE} | cut -c 8`
+          elif [ -f ${sFILE} ]; then
+            OTHERPERMS=`ls -d -l ${sFILE} | cut -c 8`
           else
             OTHERPERMS="-"
         fi
+
+        # Also check if we are the actual owner of the file
+        FILEOWNER=`ls -n ${sFILE} | awk -F" " '{ print $3 }'`
+        if [ "${FILEOWNER}" = "${MYID}" ]; then
+            logtext "Result: file is owned by our current user ID (${MYID}), checking if it is readable"
+            if [ -d ${sFILE} ]; then
+                OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
+              elif [ -f ${sFILE} ]; then
+                OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
+            fi
+        fi
+
+        # YYY check group ownership (just in case)
+
         # Check if we have the read bit
         if [ "${OTHERPERMS}" = "r" ]; then
             CANREAD=1
+            logtext "Result: file ${sFILE} is readable (or directory accessible)."
+          else
+            logtext "Result: file ${sFILE} is NOT readable (or directory accessible), symlink, or does not exist."
         fi
       }
-
-
-
 
     # Get Host ID
     GetHostID()

@@ -139,20 +139,26 @@
         for I in `cat ${TMPFILE}`; do
             logtext "Apache config file: ${I}"
 
-            # Search Virtual Hosts
-            for J in `cat ${I} | grep "ServerName" | grep -v "^#" | awk '{ if ($1=="ServerName") print $2 }'`; do
-                if [ ! -z ${J} ]; then
-                    tVHOSTS="${tVHOSTS} ${J}"
-                    cVHOSTS=`expr ${cVHOSTS} + 1`
-                fi
-            done
-            # Search Server aliases
-            for J in `cat ${I} | grep "ServerAlias" | grep -v "^#" | sed "s/.* ServerAlias//g" | sed "s/#.*//g"`; do
-                if [ ! -z ${J} ]; then
-                    tVHOSTS="${tVHOSTS} ${J}"
-                    cVHOSTS=`expr ${cVHOSTS} + 1`
-                fi
-            done
+            FileIsReadable ${I}
+            if [ ${CANREAD} -eq 1 ]; then
+                # Search Virtual Hosts
+                for J in `cat ${I} | grep "ServerName" | grep -v "^#" | awk '{ if ($1=="ServerName") print $2 }'`; do
+                    if [ ! -z ${J} ]; then
+                        tVHOSTS="${tVHOSTS} ${J}"
+                        cVHOSTS=`expr ${cVHOSTS} + 1`
+                    fi
+                done
+                # Search Server aliases
+                for J in `cat ${I} | grep "ServerAlias" | grep -v "^#" | sed "s/.* ServerAlias//g" | sed "s/#.*//g"`; do
+                    if [ ! -z ${J} ]; then
+                        tVHOSTS="${tVHOSTS} ${J}"
+                        cVHOSTS=`expr ${cVHOSTS} + 1`
+                    fi
+                done
+              else
+                logtext "Result: can not read configuration file with this user ID"
+                ReportException "${TEST_NO}:1" "Can not read configuration file $I"
+            fi
         done
 
         # Log all virtual hosts we found
@@ -425,7 +431,12 @@
                   N=`expr ${N} + 1`
                   logtext "Result: found Nginx configuration file ${J}"
                   report "nginx_sub_conf_file=${J}"
-                  FIND3=`cat ${J} | sed -e 's/^[ \t]*//' | grep -v "^#" | grep -v "^$" | sed 's/[\t]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE2}`
+                  FileIsReadable ${J}
+                  if [ ${CANREAD} -eq 1 ]; then
+                      FIND3=`cat ${J} | sed -e 's/^[ \t]*//' | grep -v "^#" | grep -v "^$" | sed 's/[\t]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE2}`
+                    else
+                      ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
+                  fi
               fi
             done
         done

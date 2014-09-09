@@ -47,20 +47,25 @@
         for I in ${CRON_DIRS}; do
             logtext "Test: checking directory ${I}"
             if [ -d ${I} ]; then
-                logtext "Result: found directory ${I}"
-                logtext "Test: searching files in ${I}"
-                FIND=`find ${I} -type f -print`
-                if [ "${FIND}" = "" ]; then
-                    logtext "Result: no files found in ${I}"
-                  else
-                    logtext "Result: found one or more files in ${I}. Analyzing files.."
-                    for J in ${FIND}; do
-                        FindCronJob ${J}
-                        for K in ${sCRONJOBS}; do
-                            logtext "Result: Found cronjob (${I}): ${K}"
+                FileIsReadable ${I}
+                if [ ${CANREAD} -eq 1 ]; then
+                    logtext "Result: found directory ${I}"
+                    logtext "Test: searching files in ${I}"
+                    FIND=`find ${I} -type f -print`
+                    if [ "${FIND}" = "" ]; then
+                        logtext "Result: no files found in ${I}"
+                      else
+                        logtext "Result: found one or more files in ${I}. Analyzing files.."
+                        for J in ${FIND}; do
+                            FindCronJob ${J}
+                            for K in ${sCRONJOBS}; do
+                                logtext "Result: Found cronjob (${I}): ${K}"
+                            done
                         done
-                    done
-                    logtext "Result: done with analyzing files in ${I}"
+                        logtext "Result: done with analyzing files in ${I}"
+                    fi
+                  else
+                    logtext "Result: can not read file or directory ${I}"
                 fi
               else
                 logtext "Result: directory ${I} does not exist"
@@ -159,47 +164,56 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         AT_UNKNOWN=0
         case ${OS} in
-	    FreeBSD)          AT_ALLOW="/var/at/at.allow";        AT_DENY="/var/at/at.deny"         ;;
-	    HPUX)             AT_ALLOW="/usr/lib/cron/at.allow";  AT_DENY="/usr/lib/cron/at.deny"   ;;
-	    Linux)	      AT_ALLOW="/etc/at.allow";           AT_DENY="/etc/at.deny"            ;;
-	    OpenBSD)          AT_ALLOW="/var/cron/at.allow";      AT_DENY="/var/cron/at.deny"       ;;
-	    SunOS)            AT_ALLOW="/etc/cron.d/at.allow";    AT_DENY="/etc/cron.d/at.deny"     ;;
-	    *)                AT_UNKNOWN=1; logtext "Test skipped, files for at unknown"            ;;
-	esac
+            FreeBSD)          AT_ALLOW="/var/at/at.allow";        AT_DENY="/var/at/at.deny"         ;;
+            HPUX)             AT_ALLOW="/usr/lib/cron/at.allow";  AT_DENY="/usr/lib/cron/at.deny"   ;;
+            Linux)            AT_ALLOW="/etc/at.allow";           AT_DENY="/etc/at.deny"            ;;
+            OpenBSD)          AT_ALLOW="/var/cron/at.allow";      AT_DENY="/var/cron/at.deny"       ;;
+            SunOS)            AT_ALLOW="/etc/cron.d/at.allow";    AT_DENY="/etc/cron.d/at.deny"     ;;
+            *)                AT_UNKNOWN=1; logtext "Test skipped, files for at unknown"            ;;
+        esac
         if [ ${AT_UNKNOWN} -eq 0 ]; then
             logtext "Test: checking for file ${AT_ALLOW}"
-	    if [ -f ${AT_ALLOW} ]; then
-	        logtext "Result: file ${AT_ALLOW} exists, only listed users can schedule at jobs"
-		FIND=`cat ${AT_ALLOW} | sort`
-		if [ "${FIND}" = "" ]; then
-		    logtext "Result: File empty, no users are allowed to schedule at jobs"
-		  else
-		    for I in ${FIND}; do
-		       logtext "Allowed at user: ${I}"
-		    done    
-		fi
-	      else
-	       logtext "Result: file ${AT_ALLOW} does not exist"
-	       logtext "Test: checking for file ${AT_DENY}"
-	       if [ -f ${AT_DENY} ]; then
-	           logtext "Result: file ${AT_DENY} exists, only non listed users can schedule at jobs"
-		   FIND=`cat ${AT_DENY} | sort`
-		   if [ "${FIND}" = "" ]; then
-		       logtext "Result: file is empty, no users are denied access to schedule jobs"
-		     else
-		       for I in ${FIND}; do
-		           logtext "Denied at user: ${I}"
-		       done    
-		   fi
-	         else
-	           logtext "Result: both ${AT_ALLOW} and ${AT_DENY} do not exist"
-	           logtext "Note: only root can schedule at jobs"
-	       fi    
-	    fi
-	    Display --indent 4 --text "- Checking at users" --result DONE --color GREEN
-	  else
+            if [ -f ${AT_ALLOW} ]; then
+                FileIsReadable ${AT_ALLOW}
+                if [ ${CANREAD} -eq 1 ]; then
+                    logtext "Result: file ${AT_ALLOW} exists, only listed users can schedule at jobs"
+                    FIND=`cat ${AT_ALLOW} | sort`
+                    if [ "${FIND}" = "" ]; then
+                        logtext "Result: File empty, no users are allowed to schedule at jobs"
+                      else
+                        for I in ${FIND}; do
+                           logtext "Allowed at user: ${I}"
+                        done
+                    fi
+                  else
+                    logtext "Warning: can not read ${AT_ALLOW}"
+                fi
+             else
+               logtext "Result: file ${AT_ALLOW} does not exist"
+               logtext "Test: checking for file ${AT_DENY}"
+               if [ -f ${AT_DENY} ]; then
+                   if [ -f ${AT_ALLOW} ]; then
+                       logtext "Result: file ${AT_DENY} exists, only non listed users can schedule at jobs"
+                       FIND=`cat ${AT_DENY} | sort`
+                       if [ "${FIND}" = "" ]; then
+                           logtext "Result: file is empty, no users are denied access to schedule jobs"
+                         else
+                           for I in ${FIND}; do
+                               logtext "Denied at user: ${I}"
+                           done
+                       fi
+                     else
+                       logtext "Warning: can not read ${AT_DENY}"
+                   fi
+                 else
+                   logtext "Result: both ${AT_ALLOW} and ${AT_DENY} do not exist"
+                   logtext "Note: only root can schedule at jobs"
+               fi
+            fi
+            Display --indent 4 --text "- Checking at users" --result DONE --color GREEN
+          else
             Display --indent 4 --text "- Checking at users" --result SKIPPED --color YELLOW
-	fi
+        fi
     fi
 #
 #################################################################################
@@ -209,19 +223,19 @@
     if [ ${ATD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SCHD-7724 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check at jobs"
     if [ ${SKIPTEST} -eq 0 ]; then
-	logtext "Test: Check scheduled at jobs"
-	FIND=`atq | grep -v "no files in queue" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g'`
-	if [ ! "${FIND}" = "" ]; then
-	    logtext "Result: found one or more jobs"
-	    for I in ${FIND}; do
-	        I=`echo ${I} | sed 's/!space!/ /g'`
-		logtext "Found at job: ${I}"
-	    done
+        logtext "Test: Check scheduled at jobs"
+        FIND=`atq | grep -v "no files in queue" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g'`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Result: found one or more jobs"
+            for I in ${FIND}; do
+                I=`echo ${I} | sed 's/!space!/ /g'`
+                logtext "Found at job: ${I}"
+            done
             Display --indent 4 --text "- Checking at jobs" --result FOUND --color GREEN
-	  else
-	    logtext "Result: no pending at jobs"
+          else
+            logtext "Result: no pending at jobs"
             Display --indent 4 --text "- Checking at jobs" --result NONE --color GREEN
-	fi
+        fi
     fi
 #
 #################################################################################

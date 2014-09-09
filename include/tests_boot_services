@@ -39,21 +39,26 @@
             Display --indent 4 --text "- Checking presence GRUB... " --result "OK" --color GREEN
             if [ -f /boot/grub/grub.conf ]; then GRUBCONFFILE="/boot/grub/grub.conf"; else GRUBCONFFILE="/boot/grub/menu.lst"; fi
             logtext "Found file ${GRUBCONFFILE}, proceeding with tests."
-            FIND=`cat ${GRUBCONFFILE} | grep 'password --md5' | grep -v '^#'`
-            FIND2=`cat ${GRUBCONFFILE} | grep 'password --encrypted' | grep -v '^#'`
-            if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
-                Display --indent 6 --text "- Checking for password protection..." --result WARNING --color RED
-                logtext "Result: Didn't find MD5/SHA1 hashed password line in GRUB boot file!"
-                logtext "Risk: user can switch to single user mode by editing current menu items or bypassing them."
-                logtext "Additional information: Do NOT use a plaintext password, since the grub.conf or menu.lst file is most likely to be world readable!"
-                logtext "If an unsecured OS like DOS is used, add 'lock' below that entry and setup a password with the password option, to prevent direct system access."
-                ReportWarning ${TEST_NO} "M" "No password set on GRUB bootloader"
-                logtext "Tip: Run grub-crypt or grub-md5-crypt and create a hashed password. Add a line below the line timeout=<value>, add: password --md5 <password hash> or password --encrypted <password hash> for SHA1 encrypted password"
-                AddHP 0 2
+            FileIsReadable ${GRUBCONFFILE}
+            if [ ${CANREAD} -eq 1 ]; then
+                FIND=`cat ${GRUBCONFFILE} | grep 'password --md5' | grep -v '^#'`
+                FIND2=`cat ${GRUBCONFFILE} | grep 'password --encrypted' | grep -v '^#'`
+                if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
+                    Display --indent 6 --text "- Checking for password protection..." --result WARNING --color RED
+                    logtext "Result: Didn't find MD5/SHA1 hashed password line in GRUB boot file!"
+                    logtext "Risk: user can switch to single user mode by editing current menu items or bypassing them."
+                    logtext "Additional information: Do NOT use a plaintext password, since the grub.conf or menu.lst file is most likely to be world readable!"
+                    logtext "If an unsecured OS like DOS is used, add 'lock' below that entry and setup a password with the password option, to prevent direct system access."
+                    ReportWarning ${TEST_NO} "M" "No password set on GRUB bootloader"
+                    logtext "Tip: Run grub-crypt or grub-md5-crypt and create a hashed password. Add a line below the line timeout=<value>, add: password --md5 <password hash> or password --encrypted <password hash> for SHA1 encrypted password"
+                    AddHP 0 2
+                  else
+                    Display --indent 6 --text "- Checking for password protection..." --result OK --color GREEN
+                    logtext "Result: GRUB has password protection."
+                    AddHP 4 4
+                fi
               else
-                Display --indent 6 --text "- Checking for password protection..." --result OK --color GREEN
-                logtext "Result: GRUB has password protection."
-                AddHP 4 4
+                logtext "Warning: can not read ${GRUBCONFFILE}"
             fi
         fi
 
@@ -86,7 +91,7 @@
             BOOT_LOADER="FreeBSD"
           else
             logtext "Result: Not all expected files found in /boot"
-            Display --indent 4 --text "- Checking presence FreeBSD loader" --result "NOT FOUND" --color WHITE	  
+            Display --indent 4 --text "- Checking presence FreeBSD loader" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -114,25 +119,31 @@
     # Notes       : password= or password =
     Register --test-no BOOT-5139 --weight L --network NO --description "Check for LILO boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        LILOCONFFILE="/etc/lilo.conf"
         logtext "Test: checking for presence LILO configuration file..."
-        if [ -f /etc/lilo.conf ]; then
-            BOOT_LOADER="LILO"
-            Display --indent 4 --text "- Checking presence LILO... " --result "OK" --color GREEN
-            logtext "Checking password option LILO..."
-            FIND=`cat /etc/lilo.conf | ${EGREPBINARY} 'password[[:space:]]?=' | grep -v "^#"`
-            if [ "${FIND}" = "" ]; then
-                Display --indent 6 --text "- Password option presence " --result "WARNING" --color RED
-                logtext "Result: no password set for LILO. Bootloader is unprotected to"
-                logtext "dropping to single user mode or unauthorized access to devices/data."
-                ReportSuggestion ${TEST_NO} "Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
-                ReportWarning ${TEST_NO} "M" "No password set on LILO bootloader"
-                AddHP 0 2
+        if [ -f ${LILOCONFFILE} ]; then
+            FileIsReadable ${LILOCONFFILE}
+            if [ ${CANREAD} -eq 1 ]; then
+                BOOT_LOADER="LILO"
+                Display --indent 4 --text "- Checking presence LILO... " --result "OK" --color GREEN
+                logtext "Checking password option LILO..."
+                FIND=`cat ${LILOCONFFILE} | ${EGREPBINARY} 'password[[:space:]]?=' | grep -v "^#"`
+                if [ "${FIND}" = "" ]; then
+                    Display --indent 6 --text "- Password option presence " --result "WARNING" --color RED
+                    logtext "Result: no password set for LILO. Bootloader is unprotected to"
+                    logtext "dropping to single user mode or unauthorized access to devices/data."
+                    ReportSuggestion ${TEST_NO} "Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
+                    ReportWarning ${TEST_NO} "M" "No password set on LILO bootloader"
+                    AddHP 0 2
+                  else
+                    Display --indent 6 --text "- Password option presence " --result "OK" --color GREEN
+                    logtext "Result: LILO password option set"
+                    AddHP 4 4
+                fi
+                #YYY (making /etc/lilo.conf immutable is a good idea, chattr +i /etc/lilo.conf)
               else
-                Display --indent 6 --text "- Password option presence " --result "OK" --color GREEN
-                logtext "Result: LILO password option set"
-                AddHP 4 4
+                logtext "Warning: can not access ${LILOCONFFILE}"
             fi
-            #YYY (making /etc/lilo.conf immutable is a good idea, chattr +i /etc/lilo.conf)
           else
             Display --indent 4 --text "- Checking presence LILO... " --result "NOT FOUND" --color WHITE
             logtext "Result: LILO configuration file not found"

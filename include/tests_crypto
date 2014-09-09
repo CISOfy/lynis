@@ -32,23 +32,33 @@
         sSSL_PATHS=`grep "^ssl:certificates:" ${PROFILE} | cut -d ':' -f3` 
         for I in ${sSSL_PATHS}; do
             if [ -d ${I} ]; then
-                logtext "Result: found directory ${I}"
-                # Search for CRT files
-                sFINDCRTS=`find ${I} -name "*.crt" -type f -print 2> /dev/null`
-                for J in ${sFINDCRTS}; do
-                    logtext "Test: checking certificate ${J}"
-                    # Check certificate where 'end date' has been expired
-                    FIND=`${OPENSSLBINARY} x509 -noout -checkend 0 -in ${J} -enddate > /dev/null ; echo $?`
-                    if [ "${FIND}" = "0" ]; then
-                        logtext "Result: certificate ${J} seems to be correct and still valid"
-                        report "valid_certificate[]=${J}|unknown entity|"
-                      else
-                        FOUNDPROBLEM=1
-                        logtext "Result: certificate ${J} has been expired"
-                        report "expired_certificate[]=${J}"
-                        #YYY Dump more information to log file
-                    fi
-                done
+                FileIsReadable ${I}
+                if [ ${CANREAD} -eq 1 ]; then
+                    logtext "Result: found directory ${I}"
+                    # Search for CRT files
+                    sFINDCRTS=`find ${I} -name "*.crt" -type f -print 2> /dev/null`
+                    for J in ${sFINDCRTS}; do
+                        FileIsReadable ${J}
+                        if [ ${CANREAD} -eq 1 ]; then
+                            logtext "Test: checking certificate ${J}"
+                            # Check certificate where 'end date' has been expired
+                            FIND=`${OPENSSLBINARY} x509 -noout -checkend 0 -in ${J} -enddate > /dev/null ; echo $?`
+                            if [ "${FIND}" = "0" ]; then
+                                logtext "Result: certificate ${J} seems to be correct and still valid"
+                                report "valid_certificate[]=${J}|unknown entity|"
+                              else
+                                FOUNDPROBLEM=1
+                                logtext "Result: certificate ${J} has been expired"
+                                report "expired_certificate[]=${J}"
+                                #YYY Dump more information to log file
+                            fi
+                          else
+                            logtext "Warning: can not read file ${J}"
+                        fi
+                    done
+                  else
+                    logtext "Warning: No read access to path ${I}"
+                fi
               else
                 logtext "Result: SSL path ${I} does not exist"
             fi

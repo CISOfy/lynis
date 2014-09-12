@@ -34,6 +34,7 @@
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
 #    IsRunning                  Check if a process is running
+#    IsVirtualMachine           Check if this system is a virtual machine
 #    ParseNginx                 Parse nginx configuration lines
 #    ReportException            Add an exception to the report file (for debugging purposes)
 #    ReportSuggestion           Add a suggestion to report file
@@ -492,6 +493,57 @@
             logtext "IsRunning: process '$1' found (${FIND})"
           else
             logtext "IsRunning: process '$1' not found"
+        fi
+      }
+
+    ################################################################################
+    # Name        : IsVirtualMachine()
+    # Description : Check if a specific item exists in the report
+    # Returns     : ISVIRTUALMACHINE (0-2)
+    #               VMTYPE
+    #               VMFULLTYPE
+    ################################################################################
+
+    IsVirtualMachine()
+      {
+        logtext "Test: Determine if this system is a virtual machine"
+        # 0 = no, 1 = yes, 2 = unknown
+        ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
+        # Check if we can use systemctl
+        if [ ! "${SYSTEMCTLBINARY}" = "" ]; then
+            logtext "Test: trying to guess virtualization technology with systemctl"
+            FIND=`${SYSTEMCTLBINARY} | grep "^Virtualization=" | awk -F= '{ print $2 }'`
+            if [ ! "${FIND}" = "" ]; then
+                case ${FIND} in
+                    bochs)          ISVIRTUALMACHINE=1; VMTYPE="bochs";           VMFULLTYPE="Bochs CPU emulation"                     ;;
+                    kvm)            ISVIRTUALMACHINE=1; VMTYPE="kvm";             VMFULLTYPE="KVM"                                     ;;
+                    lxc)            ISVIRTUALMACHINE=1; VMTYPE="lxc";             VMFULLTYPE="Linux Containers"                        ;;
+                    lxc-libvirt)    ISVIRTUALMACHINE=1; VMTYPE="lxc-libvirt";     VMFULLTYPE="libvirt LXC driver (Linux Containers"    ;;
+                    microsoft)      ISVIRTUALMACHINE=1; VMTYPE="microsoft";       VMFULLTYPE="Microsoft Virtual PC"                    ;;
+                    openvz)         ISVIRTUALMACHINE=1; VMTYPE="openvz";          VMFULLTYPE="OpenVZ"                                  ;;
+                    oracle)         ISVIRTUALMACHINE=1; VMTYPE="oracle";          VMFULLTYPE="Oracle VM VirtualBox"                    ;;
+                    qemu)           ISVIRTUALMACHINE=1; VMTYPE="qemu";            VMFULLTYPE="QEMU"                                    ;;
+                    systemd-nspawn) ISVIRTUALMACHINE=1; VMTYPE="systemd-nspawn";  VMFULLTYPE="Systemd Namespace container"             ;;
+                    uml)            ISVIRTUALMACHINE=1; VMTYPE="uml";             VMFULLTYPE="User-Mode Linux (UML)"                   ;;
+                    vmware)         ISVIRTUALMACHINE=1; VMTYPE="vmware";          VMFULLTYPE="VMware product"                          ;;
+                    xen)            ISVIRTUALMACHINE=1; VMTYPE="xen";             VMFULLTYPE="XEN"                                     ;;
+                    zvm)            ISVIRTUALMACHINE=1; VMTYPE="zvm";             VMFULLTYPE="zvm"                                     ;;
+                    *)              ReportException "IsVirtualMachine" "Unknown virtualization type received from systemctl" ;;
+                esac
+            fi
+          else
+            # Try common guest processes
+            logtext "Test: trying to guess virtual machine type by running processes"
+            IsRunning vmware-guestd
+            if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="vmware";          VMFULLTYPE="VMware product"                          ; fi
+        fi
+        if [ ${ISVIRTUALMACHINE} -eq 1 ]; then
+            logtext "Result: found virtual machine (type: ${VMTYPE}, ${VMFULLTYPE})"
+            report "vm=1"
+            report "vmtype=${VMTYPE}"
+          elif [ ${ISVIRTUALMACHINE} -eq 2 ]; then
+            logtext "Result: unknown if this system is a virtual machine"
+            report "vm=2"
         fi
       }
 

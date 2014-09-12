@@ -42,6 +42,7 @@
 #    Register                   Register a test (for logging and execution)
 #    SafePerms                  Check if a directory has safe permissions
 #    SearchItem                 Search a string in a file
+#    ShowSymlinkPath            Show a path behind a symlink
 #    ViewCategories             Display tests categories
 #    logtext                    Log text strings to logfile, prefixed with date/time
 #
@@ -1110,6 +1111,56 @@
             #report "warning=$2"
         ;;
         esac
+      }
+
+
+    ################################################################################
+    # Name        : ShowSymlinkPath()
+    # Description : Check if we can find the path behind a symlink
+    # Parameters  : $1 = file
+    # Returns     : FOUNDPATH (0 not found, 1 found path))
+    ################################################################################
+
+    ShowSymlinkPath()
+      {
+        sFILE=$1
+        FOUNDPATH=0
+        # Check for symlink
+        if [ -L ${sFILE} ]; then
+            if [ ! "${READLINKBINARY}" = "" ]; then
+                tFILE=`${READLINKBINARY} ${sFILE}`
+                # Check if we can find the file now
+                if [ -f ${tFILE} ]; then
+                    sFILE="${tFILE}"
+                    logtext "Result: symlink found, pointing to file ${sFILE}"
+                    FOUNDPATH=1
+                elif [ -d ${tFILE} ]; then
+                    sFILE="${tFILE}"
+                    logtext "Result: symlink found, pointing to directory ${sFILE}"
+                    FOUNDPATH=1
+                  else
+                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
+                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
+                    tFILE="${tDIR}/${tFILE}"
+                    if [ -f ${tFILE} ]; then
+                        sFILE="${tFILE}"
+                        logtext "Result: symlink found, seems to be file ${sFILE}"
+                        FOUNDPATH=1
+                      elif [ -d ${tFILE} ]; then
+                        sFILE="${tFILE}"
+                        logtext "Result: symlink found, seems to be directory ${sFILE}"
+                        FOUNDPATH=1
+                      else
+                        logtext "Result: path ${sFILE} not found"
+                    fi
+                fi
+            fi
+        fi
+        # Now check if our new location is actually a file or directory destination
+        if [ -L ${sFILE} ]; then
+            logtext "Result: discovered location ${sFILE} is another symlink"
+            FOUNDPATH=0
+        fi
       }
 
     ViewCategories()

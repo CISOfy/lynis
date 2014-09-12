@@ -56,28 +56,39 @@
             FOUND=1; NTPD_RUNNING=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1
             NTP_DAEMON="ntpd"
             logtext "Result: found running NTP daemon in process list"
-            Display --indent 2 --text "- Checking running NTP daemon (ntpd)..." --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking running NTP daemon (ntpd)" --result FOUND --color GREEN
           else
             logtext "Result: NTP daemon not found in process list"
-            Display --indent 2 --text "- Checking running NTP daemon (ntpd)..." --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking running NTP daemon (ntpd)" --result "NOT FOUND" --color WHITE
         fi
 
         # Check time daemon (eg NetBSD)
         IsRunning timed
         if [ ${RUNNING} -eq 1 ]; then
             FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="timed"
-            Display --indent 2 --text "- Checking running NTP daemon (timed)..." --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking running NTP daemon (timed)" --result FOUND --color GREEN
           else
-            Display --indent 2 --text "- Checking running NTP daemon (timed)..." --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking running NTP daemon (timed)" --result "NOT FOUND" --color WHITE
         fi
 
         # Check time daemon (eg DragonFly BSD)
         IsRunning dntpd
         if [ ${RUNNING} -eq 1 ]; then
             FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="dntpd"
-            Display --indent 2 --text "- Checking running NTP daemon (dntpd)..." --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking running NTP daemon (dntpd)" --result FOUND --color GREEN
           else
-            Display --indent 2 --text "- Checking running NTP daemon (dntpd)..." --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking running NTP daemon (dntpd)" --result "NOT FOUND" --color WHITE
+        fi
+
+        # Check timedate daemon (systemd)
+        if [ ! "${TIMEDATECTL}" = "" ]; then
+            FIND=`${TIMEDATECTL} status | grep "NTP enabled: yes"`
+            if [ "${FIND}" = "" ]; then
+                FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="timedated"
+                Display --indent 2 --text "- Checking running NTP daemon (timedated)" --result "NOT FOUND" --color WHITE
+              else
+                Display --indent 2 --text "- Checking running NTP daemon (timedated)" --result "FOUND" --color GREEN
+            fi
         fi
 
         # Check crontab for OpenBSD/FreeBSD
@@ -90,10 +101,10 @@
                 if [ ! "${FIND}" = "" ]; then
                     FOUND=1;
                     NTP_CONFIG_TYPE_SCHEDULED=1
-                    Display --indent 2 --text "- Checking NTP client in crontab file (${I})..." --result FOUND --color GREEN
+                    Display --indent 2 --text "- Checking NTP client in crontab file (${I})" --result FOUND --color GREEN
                     logtext "Result: found ntpdate or rdate reference in crontab file ${I}"
                   else
-                    Display --indent 2 --text "- Checking NTP client in crontab file (${I})..." --result "NOT FOUND" --color WHITE
+                    Display --indent 2 --text "- Checking NTP client in crontab file (${I})" --result "NOT FOUND" --color WHITE
                     logtext "Result: no ntpdate or rdate reference found in crontab file ${I}"
                 fi
               else

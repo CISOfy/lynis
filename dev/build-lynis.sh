@@ -189,7 +189,7 @@
     #fi
 
     # Create tarball
-    tar -C ${MYWORKDIR} --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
+    tar -C ${MYWORKDIR} --exclude=debian --exclude=dev --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
 
     if [ -f ${TARBALL} ]; then
          echo "[V] Tarball created"

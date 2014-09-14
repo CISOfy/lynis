@@ -126,12 +126,12 @@
 
     # Check binaries
 
-    BZRBINARY=`which bzr`
-    if [ ! "${BZRBINARY}" = "" ]; then
-       echo "[=] bzr = ${BZRBINARY}"
+    GITBUILDPACKAGEBINARY=`which git-buildpackage`
+    if [ ! "${GITBUILDPACKAGEBINARY}" = "" ]; then
+       echo "[=] git-buildpackage = ${GITBUILDPACKAGEBINARY}"
      else
-       echo "[X] Can not find bzr binary"
-       echo "    Hint: install bzr"
+       echo "[X] Can not find git-buildpackage binary"
+       echo "    Hint: install git-buildpackage"
        ExitFatal
     fi
 
@@ -235,29 +235,44 @@
 
     echo "[*] Starting with DEB building process"
 
-    BZRSTATUS=`${BZRBINARY} status . 2>&1 > /dev/null; echo $?`
-    if [ "${BZRSTATUS}" = "0" ]; then
-        echo "[V] bzr has proper directory tree"
-        DEBCHANGELOGFULLVERSION=`head -1 debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//'`
+        DEBCHANGELOGFULLVERSION=`head -1 ../debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//'`
         DEBCHANGELOGVERSION=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }'`
         DEBCHANGELOGVERSIONREV=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }'`
-        echo "[=] Version in Debian changelog: ${DEBCHANGELOGVERSION} (revision: ${DEBCHANGELOGVERSIONREV})"
         if [ "${LYNIS_VERSION}" = "${DEBCHANGELOGVERSION}" ]; then
             echo "[V] Debian/changelog up-to-date"
           else
             echo "[X] Debian/changelog outdated"
             ExitFatal
         fi
-        # execute command
-        # bzr builddeb . --build-dir ${DEBWORKDIR}/build-area/ --result-dir ${DEBWORKDIR}
-      elif [ "${BZRSTATUS}" = "3" ]; then
-        echo "[X] Tree is not initialized for BZR"
-        echo "    Hint: run bzr init while being in lynis directory (or bzr init ..)"
-        ExitFatal
-      else
-        echo "[X] Unknown error"
-        echo "Output: ${BZRSTATUS}"
-    fi
+
+#    BZRSTATUS=`${BZRBINARY} status . 2>&1 > /dev/null; echo $?`
+#    if [ "${BZRSTATUS}" = "0" ]; then
+#        echo "[V] bzr has proper directory tree"
+#        DEBCHANGELOGFULLVERSION=`head -1 debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//'`
+#        DEBCHANGELOGVERSION=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }'`
+#        DEBCHANGELOGVERSIONREV=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }'`
+#        echo "[=] Version in Debian changelog: ${DEBCHANGELOGVERSION} (revision: ${DEBCHANGELOGVERSIONREV})"
+#        if [ "${LYNIS_VERSION}" = "${DEBCHANGELOGVERSION}" ]; then
+#            echo "[V] Debian/changelog up-to-date"
+#          else
+#            echo "[X] Debian/changelog outdated"
+##            ExitFatal
+#        fi
+#        # execute command
+#        # bzr builddeb . --build-dir ${DEBWORKDIR}/build-area/ --result-dir ${DEBWORKDIR}
+#      elif [ "${BZRSTATUS}" = "3" ]; then
+#        echo "[X] Tree is not initialized for BZR"
+#        echo "    Hint: run bzr init while being in lynis directory (or bzr init ..)"
+#        ExitFatal
+#      else
+#        echo "[X] Unknown error"
+#        echo "Output: ${BZRSTATUS}"
+#    fi
+
+    cd ..
+    git-buildpackage --git-tarball-dir=${MYBUILDIDR} --git-export-dir=${DEBWORKDIR}
+    cd ${MYWORKDIR}
+
 
 
     echo "[V] Done"

@@ -270,7 +270,7 @@
 #    fi
 
     cd ..
-    git-buildpackage --git-tarball-dir=${MYBUILDIDR} --git-export-dir=${DEBWORKDIR}
+    ${GITBUILDPACKAGEBINARY} --git-tarball-dir=${MYBUILDIDR} --git-export-dir=${DEBWORKDIR}
     cd ${MYWORKDIR}
 
 

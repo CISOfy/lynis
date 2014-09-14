@@ -5,14 +5,21 @@
 #
 # Usage:
 # - Adjust version number (Version:)
+# - Check if you have the directories in your home directory (or adjust topdir)
 # - rpmbuild -ba lynis.spec
 #
 # If RPM building fails, check the required tools to build packages.
 #
 #################################################################################
-# http://cisofy.com/
+#
+# (c) 2014 Michael Boelen
+#
+# Website:   http://cisofy.com/
+#
 #################################################################################
 
+# Build in home directory of the user
+%define _topdir         %{getenv:HOME}/lynis-build/rpmbuild
 %define _includedir     /usr/share/lynis/include
 %define _pluginsdir     /usr/share/lynis/plugins
 %define _dbdir          /usr/share/lynis/db
@@ -88,7 +95,7 @@ install db/* ${RPM_BUILD_ROOT}%{_dbdir}
 %files
 %defattr(644,root,root,755)
 # Binaries
-%{_bindir}/lynis
+%attr(755, root, root) %{_bindir}/lynis
 # Man page and docs
 %doc CHANGELOG FAQ LICENSE README
 %doc %{_mandir}/man8/lynis.8.gz
@@ -98,8 +105,6 @@ install db/* ${RPM_BUILD_ROOT}%{_dbdir}
 %{_dbdir}/*
 %{_includedir}/*
 %{_pluginsdir}/*
-# Lynis binary should be executable
-#%attr(755, root, root) %{_bindir}/lynis
 #%attr(644, root, root) %{_dbdir}/*
 #%attr(644, root, root) %{_includedir}/*
 #%attr(644, root, root) %{_plugindir}

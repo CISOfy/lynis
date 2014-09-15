@@ -592,50 +592,47 @@
 #
     # Test        : PKGS-7388
     # Description : Check security repository in Debian/ubuntu apt sources.list file
-    Register --test-no PKGS-7388 --os Linux --weight L --network NO --description "Check security repository in Debian/ubuntu apt sources.list file"
+    if [ -f /etc/apt/sources.list -a -d /etc/apt/sources.list.d ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7388 --os preqs-met ${PREQS_MET} --weight L --network NO --description "Check security repository in Debian/ubuntu apt sources.list file"
     if [ $SKIPTEST -eq 0 ]; then
         FOUND=0
-        if [ -f /etc/apt/sources.list -o -d /etc/apt/sources.list.d ]; then
-            if [ ! "${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY}" = "yes" ]; then
-                if [ -f /etc/apt/sources.list ]; then
-                    logtext "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list file"
-                    FIND=`egrep "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list | grep -v '#' | sed 's/ /!space!/g'`
-                    if [ ! "${FIND}" = "" ]; then
-                        FOUND=1
-                        Display --indent 2 --text "- Checking security repository in sources.list file" --result OK --color GREEN
-                        logtext "Result: Found security repository in /etc/apt/sources.list"
-                        for I in ${FIND}; do
-                            I=`echo ${I} | sed 's/!space!/ /g'`
-                            logtext "Output: ${I}"
-                        done
-                    fi
+        if [ ! "${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY}" = "yes" ]; then
+            if [ -f /etc/apt/sources.list ]; then
+                logtext "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list file"
+                FIND=`egrep "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list | grep -v '#' | sed 's/ /!space!/g'`
+                if [ ! "${FIND}" = "" ]; then
+                    FOUND=1
+                    Display --indent 2 --text "- Checking security repository in sources.list file" --result OK --color GREEN
+                    logtext "Result: Found security repository in /etc/apt/sources.list"
+                    for I in ${FIND}; do
+                        I=`echo ${I} | sed 's/!space!/ /g'`
+                        logtext "Output: ${I}"
+                    done
                 fi
-                if [ -d /etc/apt/sources.list.d ]; then
-                    logtext "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
-                    FIND=`egrep "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list.d/* | grep -v '#' | sed 's/ /!space!/g'`
-                    if [ ! "${FIND}" = "" ]; then
-                        FOUND=1
-                        Display --indent 2 --text "- Checking security repository in sources.list.d directory" --result OK --color GREEN
-                        logtext "Result: Found security repository in one or more files in directory /etc/apt/sources.list.d"
-                        for I in ${FIND}; do
-                            I=`echo ${I} | sed 's/!space!/ /g'`
-                            logtext "Output: ${I}"
-                        done
-                    fi
+            fi
+            if [ -d /etc/apt/sources.list.d ]; then
+                logtext "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
+                FIND=`egrep "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list.d/* | grep -v '#' | sed 's/ /!space!/g'`
+                if [ ! "${FIND}" = "" ]; then
+                    FOUND=1
+                    Display --indent 2 --text "- Checking security repository in sources.list.d directory" --result OK --color GREEN
+                    logtext "Result: Found security repository in one or more files in directory /etc/apt/sources.list.d"
+                    for I in ${FIND}; do
+                        I=`echo ${I} | sed 's/!space!/ /g'`
+                        logtext "Output: ${I}"
+                    done
                 fi
-                if [ ${FOUND} -eq 1 ]; then
-                    logtext "Result: security repository was found"
-                    AddHP 3 3
-                  else
-                    Display --indent 2 --text "- Checking security repository in sources.list file or directory" --result WARNING --color RED
-                    ReportWarning ${TEST_NO} "M" "Can't find any security repository in /etc/apt/sources.list or sources.list.d directory"
-                    AddHP 0 3
-                fi
+            fi
+            if [ ${FOUND} -eq 1 ]; then
+                logtext "Result: security repository was found"
+                AddHP 3 3
               else
-                logtext "Skipped as option is set to ignore security repository"
+                Display --indent 2 --text "- Checking security repository in sources.list file or directory" --result WARNING --color RED
+                ReportWarning ${TEST_NO} "M" "Can't find any security repository in /etc/apt/sources.list or sources.list.d directory"
+                AddHP 0 3
             fi
           else
-            logtext "Result: skipping test as sources.list or sources.list.d is not found"
+            logtext "Skipped as option is set to ignore security repository"
         fi
     fi
 #

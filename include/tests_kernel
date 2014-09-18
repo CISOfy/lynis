@@ -422,29 +422,83 @@
 #################################################################################
 #
     # Test        : KRNL-5830
-    # Description : Check if system needs a reboot (Debian based)
-    Register --test-no KRNL-5830 --weight L --network NO --description "Checking core dumps configuration"
+    # Description : Check if system needs a reboot (Linux only)
+    Register --test-no KRNL-5830 --os Linux --weight L --network NO --description "Checking if running on the latest kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
+        REBOOT_NEEDED=2
         FILE="/var/run/reboot-required.pkgs"
         logtext "Test: Checking presence ${FILE}"
         if [ -f ${FILE} ]; then
             logtext "Result: file ${FILE} exists" 
             FIND=`cat ${FILE}`
             if [ "${FIND}" = "" ]; then
-                Display --indent 2 --text "- Check if reboot is needed" --result NO --color GREEN
-                AddHP 5 5
+                logtext "Result: No reboot needed (file empty)"
+                REBOOT_NEEDED=0
               else
                 PKGSCOUNT=`cat ${FILE} | wc -l`
-                Display --indent 2 --text "- Check if reboot is needed" --result YES --color RED
-                ReportWarning ${TEST_NO} "H" "Reboot of system is needed"
                 logtext "Result: reboot is needed, related to ${PKGSCOUNT} packages"
                 for I in ${FIND}; do
                     logtext "Package: ${I}"
                 done
-                AddHP 0 5
+                REBOOT_NEEDED=1
             fi
           else
-            logtext "Result: file ${FILE} not found, skipping further testing"
+            logtext "Result: file ${FILE} not found"
+        fi
+        # Check if /boot exists
+        if [ -d /boot ]; then
+            if [ -f /boot/vmlinuz ]; then
+                logtext "Result: found /boot/vmlinuz"
+                ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
+              else
+                logtext "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
+                FIND=`ls /boot/vmlinuz* 2> /dev/null`
+                if [ "${FIND}" = "" ]; then
+                     logtext "Result: No kernels (/boot/vmlinuz*) found on disk"
+                     ReportException "${TEST_NO}:2" "Can not find any vmlinuz files in /boot, which is unexpected"
+                  else
+                     MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g'`
+                     logtext "Result: using ${MYKERNEL} as my kernel version (stripped)"
+                     KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sort`
+                     FOUND_KERNEL=0
+                     for I in ${KERNELS}; do
+                         if [ ${FOUND_KERNEL} -eq 1 ]; then
+                             logtext "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
+                             REBOOT_NEEDED=1
+                         fi
+                         if [ "${MYKERNEL}" = "${I}" ]; then
+                             FOUND_KERNEL=1
+                             logtext "Result: Found ${I} (= our kernel)"
+                           else
+                             logtext "Result: Found ${I}"
+                         fi
+                     done
+                     # Check if we at least found the kernel on disk
+                     if [ ${FOUND_KERNEL} -eq 0 ]; then
+                         ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
+                       else
+                         # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
+                         if [ ${REBOOT_NEEDED} -eq 2 ]; then
+                             logtext "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
+                             REBOOT_NEEDED=0
+                         fi
+                     fi
+                fi
+            fi
+          else
+            logtext "Result: /boot does not exist"
+        fi
+
+        # Display discovered status
+        if [ ${REBOOT_NEEDED} -eq 0 ]; then
+             Display --indent 2 --text "- Check if reboot is needed" --result NO --color GREEN
+             AddHP 5 5
+          elif [ ${REBOOT_NEEDED} -eq 1 ]; then
+             Display --indent 2 --text "- Check if reboot is needed" --result YES --color RED
+             ReportWarning ${TEST_NO} "H" "Reboot of system is most likely needed"
+             AddHP 0 5
+          else
+             Display --indent 2 --text "- Check if reboot is needed" --result UNKNOWN --color YELLOW
         fi
     fi
 #

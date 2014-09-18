@@ -114,8 +114,9 @@
     Register --test-no ACCT-9628 --os Linux --weight L --network NO --description "Check for auditd"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Check auditd status"
-        FIND=`${PSBINARY} ax | grep "auditd" | grep -v "grep" | grep -v "kauditd"`
-        if [ ! "${FIND}" = "" ]; then
+        # Should not get kauditd
+        IsRunning auditd
+        if [ ${RUNNING} -eq 1 ]; then
             logtext "Result: auditd running"
             Display --indent 2 --text "- Checking auditd" --result ENABLED --color GREEN
             AUDITD_RUNNING=1
@@ -217,16 +218,16 @@
     # Description : Check Solaris audit daemon presence
     Register --test-no ACCT-9650 --os Solaris --weight L --network NO --description "Check Solaris audit daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
-	logtext "Test: check if audit daemon is running"
-	FIND=`${PSBINARY} ax | grep "/auditd" | grep -v "grep"`
-	if [ ! "${FIND}" = "" ]; then
-	    logtext "Result: Solaris audit daemon is running"
-	    SOLARIS_AUDITD_RUNNING=1
-	    Display --indent 2 --text "- Checking Solaris audit daemon status" --result RUNNING --color GREEN
-	  else
-	    logtext "Result: Solaris audit daemon is not running"
-	    Display --indent 2 --text "- Checking Solaris audit daemon status" --result "NOT RUNNING" --color YELLOW
-	fi
+        logtext "Test: check if audit daemon is running"
+        IsRunning auditd
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: Solaris audit daemon is running"
+            SOLARIS_AUDITD_RUNNING=1
+            Display --indent 2 --text "- Checking Solaris audit daemon status" --result RUNNING --color GREEN
+          else
+            logtext "Result: Solaris audit daemon is not running"
+            Display --indent 2 --text "- Checking Solaris audit daemon status" --result "NOT RUNNING" --color YELLOW
+        fi
     fi
 #
 #################################################################################
@@ -236,15 +237,15 @@
     if [ -x /usr/bin/svcs -a ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9652 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check auditd SMF status"
     if [ ${SKIPTEST} -eq 0 ]; then
-	logtext "Test: check if auditd service is enabled and online"
-	FIND=`/usr/bin/svcs svc:/system/auditd:default | grep "^online"`
-	if [ ! "${FIND}" = "" ]; then
-	    logtext "Result: auditd service is online"
-	    Display --indent 4 --text "- Checking Solaris audit daemon status" --result ONLINE --color GREEN
-	  else
-	    Display --indent 4 --text "- Checking Solaris audit daemon status" --result WARNING --color YELLOW
-	    # YYY
-	fi
+        logtext "Test: check if auditd service is enabled and online"
+        FIND=`/usr/bin/svcs svc:/system/auditd:default | grep "^online"`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Result: auditd service is online"
+            Display --indent 4 --text "- Checking Solaris audit daemon status" --result ONLINE --color GREEN
+          else
+            Display --indent 4 --text "- Checking Solaris audit daemon status" --result "NOT ONLINE" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Check status of audit daemon"
+        fi
     fi
 #
 #################################################################################
@@ -254,18 +255,18 @@
     if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9654 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check BSM auditing in /etc/system"
     if [ ${SKIPTEST} -eq 0 ]; then
-	logtext "Test: check if BSM is enabled in /etc/system"
-	if [ -f /etc/system ]; then
-	    FIND=`grep 'set c2audit:audit_load = 1' /etc/system`
-	    if [ ! "${FIND}" = "" ]; then
-	        logtext "Result: BSM is enabled in /etc/system"
-		Display --indent 4 --text "- Checking Solaris BSM (/etc/system)" --result ENABLED --color GREEN
-	      else
-		Display --indent 4 --text "- Checking Solaris BSM (/etc/system)" --result "NOT FOUND" --color YELLOW
-	    fi
-	  else
-	    logtext "Result: /etc/system does not exist"
-	fi
+        logtext "Test: check if BSM is enabled in /etc/system"
+        if [ -f /etc/system ]; then
+            FIND=`grep 'set c2audit:audit_load = 1' /etc/system`
+            if [ ! "${FIND}" = "" ]; then
+                logtext "Result: BSM is enabled in /etc/system"
+                Display --indent 4 --text "- Checking Solaris BSM (/etc/system)" --result ENABLED --color GREEN
+              else
+                Display --indent 4 --text "- Checking Solaris BSM (/etc/system)" --result "NOT FOUND" --color YELLOW
+            fi
+          else
+            logtext "Result: /etc/system does not exist"
+        fi
     fi
 #
 #################################################################################
@@ -275,19 +276,19 @@
     if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9656 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check BSM auditing in module list"
     if [ ${SKIPTEST} -eq 0 ]; then
-	logtext "Test: check if c2audit module is active"
-	if [ -x /usr/sbin/modinfo ]; then
-	    FIND=`/usr/sbin/modinfo | grep c2audit`
-	    if [ ! "${FIND}" = "" ]; then
-	        logtext "Result: c2audit found in modinfo output"
-		Display --indent 4 --text "- Checking Solaris BSM (modules list)" --result ENABLED --color GREEN
-	      else
-	        logtext "Result: c2audit not found in modinfo output"
-		Display --indent 4 --text "- Checking Solaris BSM (modules list)" --result "NOT FOUND" --color YELLOW
-	    fi	
-	  else
-	    logtext "Result: /usr/sbin/modinfo does not exist, skipping test"
-	fi    
+        logtext "Test: check if c2audit module is active"
+        if [ -x /usr/sbin/modinfo ]; then
+            FIND=`/usr/sbin/modinfo | grep c2audit`
+            if [ ! "${FIND}" = "" ]; then
+                logtext "Result: c2audit found in modinfo output"
+                Display --indent 4 --text "- Checking Solaris BSM (modules list)" --result ENABLED --color GREEN
+              else
+                logtext "Result: c2audit not found in modinfo output"
+                Display --indent 4 --text "- Checking Solaris BSM (modules list)" --result "NOT FOUND" --color YELLOW
+            fi
+          else
+            logtext "Result: /usr/sbin/modinfo does not exist, skipping test"
+        fi
     fi
 #
 #################################################################################
@@ -306,29 +307,29 @@
     if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9660 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check location of audit events"
     if [ ${SKIPTEST} -eq 0 ]; then
-	logtext "Test: check /etc/security/audit_control for event logging location"
-	if [ -f /etc/security/audit_control ]; then
-	    logtext "Result: file /etc/security/audit_control found"
-	    FIND=`grep "^dir" /etc/security/audit_control | ${AWKBINARY} -F: '{ print $2 }'`
-	    if [ ! "${FIND}" = "" ]; then
-	        logtext "Result: found location ${FIND}"
-		logtext "Test: Checking if location is a valid directory"
-		if [ -d ${FIND} ]; then
-		    logtext "Result: location ${FIND} is valid"
-		    Display --indent 4 --text "- Checking Solaris audit location" --result FOUND --color GREEN
-		  else
-		    logtext "Result: location ${FIND} does not exist"
-		    # YYY perform manual audit
-		    Display --indent 4 --text "- Checking Solaris audit location" --result UNKNOWN --color YELLOW
-		fi
-	      else
-	        logtext "Result: unknown event location"
-	        Display --indent 4 --text "- Checking Solaris audit location" --result UNKNOWN --color YELLOW
+        logtext "Test: check /etc/security/audit_control for event logging location"
+        if [ -f /etc/security/audit_control ]; then
+            logtext "Result: file /etc/security/audit_control found"
+            FIND=`grep "^dir" /etc/security/audit_control | ${AWKBINARY} -F: '{ print $2 }'`
+            if [ ! "${FIND}" = "" ]; then
+                logtext "Result: found location ${FIND}"
+                logtext "Test: Checking if location is a valid directory"
+                if [ -d ${FIND} ]; then
+                    logtext "Result: location ${FIND} is valid"
+                    Display --indent 4 --text "- Checking Solaris audit location" --result FOUND --color GREEN
+                  else
+                    logtext "Result: location ${FIND} does not exist"
+                    # YYY perform manual audit
+                    Display --indent 4 --text "- Checking Solaris audit location" --result UNKNOWN --color YELLOW
+                fi
+              else
+                logtext "Result: unknown event location"
+                Display --indent 4 --text "- Checking Solaris audit location" --result UNKNOWN --color YELLOW
             fi
-	  else
-	    logtext "Result: could not find /etc/security/audit_control"
-	    Display --indent 4 --text "- Checking Solaris audit location" --result SKIPPED --color YELLOW
-	fi
+          else
+            logtext "Result: could not find /etc/security/audit_control"
+            Display --indent 4 --text "- Checking Solaris audit location" --result SKIPPED --color YELLOW
+        fi
     fi
 #
 #################################################################################
@@ -355,16 +356,16 @@
     Register --test-no ACCT-9662 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check Solaris auditing stats"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Check auditing statistics"
-	if [ -x /usr/sbin/auditstat ]; then
-	    FIND=`/usr/sbin/auditstat | tr -s ' ' ','`
-	    for I in ${FIND}; do
-	        logtext "Output: ${I}"
-	    done
-	    Display --indent 4 --text "- Checking Solaris audit statistics" --result DONE --color GREEN
-	  else
-	    logtext "Result: /usr/sbin/auditstat not found, skipping test"
-	    Display --indent 4 --text "- Checking Solaris audit statistics" --result SKIPPED --color YELLOW
-	fi
+        if [ -x /usr/sbin/auditstat ]; then
+            FIND=`/usr/sbin/auditstat | tr -s ' ' ','`
+            for I in ${FIND}; do
+                logtext "Output: ${I}"
+            done
+            Display --indent 4 --text "- Checking Solaris audit statistics" --result DONE --color GREEN
+          else
+            logtext "Result: /usr/sbin/auditstat not found, skipping test"
+            Display --indent 4 --text "- Checking Solaris audit statistics" --result SKIPPED --color YELLOW
+        fi
     fi
 #
 #################################################################################
@@ -375,15 +376,14 @@
     #if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     #Register --test-no ACCT-9662 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check BSM auditing in module list"
     #if [ ${SKIPTEST} -eq 0 ]; then
-	
-	# 
-	# Solaris 10 packages
-	# bash-3.00# pkginfo | egrep 'SUNWcar|SUNWcsr|SUNWcsu|SUNWhea|SUNWman'
-	#system      SUNWcar                          Core Architecture, (Root)
-	#system      SUNWcsr                          Core Solaris, (Root)
-	#system      SUNWcsu                          Core Solaris, (Usr)
-	#system      SUNWhea                          SunOS Header Files
-	#system      SUNWman                          On-Line Manual Pages
+        #
+        # Solaris 10 packages
+        # bash-3.00# pkginfo | egrep 'SUNWcar|SUNWcsr|SUNWcsu|SUNWhea|SUNWman'
+        #system      SUNWcar                          Core Architecture, (Root)
+        #system      SUNWcsr                          Core Solaris, (Root)
+        #system      SUNWcsu                          Core Solaris, (Usr)
+        #system      SUNWhea                          SunOS Header Files
+        #system      SUNWman                          On-Line Manual Pages
 
 #
 #################################################################################

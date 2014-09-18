@@ -334,36 +334,43 @@
 #################################################################################
 #
     # Test        : AUTH-9234
-    # Description : Query user accounts (YYY)
+    # Description : Query user accounts
     # Notes       : HPUX > 100
     #               MacOS: need to be improved (just reading passwd file is not enough)
     #               OpenBSD/NetBSD: unknown
     Register --test-no AUTH-9234 --os Linux --weight L --network NO --description "Query user accounts"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Read real system users (including root user) from /etc/passwd"
+        logtext "Test: Read system users (including root user) from /etc/passwd"
         FIND=""
 
-        if [ "${OS}" = "FreeBSD" ]; then
-          logtext "FreeBSD real users output (ID > 1000, but not 65534):"
-          FIND=`awk -F: '($3 > 1000) && ($3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
-        fi
+        case ${OS} in
+            "FreeBSD")
+                logtext "FreeBSD real users output (ID = 0, or 1000+, but not 65534):"
+                FIND=`awk -F: '($3 >= 1000) && ($3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+            ;;
 
-        if [ "${OS}" = "Linux" ]; then
-          logtext "Linux real users output (ID > 500, but not 65534):"
-          FIND=`awk -F: '($3 > 500) && ($3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
-        fi
+            "Linux")
+                logtext "Linux real users output (ID = 0, or 500+, but not 65534):"
+                FIND=`awk -F: '($3 >= 500) && ($3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+            ;;
 
-        if [ "${OS}" = "Solaris" ]; then
-          logtext "Solaris real users output (ID > 100, but not 60001/65534):"
-          FIND=`awk -F: '($3 > 100 && $3 != 60001 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
-        fi
+            "Solaris")
+                logtext "Solaris real users output (ID =0, or 100+, but not 60001/65534):"
+                FIND=`awk -F: '($3 >= 100 && $3 != 60001 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+            ;;
+            *)
+                # Want to help improving Lynis? Determine what user IDs belong to normal user accounts
+                ReportException "${TEST_NO}:1" "Can not determine user accounts"
+            ;;
+        esac
 
-        Display --indent 2 --text "- Query system users (non daemons)" --result DONE --color GREEN
         # Check if we got any output
         if [ "${FIND}" = "" ]; then
             Display --indent 4 --text "Result: No users found/unknown result"
             logtext "Result: Querying of system users skipped"
+            Display --indent 2 --text "- Query system users (non daemons)" --result UNKNOWN --color YELLOW
           else
+            Display --indent 2 --text "- Query system users (non daemons)" --result DONE --color GREEN
             for I in ${FIND}; do
               logtext "Real user: ${I}"
               report "real_user[]=${I}"

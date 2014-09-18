@@ -550,12 +550,27 @@
                     *)              ReportException "IsVirtualMachine" "Unknown virtualization type received from systemctl" ;;
                 esac
             fi
+
           else
+
             # Try common guest processes
             logtext "Test: trying to guess virtual machine type by running processes"
-            IsRunning vmware-guestd
-            if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="vmware"; VMFULLTYPE="VMware product"; fi
+
+            # VMware
+                IsRunning vmware-guestd
+                if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="vmware"; VMFULLTYPE="VMware product"; fi
+
+            # VirtualBox based on guest services
+                IsRunning vboxguest-service
+                if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="virtualbox"; VMFULLTYPE="Oracle VM VirtualBox"; fi
+                IsRunning VBoxClient
+                if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="virtualbox"; VMFULLTYPE="Oracle VM VirtualBox"; fi
+
+            # Amazon EC2 Instance
+            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then ISVIRTUALMACHINE=1; VMTYPE="amazon-ec2"; VMFULLTYPE="Amazon AWS EC2 Instance"; fi
         fi
+
+        # Check final status
         if [ ${ISVIRTUALMACHINE} -eq 1 ]; then
             logtext "Result: found virtual machine (type: ${VMTYPE}, ${VMFULLTYPE})"
             report "vm=1"
@@ -565,7 +580,6 @@
             report "vm=2"
         fi
       }
-
 
     # Function IsWorldExecutable
     IsWorldExecutable()

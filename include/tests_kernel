@@ -25,6 +25,8 @@
     CORE_DUMPS_DISABLED=0
     CPU_PAE=0
     CPU_NX=0
+    LINUXCONFIGFILE=""
+    LINUXCONFIGFILE_ZIPPED=0
 #
 #################################################################################
 #
@@ -227,13 +229,22 @@
     # Description : Checking for available Linux kernel configuration file in /boot
     Register --test-no KRNL-5728 --os Linux --weight L --network NO --description "Checking Linux kernel config"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LINUXCONFIGFILE="/boot/config-`uname -r`"
-        if [ -f ${LINUXCONFIGFILE} ]; then
+        CHECKFILE="/boot/config-`uname -r`"
+        if [ -f ${CHECKFILE} ]; then
+            LINUXCONFIGFILE="${CHECKFILE}"
             logtext "Result: found config (${LINUXCONFIGFILE})"
+            Display --indent 2 --text "- Checking Linux kernel configuration file" --result FOUND --color GREEN
+          elif [ -f /boot/config.gz ]; then
+            LINUXCONFIGFILE="${CHECKFILE}"
+            LINUXCONFIGFILE_ZIPPED=1
+            logtext "Result: found config: /boot/config.gz (compressed)"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result FOUND --color GREEN
           else
             logtext "Result: no Linux kernel configuration file found in /boot"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "NOT FOUND" --color WHITE
+        fi
+        if [ ! "${LINUXCONFIGFILE}" = "" ]; then
+            report "linux_config_file=${LINUXCONFIGFILE}"
         fi
     fi
 #
@@ -247,15 +258,20 @@
     fi
     Register --test-no KRNL-5730 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking disk I/O kernel scheduler"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking the default I/O kernel scheduler"
-        LINUX_KERNEL_IOSCHED=`${GREPBINARY} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | awk -F= '{ print $2 }' | sed s/\"//g`
-        if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
-            logtext "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
-            Display --indent 2 --text "- Checking default I/O kernel scheduler" --result FOUND --color GREEN
-            report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
+        if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
+        if [ ! "${GREPTOOL}" = "" ]; then
+            logtext "Test: Checking the default I/O kernel scheduler"
+            LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | awk -F= '{ print $2 }' | sed s/\"//g`
+            if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
+                logtext "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
+                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result FOUND --color GREEN
+                report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
+              else
+                logtext "Result: no default i/o kernel scheduler found"
+                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "NOT FOUND" --color WHITE
+            fi
           else
-            logtext "Result: no default i/o kernel scheduler found"
-            Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "NOT FOUND" --color WHITE
+            ReportException "${TEST_NO}" "No valid grep tool found to search kernel settings"
         fi
    fi
 #

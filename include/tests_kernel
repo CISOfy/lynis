@@ -464,6 +464,25 @@
             if [ -f /boot/vmlinuz ]; then
                 logtext "Result: found /boot/vmlinuz"
                 ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
+            elif [ -f /boot/vmlinuz-linux ]; then
+                logtext "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
+                logtext "Test: checking kernel version on disk"
+                VERSION_ON_DISK=`file -b /boot/vmlinuz-linux | awk '{ if ($1=="Linux" && $7=="version") { print $8 }}'`
+                if [ ! "${VERSION_ON_DISK}" = "" ]; then
+                    logtext "Result: found version ${VERSION_ON_DISK}"
+                    ACTIVE_KERNEL=`uname -r`
+                    logtext "Result: active kernel version ${ACTIVE_KERNEL}"
+                    if [ "${VERSION_ON_DISK}" = "${ACTIVE_KERNEL}" ]; then
+                        REBOOT_NEEDED=0
+                        logtext "Result: no reboot needed, active kernel is the same version as the one on disk"
+                      else
+                        REBOOT_NEEDED=1
+                        logtext "Result: reboot needed, as there is a difference between active kernel and the one on disk"
+                    fi
+                  else
+                    logtext "Result: could not find the version on disk"
+                    ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
+                fi
               else
                 logtext "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
                 FIND=`ls /boot/vmlinuz* 2> /dev/null`

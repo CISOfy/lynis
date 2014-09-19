@@ -154,7 +154,11 @@
                 FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="ether") print $2 }' | sort | uniq`
                 ;;
             Linux)
-                FIND=`${IFCONFIGBINARY} -a | grep "HWaddr" | awk '{ if ($4=="HWaddr") print $5 }' | sort | uniq`
+                if [ ! "${IFCONFIGBINARY}" = "" ]; then
+                    FIND=`${IFCONFIGBINARY} -a | grep "HWaddr" | awk '{ if ($4=="HWaddr") print $5 }' | sort | uniq`
+                  else
+                    ReportException "${TEST_NO}:2" "Due to missing ifconfig no method to collect hardware address (MAC)"
+                fi
                 ;;
             MacOS)
                 FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="lladdr" || $1=="ether") print $2 }' | sort | uniq`
@@ -198,9 +202,13 @@
                 FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
                 ;;
             Linux)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }' | cut -d ':' -f2`
-                # Version which works for multiple types of ifconfig (e.g. Slackware)
-                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
+                if [ ! "${IFCONFIGBINARY}" = "" ]; then
+                    FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }' | cut -d ':' -f2`
+                    # Version which works for multiple types of ifconfig (e.g. Slackware)
+                    FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
+                  else
+                    ReportException "${TEST_NO}:2" "Due to missing ifconfig no method to collect hardware address (MAC)"
+                fi
                 ;;
             MacOS)
                 FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
@@ -340,8 +348,9 @@
 #
     # Test        : NETW-3015
     # Description : Checking promiscuous interfaces (Linux)
-    # Note        : Linux
-    Register --test-no NETW-3015 --os Linux --weight L --network NO --description "Checking promiscuous interfaces (Linux)"
+    # Note        : Need ifconfig binary at this moment (does not work on Arch Linux)
+    if [ ! "${IFCONFIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking promiscuous interfaces (Linux)"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking promiscuous interfaces (Linux)"
         NETWORK=`${IFCONFIGBINARY} | grep Link | tr -s ' ' | cut -d ' ' -f1`

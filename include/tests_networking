@@ -151,13 +151,18 @@
                 FIND=`lscfg -vl ent* | fgrep "Network Address" | cut -d"." -f14 | awk '{ ctr=1; i=1; while (ctr <= 6) { d[ctr++]=substr($0,i,2);i=i+2 } printf("%s:%s:%s:%s:%s:%s\n",d[1],d[2],d[3],d[4],d[5],d[6]) }'`
                 ;;
             DragonFly|FreeBSD)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="ether") print $2 }' | sort | uniq`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | sort | uniq`
                 ;;
             Linux)
                 if [ ! "${IFCONFIGBINARY}" = "" ]; then
-                    FIND=`${IFCONFIGBINARY} -a | grep "HWaddr" | awk '{ if ($4=="HWaddr") print $5 }' | sort | uniq`
+                    FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "HWaddr" | awk '{ if ($4=="HWaddr") print $5 }' | sort | uniq`
                   else
-                    ReportException "${TEST_NO}:2" "Due to missing ifconfig no method to collect hardware address (MAC)"
+                    if [ ! "${IPBINARY}" = "" ]; then
+                        logtext "Test: Using ip binary to gather hardware addresses"
+                        FIND=`${IPBINARY} link | ${GREPBINARY} "link/ether" | ${AWKBINARY} '{ print $2 }'`
+                      else
+                        ReportException "${TEST_NO}:2" "Missing ifconfig or ip command to collect hardware address (MAC)"
+                    fi
                 fi
                 ;;
             MacOS)
@@ -207,6 +212,14 @@
                     # Version which works for multiple types of ifconfig (e.g. Slackware)
                     FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
                   else
+                    if [ ! "${IPBINARY}" = "" ]; then
+                        logtext "Test: Using ip binary to gather IP addresses"
+                        FIND=`${IPBINARY} addr | ${AWKBINARY} '{ if ($1=="inet") { print $2 }}' | sed 's/\/.*//'`
+                        FIND2=`${IPBINARY} addr | ${AWKBINARY} '{ if ($1=="inet6") { print $2 }}' | sed 's/\/.*//'`
+                      else
+                        ReportException "${TEST_NO}:2" "Missing ifconfig or ip command to collect hardware address (MAC)"
+                    fi
+
                     ReportException "${TEST_NO}:2" "Due to missing ifconfig no method to collect hardware address (ip address)"
                 fi
                 ;;

@@ -207,7 +207,7 @@
                     # Version which works for multiple types of ifconfig (e.g. Slackware)
                     FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
                   else
-                    ReportException "${TEST_NO}:2" "Due to missing ifconfig no method to collect hardware address (MAC)"
+                    ReportException "${TEST_NO}:2" "Due to missing ifconfig no method to collect hardware address (ip address)"
                 fi
                 ;;
             MacOS)
@@ -268,7 +268,14 @@
                     # TCP
                     FIND2=`${NETSTATBINARY} -nlp 2> /dev/null  | grep "^tcp" | awk '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | sed 's:|[0-9]*/:|:'`
                   else
-                    ReportException "${TEST_NO}:1" "netstat binary is missing"
+                    if [ ! "${SSBINARY}" = "" ]; then
+                        # UDP
+                        FIND=`${SSBINARY} -u -a -n | awk '{ print $4 }' | grep -v Local`
+                        # TCP
+                        FIND2=`${SSBINARY} -t -a -n | awk '{ print $4 }' | grep -v Local`
+                      else
+                        ReportException "${TEST_NO}:1" "netstat and ss binary missing to gather listening ports"
+                    fi
                 fi
                 ;;
 

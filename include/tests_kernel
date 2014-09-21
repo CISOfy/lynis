@@ -437,7 +437,7 @@
 #
     # Test        : KRNL-5830
     # Description : Check if system needs a reboot (Linux only)
-    Register --test-no KRNL-5830 --os Linux --weight L --network NO --description "Checking if running on the latest kernel"
+    Register --test-no KRNL-5830 --os Linux --weight L --network NO --description "Checking if system is running on the latest kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
         REBOOT_NEEDED=2
         FILE="/var/run/reboot-required.pkgs"
@@ -490,9 +490,11 @@
                      logtext "Result: No kernels (/boot/vmlinuz*) found on disk"
                      ReportException "${TEST_NO}:2" "Can not find any vmlinuz files in /boot, which is unexpected"
                   else
-                     MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g'`
+                     # Replace dashes to allow numeric sort
+                     MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's/-/./g'`
                      logtext "Result: using ${MYKERNEL} as my kernel version (stripped)"
-                     KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sort`
+                     # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
+                     KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
                      FOUND_KERNEL=0
                      for I in ${KERNELS}; do
                          if [ ${FOUND_KERNEL} -eq 1 ]; then

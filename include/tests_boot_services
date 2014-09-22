@@ -24,6 +24,7 @@
 #
     Display --indent 2 --text "- Checking boot loaders"
     BOOT_LOADER="Unknown"
+    BOOT_LOADER_FOUND=0
 #
 #################################################################################
 #
@@ -36,6 +37,7 @@
         if [ -f /boot/grub/grub.conf -o -f /boot/grub/menu.lst ]; then
             FOUND=1
             BOOT_LOADER="GRUB"
+            BOOT_LOADER_FOUND=1
             Display --indent 4 --text "- Checking presence GRUB" --result "OK" --color GREEN
             if [ -f /boot/grub/grub.conf ]; then GRUBCONFFILE="/boot/grub/grub.conf"; else GRUBCONFFILE="/boot/grub/menu.lst"; fi
             logtext "Found file ${GRUBCONFFILE}, proceeding with tests."
@@ -66,6 +68,7 @@
         if [ -f /boot/grub/grub.cfg ]; then
             FOUND=1
             BOOT_LOADER="GRUB2"
+            BOOT_LOADER_FOUND=1
             Display --indent 4 --text "- Checking presence GRUB2" --result FOUND --color GREEN
             logtext "Result: found GRUB2 configuration file (/boot/grub/grub.cfg)"
             # YYY password check, when documentation of GRUB2 project is improved
@@ -74,7 +77,6 @@
         fi
 
         if [ ${FOUND} -eq 0 ]; then
-            Display --indent 4 --text "- Checking presence GRUB" --result "NOT FOUND" --color WHITE
             logtext "Result: no GRUB configuration file found."
         fi
     fi
@@ -89,9 +91,9 @@
             logtext "Result: found boot1, boot2 and loader files in /boot"
             Display --indent 4 --text "- Checking presence FreeBSD loader" --result FOUND --color GREEN
             BOOT_LOADER="FreeBSD"
+            BOOT_LOADER_FOUND=1
           else
             logtext "Result: Not all expected files found in /boot"
-            Display --indent 4 --text "- Checking presence FreeBSD loader" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -105,9 +107,9 @@
             logtext "Result: found NetBSD secondary bootstrap"
             Display --indent 4 --text "- Checking presence NetBSD loader" --result FOUND --color GREEN
             BOOT_LOADER="NetBSD"
+            BOOT_LOADER_FOUND=1
           else
             logtext "Result: NetBSD secondary bootstrap not found"
-            Display --indent 4 --text "- Checking presence FreeBSD loader" --result "NOT FOUND" --color YELLOW 
             ReportException "${TEST_NO}:1" "No boot loader found on NetBSD"
         fi
     fi
@@ -125,6 +127,7 @@
             FileIsReadable ${LILOCONFFILE}
             if [ ${CANREAD} -eq 1 ]; then
                 BOOT_LOADER="LILO"
+                BOOT_LOADER_FOUND=1
                 Display --indent 4 --text "- Checking presence LILO" --result "OK" --color GREEN
                 logtext "Checking password option LILO"
                 FIND=`cat ${LILOCONFFILE} | ${EGREPBINARY} 'password[[:space:]]?=' | grep -v "^#"`
@@ -145,7 +148,6 @@
                 logtext "Result: can not read ${LILOCONFFILE} (no permission)"
             fi
           else
-            Display --indent 4 --text "- Checking presence LILO" --result "NOT FOUND" --color WHITE
             logtext "Result: LILO configuration file not found"
         fi
     fi
@@ -160,9 +162,9 @@
             logtext "Result: Found SILO configuration file (/etc/silo.conf)"
             Display --indent 4 --text "- Checking boot loader SILO" --result FOUND --color GREEN
             BOOT_LOADER="SILO"
+            BOOT_LOADER_FOUND=1
           else
             logtext "Result: no SILO configuration file found."
-            Display --indent 4 --text "- Checking boot loader SILO" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -198,9 +200,9 @@
             Display --indent 4 --text "- Checking boot loader YABOOT" --result FOUND --color GREEN
             #YYY add permission check
             BOOT_LOADER="YABOOT"
+            BOOT_LOADER_FOUND=1
           else
             logtext "Result: no YABOOT configuration file found."
-            Display --indent 4 --text "- Checking boot loader YABOOT" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -208,15 +210,17 @@
 #
     # Test        : BOOT-5159
     # Description : Check for OpenBSD boot loader
-    # More info   : only OpenBSD && i386 platform
+    # More info   : Only OpenBSD && i386 platform
     Register --test-no BOOT-5159 --os OpenBSD --platform i386 --weight L --network NO --description "Check for OpenBSD i386 boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/boot.conf ]; then
+            BOOT_LOADER="OpenBSD"
+            BOOT_LOADER_FOUND=1
             Display --indent 2 --text "- Checking /etc/boot.conf" --result "FOUND" --color GREEN
             FIND=`grep '^boot' /etc/boot.conf`
             if [ "${FIND}" = "" ]; then
                 Display --indent 4 --text "- Checking boot option" --result WARNING --color RED
-                ReportSuggestion ${TEST_NO} "Add 'boot' to the /etc/boot.conf file to disable the default 5 seconds waiting time, to disallow booting into single user mode."
+                #ReportSuggestion ${TEST_NO} "Add 'boot' to the /etc/boot.conf file to disable the default 5 seconds waiting time, to disallow booting into single user mode."
                 ReportWarning ${TEST_NO} "M" "System can be booted into single user mode without password"
               else
                 Display --indent 4 --text "- Checking boot option" --result OK --color GREEN
@@ -228,6 +232,14 @@
             logtext "access to the server can be used to possibly enter single user mode."
             ReportSuggestion ${TEST_NO} "Add 'boot' to the /etc/boot.conf file to disable the default 5 seconds waiting time."
         fi
+    fi
+#
+#################################################################################
+#
+    if [ ${BOOT_LOADER_FOUND} -eq 0 ]; then
+        # Your boot loader is not detected. Want to help supporting it, see the README
+        ReportException "BOOTLOADER" "No boot loader found"
+        Display --indent 4 --text "- Boot loader" --result "NONE FOUND" --color RED
     fi
 #
 #################################################################################

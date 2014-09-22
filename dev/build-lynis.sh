@@ -189,7 +189,7 @@
     #fi
 
     # Create tarball
-    tar -C ${MYWORKDIR} --exclude=debian --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
+    tar -C ${MYWORKDIR} --exclude=debian --exclude=README.md --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
 
     if [ -f ${TARBALL} ]; then
          echo "[V] Tarball created"
@@ -198,6 +198,8 @@
          ExitFatal
     fi
 
+    TARBALL_MD5=`md5sum ${TARBALL}`
+    TARBALL_SHA1=`sha1sum ${TARBALL}`
 
     echo "[*] Starting with RPM building process"
 
@@ -278,8 +280,9 @@
     echo "[V] Done"
     echo ""
     echo "---------------------------------------------"
-    echo "Tarball:  ${TARBALL}"
-    echo "RPM file: ${RPMFILE}"
+    echo "RPM file:              ${RPMFILE}"
+    echo "Tarball:               ${TARBALL}"
+    echo "Tarball (SHA1):        ${TARBALL_SHA1}"
     echo ""
 
 

@@ -189,7 +189,33 @@
                 report "installed_package[]=${PACKAGE_NAME}|${PACKAGE_VERSION}|"
             done
             report "installed_packages=${N}"
-
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PKGS-7312
+    # Description : Check for available package updates when pacman package is used (Arch Linux)
+    if [ ! "${PACMANBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7312 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking available updates for pacman based system"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        FIND=`which checkupdates`
+        if [ ! "${FIND}" = "" ]; then
+            FIND=`checkupdates`
+            for I in ${FIND}; do
+                logtext "Result: update available for ${I}"
+                report "available_update[]=${I}"
+                FOUND=1
+            done
+            if [ ${FOUND} eq 1 ]; then
+                Display --indent 4 --text "- Searching update status (checkupdates)" --result "OUTDATED" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Perform update of system updates as this system uses rolling updates"
+              else
+                Display --indent 4 --text "- Searching update status (checkupdates)" --result "UP-TO-DATE" --color GREEN
+            fi
+         else
+            logtext "Result: skipping this test, can't find checkupdates binary"
         fi
       else
         logtext "Result: pacman binary NOT found on this system, test skipped"
@@ -197,15 +223,32 @@
 #
 #################################################################################
 #
-    # Test        : PKGS-7312
-    # Description : HP-UX packages
-    # Notes       : swlist -l fileset (|grep patch) / print_manifest
-#
-#################################################################################
-#
-    # Test        : PKGS-7316
-    # Description : AIX patches
-    # Notes       : /usr/sbin/instfix -c -i | cut -d":" -f1
+    # Test        : PKGS-7314
+    # Description : Check pacman.conf options
+    PACMANCONF="/etc/pacman.conf"
+    if [ ! "${PACMANBINARY}" = "" -a -f ${PACMANCONF} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7314 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking pacman configuration options"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        COUNT=0
+        # Check configuration options (options start with a capital)
+        logtext "Test: searching configured options in ${PACMANCONF}"
+        FIND=`grep "^[A-Z]" ${PACMANCONF} | sort | uniq | sed 's/ /:space://g'`
+        for I in ${FIND}; do
+            PMOPTION=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $1 }'`
+            PMVALUE=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $2 }'`
+            logtext "Result: found option ${PMOPTION} configured with value ${PMVALUE}"
+            report "pacman_option[]=${PMOPTION}:${PMVALUE}:"
+        done
+
+        # Check software repositories
+        logtext "Test: checking available repositories"
+        FIND=`grep "^\[.*\]$" ${PACMANCONF} | tr -d '[]'`
+        for I in ${FIND}; do
+            COUNT=`expr ${COUNT} + 1`
+            report "package_repository[]=${I}"
+        done
+        logtext "Result: found ${COUNT} repositories"
+    fi
 #
 #################################################################################
 #
@@ -780,7 +823,16 @@
 #
 #################################################################################
 #
-
+    # Description : HP-UX packages
+    # Notes       : swlist -l fileset (|grep patch) / print_manifest
+#
+#################################################################################
+#
+    # Description : AIX patches
+    # Notes       : /usr/sbin/instfix -c -i | cut -d":" -f1
+#
+#################################################################################
+#
 # check for popularity-contest (Debian/Ubuntu)
 # check for yum-changelog
 

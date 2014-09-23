@@ -115,6 +115,7 @@
       {
         # Possible improvement: determine if host binary exists YYY
         PROGRAM_LV="0000000000"; DB_MALWARE_LV="0000000000"; DB_FILEPERMS_LV="0000000000"
+        LYNIS_LV_RECORD="lynis-lv.rootkit.nl."
         FIND=`which dig 2> /dev/null`
         if [ ! "${FIND}" = "" ]; then
             PROGRAM_LV=`dig +short +time=3 -t txt lynis-lv.rootkit.nl 2> /dev/null | grep -v "connection timed out" | sed 's/[".]//g'`
@@ -126,8 +127,14 @@
                 PROGRAM_LV=`host -t txt -W 3 lynis-lv.rootkit.nl 2> /dev/null | grep -v "connection timed out" | awk '{ if ($1=="lynis-lv.rootkit.nl" && $3=="text") { print $4 }}' | sed 's/"//g'`
                 if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
               else
-                logtext "Result: dig and host not installed, update check skipped"
-                UPDATE_CHECK_SKIPPED=1
+                FIND=`which drill 2> /dev/null`
+                if [ ! "${FIND}" = "" ]; then
+                    PROGRAM_LV=`drill txt ${LYNIS_LV_RECORD} | awk '{ if ($1=="lynis-lv.rootkit.nl." && $4=="TXT") { print $5 }}' | tr -d '"'`
+                    if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
+                  else
+                    logtext "Result: dig, drill or host not installed, update check skipped"
+                    UPDATE_CHECK_SKIPPED=1
+                fi
             fi
          fi
       }

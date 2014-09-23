@@ -108,6 +108,29 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7304
+    # Description : Gentoo packages
+    if [ -x /usr/bin/emerge -a -x /usr/bin/equery ]; then PREQS_MET="YES"; else PREQS_MET="No"; fi
+    Register --test-no PKGS-7304  --preqs-met ${PREQS_MET} --weight L --network NO --description "Querying Gentoo packages"
+    if [ ${SKIPTEST} -eq 0 ]; then 
+        Display --indent 4 --text "- Searching emerge" --result FOUND --color GREEN
+        logtext "Result: Found Gentoo emerge"
+        report "package_manager[]=emerge"
+        logtext "Test: Querying portage to get package list"
+        Display --indent 4 --text "- Querying portage for installed packages"
+        logtext "Output:"; logtext "-----"
+        GPACKAGES=`equery l '*' | sed -e 's/[.*]//g'`
+        for J in ${GPACKAGES}; do
+            logtext "Found package ${J}"
+            report "installed_package[]=${J}||"
+        done
+      else
+        logtext "Result: emerge can NOT be found on this system"
+    fi
+#
+#
+#################################################################################
+#
     # Test        : PKGS-7306
     # Description : Solaris packages
     if [ -x /usr/bin/pkginfo ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -767,6 +790,52 @@
           else
             Display --indent 2 --text "- Checking vulnerable packages (apt-get only)" --result DONE --color GREEN
             logtext "Result: test not fully executed (missing apt-check output)"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PKGS-7393
+    # Description : Check Gentoo vulnerable packages
+    if [ -x /usr/bin/emerge-webrsync ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7393 --preqs-met ${PREQS_MET} --weight L --network YES --description "Check for Gentoo vulnerable packages"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        VULNERABLE_PACKAGES_FOUND=0
+        SCAN_PERFORMED=0
+        # Update portage.
+        # Multiple ways to do this.  Some require extra packages to be installed,
+        # others require potential firewall ports to be open, outbound.  This is the 
+        # "most friendly" way.
+        logtext "Action: updating portage with emerge-webrsync"
+        /usr/bin/emerge-webrsync
+        logtext "Result: emerge-webrsync finished"
+        logtext "Test: checking if /usr/bin/glsa-check exists"
+        if [ -x /usr/bin/glsa-check ]; then
+            PKG_AUDIT_TOOL_FOUND=1
+            PKG_AUDIT_TOOL="glsa-check"
+            logtext "Result: found /usr/bin/glsa-check"
+            logtext "Test: checking if there are any vulnerable packages"
+            # glsa-check reports the GLSA date/ID string, not the vulnerable package.
+            FIND=`/usr/bin/glsa-check -t all 2>&1 | grep -v "This system is affected by the following GLSAs:" | wc -l`
+            if [ "${FIND}" = "" ]; then
+                logtext "Result: unexpected result: wc should report 0 if no vulnerable packages found."
+                ReportSuggestion ${TEST_NO} "Check if system is up-to-date, security updates check (glsa-check) gives and unexpected result"
+                ReportExcpetion "${TEST_NO}:1" "glsa-check did not provide any result"
+              else
+                if [ "${FIND}" = "0" ]; then
+                    logtext "Result; no vulnerable packages found via glsa-check"
+                    SCAN_PERFORMED=1
+                  else
+                    VULNERABLE_PACKAGES_FOUND=1
+                    SCAN_PERFORMED=1
+                    logtext "Result: found ${FIND} security updates with glsa-check"
+                    ReportSuggestion ${TEST_NO} "Found ${FIND} security update(s) with glsa-check.  Run 'glsa-check -t all' to see which GLSA(s) were identified."
+                    AddHP 0 25
+                fi
+            fi
+          else
+            logtext "Result: glsa-check not found"
+            ReportSuggestion ${TEST_NO} "glsa-check not found.  Emerge the gentoolkit package to install this utility."
         fi
     fi
 #

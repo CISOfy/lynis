@@ -41,6 +41,37 @@
             Display --indent 4 --text "- Checking presence GRUB" --result "OK" --color GREEN
             if [ -f /boot/grub/grub.conf ]; then GRUBCONFFILE="/boot/grub/grub.conf"; else GRUBCONFFILE="/boot/grub/menu.lst"; fi
             logtext "Found file ${GRUBCONFFILE}, proceeding with tests."
+        else
+            FOUND=0
+            BOOT_LOADER=""
+            BOOT_LOADER_FOUND=0
+            logtext "Result: GRUB config file(s) not found in /boot/grub/"
+            Display --indent 4 --text "- Checking presence GRUB" --result "NO FOUND" --color YELLOW
+        fi
+
+        # GRUB2 configuration file
+        if [ -f /boot/grub/grub.cfg ]; then
+            FOUND=1
+            BOOT_LOADER="GRUB2"
+            BOOT_LOADER_FOUND=1
+            Display --indent 4 --text "- Checking presence GRUB2" --result FOUND --color GREEN
+            logtext "Result: found GRUB2 configuration file (/boot/grub/grub.cfg)"
+            # YYY password check, when documentation of GRUB2 project is improved
+            # YYY Add check permission check (600)
+            ReportManual "${TEST_NO}:01"
+        fi
+
+        if [ ${FOUND} -eq 0 ]; then
+            logtext "Result: no GRUB configuration file found."
+        fi
+    fi
+#################################################################################
+#
+    # Test        : BOOT-5122
+    # Description : Check for GRUB boot loader password protection
+    Register --test-no BOOT-5122 --weight L --network NO --description "Check for GRUB boot loader password protection"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ${BOOT_LOADER_FOUND} -a ! "${GRUBCONFFILE}" = "" ]; then
             FileIsReadable ${GRUBCONFFILE}
             if [ ${CANREAD} -eq 1 ]; then
                 FIND=`cat ${GRUBCONFFILE} | grep 'password --md5' | grep -v '^#'`
@@ -62,22 +93,6 @@
               else
                 logtext "Result: Can not read ${GRUBCONFFILE} (no permission)"
             fi
-        fi
-
-        # GRUB2 configuration file
-        if [ -f /boot/grub/grub.cfg ]; then
-            FOUND=1
-            BOOT_LOADER="GRUB2"
-            BOOT_LOADER_FOUND=1
-            Display --indent 4 --text "- Checking presence GRUB2" --result FOUND --color GREEN
-            logtext "Result: found GRUB2 configuration file (/boot/grub/grub.cfg)"
-            # YYY password check, when documentation of GRUB2 project is improved
-            # YYY Add check permission check (600)
-            ReportManual "${TEST_NO}:01"
-        fi
-
-        if [ ${FOUND} -eq 0 ]; then
-            logtext "Result: no GRUB configuration file found."
         fi
     fi
 #

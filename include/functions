@@ -351,6 +351,7 @@
     GetHostID()
       {
         HOSTID="-"
+        FIND=""
         if [ ! "${SHA1SUMBINARY}" = "" ]; then
 
             case "${OS}" in
@@ -378,7 +379,7 @@
                         #PREFERRED_INTERFACES="eth0 eth1 eth2 enp0s25"
 
                         # Only use ifconfig if no ip binary has been found
-                        if [ ! "${IFCONFIGBINARY}" = "" -a "${IPBINARY}" = "" ]; then
+                        if [ ! "${IFCONFIGBINARY}" = "" ]; then
                             # Determine if we have ETH0 at all (not all Linux distro have this, e.g. Arch)
                             HASETH0=`${IFCONFIGBINARY} | grep "^eth0"`
                             # Check if we can find it with HWaddr on the line
@@ -405,26 +406,27 @@
                                     ReportException "GetHostID" "No eth0 found (but HWaddr was found), using first network interface to determine hostid, with ifconfig"
                                 fi
                             fi
+                          else
+                            # See if we can use ip binary instead
+                            if [ ! "${IPBINARY}" = "" ]; then
+                                # Determine if we have the common available eth0 interface
+                                FIND=`${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                                if [ "${FIND}" = "" ]; then
+                                    # Determine the MAC address of first interface with the ip command
+                                    FIND=`${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                                    if [ "${FIND}" = "" ]; then
+                                        ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
+                                    fi
+                                fi
+                              else
+                                ReportException "GetHostID" "Can't create hostid, missing both ifconfig and ip binary"
+                            fi
                         fi
 
-                        # Check with ip binary (preferred to ifconfig)
-                        if [ ! "${IPBINARY}" = "" ]; then
-
-                            # Determine if we have the common available eth0 interface
-                            FIND=`${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
-                            if [ "${FIND}" = "" ]; then
-                                # Determine the MAC address of first interface with the ip command
-                                FIND=`${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
-                                if [ "${FIND}" = "" ]; then
-                                    ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
-                                fi
-                            fi
-
-                            # Check if both commands give the same data
-                            if [ ! "${FIND}" = "" ]; then
-                                HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
-                                logtext "Result: Found HostID: ${HOSTID}"
-                            fi
+                        # Check if we found a HostID
+                        if [ ! "${FIND}" = "" ]; then
+                            HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                            logtext "Result: Found HostID: ${HOSTID}"
                           else
                             ReportException "GetHostID" "Can't create HOSTID, command ip not found"
                         fi

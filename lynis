@@ -141,21 +141,15 @@
     SafePerms ${INCLUDEDIR}/parameters
     . ${INCLUDEDIR}/parameters
 
-    # Now determine if we are root (UID 0), unless using pentesting mode
-    if [ ! ${MYID} -eq 0 -a ${PENTESTINGMODE} -eq 0 ]; then
-        echo ""; echo ""; echo "Fatal error: Lynis can not be executed with this user ID."
-        echo ""
-        echo " * You have to be root (or equivalent) to perform an audit."
-        echo ""
-        echo " How to solve:"
-        echo " - Option 1: su(do) and try again as root user"
-        echo " - Option 2: run Lynis in pentest mode (not preferred for normal audits)"
-        echo ""; echo ""
-        exit 1
+    # Now determine if we are root (UID = 0)
+    if [ ${MYID} -eq 0 ]; then
+        PRIVILEGED=1
+      else
+        echo "Start Lynis non-privileged"; echo "";
     fi
 
     # Disable logging if no alternative was provided
-    if [ ${PENTESTINGMODE} -eq 1 ]; then
+    if [ ${PRIVILEGED} -eq 0 ]; then
         if [ "${LOGFILE}" = "" ]; then
             LOGFILE="/dev/null"
         fi
@@ -280,34 +274,6 @@
         echo "${NORMAL}"; echo ""
         if [ ${NEVERBREAK} -eq 0 ]; then read void; fi
     fi
-
-    if [ ${PENTESTINGMODE} -eq 1 ]; then
-        echo ""; echo ""
-        echo "${WHITE}"
-        echo "  #########################################################"
-        echo "  #                                                       #"
-        echo "  #   ${PURPLE}Pentesting mode (non-privileged)${WHITE}                    #"
-        echo "  #                                                       #"
-        echo "  #########################################################"
-        echo "${NORMAL}"
-        echo "  ${YELLOW}NOTES:${NORMAL}"
-        echo "  --------------"
-        echo "  ${WHITE}*${NORMAL} This mode is suitable for pentests only (not full audit)"
-        echo "  ${WHITE}*${NORMAL} Some tests will be skipped (as they require root permissions)"
-        echo "  ${WHITE}*${NORMAL} Some tests might fail silently or give different results"
-        echo ""
-        if [ "${LOGFILE}" = "" -o "${LOGFILE}" = "/dev/null" ]; then
-            echo "  ${RED}Warning:${NORMAL}"
-            echo "  ${WHITE}*${NORMAL} No suggestions or warnings will be displayed in report"
-            echo "    (Reason is missing log file)"
-            echo ""
-        fi
-        echo "  ${WHITE}Press [ENTER] to continue or [CTRL] + C to break${NORMAL}"
-        echo ""
-        echo "  #########################################################"
-        echo "${NORMAL}"; echo ""
-        if [ ${NEVERBREAK} -eq 0 ]; then read void; fi
-    fi
 #
 #################################################################################
 #
@@ -325,7 +291,6 @@
     if [ "${AUDITORNAME}" = "" ];       then AUDITORNAME="[Unknown]"; fi
     if [ "${LOGFILE}" = "" ];           then LOGFILE="/var/log/lynis.log"; fi
     if [ "${REPORTFILE}" = "" ];        then REPORTFILE="/var/log/lynis-report.dat"; fi
-
 #
 #################################################################################
 #
@@ -333,7 +298,6 @@
 #
 #################################################################################
 #
-
     # Check if there is already a PID file (incorrect termination of previous instance)
     if [ -f lynis.pid -o -f /var/run/lynis.pid ]; then
         echo ""
@@ -356,7 +320,7 @@
     fi
 
     # Create new PID file (use work directory if /var/run is not available)
-    if [ ${PENTESTINGMODE} -eq 1 ]; then
+    if [ ${PRIVILEGED} -eq 0 ]; then
           # Store it in home directory of user
           MYHOMEDIR=`echo ~`
           if [ "${MYHOMEDIR}" = "" ]; then HOMEDIR="/tmp"; fi
@@ -419,6 +383,34 @@
         RemovePIDFile
         # Exit with exit code 1
         exit 1
+    fi
+#
+#################################################################################
+#
+    if [ ${PRIVILEGED} -eq 0 ]; then
+        echo "${WHITE}"
+        echo "  ###################################################################"
+        echo "  #                                                                 #"
+        echo "  #   ${PURPLE}NON-PRIVILEGED SCAN MODE${WHITE}                                      #"
+        echo "  #                                                                 #"
+        echo "  ###################################################################"
+        echo "${NORMAL}"
+        echo "  ${YELLOW}NOTES:${NORMAL}"
+        echo "  --------------"
+        echo "  ${WHITE}*${NORMAL} Some tests will be skipped (as they require root permissions)"
+        echo "  ${WHITE}*${NORMAL} Some tests might fail silently or give different results"
+        echo ""
+        if [ "${LOGFILE}" = "" -o "${LOGFILE}" = "/dev/null" ]; then
+            echo "  ${RED}WARNING:${NORMAL}"
+            echo "  ${WHITE}*${NORMAL} No suggestions or warnings will be displayed in report (due to missing log file)"
+            echo ""
+        fi
+        echo ""
+        echo "  ${WHITE}Press [ENTER] to continue or [CTRL] + C to break${NORMAL}"
+        echo ""
+        echo "  ###################################################################"
+        echo "${NORMAL}"; echo ""
+        if [ ${NEVERBREAK} -eq 0 ]; then read void; fi
     fi
 #
 #################################################################################

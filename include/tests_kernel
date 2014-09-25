@@ -461,64 +461,76 @@
         fi
         # Check if /boot exists
         if [ -d /boot ]; then
-            if [ -f /boot/vmlinuz ]; then
-                logtext "Result: found /boot/vmlinuz"
-                ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
-            elif [ -f /boot/vmlinuz-linux ]; then
-                logtext "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
-                logtext "Test: checking kernel version on disk"
-                VERSION_ON_DISK=`file -b /boot/vmlinuz-linux | awk '{ if ($1=="Linux" && $7=="version") { print $8 }}'`
-                if [ ! "${VERSION_ON_DISK}" = "" ]; then
-                    logtext "Result: found version ${VERSION_ON_DISK}"
-                    ACTIVE_KERNEL=`uname -r`
-                    logtext "Result: active kernel version ${ACTIVE_KERNEL}"
-                    if [ "${VERSION_ON_DISK}" = "${ACTIVE_KERNEL}" ]; then
-                        REBOOT_NEEDED=0
-                        logtext "Result: no reboot needed, active kernel is the same version as the one on disk"
+            FIND=`ls /boot/* 2> /dev/null`
+            if [ ! "${FIND}" = "" ]; then
+                if [ -f /boot/vmlinuz ]; then
+                    logtext "Result: found /boot/vmlinuz"
+                    ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
+                elif [ -f /boot/vmlinuz-linux ]; then
+                    logtext "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
+                    logtext "Test: checking kernel version on disk"
+                    VERSION_ON_DISK=`file -b /boot/vmlinuz-linux | awk '{ if ($1=="Linux" && $7=="version") { print $8 }}'`
+                    if [ ! "${VERSION_ON_DISK}" = "" ]; then
+                        logtext "Result: found version ${VERSION_ON_DISK}"
+                        ACTIVE_KERNEL=`uname -r`
+                        logtext "Result: active kernel version ${ACTIVE_KERNEL}"
+                        if [ "${VERSION_ON_DISK}" = "${ACTIVE_KERNEL}" ]; then
+                            REBOOT_NEEDED=0
+                            logtext "Result: no reboot needed, active kernel is the same version as the one on disk"
+                          else
+                            REBOOT_NEEDED=1
+                            logtext "Result: reboot needed, as there is a difference between active kernel and the one on disk"
+                        fi
                       else
-                        REBOOT_NEEDED=1
-                        logtext "Result: reboot needed, as there is a difference between active kernel and the one on disk"
+                        logtext "Result: could not find the version on disk"
+                        ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
                     fi
                   else
-                    logtext "Result: could not find the version on disk"
-                    ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
-                fi
-              else
-                logtext "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
-                FIND=`ls /boot/vmlinuz* 2> /dev/null`
-                if [ "${FIND}" = "" ]; then
-                     logtext "Result: No kernels (/boot/vmlinuz*) found on disk"
-                     ReportException "${TEST_NO}:2" "Can not find any vmlinuz files in /boot, which is unexpected"
-                  else
-                     # Replace dashes to allow numeric sort
-                     MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's/-/./g'`
-                     logtext "Result: using ${MYKERNEL} as my kernel version (stripped)"
-                     # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
-                     KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
-                     FOUND_KERNEL=0
-                     for I in ${KERNELS}; do
-                         if [ ${FOUND_KERNEL} -eq 1 ]; then
-                             logtext "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
-                             REBOOT_NEEDED=1
-                         fi
-                         if [ "${MYKERNEL}" = "${I}" ]; then
-                             FOUND_KERNEL=1
-                             logtext "Result: Found ${I} (= our kernel)"
+                    logtext "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
+                    # Extra current kernel version and replace dashes to allow numeric sort later on
+                    MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's/-/./g'`
+                    FIND=`ls /boot/vmlinuz* 2> /dev/null`
+                    if [ ! "${FIND}" = "" ]; then
+                         # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
+                         KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+
+                      elif [ ! `ls /boot/kernel* 2> /dev/null` = "" ]; then
+
+                         # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
+                         # Examples:
+                         # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
+                         KERNELS=`ls /boot/kernel* | awk -F- '{ if ($2=="genkernel") { print $4 }}' | grep "^[0-9]" | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+                         logtext "Result: using ${MYKERNEL} as my kernel version (stripped)"
+                         FOUND_KERNEL=0
+                         for I in ${KERNELS}; do
+                             if [ ${FOUND_KERNEL} -eq 1 ]; then
+                                 logtext "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
+                                 REBOOT_NEEDED=1
+                             fi
+                             if [ "${MYKERNEL}" = "${I}" ]; then
+                                 FOUND_KERNEL=1
+                                 logtext "Result: Found ${I} (= our kernel)"
+                               else
+                                 logtext "Result: Found ${I}"
+                             fi
+                         done
+                         # Check if we at least found the kernel on disk
+                         if [ ${FOUND_KERNEL} -eq 0 ]; then
+                             ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
                            else
-                             logtext "Result: Found ${I}"
+                             # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
+                             if [ ${REBOOT_NEEDED} -eq 2 ]; then
+                                 logtext "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
+                                 REBOOT_NEEDED=0
+                             fi
                          fi
-                     done
-                     # Check if we at least found the kernel on disk
-                     if [ ${FOUND_KERNEL} -eq 0 ]; then
-                         ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
-                       else
-                         # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
-                         if [ ${REBOOT_NEEDED} -eq 2 ]; then
-                             logtext "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
-                             REBOOT_NEEDED=0
-                         fi
-                     fi
+                      else
+                        ReportException "${TEST_NO}:2" "Can not find any vmlinuz or kernel files in /boot, which is unexpected"
+                    fi
                 fi
+              # No files in /boot
+              else
+                 logtext "Result: Skipping this test, as there are no files in /boot"
             fi
           else
             logtext "Result: /boot does not exist"

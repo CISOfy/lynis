@@ -289,28 +289,30 @@
 
         # Check for symlink
         if [ -L ${sFILE} ]; then
-            if [ ! "${READLINKBINARY}" = "" ]; then
-                tFILE=`${READLINKBINARY} ${sFILE}`
-                # Check if we can find the file now
-                if [ -f ${tFILE} ]; then
-                    sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to file ${sFILE}"
-                elif [ -d ${tFILE} ]; then
-                    sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to directory ${sFILE}"
-                  else
-                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
-                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
-                    tFILE="${tDIR}/${tFILE}"
-                    if [ -f ${tFILE} ]; then
-                        sFILE="${tFILE}"
-                        logtext "Result: symlink found, seems to be file ${sFILE}"
-                      elif [ -d ${tFILE} ]; then
-                        sFILE="${tFILE}"
-                        logtext "Result: symlink found, seems to be directory ${sFILE}"
-                    fi
-                fi
-            fi
+            ShowSymlinkPath ${sFILE}
+            if [ ! "${SYMLINK}" = "" ]; then sFILE="${SYMLINK}"; fi
+            #if [ ! "${READLINKBINARY}" = "" ]; then
+            #    tFILE=`${READLINKBINARY} ${sFILE}`
+            #    # Check if we can find the file now
+            #    if [ -f ${tFILE} ]; then
+            #        sFILE="${tFILE}"
+            #        logtext "Result: symlink found, pointing to file ${sFILE}"
+            #    elif [ -d ${tFILE} ]; then
+            #        sFILE="${tFILE}"
+            #        logtext "Result: symlink found, pointing to directory ${sFILE}"
+            #      else
+            #        # Check the full path of the symlink, strip the filename, copy the path and linked filename together
+            #        tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
+            #        tFILE="${tDIR}/${tFILE}"
+            #        if [ -f ${tFILE} ]; then
+            #            sFILE="${tFILE}"
+            #            logtext "Result: symlink found, seems to be file ${sFILE}"
+            #           elif [ -d ${tFILE} ]; then
+            #            sFILE="${tFILE}"
+            #            logtext "Result: symlink found, seems to be directory ${sFILE}"
+            #        fi
+            #    fi
+            #fi
         fi
         # Only check the file if it isn't a symlink (after previous check)
         if [ -L ${sFILE} ]; then
@@ -1194,16 +1196,31 @@
                     # Check the full path of the symlink, strip the filename, copy the path and linked filename together
                     tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
                     tFILE="${tDIR}/${tFILE}"
-                    if [ -f ${tFILE} ]; then
+                    if [ -L ${tFILE} ]; then
+                        logtext "Result: this symlink links to another symlink"
+                        # Trying it with -f option
+                        tFILE=`${READLINKBINARY} -f ${tFILE}`
+                        if [ -f ${tFILE} ]; then
+                            sFILE="${tFILE}"
+                            logtext "Result: symlink finally found, seems to be file ${sFILE}"
+                            FOUNDPATH=1
+                        elif [ -d ${tFILE} ]; then
+                            sFILE="${tFILE}"
+                            logtext "Result: symlink found, seems to be directory ${sFILE}"
+                            FOUNDPATH=1
+                        else
+                           logtext "Result: could not find file ${tFILE}, most likely too complicated symlink or too often linked"
+                        fi
+                    elif [ -f ${tFILE} ]; then
                         sFILE="${tFILE}"
                         logtext "Result: symlink found, seems to be file ${sFILE}"
                         FOUNDPATH=1
-                      elif [ -d ${tFILE} ]; then
+                    elif [ -d ${tFILE} ]; then
                         sFILE="${tFILE}"
                         logtext "Result: symlink found, seems to be directory ${sFILE}"
                         FOUNDPATH=1
-                      else
-                        logtext "Result: path ${sFILE} not found"
+                    else
+                        logtext "Result: file ${tFILE} in ${tDIR} not found"
                     fi
                 fi
             fi
@@ -1212,6 +1229,11 @@
         if [ -L ${sFILE} ]; then
             logtext "Result: unable to determine symlink, or location ${sFILE} is just another symlink"
             FOUNDPATH=0
+        fi
+        if [ ${FOUNDPATH} -eq 1 ]; then
+            SYMLINK="${sFILE}"
+          else
+            SYMLINK=""
         fi
       }
 

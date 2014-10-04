@@ -240,7 +240,37 @@
 #
     # Test        : SHLL-6294
     # Description : Check shellshock vulnerability
-    Register --test-no SHLL-6294 --weight H --network NO --description "Check shellshock vulnerability (CVE-2014-6278)"
+    Register --test-no SHLL-6294 --weight H --network NO --description "Check shellshock vulnerability (CVE-2014-6277)"
+    if [ ${SKIPTEST} -eq 0 ]; then
+		logtext "Test: Check if bash is in the list of shells."
+		FIND=`egrep '(/usr)?/bin/bash' /etc/shells`
+		if [ ! "${FIND}" = "" -a ! -L ${FIND} ]; then
+			logtext "Result: found ${FIND} as a valid shell"
+			# CVE-2014-6271
+			logtext "Test: Check for first exploit (CVE-2014-6277)"
+			echo "\$((bash -c \"f() { x() { _;}; x() { _;} <<a; }\" 2>/dev/null || echo vulnerable) | grep 'vulnerable') 2>&1" > /tmp/2.tmp
+			VULNERABLE=`${FIND} /tmp/2.tmp`
+			#echo "${VULNERABLE}"
+			if [ ! "${VULNERABLE}" = "" ]; then
+				logtext "Result: Vulnerable to original shellshock (CVE-2014-6277)"
+				Display --indent 4 --text "- CVE-2014-6277 (segafult)" --result "WARNING" --color RED
+				ReportWarning ${TEST_NO} "H" "Vulnerable to shellshocker! (CVE-2014-6277)"
+				AddHP 0 5
+			else
+				logtext "Result: Not vulnerable to original shellshock (CVE-2014-6277)"
+				Display --indent 4 --text "- CVE-2014-6277 (segfault)" --result "OK" --color GREEN
+				AddHP 5 5
+			fi	
+		else 
+			Display --indent 2 --text "- Didn't find bash in the list of valid shells."
+		fi
+	fi
+#
+#################################################################################
+#
+    # Test        : SHLL-6295
+    # Description : Check shellshock vulnerability
+    Register --test-no SHLL-6295 --weight H --network NO --description "Check shellshock vulnerability (CVE-2014-6278)"
     if [ ${SKIPTEST} -eq 0 ]; then
 		logtext "Test: Check if bash is in the list of shells."
 		FIND=`egrep '(/usr)?/bin/bash' /etc/shells`
@@ -248,9 +278,9 @@
 			logtext "Result: found ${FIND} as a valid shell"
 			# CVE-20146278
 			logtext "Test: Check for CVE-2014-6278"
-			echo "\$(shellshocker='() { echo vulnerable; }' bash -c shellshocker 2>/dev/null | grep 'vulnerable')" > /tmp/2.tmp
+			echo "\$(shellshocker='() { echo vulnerable; }' bash -c shellshocker 2>/dev/null | grep 'vulnerable')" > /tmp/3.tmp
 			#echo "${VULNERABLE}"
-			VULNERABLE=`${FIND} /tmp/2.tmp`
+			VULNERABLE=`${FIND} /tmp/3.tmp`
 			if [ ! "${VULNERABLE}" = "" ]; then
 				logtext "Result: Vulnerable to CVE-2014-6278"
 				Display --indent 4 --text "- CVE-2014-6278 (Florian's patch)" --result "WARNING" --color RED
@@ -268,9 +298,9 @@
 #
 #################################################################################
 #
-    # Test        : SHLL-6295
+    # Test        : SHLL-6296
     # Description : Check shellshock vulnerability
-    Register --test-no SHLL-6295 --weight H --network NO --description "Check shellshock vulnerability (CVE-2014-7169)"
+    Register --test-no SHLL-6296 --weight H --network NO --description "Check shellshock vulnerability (CVE-2014-7169)"
     if [ ${SKIPTEST} -eq 0 ]; then
 		logtext "Test: Check if bash is in the list of shells."
 		FIND=`egrep '(/usr)?/bin/bash' /etc/shells`
@@ -279,7 +309,7 @@
 			logtext "Result: found ${FIND} as a valid shell"
 			# CVE-2014-7168
 			logtext "Test: Check for taviso bug CVE-2014-7169"
-			echo "\$((cd /tmp; rm -f /tmp/echo; env X='() { (a)=>\' bash -c "echo echo nonvuln" 2>/dev/null; [[ \"\$(cat echo 2> /dev/null)\" == \"nonvuln\" ]] && echo \"vulnerable\" 2> /dev/null) | grep '   vulnerable')" > /tmp/3.tmp
+			echo "\$((cd /tmp; rm -f /tmp/echo; env X='() { (a)=>\' bash -c "echo echo nonvuln" 2>/dev/null; [[ \"\$(cat echo 2> /dev/null)\" == \"nonvuln\" ]] && echo \"vulnerable\" 2> /dev/null) | grep '   vulnerable')" > /tmp/4.tmp
 			VULNERABLE=`${FIND} /tmp/3.tmp`
 			#echo "${VULNERABLE}"
 			if [ ! "${VULNERABLE}" = "" ]; then
@@ -332,9 +362,9 @@
 #
 #################################################################################
 #
-    # Test        : SHLL-6296
+    # Test        : SHLL-6298
     # Description : Check shellshock vulnerability
-    Register --test-no SHLL-6296 --weight H --network NO --description "Check shellshock vulnerability (Exploit #3 - shellshocker.net)"
+    Register --test-no SHLL-6298 --weight H --network NO --description "Check shellshock vulnerability (Exploit #3 - shellshocker.net)"
     if [ ${SKIPTEST} -eq 0 ]; then
 		logtext "Test: Check if bash is in the list of shells."
 		FIND=`egrep '(/usr)?/bin/bash' /etc/shells`
@@ -343,9 +373,9 @@
 			logtext "Result: found ${FIND} as a valid shell"
 			# CVE-2014-////
 			logtext "Test: Check for bug Exploit #3 - shellshocker.net (no CVE)"
-			echo "env X=' () { }; echo hello' bash -c 'date'" > /tmp/5.tmp
+			echo "env X=' () { }; echo hello' bash -c 'date'| grep 'hello'" > /tmp/5.tmp
 			VULNERABLE=`${FIND} /tmp/5.tmp`
-			if [ ! "${VULNERABLE}" = "" ]; then
+			if [ "${VULNERABLE}" = "hello" ]; then
 				logtext "Result: Vulnerable to CVE-2014-//// (exploit #3 on shellshocker.net)"
 				Display --indent 4 --text "- Exploit #3 on shellshocker.net (no CVE)" --result "WARNING" --color RED
 				ReportWarning ${TEST_NO} "H" "Vulnerable to shellshocker (Exploit #3 - shellshocker.net)"

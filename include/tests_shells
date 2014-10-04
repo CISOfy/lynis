@@ -205,6 +205,93 @@
 #
 #################################################################################
 #
+#
+#################################################################################
+#
+    # Test        : SHLL-6299
+    # Description : Check shellshock vulnerability
+    Register --test-no SHLL-6299 --weight L --network NO --description "Check shellshock vulnerability"
+    if [ ${SKIPTEST} -eq 0 ]; then
+		logtext "Test: Check if bash is in the list of shells."
+		FIND=`egrep '(/usr)?/bin/bash' /etc/shells`
+		#echo "SSHELLS=${SSHELLS}"
+		if [ ! "${FIND}" = "" -a ! -L ${FIND} ]; then
+			logtext "Result: found ${FIND} as a valid shell"
+			Display --indent 2 --text "- Found ${FIND} as a valid shell"
+			# CVE-2014-6271
+			logtext "Test: Check for first exploit (CVE-2014-6271)"
+			VULNERABLE=`${FIND} -c "env x='() { :;}; echo vulnerable' bash -c \"echo this is a test\"" | grep -i "vulnerable"`
+			#echo "${VULNERABLE}"
+			if [ "${VULNERABLE}" = "" ]; then
+				logtext "Result: Not vulnerable to original shellshock (CVE-2014-6271)"
+				Display --indent 4 --text "- CVE-2014-6271 (original shellshocker)" --result "OK" --color GREEN
+				AddHP 5 5
+			else
+				logtext "Result: Vulnerable to original shellshock (CVE-2014-6271)"
+				Display --indent 4 --text "- CVE-2014-6271 (original shellshocker)" --result "VULN" --color RED
+				Add 1 5
+			fi	
+			# CVE-20146278
+			logtext "Test: Check for CVE-2014-6278"
+			VULNERABLE=`${FIND} -c "$(shellshocker='() { echo vulnerable; }' bash -c shellshocker | grep 'vulnerable') 2> /dev/null"`
+			if [ ! "$VULNERABLE" = "" ]; then
+				logtext "Result: Vulnerable to CVE-2014-6278"
+				Display --indent 4 --text "- CVE-2014-6278 (Florian's patch)" --result "VULN" --color RED
+				AddHP 1 5
+			else 
+				logtext "Result: Not vulnerable to CVE-2014-6278"
+				Display --indent 4 --text "- CVE-2014-6278 (Florian's patch)" --result "OK" --color GREEN
+				AddHP 5 5
+			fi
+			# CVE-2014-7168
+			logtext "Test: Check for taviso bug CVE-2014-7169"
+			VULNERABLE=`${FIND} -c "env x='() { (shellshocker.net)=>\' bash -c \"echo date\"; cat echo; rm ./echo" 2> /dev/null`
+			if [ $? -eq 1 ]; then
+				logtext "Result: Not vulnerable to taviso bug (CVE-2014-7169)"
+				Display --indent 4 --text "- CVE-2014-7169 (taviso bug)" --result "OK" --color GREEN
+				AddHP 5 5
+			else 
+				logtext "Result: Vulnerable to taviso bug (CVE-2014-7169)"
+				Display --indent 4 --text "- CVE-2014-7169 (taviso bug)" --result "VULN" --color RED
+				AddHP 1 5
+			fi
+			# CVE-2014-////
+			logtext "Test: check for bug #3 on shellshocker.net (no CVE)"
+			VULNERABLE=`${FIND} -c "$(env X=' () { }; echo hello' bash -c 'date' | grep 'hello')"`
+			if [ ! "$VULNERABLE" = "" ]; then
+				logtext "Result: Vulnerable to CVE-2014-//// (exploit #3 on shellshocker.net)"
+				Display --indent 4 --text "- Exploit #3 on shellshocker.net (no CVE)" --result "VULN" --color RED
+				AddHP 1 5
+			else 
+				logtext "Result: Not vulnerable to exploit #3 on shellshocker.net (no CVE)"
+				Display --indent 4 --text "- Exploit#3 on shellshocker.net (no CVE)" --result "OK" --color GREEN
+				AddHP 5 5
+			fi
+			# CVE-2014-7186
+			# wierd interpolation issues with this one
+			#set -x
+			logtext "Test: Check for CVE-2014-7186"
+			${FILE}		# the rest of the check should be done in bash (?)
+			VULNERABLE=`bash -c 'true <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF' 2>/dev/null`
+			echo "$VULNERABLE"
+			#if [ ! "$VULNERABLE" = "" ]; then
+			if [ $? -eq 0 ]; then
+				logtext "Result: Vulnerable to CVE-2014-7186"
+				Display --indent 4 --text "- CVE-2014-7186 redir_stack bug" --result "VULN" --color RED
+				AddHP 1 5
+			else 
+				logtext "Result: Not vulnerable to CVE-2014-7186"
+				Display --indent 4 --text "- CVE-2014-7186 redir_stack bug" --result "OK" --color GREEN
+				AddHP 5 5
+			fi
+			#set +x
+		else 
+			Display --indent 2 --text "- Didn't find bash in the list of valid shells."
+		fi
+	fi
+#
+#################################################################################
+#
 
 report "session_timeout_enabled=${IDLE_TIMEOUT}"
 

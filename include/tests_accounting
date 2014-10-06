@@ -64,7 +64,7 @@
             AddHP 3 3
         else
             Display --indent 2 --text "- Checking accounting information" --result "NOT FOUND" --color YELLOW
-            logtext "Result: No accounting information available (/var/account/pacct does not exist)"
+            logtext "Result: No accounting information available (/var/account/pacct, /var/log/account/pact nor /var/log/pact exist)"
             logtext "Remark: Possibly there is another location where the accounting data is stored"
             ReportSuggestion ${TEST_NO} "Enable process accounting"
             AddHP 2 3
@@ -121,6 +121,7 @@
             Display --indent 2 --text "- Checking auditd" --result ENABLED --color GREEN
             AUDITD_RUNNING=1
             report "audit_deamon_running=1"
+            report "audit_trail_tool[]=auditd"
             AddHP 4 4
           else
             logtext "Result: auditd not active"
@@ -209,6 +210,37 @@
             logtext "Result: no log file found"
             Display --indent 4 --text "- Checking auditd log file" --result WARNING --color RED
             ReportWarning ${TEST_NO} "L" "Auditd log file is defined but can not be found on disk"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : ACCT-9636
+    # Description : Check for Snoopy (wrapper for execve() and logger)
+    Register --test-no ACCT-9636 --os Linux --weight L --network NO --description "Check for Snoopy wrapper and logger"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FILE="/lib/snoopy.so"
+        if [ -f ${FILE} ]; then
+            logtext "Result: found ${FILE}"
+            Display --indent 2 --text "- Checking Snoopy" --result FOUND --color GREEN
+            if [ -f /etc/ld.so.preload ]; then
+                logtext "Result: found /etc/ld.so.preload, testing if snoopy.so is listed"
+                FIND=`grep ${FILE} /etc/ld.so.preload`
+                if [ !"${FIND}" = "" ]; then
+                    logtext "Result: found snoopy in ld.so.preload"
+                    logtext "Output: ${FIND}"
+                    Display --indent 6 --text "- Library in ld.so.preload" --result "LOADED" --color GREEN
+                    report "audit_trail_tool[]=snoopy"
+                  else
+                    Display --indent 6 --text "- Library in ld.so.preload" --result "NOT FOUND" --color YELLOW
+                    ReportSuggestion ${TEST_NO} "Snoopy is installed but not loaded via /etc/ld.so.preload"
+                    AddHP 3 3
+                fi
+              else
+                logtext "Result: /etc/ld.so.preload does not exist"
+                Display --indent 6 --text "- Library in ld.so.preload" --result "UNKNOWN" --color PURPLE
+                ReportException "${TEST_NO}:1" "Unsure how Snoopy might be loaded as ld.so.preload does not exist"
+            fi
         fi
     fi
 #
@@ -334,18 +366,18 @@
 #
 #################################################################################
 #
-    # Test        : ACCT-9662
+    # Test        : ACCT-96xx
     # Description : Check which events are audited
     #if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no ACCT-9660 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check BSM auditing in module list"
+    #Register --test-no ACCT-96xx --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check BSM auditing in module list"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #
 #################################################################################
 #
-    # Test        : ACCT-9664
+    # Test        : ACCT-96xx
     # Description : Check user specific event auditing
     #if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no ACCT-9662 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check BSM auditing in module list"
+    #Register --test-no ACCT-96xx --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check user specific event auditing"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #
 #################################################################################

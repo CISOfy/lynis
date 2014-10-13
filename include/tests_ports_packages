@@ -590,22 +590,39 @@
         DO_TEST=0
         logtext "Test: Determining if yum-security package installed"
 
-        FileExists /etc/yum/pluginconf.d/security.conf
-        if [ ${FILE_FOUND} -eq 1 ]; then
-           SearchItem "^enabled=1$" "/etc/yum/pluginconf.d/security.conf"
-           if [ ${ITEM_FOUND} -eq 1 ]; then
-               DO_TEST=1
-           fi
-         else
-           # Check if it's installed as package (this is old style)
-           FIND=`rpm -q yum-security yum-plugin-security | grep -v "not installed"`
-           if [ ! "${FIND}" = "" ]; then
-               logtext "Result: found yum-plugin-security package"
-               DO_TEST=1
-           fi
+        # Check for built-in --security option
+        if [ ${DO_TEST} -eq 0 ]; then
+            FileExists /usr/share/yum-cli/cly.py
+            if [ ${FILE_FOUND} -eq 1 ]; then
+               SearchItem "--security" "/usr/share/yum-cli/cly.py"
+               if [ ${ITEM_FOUND} -eq 1 ]; then
+                   DO_TEST=1
+                   logtext "Result: found built-in security in yum"
+               fi
+            fi
         fi
 
-        # If we have the module of yum active, continue.
+        if [ ${DO_TEST} -eq 0 ]; then
+            FileExists /etc/yum/pluginconf.d/security.conf
+            if [ ${FILE_FOUND} -eq 1 ]; then
+               SearchItem "^enabled=1$" "/etc/yum/pluginconf.d/security.conf"
+               if [ ${ITEM_FOUND} -eq 1 ]; then
+                   DO_TEST=1
+                   logtext "Result: Found enabled plugin"
+               fi
+            fi
+        fi
+
+        # Check if it's installed as package (this is old style)
+        if [ ${DO_TEST} -eq 0 ]; then
+            FIND=`rpm -q yum-security yum-plugin-security | grep -v "not installed"`
+            if [ ! "${FIND}" = "" ]; then
+                logtext "Result: found yum-plugin-security package"
+                DO_TEST=1
+            fi
+        fi
+
+        # If we have the module of yum active, continue testing
         if [ ${DO_TEST} -eq 1 ]; then
             PKG_AUDIT_TOOL_FOUND=1
             PKG_AUDIT_TOOL="yum-security"

@@ -24,6 +24,9 @@
     CUPSD_FOUND=0
     LPD_RUNNING=0
     PRINTING_DAEMON=""
+    QDAEMON_CONFIG_ENABLED=0
+    QDAEMON_CONFIG_FILE=""
+    QDAEMON_RUNNING=0
 #
 #################################################################################
 #
@@ -204,6 +207,82 @@
     #    echo "        - Testing printcap file [Test not implemented yet]"
     #    # Check printcap with checkpc command
     #fi
+#
+#################################################################################
+#
+    # Test        : PRNT-2416
+    # Description : Check /etc/qconfig file
+    Register --test-no PRNT-2316 --os AIX --weight L --network NO --description "Checking /etc/qconfig file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking /etc/qconfig"
+        QDAEMON_CONFIG_FILE="/etc/qconfig"
+        FileIsReadable ${QDAEMON_CONFIG_FILE}
+        if [ ${CANREAD} -eq 1 ]; then
+            FileEmpty ${QDAEMON_CONFIG_FILE}
+            if [ ${FILE_FOUND} -eq 0 ]; then
+                logtext "Result: printers are defined in ${QDAEMON_CONFIG_FILE}"
+                Display --indent 2 --text "- Checking /etc/qconfig file" --result FOUND --color GREEN
+                QDAEMON_CONFIG_ENABLED=1
+              else
+                logtext "Result: ${QDAEMON_CONFIG_FILE} is empty. No printers are defined"
+                Display --indent 2 --text "- Checking /etc/qconfig file" --result EMPTY --color WHITE
+            fi
+          else
+            logtext "Result: Can not read ${QDAEMON_CONFIG_FILE} (no permission)"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PRNT-2418
+    # Description : Check qdaemon printer spooler status
+    Register --test-no PRNT-2418 --os AIX --weight L --network NO --description "Checking qdaemon printer spooler status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking qdaemon status"
+        IsRunning qdaemon
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: qdaemon daemon running"
+            Display --indent 2 --text "- Checking qdaemon daemon" --result RUNNING --color GREEN
+            QDAEMON_RUNNING=1; PRINTING_DAEMON="qdaemon"
+          else
+            if [ ${QDAEMON_CONFIG_ENABLED} -eq 1 ]; then
+                logtext "Result: qdaemon daemon not running"
+                Display --indent 2 --text "- Checking qdaemon daemon" --result "NOT RUNNING" --color RED
+                ReportSuggestion ${TEST_NO} "Activate print spooler daemon (qdaemon) in order to process print jobs"
+              else
+                logtext "Result: qdaemon daemon not running"
+                Display --indent 2 --text "- Checking qdaemon daemon" --result "NOT RUNNING" --color WHITE
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PRNT-2420
+    # Description : Checking old print jobs
+    Register --test-no PRNT-2420 --os AIX --weight L --network NO --description "Checking old print jobs"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking old print jobs"
+        DirectoryExists /var/spool/lpd/qdir
+        if [ ${DIRECTORY_FOUND} -eq 1 ]; then
+            FIND=`find /var/spool/lpd/qdir -type f -mtime +1 2> /dev/null | sed 's/ /!space!/g'`
+            if [ ! "${FIND}" = "" ]; then
+                N=0
+                for I in ${FIND}; do
+                    FILE=`echo ${I} | sed 's/!space!/ /g'`
+                    logtext "Found old print job: ${FILE}"
+                    N=`expr ${N} + 1`
+                done
+                logtext "Result: Found ${N} old print jobs in /var/spool/lpd/qdir"
+                Display --indent 4 --text "- Checking old print jobs" --result FOUND --color YELLOW
+                ReportSuggestion ${TEST_NO} "Check old print jobs in /var/spool/lpd/qdir to prevent new jobs from being processed"
+                logtext "Risk: Failed or defunct print jobs can occupy a lot of space and in some cases, prevent new jobs from being processed"
+              else
+                logtext "Result: Old print jobs not found in /var/spool/lpd/qdir"
+                Display --indent 4 --text "- Checking old print jobs" --result "NONE" --color GREEN
+            fi
+        fi
+    fi
 #
 #################################################################################
 #

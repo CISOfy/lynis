@@ -271,6 +271,10 @@
 #        echo "Output: ${BZRSTATUS}"
 #    fi
 
+    if [ ! -d ${MYBUILDDIR}/git ]; then
+        mkdir ${MYBUILDDIR}/git
+    fi
+
     if [ -d ${MYBUILDDIR}/git/Lynis ]; then
         echo "git clone already exists"
         rm -rf ${MYBUILDDIR}/git/Lynis
@@ -289,9 +293,12 @@
     echo ""
     echo "---------------------------------------------"
     echo "RPM file:              ${RPMFILE}"
+    echo "DEB file:              ${DEBWORKDIR}/lynis_${LYNIS_VERSION}_amd64.deb"
     echo "Tarball:               ${TARBALL}"
     echo "Tarball (SHA1):        ${TARBALL_SHA1}"
     echo ""
+    echo "Actions:"
+    echo " - Upload Debian package with dput (-f) my-ppa <source.changes>"
 
 
 

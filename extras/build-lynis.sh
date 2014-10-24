@@ -285,7 +285,7 @@
 
     cd ..
     echo "Executing: ${GITBUILDPACKAGEBINARY} --git-tarball-dir=${MYBUILDDIR} --git-export-dir=${DEBWORKDIR} --git-ignore-new"
-    ${GITBUILDPACKAGEBINARY} --git-tarball-dir=${MYBUILDDIR} --git-export-dir=${DEBWORKDIR} --git-ignore-new
+    ${GITBUILDPACKAGEBINARY} -S --git-tarball-dir=${MYBUILDDIR} --git-export-dir=${DEBWORKDIR} --git-ignore-new
     cd ${MYWORKDIR}
 
     echo "[V] Done"

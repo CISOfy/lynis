@@ -276,11 +276,11 @@
         rm -rf ${MYBUILDDIR}/git/Lynis
         #git checkout tags/${LYNIS_VERSION}
     fi
-    git clone https://github.com/CISOfy/Lynis.git ${MYBUILDDIR}/git/Lynis
+    #git clone https://github.com/CISOfy/Lynis.git ${MYBUILDDIR}/git/Lynis
     #git tag -l ${MYBUILDDIR}/git/Lynis
 
     cd ..
-    ${GITBUILDPACKAGEBINARY} --git-tarball-dir=${MYBUILDDIR} --git-export-dir=${DEBWORKDIR}
+    ${GITBUILDPACKAGEBINARY} --git-tarball-dir=${MYBUILDDIR} --git-export-dir=${DEBWORKDIR} --git-ignore-new
     cd ${MYWORKDIR}
 
 

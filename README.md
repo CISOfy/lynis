@@ -11,3 +11,4 @@ See for full documentation http://cisofy.com/documentation/lynis/
 
 <h1>Support</h1>
 Got an improvement to share? Create an issue in the tracker on GitHub or send us an e-mail: lynis-dev@cisofy.com
+

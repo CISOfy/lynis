@@ -232,7 +232,7 @@
       else
         echo "[X] Could not find source file (${SOURCEFILE_RPM})"
         echo "    Hint: cp <lynis.tar.gz> ${SOURCEFILE_RPM}"
-        ExitFatal
+        #ExitFatal
     fi
 
     echo "[*] Starting with DEB building process"
@@ -270,6 +270,14 @@
 #        echo "[X] Unknown error"
 #        echo "Output: ${BZRSTATUS}"
 #    fi
+
+    if [ -d ${MYBUILDDIR}/git/Lynis ]; then
+        echo "git clone already exists"
+        rm -rf ${MYBUILDDIR}/git/Lynis
+        #git checkout tags/${LYNIS_VERSION}
+    fi
+    git clone https://github.com/CISOfy/Lynis.git ${MYBUILDDIR}/git/Lynis
+    #git tag -l ${MYBUILDDIR}/git/Lynis
 
     cd ..
     ${GITBUILDPACKAGEBINARY} --git-tarball-dir=${MYBUILDDIR} --git-export-dir=${DEBWORKDIR}

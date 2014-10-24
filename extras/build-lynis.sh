@@ -281,6 +281,16 @@
         #git checkout tags/${LYNIS_VERSION}
     fi
     git clone https://github.com/CISOfy/Lynis.git ${MYBUILDDIR}/git/Lynis
+
+    if [ -d ${MYBUILDDIR}/git/Lynis/debian/ ]; then
+        echo "Copying build files into new tree"
+        cp -R ../debian/* ${MYBUILDDIR}/git/Lynis/debian/
+        cd ${MYBUILDDIR}/git/Lynis/debian/
+        git add .
+        git commit -m "Building process for Lynis release version ${LYNIS_VERSION}"
+      else
+        echo "[X] Could not copy debian directory and commit changes"
+    fi
     #git tag -l ${MYBUILDDIR}/git/Lynis
 
     cd ..

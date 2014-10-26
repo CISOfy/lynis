@@ -67,11 +67,21 @@
     # Test        : FILE-6311
     # Description : Checking LVM Volume Groups
     # Notes       : No volume groups found is sent to STDERR for unclear reasons. Filtering both STDERR redirecting and grep.
-    if [ ! "${VGDISPLAYBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! "${VGDISPLAYBINARY}" = "" -o ! "${LSVGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6311 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking LVM volume groups"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking for LVM volume groups"
-        FIND=`${VGDISPLAYBINARY} 2> /dev/null | grep -v "No volume groups found" | grep "VG Name" | awk '{ print $3 }' | sort`
+        case ${OS} in
+            AIX)
+                 FIND=`${LSVGBINARY} -o`
+            ;;
+            Linux)
+                 FIND=`${VGDISPLAYBINARY} 2> /dev/null | grep -v "No volume groups found" | grep "VG Name" | awk '{ print $3 }' | sort`
+            ;;
+            *)
+                 ReportException "${TEST_NO}:1" "Don't know this specific operating system yet, while volume group manager was found"
+            ;;
+        esac
         if [ ! "${FIND}" = "" ]; then
             logtext "Result: found one or more volume groups"
             for I in ${FIND}; do
@@ -90,11 +100,22 @@
 #
     # Test        : FILE-6312
     # Description : Checking LVM volumes
-    if [ ! "${LVDISPLAYBINARY}" = "" -a ${LVM_VG_USED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${LVM_VG_USED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6312 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking LVM volumes"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking for LVM volumes"
-        FIND=`${LVDISPLAYBINARY} | grep -v "No volume groups found" | grep "LV Name" | awk '{ print $3 }' | sort`
+        case ${OS} in
+            AIX)
+                 ACTIVE_VG_LIST=`${LSVGBINARY} -o`
+                 FIND=`for I in ${ACTIVE_VG_LIST}; do ${LSVGBINARY} -l ${I} | awk 'NR>2 { print $1 }'; done`
+            ;;
+            Linux)
+                 FIND=`${LVDISPLAYBINARY} | grep -v "No volume groups found" | grep "LV Name" | awk '{ print $3 }' | sort`
+            ;;
+            *)
+                 ReportException "${TEST_NO}:1" "Need specific test for gathering volume manager data"
+            ;;
+        esac
         if [ ! "${FIND}" = "" ]; then
             logtext "Result: found one or more volumes"
             for I in ${FIND}; do

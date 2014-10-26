@@ -189,13 +189,17 @@
     #fi
 
     # Create tarball
-    tar -C ${MYWORKDIR} --exclude=debian --exclude=README.md --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
 
     if [ -f ${TARBALL} ]; then
-         echo "[V] Tarball created"
+        echo "Tarball already exists for this version, not overwriting it"
       else
-         echo "[X] Tarball ${TARBALL} could not be created"
-         ExitFatal
+        tar -C ${MYWORKDIR} --exclude=debian --exclude=README.md --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
+        if [ -f ${TARBALL} ]; then
+             echo "[V] Tarball created"
+           else
+             echo "[X] Tarball ${TARBALL} could not be created"
+             ExitFatal
+        fi
     fi
 
     TARBALL_MD5=`md5sum ${TARBALL}`

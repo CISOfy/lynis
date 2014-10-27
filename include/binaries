@@ -36,7 +36,7 @@
     # Notes       : Always perform test, dependency for many other tests
     Register --test-no FILE-7502 --weight L --network NO --description "Check all system binaries"
     #if [ ${SKIPTEST} -eq 0 ]; then
-        SCANNEDPATHS=""; N=0
+        BINARY_PATHS_FOUND=""; N=0
         Display --indent 2 --text "- Checking system binaries..."
         logtext "Status: Starting binary scan..."
         for SCANDIR in ${BINPATHS}; do
@@ -61,7 +61,8 @@
                     fi
                 fi
 
-                FIND=`echo ${SCANNEDPATHS} | grep ", ${SCANDIR}"`
+                # Add a space to make sure we discover a related directory if it was already scanned
+                FIND=`echo ${BINARY_PATHS_FOUND} | grep ", ${SCANDIR}"`
                 if [ ! "${FIND}" = "" ]; then
                     SKIPDIR=1; logtext "Result: Skipping this directory as it was already scanned"
                 fi
@@ -69,7 +70,7 @@
                 if [ ${SKIPDIR} -eq 0 ]; then
                     logtext "Test: Checking binaries in directory ${SCANDIR}"
                     Display --indent 4 --text "- ${SCANDIR}" --result FOUND --color GREEN
-                    SCANNEDPATHS="${SCANNEDPATHS}, ${SCANDIR}"
+                    BINARY_PATHS_FOUND="${BINARY_PATHS_FOUND}, ${SCANDIR}"
                     logtext "Directory ${SCANDIR} exists. Starting directory scanning..."
                     FIND=`ls ${SCANDIR}`
                     for I in ${FIND}; do
@@ -187,8 +188,9 @@
             fi
             logtextbreak
         done
-        SCANNEDPATHS=`echo ${SCANNEDPATHS} | sed 's/^, //g'`
-        logtext "Discovered directories: ${SCANNEDPATHS}"
+        BINARY_PATHS_FOUND=`echo ${BINARY_PATHS_FOUND} | sed 's/^, //g' | sed 's/ //g'`
+        logtext "Discovered directories: ${BINARY_PATHS_FOUND}"
+        report "binary_paths=${BINARY_PATHS_FOUND}"
         BINARY_SCAN_FINISHED=1
     #fi
 

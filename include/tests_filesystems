@@ -151,8 +151,11 @@
                 FILESYSTEM=`echo ${I} | cut -d ',' -f1`
                 FILETYPE=`echo ${I} | cut -d ',' -f2`
                 logtext "File system: ${FILESYSTEM} (type: ${FILETYPE})"
-                report "filesystem_ext[]=${FILESYSTEM|${FILETYPE}|"
+                report "file_systems_ext[]=${FILESYSTEM}|${FILETYPE}|"
             done
+          else
+            logtext "Result: no EXT file systems found"
+            report "file_systems_ext[]=none"
         fi
     fi
 #
@@ -362,7 +365,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         logtext "Test: Checking acl option on root file system"
-        FIND=`mount | ${AWKBINARY} '{ if ($3=="/") { print $6 } }' | grep acl`
+        FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/ext[2-4]/) { print $6 } }' | grep acl`
         if [ ! "${FIND}" = "" ]; then
             logtext "Result: found ACL option"
             FOUND=1
@@ -374,12 +377,15 @@
             if [ -b /dev/root ]; then
                 FIND1="/dev/root"
               else
-                FIND1=`mount | grep 'on / ' | awk '{ print $1 }' | sed 's/rootfs//'`
+                # Only determine device if it is EXT2/3/4
+                #FIND1=`mount | grep "on / " | awk '{ if ($5~/ext[2-4]/) { print $1 }}'`
+                FIND1=`mount -t ext2,ext3,ext4 | grep "on / " | awk '{ print $1 }'`
             fi
+            # Trying to determine default mount options from EXT2/EXT3/EXT4 file systems
             if [ ! "${FIND1}" = "" ]; then
                 logtext "Result: found ${FIND1}"
                 logtext "Test: Checking default options on ${FIND1}"
-                FIND2=`${TUNE2FSBINARY} -l ${FIND1} 2> /dev/null | grep "^Default mount options" | grep "acl"` 
+                FIND2=`${TUNE2FSBINARY} -l ${FIND1} 2> /dev/null | grep "^Default mount options" | grep "acl"`
                 if [ ! "${FIND2}" = "" ]; then
                     logtext "Result: found ACL option in default mount options"
                     FOUND=1

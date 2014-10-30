@@ -64,26 +64,28 @@
             # If we have a kernel configuration file, use it for testing
             # Do not perform test if we already found it in kernel module list, to avoid triggered it in the upcoming
             # tests, when using iptables --list
-            if [ ! "${LINUXCONFIGFILE}" = "" -a -f ${LINUXCONFIGFILE} -a ${IPTABLES_MODULE_ACTIVE} -eq 0 ]; then
-                logtext "Result: found kernel configuration file (${LINUXCONFIGFILE})"
-                FIND=`${tCATCMD} ${LINUXCONFIGFILE} | grep -v '^#' | grep "CONFIG_IP_NF_IPTABLES" | head -n 1`
-                if [ ! "${FIND}" = "" ]; then
-                    HAVEMOD=`echo ${FIND} | cut -d '=' -f2`
-                    # Do not use iptables if it's compiled as a module (=m), since we already tested for it in the
-                    # active list.
-                    if [ "${HAVEMOD}" = "y" ]; then
-                            logtext "Result: iptables available as a module in the configuration"
-                            IPTABLES_ACTIVE=1
-                            IPTABLES_INKERNEL_ACTIVE=1
-                            FIREWALL_ACTIVE=1
-                            FIREWALL_SOFTWARE="iptables"
-                            Display --indent 2 --text "- Checking iptables in config file" --result FOUND --color GREEN
+            if [ ! "${LINUXCONFIGFILE}" = "" ]; then
+                if [ -f ${LINUXCONFIGFILE} -a ${IPTABLES_MODULE_ACTIVE} -eq 0 ]; then
+                    logtext "Result: found kernel configuration file (${LINUXCONFIGFILE})"
+                    FIND=`${tCATCMD} ${LINUXCONFIGFILE} | grep -v '^#' | grep "CONFIG_IP_NF_IPTABLES" | head -n 1`
+                    if [ ! "${FIND}" = "" ]; then
+                        HAVEMOD=`echo ${FIND} | cut -d '=' -f2`
+                        # Do not use iptables if it's compiled as a module (=m), since we already tested for it in the
+                        # active list.
+                        if [ "${HAVEMOD}" = "y" ]; then
+                                logtext "Result: iptables available as a module in the configuration"
+                                IPTABLES_ACTIVE=1
+                                IPTABLES_INKERNEL_ACTIVE=1
+                                FIREWALL_ACTIVE=1
+                                FIREWALL_SOFTWARE="iptables"
+                                Display --indent 2 --text "- Checking iptables in config file" --result FOUND --color GREEN
+                          else
+                            logtext "Result: no iptables found in Linux kernel config file"
+                        fi
                       else
-                        logtext "Result: no iptables found in Linux kernel config file"
+                        logtext "Result: no Linux configuration file found"
+                        Display --indent 2 --text "- Checking iptables in config file" --result "NOT FOUND" --color WHITE
                     fi
-                  else
-                    logtext "Result: no Linux configuration file found"
-                    Display --indent 2 --text "- Checking iptables in config file" --result "NOT FOUND" --color WHITE
                 fi
             fi
         fi

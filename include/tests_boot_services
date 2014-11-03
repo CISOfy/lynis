@@ -260,12 +260,19 @@
 #
     # Test        : BOOT-5159
     # Description : Check for OpenBSD boot loader
-    # More info   : Only OpenBSD && i386 platform
-    Register --test-no BOOT-5159 --os OpenBSD --platform i386 --weight L --network NO --description "Check for OpenBSD i386 boot loader presence"
+    # More info   : Only OpenBSD
+    Register --test-no BOOT-5159 --os OpenBSD --platform i386 --weight L --network NO --description "Check for OpenBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        # Boot files
+        # /usr/mdec/biosboot: first stage bootstrap
+        # /boot             : second stage bootstrap
+        if [ -f /usr/mdec/biosboot -a -f /boot ]; then
+            FOUND=1
+        fi
+        # Configuration file
         if [ -f /etc/boot.conf ]; then
-            BOOT_LOADER="OpenBSD"
-            BOOT_LOADER_FOUND=1
+            FOUND=1
             Display --indent 2 --text "- Checking /etc/boot.conf" --result "FOUND" --color GREEN
             FIND=`grep '^boot' /etc/boot.conf`
             if [ "${FIND}" = "" ]; then
@@ -282,6 +289,12 @@
             logtext "access to the server can be used to possibly enter single user mode."
             ReportSuggestion ${TEST_NO} "Add 'boot' to the /etc/boot.conf file to disable the default 5 seconds waiting time."
         fi
+        if [ ${FOUND} -eq 1 ]; then
+            BOOT_LOADER="OpenBSD"
+            BOOT_LOADER_FOUND=1
+        fi
+
+
     fi
 #
 #################################################################################

@@ -354,7 +354,7 @@
       {
         HOSTID="-"
         FIND=""
-        if [ ! "${SHA1SUMBINARY}" = "" ]; then
+        if [ ! "${SHA1SUMBINARY}" = "" -a ! "${OPENSSLBINARY}" = "" ]; then
 
             case "${OS}" in
 
@@ -472,7 +472,15 @@
                     done
                     if [ ${FOUND} -eq 1 ]; then
                         FIND=`${IFCONFIGBINARY} ${I} | grep ether | awk '{ if ($1=="ether") { print $2 }}'`
-                        HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                        if [ ! "${SHA1SUMBINARY}" = "" ]; then
+                            HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                          else
+                            if [ ! "${OPENSSLBINARY}" = "" ]; then
+                                HOSTID=`echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }'`
+                              else
+                                ReportException "GetHostID" "Can not find sha1/sha1sum or openssl"
+                            fi
+                        fi
                       else
                         ReportException "GetHostID" "No interface found op Solaris to create HostID"
                     fi
@@ -480,11 +488,11 @@
 
 
                 *)
-                        ReportException "GetHostID" "Can't create HOSTID as OS is not supported by this function"
+                        ReportException "GetHostID" "Can't create HOSTID as OS is not supported yet by this function"
                 ;;
             esac
           else
-              report "exception[]=No SHA1/SHA1SUM binary found to create HOSTID"
+              report "exception[]=No SHA1/SHA1SUM/OPENSSL binaries found to create HOSTID"
         fi
 
         # Search machine ID

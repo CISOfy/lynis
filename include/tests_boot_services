@@ -558,37 +558,55 @@
         FIND=""
         case "${OS}" in
             Linux)
-               # Idle time, not real uptime
-               if [ -f /proc/uptime ]; then
-                   FIND=`cat /proc/uptime | cut -d ' ' -f1 | cut -d '.' -f1`
-                 else
-                   Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
-                   ReportException "${TEST_NO}:1" "No uptime test available for this operating system (/proc/uptime missing)"
-               fi
-              ;;
+                # Idle time, not real uptime
+                if [ -f /proc/uptime ]; then
+                    FIND=`cat /proc/uptime | cut -d ' ' -f1 | cut -d '.' -f1`
+                  else
+                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                    ReportException "${TEST_NO}:1" "No uptime test available for this operating system (/proc/uptime missing)"
+                fi
+                ;;
              MacOS)
-                 if [ ! "${SYSCTLBINARY}" = "" ]; then
-                     FIND=`${SYSCTLBINARY} kern.boottime | awk '{ print $5 }' | sed -e 's/,//'`
-                   else
-                     Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
-                     ReportException "${TEST_NO}:3" "No uptime test available for this operating system (sysctl missing)"
-                 fi
-                 ;;
+                if [ ! "${SYSCTLBINARY}" = "" ]; then
+                    FIND=`${SYSCTLBINARY} kern.boottime | awk '{ print $5 }' | sed -e 's/,//'`
+                  else
+                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                    ReportException "${TEST_NO}:4" "No uptime test available for this operating system (sysctl missing)"
+                fi
+                ;;
+
+             OpenBSD)
+                if [ ! "${SYSCTLBINARY}" = "" ]; then
+                    TIME_BOOT=`${SYSCTLBINARY} -n kern.boottime`
+                    logtext "Boot time: ${TIME_BOOT}"
+                    logtext "Current time: ${TIME_NOW}"
+                    TIME_NOW=`date "+%s"`
+                    if [ ! "${TIME_BOOT}" = "" -a "${TIME_NOW}" = "" ]; then
+                        UPTIME_IN_SECS=`expr ${TIME_NOW} - ${TIME_BOOT}`
+                      else
+                        ReportException "${TEST_NO}:5" "Most likely kern.boottime empty, unable to determine uptime"
+                    fi
+                  else
+                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                    ReportException "${TEST_NO}:4" "No uptime test available for this operating system (sysctl missing)"
+                fi
+                ;;
 
             Solaris)
-               if [ ! "${KSTATBINARY}" = "" ]; then
-                   FIND=`${KSTATBINARY} -p unix:0:system_misc:snaptime | grep "^unix" | awk '{print $2}' | cut -d "." -f1`
-                 else
-                   Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
-                   ReportException "${TEST_NO}:2" "No uptime test available for this operating system (kstat missing)"
-               fi
-              ;;
-            *)
-               Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                if [ ! "${KSTATBINARY}" = "" ]; then
+                    FIND=`${KSTATBINARY} -p unix:0:system_misc:snaptime | grep "^unix" | awk '{print $2}' | cut -d "." -f1`
+                  else
+                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                    ReportException "${TEST_NO}:2" "No uptime test available for this operating system (kstat missing)"
+                fi
+                ;;
 
-               # Want to help improving Lynis? Share your operating system and a way to determine the uptime (in seconds)
-               ReportException "${TEST_NO}:3" "No uptime test available yet for this operating system"
-              ;;
+            *)
+                Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+
+                # Want to help improving Lynis? Share your operating system and a way to determine the uptime (in seconds)
+                ReportException "${TEST_NO}:3" "No uptime test available yet for this operating system"
+                ;;
         esac
         if [ ! "${FIND}" = "" ]; then
             UPTIME_IN_SECS="${FIND}"

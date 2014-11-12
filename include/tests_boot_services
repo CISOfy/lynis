@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2014, CISOfy & Michael Boelen, The Netherlands
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -107,24 +107,30 @@
     if [ ! "${GRUBCONFFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no BOOT-5122 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for GRUB boot password"
     if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
         logtext "Found file ${GRUBCONFFILE}, proceeding with tests."
         FileIsReadable ${GRUBCONFFILE}
         if [ ${CANREAD} -eq 1 ]; then
             FIND=`cat ${GRUBCONFFILE} | grep 'password --md5' | grep -v '^#'`
             FIND2=`cat ${GRUBCONFFILE} | grep 'password --encrypted' | grep -v '^#'`
-            if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
-                Display --indent 6 --text "- Checking for password protection" --result WARNING --color RED
-                logtext "Result: Didn't find MD5/SHA1 hashed password line in GRUB boot file!"
-                logtext "Risk: user can switch to single user mode by editing current menu items or bypassing them."
-                logtext "Additional information: Do NOT use a plaintext password, since the grub.conf or menu.lst file is most likely to be world readable!"
-                logtext "If an unsecured OS like DOS is used, add 'lock' below that entry and setup a password with the password option, to prevent direct system access."
-                ReportSuggestion ${TEST_NO} "Set a password on GRUB bootloader to prevent altering boot configuration (e.g. boot in single user mode without password)"
-                logtext "Tip: Run grub-crypt or grub-md5-crypt and create a hashed password. Add a line below the line timeout=<value>, add: password --md5 <password hash> or password --encrypted <password hash> for SHA1 encrypted password"
-                AddHP 0 2
-              else
+            FIND3=`cat ${GRUBCONFFILE} | grep 'set superusers' | grep -v '^#'`
+            FIND4=`cat ${GRUBCONFFILE} | grep 'password_pbkdf2' | grep -v '^#'`
+            # GRUB1: MD5 or SHA1
+            if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
+                FOUND=1
+              # GRUB2: Superusers and password should be defined
+              elif [ ! "${FIND3}" = "" -a ! "${FIND4}" = "" ]; then
+                FOUND=1
+            fi
+            if [ ${FOUND} -eq 1 ]; then
                 Display --indent 6 --text "- Checking for password protection" --result OK --color GREEN
                 logtext "Result: GRUB has password protection."
                 AddHP 4 4
+              else
+                Display --indent 6 --text "- Checking for password protection" --result WARNING --color RED
+                logtext "Result: Didn't find hashed password line in GRUB boot file!"
+                ReportSuggestion ${TEST_NO} "Set a password on GRUB bootloader to prevent altering boot configuration (e.g. boot in single user mode without password)"
+                AddHP 0 2
             fi
           else
                 logtext "Result: Can not read ${GRUBCONFFILE} (no permission)"

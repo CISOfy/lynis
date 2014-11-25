@@ -37,6 +37,7 @@
 #    IsRunning                  Check if a process is running
 #    IsVirtualMachine           Check if this system is a virtual machine
 #    ParseNginx                 Parse nginx configuration lines
+#    Progress                   Show progress on screen
 #    ReportException            Add an exception to the report file (for debugging purposes)
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
@@ -184,7 +185,7 @@
                     INDENT=$1
                 ;;
                 --no-break | --nobreak | -nb)
-                    ECHOCMD="echo -en"
+                    ECHOPARAMS="-n"
                 ;;
                 --result)
                     shift
@@ -222,10 +223,11 @@
                 if [ ${CRONJOB} -eq 0 ]; then
                     # Check if we already have already discovered a proper echo command tool. It not, set it default to 'echo'.
                     if [ "${ECHOCMD}" = "" ]; then ECHOCMD="echo"; fi
-                    ${ECHOCMD} "\033[${INDENT}C${TEXT}\033[${SPACES}C${RESULTPART}"
+                    ${ECHOCMD} ${ECHOPARAMS} "\033[${INDENT}C${TEXT}\033[${SPACES}C${RESULTPART}"
                   else
                     echo "${TEXT}${RESULTPART}"
                 fi
+                ECHOPARAMS=""
             fi
         fi
       }
@@ -565,6 +567,7 @@
             if [ ! "${FIND}" = "" ]; then
                 case ${FIND} in
                     bochs)          ISVIRTUALMACHINE=1; VMTYPE="bochs";           VMFULLTYPE="Bochs CPU emulation"                     ;;
+                    docker)         ISVIRTUALMACHINE=1; VMTYPE="docker";          VMFULLTYPE="Docker container"                        ;;
                     kvm)            ISVIRTUALMACHINE=1; VMTYPE="kvm";             VMFULLTYPE="KVM"                                     ;;
                     lxc)            ISVIRTUALMACHINE=1; VMTYPE="lxc";             VMFULLTYPE="Linux Containers"                        ;;
                     lxc-libvirt)    ISVIRTUALMACHINE=1; VMTYPE="lxc-libvirt";     VMFULLTYPE="libvirt LXC driver (Linux Containers"    ;;
@@ -847,6 +850,14 @@
         done
       }
 
+    # Show progress on screen (useful for silent tests)
+    # Tip: use this function from Register with the --progress parameter
+    Progress()
+      {
+        if [ ${CRONJOB} -eq 0 ]; then
+            ${ECHOCMD} -en "."
+        fi
+      }
 
     # Function to determine what the real file location is
     RealFilename()
@@ -913,6 +924,9 @@
                 --preqs-met)
                     shift
                     PREQS_MET=$1
+                ;;
+                --progress)
+                    Progress
                 ;;
                 --root-only)
                     shift

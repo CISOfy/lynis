@@ -23,9 +23,10 @@
 #################################################################################
 #
     Display --indent 2 --text "- Checking boot loaders"
-    BOOT_LOADER="Unknown"
+    BOOT_LOADER="unknown"
     BOOT_LOADER_FOUND=0
     GRUB_VERSION=0
+    SERVICE_MANAGER="unknown"
 #
 #################################################################################
 #
@@ -47,6 +48,49 @@
                 #Display --indent 4 --text "- Checking boot device (bootinfo)" --result "NOT FOUND" --color YELLOW
                 #ReportSuggestion ${TEST_NO}  "Only use root (not sudo account) to query properly boot device"
             fi
+        fi
+    fi
+
+#
+#################################################################################
+#
+    # Test        : BOOT-5104
+    # Description : Determine service manager
+    Register --test-no BOOT-5104 --weight L --network NO --description "Determine service manager"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        case ${OS} in
+            linux)
+                if [ -f /proc/1/cmdline ]; then
+                     FILE=`cat /proc/1/cmdline`
+                     if [ -L ${FILE} ]; then
+                         ShowSymlinkPath ${FILE}
+                         if [ -f ${sFILE} ]; then
+                                 SHORTNAME=`echo ${sFILE} | awk -F/ '{ print $NF }'`
+                                 case ${SHORTNAME} in
+                                     upstart)
+                                           SERVICE_MANAGER="upstart"
+                                     ;;
+                                     systemd)
+                                           SERVICE_MANAGER="systemd"
+                                     ;;
+                                     *)
+                                           logtext "Found ${SHORTNAME} but unclear what service manager this is"
+                                     ;;
+                                 esac
+                               else
+                                 logtext "Result: Could not find linked file ${sFILE}"
+                         fi
+                    fi
+                fi
+
+            ;;
+            *)
+                logtext "Result: unknown service manager"
+        esac
+        if [ "${SERVICE_MANAGER}" = "unknown" ]; then
+            Display --indent 2 --text "- Service Manager" --result "UNKNOWN" --color YELLOW
+          else
+            Display --indent 2 --text "- Service Manager" --result "${SERVICE_MANAGER}" --color GREEN
         fi
     fi
 #
@@ -632,6 +676,7 @@
 #
 
 report "boot_loader=${BOOT_LOADER}"
+report "service_manager=${SERVICE_MANAGER}"
 
 wait_for_keypress
 

@@ -464,7 +464,7 @@
             logtext "Result: /boot exists, performing more tests from here"
             FIND=`ls /boot/* 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
-                if [ -f /boot/vmlinuz ]; then
+                if [ -f /boot/vmlinuz -a ! -L /boot/vmlinuz ]; then
                     logtext "Result: found /boot/vmlinuz"
                     ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
                 elif [ -f /boot/vmlinuz-linux ]; then
@@ -487,7 +487,11 @@
                         ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
                     fi
                   else
-                    logtext "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
+                    if [ -L /boot/vmlinuz ]; then
+                        logtext "Result: found symlink of /boot/vmlinuz, skipping file"
+                      else
+                        logtext "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
+                    fi
                     # Extra current kernel version and replace dashes to allow numeric sort later on
                     MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's/-/./g'`
                     logtext "Result: using ${MYKERNEL} as my kernel version (stripped)"

@@ -168,7 +168,7 @@
     # Display text
     Display()
       {
-        INDENT=0; TEXT=""; RESULT=""; COLOR=""
+        INDENT=0; TEXT=""; RESULT=""; COLOR=""; SPACES=0
         while [ $# -ge 1 ]; do
             case $1 in
                 --color)
@@ -183,9 +183,6 @@
                 --indent)
                     shift
                     INDENT=$1
-                ;;
-                --no-break | --nobreak | -nb)
-                    ECHOPARAMS="-n"
                 ;;
                 --result)
                     shift
@@ -219,15 +216,14 @@
             if [ ${QUIET} -eq 0 -o "${RESULT}" = "WARNING" ]; then
                 # Display
                 LINESIZE=`echo "${TEXT}" | wc -c | tr -d ' '`
-                SPACES=`expr 62 - ${INDENT} - ${LINESIZE}`
+                if [ ${INDENT} -gt 0 ]; then SPACES=`expr 62 - ${INDENT} - ${LINESIZE}`; fi
                 if [ ${CRONJOB} -eq 0 ]; then
                     # Check if we already have already discovered a proper echo command tool. It not, set it default to 'echo'.
                     if [ "${ECHOCMD}" = "" ]; then ECHOCMD="echo"; fi
-                    ${ECHOCMD} ${ECHOPARAMS} "\033[${INDENT}C${TEXT}\033[${SPACES}C${RESULTPART}"
+                    ${ECHOCMD} "\033[${INDENT}C${TEXT}\033[${SPACES}C${RESULTPART}"
                   else
                     echo "${TEXT}${RESULTPART}"
                 fi
-                ECHOPARAMS=""
             fi
         fi
       }
@@ -560,73 +556,79 @@
         logtext "Test: Determine if this system is a virtual machine"
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
-        # Check if we can use systemctl
-        if [ ! "${SYSTEMCTLBINARY}" = "" ]; then
+
+        SHORT=""
+
+        # Trying systemd
+        if [ "${SHORT}" = "" -a ! "${SYSTEMCTLBINARY}" = "" ]; then
             logtext "Test: trying to guess virtualization technology with systemctl"
             FIND=`${SYSTEMCTLBINARY} | grep "^Virtualization=" | awk -F= '{ print $2 }'`
             if [ ! "${FIND}" = "" ]; then
-                case ${FIND} in
-                    bochs)          ISVIRTUALMACHINE=1; VMTYPE="bochs";           VMFULLTYPE="Bochs CPU emulation"                     ;;
-                    docker)         ISVIRTUALMACHINE=1; VMTYPE="docker";          VMFULLTYPE="Docker container"                        ;;
-                    kvm)            ISVIRTUALMACHINE=1; VMTYPE="kvm";             VMFULLTYPE="KVM"                                     ;;
-                    lxc)            ISVIRTUALMACHINE=1; VMTYPE="lxc";             VMFULLTYPE="Linux Containers"                        ;;
-                    lxc-libvirt)    ISVIRTUALMACHINE=1; VMTYPE="lxc-libvirt";     VMFULLTYPE="libvirt LXC driver (Linux Containers"    ;;
-                    microsoft)      ISVIRTUALMACHINE=1; VMTYPE="microsoft";       VMFULLTYPE="Microsoft Virtual PC"                    ;;
-                    openvz)         ISVIRTUALMACHINE=1; VMTYPE="openvz";          VMFULLTYPE="OpenVZ"                                  ;;
-                    oracle)         ISVIRTUALMACHINE=1; VMTYPE="oracle";          VMFULLTYPE="Oracle VM VirtualBox"                    ;;
-                    qemu)           ISVIRTUALMACHINE=1; VMTYPE="qemu";            VMFULLTYPE="QEMU"                                    ;;
-                    systemd-nspawn) ISVIRTUALMACHINE=1; VMTYPE="systemd-nspawn";  VMFULLTYPE="Systemd Namespace container"             ;;
-                    uml)            ISVIRTUALMACHINE=1; VMTYPE="uml";             VMFULLTYPE="User-Mode Linux (UML)"                   ;;
-                    vmware)         ISVIRTUALMACHINE=1; VMTYPE="vmware";          VMFULLTYPE="VMware product"                          ;;
-                    xen)            ISVIRTUALMACHINE=1; VMTYPE="xen";             VMFULLTYPE="XEN"                                     ;;
-                    zvm)            ISVIRTUALMACHINE=1; VMTYPE="zvm";             VMFULLTYPE="IBM z/VM"                                ;;
-                    *)              ReportException "IsVirtualMachine" "Unknown virtualization type received from systemctl" ;;
-                esac
+                SHORT="${FIND}"
             fi
+        fi
 
-          else
+        # lshw
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/bin/lshw ]; then
+                SHORT=`lshw -quiet -class system | awk '{ if ($1=="product:") { print $2 }}'`
+            fi
+        fi
 
-            # Try common guest processes
+        # Try common guest processes
+        if [ "${SHORT}" = "" ]; then
             logtext "Test: trying to guess virtual machine type by running processes"
 
             # VMware
                 IsRunning vmware-guestd
-                if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="vmware"; VMFULLTYPE="VMware product"; fi
+                if [ ${RUNNING} -eq 1 ]; then SHORT="vmware"; fi
 
             # VirtualBox based on guest services
                 IsRunning vboxguest-service
-                if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="virtualbox"; VMFULLTYPE="Oracle VM VirtualBox"; fi
+                if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
                 IsRunning VBoxClient
-                if [ ${RUNNING} -eq 1 ]; then ISVIRTUALMACHINE=1; VMTYPE="virtualbox"; VMFULLTYPE="Oracle VM VirtualBox"; fi
-
-            # Amazon EC2 Instance
-            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then ISVIRTUALMACHINE=1; VMTYPE="amazon-ec2"; VMFULLTYPE="Amazon AWS EC2 Instance"; fi
-
-
-            if [ ${ISVIRTUALMACHINE} -eq 2 ]; then
-                # Try common guest processes
-                logtext "Test: trying to guess virtual machine type by sysctl keys"
-
-                # NetBSD: machdep.dmi.system-product
-                # OpenBSD: hw.product
-                FIND=`sysctl -a | egrep "(hw.product|machdep.dmi.system-product)" | sed 's/ = /=/' | awk -F= '{ print $2 }'`
-                if [ ! "${FIND}" = "" ]; then
-                    case ${FIND} in
-                        "VirtualBox")
-                            ISVIRTUALMACHINE=1
-                            VMTYPE="virtualbox"
-                            VMFULLTYPE="Oracle VM VirtualBox"
-                        ;;
-                        *)
-                            logtext "Result: Found an unknown hardware type in hw.product sysctl key"
-                        ;;
-                    esac
-                fi
-
-            fi
-
+                if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
         fi
 
+        # Amazon EC2
+        if [ "${SHORT}" = "" ]; then
+            logtext "Test: checking specific files for Amazon"
+            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then SHORT="amazon-ec2"; fi
+        fi
+
+        # sysctl values
+        if [ "${SHORT}" = "" ]; then
+            logtext "Test: trying to guess virtual machine type by sysctl keys"
+
+            # NetBSD: machdep.dmi.system-product
+            # OpenBSD: hw.product
+            SHORT=`sysctl -a | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }'`
+        fi
+
+        # Check if we catched some string along all tests
+        if [ ! "${SHORT}" = "" ]; then
+            # Lowercase and see if we found a match
+            SHORT=`echo ${SHORT} | tr [[:upper:]] [[:lower:]]`
+
+                case ${SHORT} in
+                    amazon-ec2)         ISVIRTUALMACHINE=1; VMTYPE="amazon-ec2";      VMFULLTYPE="Amazon AWS EC2 Instance"                 ;;
+                    bochs)              ISVIRTUALMACHINE=1; VMTYPE="bochs";           VMFULLTYPE="Bochs CPU emulation"                     ;;
+                    docker)             ISVIRTUALMACHINE=1; VMTYPE="docker";          VMFULLTYPE="Docker container"                        ;;
+                    kvm)                ISVIRTUALMACHINE=1; VMTYPE="kvm";             VMFULLTYPE="KVM"                                     ;;
+                    lxc)                ISVIRTUALMACHINE=1; VMTYPE="lxc";             VMFULLTYPE="Linux Containers"                        ;;
+                    lxc-libvirt)        ISVIRTUALMACHINE=1; VMTYPE="lxc-libvirt";     VMFULLTYPE="libvirt LXC driver (Linux Containers"    ;;
+                    microsoft)          ISVIRTUALMACHINE=1; VMTYPE="microsoft";       VMFULLTYPE="Microsoft Virtual PC"                    ;;
+                    openvz)             ISVIRTUALMACHINE=1; VMTYPE="openvz";          VMFULLTYPE="OpenVZ"                                  ;;
+                    oracle|virtualbox)  ISVIRTUALMACHINE=1; VMTYPE="virtualbox";      VMFULLTYPE="Oracle VM VirtualBox"                    ;;
+                    qemu)               ISVIRTUALMACHINE=1; VMTYPE="qemu";            VMFULLTYPE="QEMU"                                    ;;
+                    systemd-nspawn)     ISVIRTUALMACHINE=1; VMTYPE="systemd-nspawn";  VMFULLTYPE="Systemd Namespace container"             ;;
+                    uml)                ISVIRTUALMACHINE=1; VMTYPE="uml";             VMFULLTYPE="User-Mode Linux (UML)"                   ;;
+                    vmware)             ISVIRTUALMACHINE=1; VMTYPE="vmware";          VMFULLTYPE="VMware product"                          ;;
+                    xen)                ISVIRTUALMACHINE=1; VMTYPE="xen";             VMFULLTYPE="XEN"                                     ;;
+                    zvm)                ISVIRTUALMACHINE=1; VMTYPE="zvm";             VMFULLTYPE="IBM z/VM"                                ;;
+                    *)                  logtext "Result: Unknown virtualization type, so most likely system is physical"                   ;;
+                esac
+        fi
 
         # Check final status
         if [ ${ISVIRTUALMACHINE} -eq 1 ]; then
@@ -875,16 +877,32 @@
         done
       }
 
-    # Show progress on screen (useful for silent tests)
-    # Tip: use this function from Register with the --progress parameter
+    ################################################################################
+    # Name        : Progress()
+    # Description : Displays progress on screen with dots
+    # Input       : finish or text
+    # Returns     : nothing
+    # Tip         : Use this function from Register with the --progress parameter
     Progress()
       {
         if [ ${CRONJOB} -eq 0 ]; then
-            ${ECHOCMD} -n "."
+            if [ "$1" = "--finish" ]; then
+                ${ECHOCMD} ""
+            else
+                # If the No-Break version of echo is known, use that (usually breaks in combination with -e)
+                if [ ! "${ECHONB}" = "" ]; then
+                    ${ECHONB} "$1"
+                  else
+                    ${ECHOCMD} -en "$1"
+                fi
+            fi
         fi
       }
 
-    # Function to determine what the real file location is
+    ################################################################################
+    # Name        : RealFilename()
+    # Description : Return file behind a symlink
+    # Returns     : sFILE
     RealFilename()
       {
         sFILE=$1
@@ -951,7 +969,7 @@
                     PREQS_MET=$1
                 ;;
                 --progress)
-                    Progress
+                    Progress "."
                 ;;
                 --root-only)
                     shift

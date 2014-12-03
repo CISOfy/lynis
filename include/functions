@@ -601,7 +601,30 @@
 
             # Amazon EC2 Instance
             if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then ISVIRTUALMACHINE=1; VMTYPE="amazon-ec2"; VMFULLTYPE="Amazon AWS EC2 Instance"; fi
+
+
+            if [ ${ISVIRTUALMACHINE} -eq 2 ]; then
+                # Try common guest processes
+                logtext "Test: trying to guess virtual machine type by sysctl keys"
+
+                FIND=`sysctl -a | egrep "(hw.product|machdep.dmi.system-product)" | sed 's/ = /=/' | awk -F= '{ print $2 }'`
+                if [ ! "${FIND}" = "" ]; then
+                    case ${FIND} in
+                        "VirtualBox")
+                            ISVIRTUALMACHINE=1
+                            VMTYPE="virtualbox"
+                            VMFULLTYPE="Oracle VM VirtualBox"
+                        ;;
+                        *)
+                            logtext "Result: Found an unknown hardware type in hw.product sysctl key"
+                        ;;
+                    esac
+                fi
+
+            fi
+
         fi
+
 
         # Check final status
         if [ ${ISVIRTUALMACHINE} -eq 1 ]; then
@@ -855,7 +878,7 @@
     Progress()
       {
         if [ ${CRONJOB} -eq 0 ]; then
-            ${ECHOCMD} -en "."
+            ${ECHOCMD} -n "."
         fi
       }
 

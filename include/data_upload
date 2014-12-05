@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2014, Michael Boelen (michael@cisofy.com), The Netherlands
+# Copyright 2007-2014, Michael Boelen (michael@cisofy.com)
 # Web site: http://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -20,11 +20,18 @@
 #
 #    logtextbreak
 PROGRAM_VERSION="101"
-DATA_SERVER="https://cisofy.com"
+LICENSE_SERVER="https://cisofy.com"
+
+if [ "${UPLOAD_URL}" = "" ]; then
+    UPLOAD_URL="https://cisofy.com/upload/"
+fi
+
+logtext "Upload server: ${LICENSE_SERVER} (static)"
+logtext "URL to upload to: ${UPLOAD_URL}"
+
 # Additional options to curl
 CURL_OPTIONS=""
 SETTINGS_FILE="${PROFILE}"
-#DEBUG=1
 
 # Only output text to stdout if DEBUG mode is not used
 output()
@@ -68,12 +75,18 @@ output "Settings file: ${SETTINGS_FILE}"
     if [ -f ${REPORTFILE} ]; then
         output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
         # Quit if license is not valid, to reduce load on both client and server.
-        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${DATA_SERVER}/license/`
+        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER}/license/`
         UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
         if [ "${UPLOAD_CODE}" = "100" ]; then
-            output "${WHITE}License is valid{$NORMAL}"
+            output "${WHITE}License is valid${NORMAL}"
+            logtext "Result: License is valid"
           else
-            echo "${RED}Fatal error: provided license key is unknown or invalid.${NORMAL}"
+            echo "${RED}Fatal error: ${WHITE}This license key can not be checked, or has been expired. Please contact support@cisofy.com.${NORMAL}"
+            logtext "License check failed. This might have different causes:"
+            logtext "- Connection with license server could not be established"
+            logtext "- Collector version of Lynis version outdated"
+            logtext "- License expired"
+            logtext "- No credits left"
             output "Debug information: ${UPLOAD}"
             # Quit
             ExitClean
@@ -84,7 +97,7 @@ output "Settings file: ${SETTINGS_FILE}"
             output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
             # Try to connect
             output "Uploading data.."
-            UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${DATA_SERVER}/upload/`
+            UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL}`
             UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ print $2 }'`
             output "Output code from upload: ${UPLOAD_CODE}"
             if [ "${UPLOAD_CODE}" = "100" ]; then
@@ -107,4 +120,4 @@ output "Settings file: ${SETTINGS_FILE}"
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands
+# Lynis - Copyright 2007-2014, Michael Boelen, CISOfy - https://cisofy.com

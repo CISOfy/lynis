@@ -179,7 +179,6 @@
                 report "installed_package[]=${J}||"
             done
             report "installed_packages=${N}"
-
         fi
       else
         logtext "Result: RPM binary NOT found on this system, test skipped"
@@ -400,6 +399,11 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7370
+    # Description : Check debsums output
+#
+#################################################################################
+#
     # Test        : PKGS-7378
     # Description : Query FreeBSD portmaster for available port upgrades
     if [ -x /usr/local/sbin/portmaster ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -429,24 +433,30 @@
     Register --test-no PKGS-7381 --os NetBSD --weight L --network NO --description "Check for vulnerable NetBSD packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/sbin/pkg_admin ]; then
-            FIND=`/usr/sbin/pkg_admin audit`
             PKG_AUDIT_TOOL_FOUND=1
             PKG_AUDIT_TOOL="pkg_admin audit"
-            if [ "${FIND}" = "" ]; then
-                logtext "Result: pkg audit results are clean"
-                Display --indent 2 --text "- Checking pkg_admin audit to obtain vulnerable packages" --result NONE --color GREEN
-                AddHP 2 2
-            else
-                Display --indent 2 --text "- Checking pkg_admin audit to obtain vulnerable packages" --result WARNING --color RED
-                logtext "Result: pkg_admin audit found one or more installed packages which are vulnerable."
-                ReportWarning ${TEST_NO} "M" "Found one or more vulnerable packages."
-                logtext "List of vulnerable packages/version:"
-                for I in `/usr/sbin/pkg_admin audit | awk '{ print $2 }' | sort | uniq`; do
-                    report "vulnerable_package[]=${I}"
-                    logtext "Vulnerable package: ${I}"
-                    # Decrease hardening points for every found vulnerable package
-                    AddHP 1 2
-                done
+            if [ -f /var/db/pkg/pkgs-vulnerabilities ]; then
+                FIND=`/usr/sbin/pkg_admin audit`
+                if [ "${FIND}" = "" ]; then
+                    logtext "Result: pkg audit results are clean"
+                    Display --indent 2 --text "- Checking pkg_admin audit to obtain vulnerable packages" --result NONE --color GREEN
+                    AddHP 2 2
+                  else
+                    Display --indent 2 --text "- Checking pkg_admin audit to obtain vulnerable packages" --result WARNING --color RED
+                    logtext "Result: pkg_admin audit found one or more installed packages which are vulnerable."
+                    ReportWarning ${TEST_NO} "M" "Found one or more vulnerable packages."
+                    logtext "List of vulnerable packages/version:"
+                    for I in `/usr/sbin/pkg_admin audit | awk '{ print $2 }' | sort | uniq`; do
+                        report "vulnerable_package[]=${I}"
+                        logtext "Vulnerable package: ${I}"
+                        # Decrease hardening points for every found vulnerable package
+                        AddHP 1 2
+                    done
+                fi
+              else
+                ReportSuggestion "${TEST_NO}" "Fetch the package database with pkg_admin fetch-pkg-vulnerabilities"
+                AddHP 0 2
+
             fi
           else
             Display --indent 2 --text "- pkg_admin audit not installed" --result "NOT FOUND" --color WHITE

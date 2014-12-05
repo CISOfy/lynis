@@ -465,8 +465,26 @@
             FIND=`ls /boot/* 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
                 if [ -f /boot/vmlinuz -a ! -L /boot/vmlinuz ]; then
-                    logtext "Result: found /boot/vmlinuz"
-                    ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
+                    logtext "Result: found /boot/vmlinuz (not symlinked)"
+                    NEXTLINE=0
+                    FINDVERSION=""
+                    for I in `file /boot/vmlinuz-linux`; do
+                        if [ ${NEXTLINE} -eq 1 ]; then
+                            FINDVERSION="${I}"
+                          else
+                            # Searching for the Linux kernel after the keyword 'version'
+                            if [ "${I}" = "version" ]; then NEXTLINE=1; fi
+                        fi
+                    done
+                    if [ ! "${FINDVERSION}" = "" ]; then
+                        CURRENT_KERNEL=`uname -r`
+                        if [ ! "${CURRENT_KERNEL}" = "${FINDVERSION}" ]; then
+                            logtext "Result: reboot needed, as current kernel is different than the one loaded"
+                            REBOOT_NEEDED=1
+                        fi
+                      else
+                        ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
+                    fi
                 elif [ -f /boot/vmlinuz-linux ]; then
                     logtext "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
                     logtext "Test: checking kernel version on disk"

@@ -149,9 +149,9 @@
             logtext "Result: file /etc/network/if-up.d/ntpdate does not exist"
         fi
 
-        if [ "${OS}" = "FreeBSD" ]; then
-            logtext "Test: Checking if ntpdate is enabled at startup in FreeBSD"
-            if [ -f /etc/rc.conf ]; then
+        # Configuration file for *BSD
+        if [ -f /etc/rc.conf ]; then
+                logtext "Test: Checking if ntpdate is enabled at startup in *BSD"
                 FIND=`grep 'ntpdate_enable="YES"' /etc/rc.conf`
                 if [ ! "${FIND}" = "" ]; then
                     logtext "Result: ntpdate is enabled in rc.conf"
@@ -162,14 +162,17 @@
                   else
                     logtext "Result: ntpdate is not enabled in rc.conf"
                 fi
-            fi
         fi
 
         if [ ${FOUND} -eq 0 ]; then
-            Display --indent 2 --text "- Checking for a running NTP daemon or client" --result WARNING --color RED
-            logtext "Result: Could not find a NTP daemon or client"
-            ReportSuggestion ${TEST_NO} "Use NTP daemon or NTP client to prevent time issues."
-            AddHP 0 2
+            if [ ${ISVIRTUALMACHINE} -eq 1 ]; then
+                logtext "Result: Skipping display warning, as virtual machines usually don't need time synchronization in the VM itself"
+              else
+                Display --indent 2 --text "- Checking for a running NTP daemon or client" --result WARNING --color RED
+                logtext "Result: Could not find a NTP daemon or client"
+                ReportSuggestion ${TEST_NO} "Use NTP daemon or NTP client to prevent time issues."
+                AddHP 0 2
+            fi
           else
             Display --indent 2 --text "- Checking for a running NTP daemon or client" --result OK --color GREEN
             logtext "Result: Found a time syncing daemon/client."

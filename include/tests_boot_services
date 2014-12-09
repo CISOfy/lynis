@@ -64,10 +64,11 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FILE=`cat /proc/1/cmdline`
-                    if [ -L ${FILE} ]; then
-                        ShowSymlinkPath ${FILE}
-                        if [ -f ${sFILE} ]; then
+                    FILE=`cat /proc/1/cmdline | grep "^/" | awk '{ print $1 }'`
+                    if [ ! "${FILE}" = "" ]; then
+                        if [ -L ${FILE} ]; then
+                            ShowSymlinkPath ${FILE}
+                            if [ -f ${sFILE} ]; then
                                  SHORTNAME=`echo ${sFILE} | awk -F/ '{ print $NF }'`
                                  case ${SHORTNAME} in
                                      upstart)
@@ -82,12 +83,15 @@
                                  esac
                                else
                                  logtext "Result: Could not find linked file ${sFILE}"
+                            fi
+                          else
+                            FIND=`echo ${FILE} | grep "/systemd"`
+                            if [ ! "${FIND}" = "" ]; then
+                                SERVICE_MANAGER="systemd"
+                            fi
                         fi
                       else
-                        FIND=`echo ${FILE} | grep "/systemd"`
-                        if [ ! "${FIND}" = "" ]; then
-                            SERVICE_MANAGER="systemd"
-                        fi
+                        logtext "Result: /proc/1/cmdline does not link to a binary on disk"
                     fi
                 fi
                 # Continue testing if we didn't find it yet
@@ -634,7 +638,7 @@
                 fi
                 ;;
 
-             DragonFly|MacOS)
+             DragonFly|FreeBSD|MacOS)
                 if [ ! "${SYSCTLBINARY}" = "" ]; then
                     FIND=`${SYSCTLBINARY} kern.boottime | awk '{ print $5 }' | sed -e 's/,//' | grep "[0-9]"`
                   else
@@ -690,6 +694,34 @@
 #
 #################################################################################
 #
+    # Test        : BOOT-5260
+    # Description : Check single user mode for systemd
+    Register --test-no BOOT-5260 --weight L --network NO --description "Check single user mode for systemd"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if file exists
+        logtext "Test: Searching /usr/lib/systemd/system/rescue.service"
+         if [ -f /usr/lib/systemd/system/rescue.service ]; then
+             logtext "Result: file /usr/lib/systemd/system/rescue.service"
+             logtext "Test: checking presence sulogin for single user mode"
+             FIND=`grep "^ExecStart=-/sbin/sulogin" /usr/lib/systemd/system/rescue.service`
+             if [ ! "${FIND}" = "" ]; then
+                 FOUND=1
+                 logtext "Result: found sulogin, so single user is protected"
+                 AddHP 3 3
+               else
+                 logtext "Result: did not find sulogin in rescue.service"
+                 AddHP 1 3
+                 Display --indent 2 --text "- Checking sulogin in rescue.service" --result "NOT FOUND" --color YELLOW
+                 ReportSuggestion "Protect rescue.service by using sulogin"
+             fi
+           else
+             logtext "Result: file /usr/lib/systemd/system/rescue.service does not exist"
+         fi
+    fi
+#
+#################################################################################
+#
+
 
 report "boot_loader=${BOOT_LOADER}"
 report "service_manager=${SERVICE_MANAGER}"

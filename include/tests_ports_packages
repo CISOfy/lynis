@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2014, Michael Boelen (michael@rootkit.nl), The Netherlands
+# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
 # Web site: http://www.rootkit.nl
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -21,6 +21,7 @@
     InsertSection "Ports and packages"
     PACKAGE_MGR_PKG=0
     PKG_AUDIT_TOOL_FOUND=0
+    INSTALLED_PACKAGES=""
 #
 #################################################################################
 #
@@ -36,19 +37,17 @@
             Display --indent 4 --text "- Searching packages with pkg" --result FOUND --color GREEN
             report "package_manager[]=pkg"
             PACKAGE_MGR_PKG=1
-            #logtext "Result: Found pkg"
-            #logtext "Test: Querying pkg to get package list"
-            #Display --indent 6 --text "- Querying pkg for installed packages"
-            #logtext "Output:"; logtext "-----"
-            #SPACKAGES=`/usr/sbin/pkg_info 2>&1 | sort | tr -s ' ' | cut -d ' ' -f1 | sed -e 's/^\(.*\)-\([0-9].*\)$/\1,\2/g'`
-            #for J in ${SPACKAGES}; do
-            #    sPKG_NAME=`echo ${J} | cut -d ',' -f1`
-            #    sPKG_VERSION=`echo ${J} | cut -d ',' -f2`
-            #    logtext "Installed package: ${sPKG_NAME} (version: ${sPKG_VERSION})"
-            #    report "installed_package[]=${sPKG_NAME}|${sPKG_VERSION}|"
-            #done
-          else
-            Display --indent 4 --text "- Searching pkg" --result "NOT INSTALLED" --color YELLOW
+            logtext "Result: Found pkg"
+            logtext "Test: Querying pkg to get package list"
+            Display --indent 6 --text "- Querying pkg for installed packages"
+            logtext "Output:"; logtext "-----"
+            SPACKAGES=`/usr/sbin/pkg query %n,%v`
+            for J in ${SPACKAGES}; do
+                sPKG_NAME=`echo ${J} | cut -d ',' -f1`
+                sPKG_VERSION=`echo ${J} | cut -d ',' -f2`
+                logtext "Installed package: ${sPKG_NAME} (version: ${sPKG_VERSION})"
+                INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
+            done
         fi
     fi
 #
@@ -72,7 +71,7 @@
             sPKG_NAME=`echo ${J} | cut -d ',' -f1`
             sPKG_VERSION=`echo ${J} | cut -d ',' -f2`
             logtext "Installed package: ${sPKG_NAME} (version: ${sPKG_VERSION})"
-            report "installed_package[]=${sPKG_NAME}|${sPKG_VERSION}|"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
         done
         report "installed_packages=${N}"
     fi
@@ -122,7 +121,7 @@
         GPACKAGES=`equery l '*' | sed -e 's/[.*]//g'`
         for J in ${GPACKAGES}; do
             logtext "Found package ${J}"
-            report "installed_package[]=${J}||"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J},0,"
         done
       else
         logtext "Result: emerge can NOT be found on this system"
@@ -146,7 +145,7 @@
             SPACKAGES=`/usr/bin/pkginfo -i | tr -s ' ' | cut -d ' ' -f2 | sed "s#^SUNW##"`
             for J in ${SPACKAGES}; do
                 logtext "Found package ${J}"
-                report "installed_package[]=${J}||"
+                INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J},0,"
             done
       else
         logtext "Result: pkginfo can NOT be found on this system"
@@ -176,7 +175,7 @@
             for J in ${SPACKAGES}; do
                 N=`expr ${N} + 1`
                 logtext "Found package: ${J}"
-                report "installed_package[]=${J}||"
+                INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J},0,"
             done
             report "installed_packages=${N}"
         fi
@@ -209,7 +208,7 @@
                 PACKAGE_NAME=`echo ${J} | awk -F, '{ print $1 }'`
                 PACKAGE_VERSION=`echo ${J} | awk -F, '{ print $2 }'`
                 logtext "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
-                report "installed_package[]=${PACKAGE_NAME}|${PACKAGE_VERSION}|"
+                INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
             done
             report "installed_packages=${N}"
         fi
@@ -286,7 +285,7 @@
             for I in ${FIND}; do
                 N=`expr ${N} + 1`
                 logtext "Installed package: ${I}"
-                report "installed_package[]=${I}|-|"
+                INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J},0,"
             done
             report "installed_packages=${N}"
           else
@@ -334,13 +333,13 @@
         logtext "Test: Querying dpkg -l to get package list"
         Display --indent 6 --text "- Querying package manager"
         logtext "Output:"
-        SPACKAGES=`dpkg -l 2>/dev/null | grep "^ii" | tr -s ' ' | tr ' ' '#' | sort`
+        SPACKAGES=`dpkg -l 2>/dev/null | grep "^ii" | tr -s ' ' | tr ' ' ',' | sort`
         for J in ${SPACKAGES}; do
             N=`expr ${N} + 1`
-            PACKAGE_NAME=`echo ${J} | cut -d '#' -f2`
-            PACKAGE_VERSION=`echo ${J} | cut -d '#' -f3`
+            PACKAGE_NAME=`echo ${J} | cut -d ',' -f2`
+            PACKAGE_VERSION=`echo ${J} | cut -d ',' -f3`
             logtext "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
-            report "installed_package[]=${PACKAGE_NAME}|${PACKAGE_VERSION}|"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
         done
         report "installed_packages=${N}"
       else
@@ -468,7 +467,8 @@
 #
     # Test        : PKGS-7381
     # Description : Check for vulnerable FreeBSD packages (with pkg)
-    Register --test-no PKGS-7381 --os FreeBSD --weight L --network NO --description "Check for vulnerable FreeBSD packages"
+    if [ -x /usr/sbin/pkg -a /var/db/pkg/vuln.xml ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7381 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for vulnerable FreeBSD packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/sbin/pkg ]; then
             FIND=`/usr/sbin/pkg audit | grep 'problem(s) in your installed packages found' | grep -v '0 problem(s) in your installed packages found'`
@@ -502,9 +502,10 @@
 #
     # Test        : PKGS-7382
     # Description : Check for vulnerable FreeBSD packages
-    Register --test-no PKGS-7382 --os FreeBSD --weight L --network NO --description "Check for vulnerable FreeBSD packages"
+    # Notes       : Newer machines should use pkg audit instead of portaudit
+    if [ -x /usr/local/sbin/portaudit ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7382 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for vulnerable FreeBSD packages"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -x /usr/local/sbin/portaudit ]; then
             PKG_AUDIT_TOOL_FOUND=1
             FIND=`/usr/local/sbin/portaudit | grep 'problem(s) in your installed packages found' | grep -v '0 problem(s) in your installed packages found'`
             if [ "${FIND}" = "" ]; then
@@ -523,10 +524,6 @@
                     AddHP 1 2
                 done
             fi
-          else
-            # Don't advice portaudit anymore, as pkg audit is the replacement (pkgng)
-            logtext "Result: Portaudit not installed, can't perform vulnerability test."
-        fi
     fi
 #
 #################################################################################
@@ -935,6 +932,10 @@
 # check for yum-changelog
 
 
+if [ ! "${INSTALLED_PACKAGES}" = "" ]; then
+    report "installed_packages_array=${INSTALLED_PACKAGES}"
+fi
+
 report "pkg_audit_tool=${PKG_AUDIT_TOOL}"
 report "pkg_audit_tool_found=${PKG_AUDIT_TOOL_FOUND}"
 
@@ -943,4 +944,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2014, Michael Boelen - www.rootkit.nl - The Netherlands
+# Lynis - Copyright 2007-2015 Michael Boelen, CISOfy - https://cisofy.com

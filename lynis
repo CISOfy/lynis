@@ -23,17 +23,17 @@
     # Program information
     PROGRAM_name="Lynis"
     PROGRAM_version="1.6.5"
-    PROGRAM_releasedate="3 January 2015"
+    PROGRAM_releasedate="30 January 2015"
     PROGRAM_author="CISOfy"
-    PROGRAM_author_contact="lynis-dev@cisofy.com"
+    PROGRAM_author_contact="development@cisofy.com"
     PROGRAM_website="https://cisofy.com"
     PROGRAM_copyright="Copyright 2007-2015 - ${PROGRAM_author}, ${PROGRAM_website}"
     PROGRAM_license="${PROGRAM_name} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
  welcome to redistribute it under the terms of the GNU General Public License.
  See the LICENSE file for details about using this software."
-    PROGRAM_extrainfo="Enterprise support and plugins available via CISOfy - https://cisofy.com"
+    PROGRAM_extrainfo="Enterprise support and plugins available via CISOfy"
     # Release version (beta or final)
-    PROGRAM_releasetype="beta"
+    PROGRAM_releasetype="final"
     # Version number of report files (when format changes in future)
     REPORT_version_major="1"; REPORT_version_minor="0"
     REPORT_version="${REPORT_version_major}.${REPORT_version_minor}"
@@ -344,9 +344,20 @@
     # Bail out if we didn't get any parameter, or incorrect ones
     if [ ${PARAMCOUNT} -eq 0 -o ${WRONGOPTION} -eq 1 -o ${VIEWHELP} -eq 1 ]; then
         #echo "  =================================================="
+        echo ""
+        echo "  Usage: lynis ${WHITE}[options] ${CYAN}mode${NORMAL}"
+        echo ""
+        echo ""
+        echo "  ${CYAN}Mode:${NORMAL}"
+        echo ""
+        echo "    ${GREEN}audit${NORMAL}"
+        echo "        audit system                  : Perform security scan"
+        echo "        audit Dockerfile <file>       : Analyze Dockerfile"
+        echo ""
+        echo ""
+
         echo "  ${WHITE}Scan options:${NORMAL}"
         echo "    --auditor \"<name>\"            : Auditor name"
-        echo "    --check-all (-c)              : Check system"
         echo "    --dump-options                : See all available options"
         echo "    --no-log                      : Don't create a log file"
         echo "    --pentest                     : Non-privileged scan (useful for pentest)"
@@ -366,16 +377,17 @@
         echo "    --view-manpage (--man)        : View man page"
         echo "    --version (-V)                : Display version number and quit"
         echo ""
-        echo "  ${GREEN}Enterprise options:${NORMAL}"
+        echo "  ${WHITE}Enterprise options:${NORMAL}"
         echo "    --plugin-dir \"<path>\"         : Define path of available plugins"
         echo "    --upload                      : Upload data to central node"
         echo ""
+        echo ""
 
         if [ ${WRONGOPTION} -eq 1 ]; then
-            echo "  ${RED}Error${NORMAL}: ${WHITE}Invalid option ${WRONGOPTION_value}!${NORMAL}"
+            echo "  ${RED}Error${NORMAL}: ${WHITE}Invalid option '${WRONGOPTION_value}'${NORMAL}"
           else
             if [ ${VIEWHELP} -eq 0 ]; then
-                echo "  ${RED}Error${NORMAL}: ${WHITE}No parameters specified!${NORMAL}"
+                echo "  ${RED}Error${NORMAL}: ${WHITE}No scanning mode specified!${NORMAL}"
             fi
         fi
         echo "  See man page and documentation for all available options."
@@ -441,15 +453,13 @@
 #
 #################################################################################
 #
-# Clear log and report files 
+# Clear log and report files
 #
 #################################################################################
 #
     # Clear log file and test if it's writable
     logtext "### Starting ${PROGRAM_name} ${PROGRAM_version} with PID ${OURPID}, build date ${PROGRAM_releasedate} ###" > ${LOGFILE}
-    if [ $? -eq 0 ]; then
-        Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result DONE --color GREEN
-      else
+    if [ $? -gt 0 ]; then
         Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result WARNING --color RED
         echo "${WARNING}Fatal error${NORMAL}: problem while writing to log file. Check location and permissions."
         RemovePIDFile
@@ -521,7 +531,7 @@
     logtext "Plugin directory:          ${PLUGINDIR}"
     logtext "Database directory:        ${DBDIR}"
     logtextbreak
-    wait_for_keypress
+    #wait_for_keypress
 
 #
 #################################################################################
@@ -620,67 +630,70 @@
 #
 #################################################################################
 #
-    logtextbreak
-    InsertPluginSection "Plugins (phase 1)"
-    Display --text "Note: plugins have more extensive tests, which may take a few minutes to complete"
-    Display --text " "
-    logtext "Searching plugins..."
-    N_PLUGIN=0
-    N_PLUGIN_ENABLED=0
 
-    # Search plugins
-    FIND=`find ${PLUGINDIR} -type f -name "plugin_[a-z]*" -exec echo \{\} \; | sort`
-    for I in ${FIND}; do
-        logtext "Found plugin file: ${I}"
-        # Double check if output is a valid file name
-        if [ -f ${I} ]; then
-            FIND2=`grep "^# PLUGIN_NAME=" ${I} | awk -F= '{ print $2 }'`
-            if [ ! "${FIND2}" = "" -a ! "${FIND2}" = "[plugin_name]" ]; then
-                N_PLUGIN=`expr ${N_PLUGIN} + 1`
-                FIND3=`grep "^plugin=${FIND2}" ${PROFILE}`
-                if [ ! "${FIND3}" = "" ]; then
-                    logtext "Plugin ${FIND2} is enabled"
-                    # Plugins should have at least a _phase1 part, _phase2 is optional at this moment
-                    PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase1"
-                    if [ -f ${PLUGINFILE} ]; then
-                        PLUGIN_VERSION=`grep "^# PLUGIN_VERSION=" ${I} | awk -F= '{ print $2 }'`
-                        PLUGIN_VERSION_NODOTS=`echo ${PLUGIN_VERSION} | sed 's/.//g'`
-                        FIND4=`ls -l ${PLUGINFILE} | cut -c 2-10`
-                        if [ "${FIND4}" = "rw-r--r--" -o "${FIND4}" = "rw-r-----" -o "${FIND4}" = "rw-------" -o "${FIND4}" = "r--------" ]; then
-                            logtext "Including plugin file: ${PLUGINFILE} (version: ${PLUGIN_VERSION})"
-                            report "plugin_enabled_phase1[]=${FIND2}|${PLUGIN_VERSION}|"
-                            N_PLUGIN_ENABLED=`expr ${N_PLUGIN_ENABLED} + 1`
-                            Display --indent 2 --text "- ${CYAN}Plugin${NORMAL}: ${WHITE}${FIND2}${NORMAL}"
-                            #Display --indent 0 --text "   [" --no-break
-                            Progress "    ["
-                            . ${PLUGINFILE}
-                            Progress "]"
-                            Progress --finish
-                            logtextbreak
-                            logtext "Result: ${FIND2} plugin (phase 1) finished"
+    if [ ${RUN_PLUGINS} -eq 1 ]; then
+        logtextbreak
+        InsertPluginSection "Plugins (phase 1)"
+        Display --text "Note: plugins have more extensive tests, which may take a few minutes to complete"
+        Display --text " "
+        logtext "Searching plugins..."
+        N_PLUGIN=0
+        N_PLUGIN_ENABLED=0
+
+        # Search plugins
+        FIND=`find ${PLUGINDIR} -type f -name "plugin_[a-z]*" -exec echo \{\} \; | sort`
+        for I in ${FIND}; do
+            logtext "Found plugin file: ${I}"
+            # Double check if output is a valid file name
+            if [ -f ${I} ]; then
+                FIND2=`grep "^# PLUGIN_NAME=" ${I} | awk -F= '{ print $2 }'`
+                if [ ! "${FIND2}" = "" -a ! "${FIND2}" = "[plugin_name]" ]; then
+                    N_PLUGIN=`expr ${N_PLUGIN} + 1`
+                    FIND3=`grep "^plugin=${FIND2}" ${PROFILE}`
+                    if [ ! "${FIND3}" = "" ]; then
+                        logtext "Plugin ${FIND2} is enabled"
+                        # Plugins should have at least a _phase1 part, _phase2 is optional at this moment
+                        PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase1"
+                        if [ -f ${PLUGINFILE} ]; then
+                            PLUGIN_VERSION=`grep "^# PLUGIN_VERSION=" ${I} | awk -F= '{ print $2 }'`
+                            PLUGIN_VERSION_NODOTS=`echo ${PLUGIN_VERSION} | sed 's/.//g'`
+                            FIND4=`ls -l ${PLUGINFILE} | cut -c 2-10`
+                            if [ "${FIND4}" = "rw-r--r--" -o "${FIND4}" = "rw-r-----" -o "${FIND4}" = "rw-------" -o "${FIND4}" = "r--------" ]; then
+                                logtext "Including plugin file: ${PLUGINFILE} (version: ${PLUGIN_VERSION})"
+                                report "plugin_enabled_phase1[]=${FIND2}|${PLUGIN_VERSION}|"
+                                N_PLUGIN_ENABLED=`expr ${N_PLUGIN_ENABLED} + 1`
+                                Display --indent 2 --text "- ${CYAN}Plugin${NORMAL}: ${WHITE}${FIND2}${NORMAL}"
+                                #Display --indent 0 --text "   [" --no-break
+                                Progress "    ["
+                                . ${PLUGINFILE}
+                                Progress "]"
+                                Progress --finish
+                                logtextbreak
+                                logtext "Result: ${FIND2} plugin (phase 1) finished"
+                              else
+                                logtext "Plugin ${FIND2}: Skipped (bad file permissions, should be 640, 600 or 400)"
+                            fi
                           else
-                            logtext "Plugin ${FIND2}: Skipped (bad file permissions, should be 640, 600 or 400)"
+                            logtext "Plugin ${FIND2}: Skipped (can't find file ${PLUGINFILE})"
                         fi
                       else
-                        logtext "Plugin ${FIND2}: Skipped (can't find file ${PLUGINFILE})"
+                        logtext "Plugin ${FIND2}: Skipped (not enabled)"
                     fi
                   else
-                    logtext "Plugin ${FIND2}: Skipped (not enabled)"
+                    logtext "Skipping plugin file ${I} (no valid plugin name found)"
                 fi
-              else
-                logtext "Skipping plugin file ${I} (no valid plugin name found)"
             fi
-        fi
-        logtext "--"
-    done
-    logtext "Result: Found ${N_PLUGIN} plugins of which ${N_PLUGIN_ENABLED} are enabled"
-    logtext "Result: Plugins finished"
+            logtext "--"
+        done
+        logtext "Result: Found ${N_PLUGIN} plugins of which ${N_PLUGIN_ENABLED} are enabled"
+        logtext "Result: Plugins finished"
 
-    if [ ${N_PLUGIN_ENABLED} -eq 0 ]; then
-        Display --indent 2 --text "- Plugins enabled " --result "NONE" --color WHITE
-        report "plugins_enabled=0"
-      else
-        report "plugins_enabled=1"
+        if [ ${N_PLUGIN_ENABLED} -eq 0 ]; then
+            Display --indent 2 --text "- Plugins enabled " --result "NONE" --color WHITE
+            report "plugins_enabled=0"
+          else
+            report "plugins_enabled=1"
+        fi
     fi
 #
 #################################################################################
@@ -704,12 +717,15 @@
 #
 #################################################################################
 #
-    logtextbreak
-    # Test sections
-    if [ "${TESTS_CATEGORY_TO_PERFORM}" = "" ]; then
-        logtext "Info: perform tests from all categories"
 
-        INCLUDE_TESTS="boot_services kernel memory_processes authentication shells \
+    if [ ${RUN_TESTS} -eq 1 ]; then
+
+        logtextbreak
+        # Test sections
+        if [ "${TESTS_CATEGORY_TO_PERFORM}" = "" ]; then
+            logtext "Info: perform tests from all categories"
+
+            INCLUDE_TESTS="boot_services kernel memory_processes authentication shells \
                        filesystems storage storage_nfs \
                        nameservices ports_packages networking printers_spools \
                        mail_messaging firewalls \
@@ -717,54 +733,78 @@
                        insecure_services banners scheduling accounting \
                        time crypto virtualization mac_frameworks file_integrity hardening_tools tooling \
                        malware file_permissions homedirs kernel_hardening hardening"
-      else
-        INCLUDE_TESTS="${TESTS_CATEGORY_TO_PERFORM}"
-        logtext "Info: only performing tests from categories: ${TESTS_CATEGORY_TO_PERFORM}"
-    fi
+          else
+            INCLUDE_TESTS="${TESTS_CATEGORY_TO_PERFORM}"
+            logtext "Info: only performing tests from categories: ${TESTS_CATEGORY_TO_PERFORM}"
+        fi
 
-    # Include available tests
-    for INCLUDE_TEST in ${INCLUDE_TESTS}; do
+        # Include available tests
+        for INCLUDE_TEST in ${INCLUDE_TESTS}; do
 
             # Test if file exists, then if permissions are correct
             if [ -f ${INCLUDEDIR}/tests_${INCLUDE_TEST} ]; then
-                FIND=`ls -l ${INCLUDEDIR}/tests_${INCLUDE_TEST} | cut -c 2-10`
-                if [ "${FIND}" = "rw-r--r--" -o "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-------" -o "${FIND}" = "r--------" ]; then
-                    . ${INCLUDEDIR}/tests_${INCLUDE_TEST}
+                    FIND=`ls -l ${INCLUDEDIR}/tests_${INCLUDE_TEST} | cut -c 2-10`
+                    if [ "${FIND}" = "rw-r--r--" -o "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-------" -o "${FIND}" = "r--------" ]; then
+                        . ${INCLUDEDIR}/tests_${INCLUDE_TEST}
+                      else
+                        logtext "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDEDIR}/tests_${INCLUDE_TEST} has bad permissions (should be 640, 600 or 400)"
+                        ReportWarning "NONE" "H" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
+                        # Insert a section and warn user also on screen
+                        InsertSection "General"
+                        Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "SKIPPED" --color RED
+                    fi
                   else
-                    logtext "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDEDIR}/tests_${INCLUDE_TEST} has bad permissions (should be 640, 600 or 400)"
-                    ReportWarning "NONE" "H" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
-                    # Insert a section and warn user also on screen
-                    InsertSection "General"
-                    Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "SKIPPED" --color RED
-                fi
-              else
-                echo "Error: Can't find file (category: ${INCLUDE_TEST})"
-        fi
+                    echo "Error: Can't find file (category: ${INCLUDE_TEST})"
+            fi
 
-    done
+        done
+    fi
 #
 #################################################################################
 #
-    #logtextbreak
-    InsertSection "Custom Tests"
-    logtext "Test: Checking for tests_custom file"
-    # Custom tests
-    if [ -f ${INCLUDEDIR}/tests_custom ]; then
-        logtext "Result: tests_custom file found in include directory"
-        logtext "Test: checking file permissions of tests_custom file"
-        FIND=`ls -l ${INCLUDEDIR}/tests_custom | cut -c 2-10`
-        if [ "${FIND}" = "rw-r--r--" -o "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-------" -o "${FIND}" = "r--------" ]; then
-            Display --indent 2 --text "- Start custom tests... "
-            logtext "Result: file permissions fine, running custom tests"
-            SafePerms ${INCLUDEDIR}/tests_custom
-            . ${INCLUDEDIR}/tests_custom
+
+    if [ ${RUN_TESTS} -eq 1 ]; then
+
+        InsertSection "Custom Tests"
+        logtext "Test: Checking for tests_custom file"
+        # Custom tests
+        if [ -f ${INCLUDEDIR}/tests_custom ]; then
+            logtext "Result: tests_custom file found in include directory"
+            logtext "Test: checking file permissions of tests_custom file"
+            FIND=`ls -l ${INCLUDEDIR}/tests_custom | cut -c 2-10`
+            if [ "${FIND}" = "rw-r--r--" -o "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-------" -o "${FIND}" = "r--------" ]; then
+                Display --indent 2 --text "- Start custom tests... "
+                logtext "Result: file permissions fine, running custom tests"
+                SafePerms ${INCLUDEDIR}/tests_custom
+                . ${INCLUDEDIR}/tests_custom
+              else
+                logtext "Exception: skipping custom tests, file has bad permissions (should be 640, 600 or 400)"
+                ReportWarning "NONE" "H" "Invalid permissions on custom tests file"
+                Display --indent 2 --text "- Running custom tests... " --result "WARNING" --color RED
+            fi
           else
-            logtext "Exception: skipping custom tests, file has bad permissions (should be 640, 600 or 400)"
-            ReportWarning "NONE" "H" "Invalid permissions on custom tests file"
-            Display --indent 2 --text "- Running custom tests... " --result "WARNING" --color RED
+            Display --indent 2 --text "- Running custom tests... " --result "NONE" --color WHITE
         fi
-      else
-        Display --indent 2 --text "- Running custom tests... " --result "NONE" --color WHITE
+    fi
+#
+#################################################################################
+#
+# Run helpers
+#
+#################################################################################
+#
+    if [ ${RUN_HELPERS} -eq 1 ]; then
+        InsertPluginSection "Audit Module"
+        if [ ! "${HELPER}" = "" ]; then
+            logtext "Helper tool is $HELPER"
+            if [ -f ${INCLUDEDIR}/helper_${HELPER} ]; then
+                SafePerms ${INCLUDEDIR}/helper_${HELPER}
+                logtext "Running helper tool ${HELPER} with params: ${HELPER_PARAMS}"
+                . ${INCLUDEDIR}/helper_${HELPER} ${HELPER_PARAMS}
+              else
+                echo "Error, could not find helper"
+            fi
+        fi
     fi
 #
 #################################################################################

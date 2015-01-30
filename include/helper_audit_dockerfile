@@ -1,0 +1,192 @@
+#!/bin/sh
+
+if [ $# -eq 0 ]; then
+
+    Display --indent 2 --text "${RED}Error: ${WHITE}Provide URL or file${NORMAL}"
+    Display --text " "; Display --text " "
+
+    ExitFatal
+  else
+    FILE=`echo $1 | egrep "^http|https"`
+    if [ ! "${FILE}" = "" ] ; then
+        TMP_FILE=`mktemp /tmp/audit.XXXXXXXX`
+        Display --indent 2 --text "Downloading URL ${FILE} with wget"
+        wget -o ${TMP_FILE} ${FILE}
+        if [ $? -gt 0 ]; then
+            AUDIT_FILE="${TMP_FILE}"
+          else
+            if [ -f ${TMP_FILE} ]; then
+                rm -f ${TMP_FILE}
+            fi
+            Dislpay --indent 2 --text "${RED}Error: ${WHITE}can not download file${NORMAL}"
+            ExitFatal
+        fi
+      else
+        if [ -f $1 ]; then
+            AUDIT_FILE="$1"
+          else
+            Display --indent 2 --text "File $1 does not exist"
+            ExitFatal
+        fi
+    fi
+    Display --indent 2 --text "File to audit = ${AUDIT_FILE}"
+fi
+
+#####################################################
+
+#
+##################################################################################################
+#
+
+    InsertSection "Image"
+
+    PKGMGR=""
+    FIND=`grep "^FROM" ${AUDIT_FILE} | sed 's/ /:space:/g'`
+    for I in ${FIND}; do
+        IMAGE=`echo ${I} | sed 's/:space:/ /g' | awk '{ if ($1=="FROM") { print $2 }}'`
+        Display --indent 2 --text "Found image:" --result "${IMAGE}"
+
+        IS_UBUNTU=`echo ${IMAGE} | grep -i ubuntu`
+        if [ ! "${IS_DEBIAN}" = "" ]; then IMAGE="debian"; fi
+        if [ ! "${IS_FEDORA}" = "" ]; then IMAGE="fedora"; fi
+        if [ ! "${IS_UBUNTU}" = "" ]; then IMAGE="ubuntu"; fi
+
+        case ${IMAGE} in
+            "debian")
+                logtext "Image = Debian based"
+                PKGMGR="apt"
+                ;;
+
+            "fedora*")
+                logtext "  Image = Fedora based"
+                PKGMGR="yum"
+                ;;
+            "ubuntu")
+                logtext "  Image = Ubuntu based"
+                PKGMGR="apt"
+                ;;
+            *)
+                Display --indent 2 --text "Unknown image" --result "" --color YELLOW
+                ;;
+        esac
+    done
+
+#
+##################################################################################################
+#
+
+InsertSection "Basics"
+
+    FIND=`egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g'`
+    if [ "${FIND}" = "" ]; then
+        ReportWarning "dockerfile" "L" "No maintainer found. Unclear who created this file."
+      else
+        MAINTAINER=`echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}'`
+        Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
+    fi
+
+#
+##################################################################################################
+#
+
+    InsertSection "Software"
+
+    case $PKGMGR in
+    "apt")
+        FIND=`egrep "apt-get(.*) install" ${AUDIT_FILE}`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Found installation via apt-get"
+          else
+            logtext "No installations found via apt-get"
+        fi
+        ;;
+    *)
+        logtext "Unknown package manager"
+    ;;
+    esac
+
+    FIND=`egrep " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#"`
+    if [ ! "${FIND}" = "" ]; then
+        ReportWarning "dockerfile" "L" "Possible development utilities found, which is not advised for production environment"
+        logtext "Details: ${FIND}"
+    fi
+
+    # SSH
+    FIND_OPENSSH=`grep openssh ${AUDIT_FILE}`
+    if [ ! "${FIND_OPENSSH}" = "" ]; then
+        Display --indent 2 --text "OpenSSH" --result "FOUND" --color RED
+        ReportSuggestion "dockerfile" "Don't use OpenSSH in container, use 'docker exec' instead"
+    fi
+#
+##################################################################################################
+#
+    InsertSection "Downloads"
+
+    FILE_DOWNLOAD=0
+
+    logtext "Checking usage of cURL"
+    FIND_CURL=`grep curl ${AUDIT_FILE}`
+    if [ ! "${FIND_WGET}" = "" ]; then
+        Display --indent 4 --text "Download tool" --result "curl"
+        FILE_DOWNLOAD=1
+    fi
+
+    logtext "Checking usage of wget"
+    FIND_WGET=`grep wget ${AUDIT_FILE}`
+    if [ ! "${FIND_WGET}" = "" ]; then
+        Display --indent 4 --text "Download tool" --result "wget"
+        FILE_DOWNLOAD=1
+    fi
+
+
+    FIND=`grep "^ADD http" ${AUDIT_FILE}`
+    if [ ! "${FIND}" = "" ]; then
+        FILE_DOWNLOAD=1
+        ReportWarning "dockerfile" "L" "Found download of file via ADD. Unclear if the integrity of this file is checked, or file is signed"
+        logtext "Details: ${FIND}"
+    fi
+
+    if [ ${FILE_DOWNLOAD} -eq 1 ]; then
+
+        SSL_USED_FIND=`egrep "(https)" ${AUDIT_FILE}`
+
+        if [ ! "${SSL_USED_FIND}" = "" ]; then
+            SSL_USED="YES"
+            COLOR="GREEN"
+          else
+            SSL_USED="NO"
+            COLOR="RED"
+            ReportSuggestion "Use SSL downloads when possible to increase security (DNSSEC, HTTPS, validation of domain, avoid MitM)"
+        fi
+        Display --indent 2 --text "Integrity testing performed" --result "${SSL_USED}" --color ${COLOR}
+        HASHING_USED=`egrep "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE}`
+        Display --indent 2 --text "Hashing" --result "${HASHING_USED}"
+        KEYS_USED=`egrep "(apt-key adv)" ${AUDIT_FILE}`
+        Display --indent 2 --text "Signing keys used" --result ${SSL_USED}
+        Display --indent 2 --text "All downloads properly checked" --result "?"
+      else
+        Display --indent 2 --text "No files seems to be downloaded in this Dockerfile"
+
+    fi
+#
+##################################################################################################
+#
+    InsertSection "Permissions"
+
+    FIND=`grep -i "chmod 777" ${AUDIT_FILE}`
+    if [ ! "${FIND}" = "" ]; then
+        ReportWarning "dockerfile" "L" "Warning: chmod 777 found"
+    fi
+#
+##################################################################################################
+#
+
+
+# Removing temp file
+logtext "Action: Removing temporary file ${TMP_FILE}"
+        if [ -f ${TMP_FILE} ]; then
+                rm -f ${TMP_FILE}
+            fi
+
+
+# The End

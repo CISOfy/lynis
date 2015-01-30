@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -22,8 +22,43 @@
     # Check number of parameters submitted (at least one is needed)
     PARAMCOUNT=$#
     while [ $# -ge 1 ]; do
-
         case $1 in
+            audit)
+                CHECK_BINARIES=0
+                RUN_HELPERS=1
+                HELPER="audit"
+                RUN_PLUGINS=0
+                RUN_TESTS=0
+                if [ ! $2 = "" ]; then
+                    case $2 in
+                        "dockerfile")
+                            if [ "$3" = "" ]; then
+                                Display --text "${RED}Error: ${WHITE}Missing file name or URL${NORMAL}"
+                                Display --text "Example: lynis audit dockerfile /root/Dockerfile"
+                                ExitFatal
+                              else
+                                shift; shift
+                                HELPER_PARAMS="$1 $2 $3"
+                                HELPER="audit_dockerfile"
+                                break
+                            fi
+                        ;;
+                        "system")
+                            CHECK_BINARIES=1
+                            HELPER=""
+                            RUN_PLUGINS=1
+                            RUN_TESTS=1
+                            shift
+                            #break
+                        ;;
+                    esac
+                  else
+                    Display --text "${RED}Error: ${WHITE}Need a target to audit${NORMAL}"
+                    Display --text "Example: lynis audit system"
+                    ExitFatal
+                fi
+                #break
+            ;;
 
           # Assign auditor to report
           --auditor)
@@ -63,7 +98,7 @@
           ;;
 
           # View program/database information
-          --check-update | --info)
+          --check-update | --check-updates | --info)
               VIEWUPDATEINFO=1
           ;;
 
@@ -163,6 +198,13 @@
           --upload)
               UPLOAD_DATA=1
           ;;
+
+          # Lynis Enterprise: upload options (e.g. --upload-options "--insecure" to allow self-signed certificate)
+          --upload-options)
+              shift
+              UPLOAD_OPTIONS=$1
+          ;;
+
 
           # Which server to upload to
           --upload-url)

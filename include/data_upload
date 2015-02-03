@@ -20,14 +20,25 @@
 #
 #    logtextbreak
 PROGRAM_VERSION="101"
-LICENSE_SERVER="https://cisofy.com"
 
-if [ "${UPLOAD_URL}" = "" ]; then
-    UPLOAD_URL="https://cisofy.com/upload/"
-fi
 
-logtext "Upload server: ${LICENSE_SERVER} (static)"
+    # Data upload destination
+    if [ "${UPLOAD_SERVER}" = "" ]; then
+        UPLOAD_SERVER="cisofy.com"
+    fi
+    UPLOAD_URL="https://${UPLOAD_SERVER}/upload/"
+
+logtext "Upload server: ${UPLOAD_SERVER}"
 logtext "URL to upload to: ${UPLOAD_URL}"
+
+    # License server (set to upload server if not configured)
+    if [ "${LICENSE_SERVER}" = "" ]; then
+        LICENSE_SERVER="${UPLOAD_SERVER}"
+    fi
+    LICENSE_SERVER_URL="https://${LICENSE_SERVER}/license/"
+
+logtext "License server: ${LICENSE_SERVER}"
+
 
 # Additional options to curl
 if [ "${UPLOAD_OPTIONS}" = "" ]; then
@@ -79,7 +90,7 @@ output "Settings file: ${SETTINGS_FILE}"
     if [ -f ${REPORTFILE} ]; then
         output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
         # Quit if license is not valid, to reduce load on both client and server.
-        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER}/license/`
+        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL}`
         UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
         if [ "${UPLOAD_CODE}" = "100" ]; then
             output "${WHITE}License is valid${NORMAL}"
@@ -108,6 +119,7 @@ output "Settings file: ${SETTINGS_FILE}"
                 output "${GREEN}Data uploaded successfully${NORMAL}"
               else
                 echo "${RED}Error occured, please check documentation for code ${UPLOAD_CODE}.${NORMAL}"
+                echo "Command used: ${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
                 output "Debug:"
                 output ${UPLOAD}
                 # Quit

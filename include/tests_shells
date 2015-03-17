@@ -119,7 +119,10 @@
         fi
 
         if [ -f /etc/profile ]; then
-            FIND=`cat /etc/profile | grep '\(export[ \t]*\)\?TMOUT\( \)\?=\( \)\?' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+            # Determine if we can find a TMOUT value
+            FIND=`cat /etc/profile | grep 'TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+            # Determine if the value is exported (with export, readonly, or typeset)
+            FIND2=`cat /etc/profile | grep '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | grep -v "^#" | sed 's/#.*//' | awk '{ print $1 }'`
             if [ ! "${FIND}" = "" ]; then
                 N=0; IDLE_TIMEOUT=1
                 for I in ${FIND}; do
@@ -136,6 +139,25 @@
               else
                 logtext "Result: could not find TMOUT setting in /etc/profile"
             fi
+
+            if [ ! "${FIND2}" = "" ]; then
+                N=0;
+                for I in ${FIND2}; do
+                    logtext "Output: ${I}"
+                    if [ "${I}" = "readonly" -o "${I}" = "typeset" ]; then
+                        N=`expr ${N} + 1`
+                    fi
+                done
+                if [ ${N} -gt 0 ]; then
+                    logtext "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
+                    report "session_timeout_set_readonly=1"
+                  else
+                    logtext "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
+                    report "session_timeout_set_readonly=0"
+                fi
+              else
+                logtext "Result: could not find export, readonly or typeset -r in /etc/profile"
+            fi
           else
             logtext "Result: skip /etc/profile test, file not available on this system"
         fi
@@ -143,7 +165,11 @@
         if [ -d /etc/profile.d ]; then
             FIND=`ls /etc/profile.d/*.sh 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
-                FIND=`cat /etc/profile.d/*.sh 2> /dev/null | grep '\(export[ \t]*\)\?TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+                # Determine if we can find a TMOUT value
+                FIND=`cat /etc/profile.d/*.sh 2> /dev/null | grep 'TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+                # Determine if the value is exported (with export, readonly, or typeset)
+                FIND2=`cat /etc/profile.d/*.sh 2> /dev/null | grep '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | grep -v "^#" | sed 's/#.*//' | awk '{ print $1 }'`
+
                 if [ ! "${FIND}" = "" ]; then
                     N=0; IDLE_TIMEOUT=1
                     for I in ${FIND}; do
@@ -159,6 +185,25 @@
                     report "session_timeout_method[]=profile"
                   else
                     logtext "Result: could not find TMOUT setting in /etc/profile.d/*.sh"
+                fi
+                # Check for readonly
+                if [ ! "${FIND2}" = "" ]; then
+                    N=0;
+                    for I in ${FIND2}; do
+                        logtext "Output: ${I}"
+                        if [ "${I}" = "readonly" -o "${I}" = "typeset" ]; then
+                            N=`expr ${N} + 1`
+                        fi
+                    done
+                    if [ ${N} -gt 0 ]; then
+                        logtext "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
+                        report "session_timeout_set_readonly=1"
+                      else
+                        logtext "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
+                        report "session_timeout_set_readonly=0"
+                    fi
+                  else
+                    logtext "Result: could not find export, readonly or typeset -r in /etc/profile"
                 fi
             fi
           else

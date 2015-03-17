@@ -119,11 +119,12 @@
         fi
 
         if [ -f /etc/profile ]; then
-            FIND=`cat /etc/profile | grep '\(export[ \t]*\)\?TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//'`
+            FIND=`cat /etc/profile | grep '\(export[ \t]*\)\?TMOUT\( \)\?=\( \)\?' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
             if [ ! "${FIND}" = "" ]; then
                 N=0; IDLE_TIMEOUT=1
                 for I in ${FIND}; do
                     logtext "Output: ${I}"
+                    report "session_timeout_value[]=${I}"
                     N=`expr ${N} + 1`
                 done
                 if [ ${N} -eq 1 ]; then
@@ -140,21 +141,25 @@
         fi
 
         if [ -d /etc/profile.d ]; then
-            FIND=`cat /etc/profile.d/*.sh 2> /dev/null | grep '\(export[ \t]*\)\?TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//'`
+            FIND=`ls /etc/profile.d/*.sh 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
-                N=0; IDLE_TIMEOUT=1
-                for I in ${FIND}; do
-                    logtext "Output: ${I}"
-                    N=`expr ${N} + 1`
-                done
-                if [ ${N} -eq 1 ]; then
-                    logtext "Result: found TMOUT value configured in one of the files in /etc/profile.d directory"
+                FIND=`cat /etc/profile.d/*.sh 2> /dev/null | grep '\(export[ \t]*\)\?TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+                if [ ! "${FIND}" = "" ]; then
+                    N=0; IDLE_TIMEOUT=1
+                    for I in ${FIND}; do
+                        logtext "Output: ${I}"
+                        report "session_timeout_value[]=${I}"
+                        N=`expr ${N} + 1`
+                    done
+                    if [ ${N} -eq 1 ]; then
+                        logtext "Result: found TMOUT value configured in one of the files in /etc/profile.d directory"
+                      else
+                        logtext "Result: found several TMOUT values configured in one of the files in /etc/profile.d directory"
+                    fi
+                    report "session_timeout_method[]=profile"
                   else
-                    logtext "Result: found several TMOUT values configured in one of the files in /etc/profile.d directory"
+                    logtext "Result: could not find TMOUT setting in /etc/profile.d/*.sh"
                 fi
-                report "session_timeout_method[]=profile"
-              else
-                logtext "Result: could not find TMOUT setting in /etc/profile.d/*.sh"
             fi
           else
             logtext "Result: skip /etc/profile.d directory test, directory not available on this system"

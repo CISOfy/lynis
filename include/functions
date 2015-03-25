@@ -36,6 +36,9 @@
 #    InsertPluginSection        Insert a section block for plugins
 #    IsRunning                  Check if a process is running
 #    IsVirtualMachine           Check if this system is a virtual machine
+#    IsWorldExecutable          Check if a file is world executable
+#    IsWorldReadable            Check if a file is world readable
+#    IsWorldWritable            Check if a file is world writable
 #    ParseNginx                 Parse nginx configuration lines
 #    Progress                   Show progress on screen
 #    ReportException            Add an exception to the report file (for debugging purposes)
@@ -659,40 +662,45 @@
         fi
       }
 
-    # Function IsWorldExecutable
-    IsWorldExecutable()
+    # Function IsWorldReadable
+    IsWorldReadable()
       {
         sFILE=$1
-        FileIsWorldExecutable=""
-        SYMLINK=0
-
         # Check for symlink
         if [ -L ${sFILE} ]; then
-            if [ ! "${READLINKBINARY}" = "" ]; then
-                tFILE=`${READLINKBINARY} ${sFILE}`
-                # Check if we can find the file now
-                if [ -f ${tFILE} ]; then
-                    sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to ${sFILE}"
-                    SYMLINK=1
-                  else
-                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
-                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
-                    tFILE="${tDIR}/${tFILE}"
-                    if [ -f ${tFILE} ]; then
-                      sFILE="${tFILE}"
-                      logtext "Result: symlink found, seems to be ${sFILE}"
-                      SYMLINK=1
-                    fi
-                fi
+            ShowSymlinkPath ${sFILE}
+            if [ ! "${SYMLINK}" = "" ]; then
+                sFILE="${SYMLINK}"
             fi
         fi
         # Only check the file if it isn't a symlink (after previous check)
         if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
-            FINDVAL=`ls -l ${sFILE} | cut -c 10`
-            if [ "${FINDVAL}" = "x" ]; then FileIsWorldExecutable="TRUE"; else FileIsWorldExecutable="FALSE"; fi
+            FINDVAL=`ls -l ${sFILE} | cut -c 8`
+            if [ "${FINDVAL}" = "r" ]; then return 1; else return 0; fi
           else
-            FileIsWorldExecutable="NOSUCHFILE"
+            return 255
+        fi
+      }
+
+
+    # Function IsWorldExecutable
+    IsWorldExecutable()
+      {
+        sFILE=$1
+        # Check for symlink
+        if [ -L ${sFILE} ]; then
+            ShowSymlinkPath ${sFILE}
+            if [ ! "${SYMLINK}" = "" ]; then
+                sFILE="${SYMLINK}"
+            fi
+        fi
+
+        # Only check the file if it isn't a symlink (after previous check)
+        if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
+            FINDVAL=`ls -l ${sFILE} | cut -c 10`
+            if [ "${FINDVAL}" = "x" ]; then return 1; else return 0; fi
+          else
+            return 255
         fi
       }
 
@@ -702,34 +710,12 @@
         sFILE=$1
         FileIsWorldWritable=""
 
-        # Check for symlink
-        if [ -L ${sFILE} ]; then
-            if [ ! "${READLINKBINARY}" = "" ]; then
-                tFILE=`${READLINKBINARY} ${sFILE}`
-                # Check if we can find the file now
-                if [ -f ${tFILE} ]; then
-                    sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to ${sFILE}"
-                    SYMLINK=1
-                  else
-                    # Check the full path of the symlink, strip the filename, copy the path and linked filename together
-                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
-                    tFILE="${tDIR}/${tFILE}"
-                    if [ -f ${tFILE} ]; then
-                      sFILE="${tFILE}"
-                      logtext "Result: symlink found, seems to be ${sFILE}"
-                      SYMLINK=1
-                    fi
-                fi
-            fi
-        fi
-
         # Only check the file if it isn't a symlink (after previous check)
         if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
             FINDVAL=`ls -l ${sFILE} | cut -c 9`
-            if [ "${FINDVAL}" = "w" ]; then FileIsWorldWritable="TRUE"; else FileIsWorldWritable="FALSE"; fi
+            if [ "${FINDVAL}" = "w" ]; then return 1; else return 0; fi
           else
-            FileIsWorldWritable="NOSUCHFILE"
+            return 255
         fi
       }
 

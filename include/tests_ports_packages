@@ -280,6 +280,8 @@
     Register --test-no PKGS-7328 --preqs-met ${PREQS_MET} --weight L --network NO --description "Querying Zypper for installed packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
+        PACKAGE_AUDIT_TOOL_FOUND=1
+        PACKAGE_AUDIT_TOOL="zypper"
         FIND=`${ZYPPERBINARY} se -i | awk '{ if ($1=="i") { print $3 } }'`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
@@ -301,14 +303,16 @@
     if [ ! "${ZYPPERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7330 --preqs-met ${PREQS_MET} --weight L --network NO --description "Querying Zypper for vulnerable packages"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${ZYPPERBINARY} lp | ${AWKBINARY} '{ if ($7=="security") { if ($11=="update") { print $13 } else { print $11 } } }' | sed 's/:$//' | grep -v "^$" | sort | uniq`
-            if [ "${FIND}" = "" ]; then
+        FIND=`${ZYPPERBINARY} pchk | grep "(0 security patches)"`
+            if [ ! "${FIND}" = "" ]; then
                 logtext "Result: No security updates found with Zypper"
                 Display --indent 2 --text "- Using Zypper to obtain vulnerable packages" --result NONE --color GREEN
               else
                 Display --indent 2 --text "- Using Zypper to obtain vulnerabilities" --result WARNING --color RED
                 logtext "Result: Zypper found one or more installed packages which are vulnerable."
                 ReportWarning ${TEST_NO} "H" "Found one or more vulnerable packages installed"
+                # Unfortunately zypper does not properly give back which package it is. Usually best guess is last word on the line
+                FIND=`${ZYPPERBINARY} lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | sed 's/:$//' | grep -v "^$" | sort | uniq`
                 logtext "List of vulnerable packages/version:"
                 for I in ${FIND}; do
                     report "vulnerable_package[]=${I}"

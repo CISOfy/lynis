@@ -20,7 +20,8 @@
 #
     InsertSection "Ports and packages"
     PACKAGE_MGR_PKG=0
-    PKG_AUDIT_TOOL_FOUND=0
+    PACKAGE_AUDIT_TOOL=""
+    PACKAGE_AUDIT_TOOL_FOUND=0
     INSTALLED_PACKAGES=""
 #
 #################################################################################
@@ -436,8 +437,8 @@
     Register --test-no PKGS-7381 --os NetBSD --weight L --network NO --description "Check for vulnerable NetBSD packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/sbin/pkg_admin ]; then
-            PKG_AUDIT_TOOL_FOUND=1
-            PKG_AUDIT_TOOL="pkg_admin audit"
+            PACKAGE_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL="pkg_admin audit"
             if [ -f /var/db/pkg/pkgs-vulnerabilities ]; then
                 FIND=`/usr/sbin/pkg_admin audit`
                 if [ "${FIND}" = "" ]; then
@@ -476,8 +477,8 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/sbin/pkg ]; then
             FIND=`/usr/sbin/pkg audit | grep 'problem(s) in your installed packages found' | grep -v '0 problem(s) in your installed packages found'`
-            PKG_AUDIT_TOOL_FOUND=1
-            PKG_AUDIT_TOOL="pkg audit"
+            PACKAGE_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL="pkg audit"
             if [ "${FIND}" = "" ]; then
                 logtext "Result: pkg audit results are clean"
                 Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result NONE --color GREEN
@@ -510,7 +511,7 @@
     if [ -x /usr/local/sbin/portaudit ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7382 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for vulnerable FreeBSD packages"
     if [ ${SKIPTEST} -eq 0 ]; then
-            PKG_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL_FOUND=1
             FIND=`/usr/local/sbin/portaudit | grep 'problem(s) in your installed packages found' | grep -v '0 problem(s) in your installed packages found'`
             if [ "${FIND}" = "" ]; then
                 logtext "Result: Portaudit results are clean"
@@ -636,8 +637,8 @@
 
         # If we have the module of yum active, continue testing
         if [ ${DO_TEST} -eq 1 ]; then
-            PKG_AUDIT_TOOL_FOUND=1
-            PKG_AUDIT_TOOL="yum-security"
+            PACKAGE_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL="yum-security"
             logtext "Test: Checking for vulnerable packages"
             FIND2=`/usr/bin/yum list-sec security | awk '{ if($2=="security") print $3","$5 }'`
             if [ "${FIND2}" = "" ]; then
@@ -766,8 +767,8 @@
         logtext "Result: apt-get finished"
         logtext "Test: Checking if /usr/lib/update-notifier/apt-check exists"
         if [ -x /usr/lib/update-notifier/apt-check ]; then
-          PKG_AUDIT_TOOL_FOUND=1
-          PKG_AUDIT_TOOL="apt-check"
+          PACKAGE_AUDIT_TOOL_FOUND=1
+          PACKAGE_AUDIT_TOOL="apt-check"
           logtext "Result: found /usr/lib/update-notifier/apt-check"
           logtext "Test: checking if any of the updates contain security updates"
           # apt-check binary is a script and translated. Do not search for normal text strings, but use numbered output only
@@ -800,8 +801,8 @@
             VULNERABLE_PACKAGES_FOUND=1
             SCAN_PERFORMED=1
             logtext "Result: found vulnerable package(s) via apt-get (-security channel)"
-            PKG_AUDIT_TOOL="apt-get"
-            PKG_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL="apt-get"
+            PACKAGE_AUDIT_TOOL_FOUND=1
             for I in ${FIND}; do
                 logtext "Found vulnerable package: ${I}"
                 report "vulnerable_package[]=${I}"
@@ -840,8 +841,8 @@
         logtext "Result: emerge-webrsync finished"
         logtext "Test: checking if /usr/bin/glsa-check exists"
         if [ -x /usr/bin/glsa-check ]; then
-            PKG_AUDIT_TOOL_FOUND=1
-            PKG_AUDIT_TOOL="glsa-check"
+            PACKAGE_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL="glsa-check"
             logtext "Result: found /usr/bin/glsa-check"
             logtext "Test: checking if there are any vulnerable packages"
             # glsa-check reports the GLSA date/ID string, not the vulnerable package.
@@ -909,14 +910,14 @@
     Register --test-no PKGS-7398 --weight L --network YES --description "Check for package audit tool"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: checking for package audit tool"
-        if [ ${PKG_AUDIT_TOOL_FOUND} -eq 0 ]; then
+        if [ ${PACKAGE_AUDIT_TOOL_FOUND} -eq 0 ]; then
             Display --indent 2 --text "- Checking package audit tool" --result NONE --color RED
             ReportSuggestion ${TEST_NO} "Install a package audit tool to determine vulnerable packages"
             logtext "Result: no package audit tool found"
           else
             Display --indent 2 --text "- Checking package audit tool" --result INSTALLED --color GREEN
-            Display --indent 4 --text "Found: ${PKG_AUDIT_TOOL}"
-            logtext "Result: found package audit tool: ${PKG_AUDIT_TOOL}"
+            Display --indent 4 --text "Found: ${PACKAGE_AUDIT_TOOL}"
+            logtext "Result: found package audit tool: ${PACKAGE_AUDIT_TOOL}"
         fi
     fi
 #
@@ -940,8 +941,8 @@ if [ ! "${INSTALLED_PACKAGES}" = "" ]; then
     report "installed_packages_array=${INSTALLED_PACKAGES}"
 fi
 
-report "pkg_audit_tool=${PKG_AUDIT_TOOL}"
-report "pkg_audit_tool_found=${PKG_AUDIT_TOOL_FOUND}"
+report "package_audit_tool=${PACKAGE_AUDIT_TOOL}"
+report "package_audit_tool_found=${PACKAGE_AUDIT_TOOL_FOUND}"
 
 wait_for_keypress
 

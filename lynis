@@ -22,8 +22,8 @@
 #
     # Program information
     PROGRAM_name="Lynis"
-    PROGRAM_version="2.1.0"
-    PROGRAM_releasedate="16 April 2015"
+    PROGRAM_version="2.1.1"
+    PROGRAM_releasedate="19 April 2015"
     PROGRAM_author="CISOfy"
     PROGRAM_author_contact="lynis-dev@cisofy.com"
     PROGRAM_website="https://cisofy.com"
@@ -98,14 +98,26 @@
     if [ ! "${PERMS2}" = "r--------" -a ! "${PERMS2}" = "rw-------" -a ! "${PERMS}" = "rw-r-----" -a ! "${PERMS}" = "rw-r--r--" ]; then
         ISSUE=1; echo "[!] Change file permissions of ${INCLUDEDIR}/functions to 640."; echo "    Command: chmod 640 ${INCLUDEDIR}/functions"
     fi
+
     # Check if owner of both files is root user, or the same user which is running Lynis (for pentester mode)
-    if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" -a ! "${MYID}" = "${OWNER2ID}" ]; then
-        ISSUE=1; echo "[!] Change ownership of ${INCLUDEDIR}/consts to 'root' or similar (found: ${OWNER} with UID ${OWNERID})."; echo "    Command: chown root:root ${INCLUDEDIR}/consts"
-    fi
-    # Check if owner of both files is root user, or the same user which is running Lynis (for pentester mode)
-    if [ ! "${OWNER2}" = "root" -a ! "${OWNER2ID}" = "0" -a ! "${MYID}" = "${OWNER2ID}" ]; then
-        ISSUE=1; echo "[!] Change ownership of ${INCLUDEDIR}/functions to 'root' or similar (found: ${OWNER2} with UID ${OWNER2ID})."; echo "    Command: chown root:root ${INCLUDEDIR}/functions"
-    fi
+
+        # Consts
+        if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then ISSUE=1; SHOWPERMERROR=1; FILE="consts"; fi
+        if [ ! "${MYID}" = "${OWNER2ID}" ]; then ISSUE=1; SHOWPERMERROR=1; FILE="consts"; fi
+        # Functions
+        if [ ! "${OWNER2}" = "root" -a ! "${OWNER2ID}" = "0" ]; then ISSUE=1; SHOWPERMERROR=1; FILE="functions"; fi
+        if [ ! "${MYID}" = "${OWNER2ID}" ]; then ISSUE=1; SHOWPERMERROR=1; FILE="functions"; fi
+
+        if [ ${SHOWPERMERROR} -eq 1 ]; then
+            echo ""
+            echo "[!] Change ownership of ${INCLUDEDIR}/${FILE} to 'root' or similar (found: ${OWNER} with UID ${OWNERID})."
+            echo ""
+            echo "    Command:"
+            echo "      # chown root:root ${INCLUDEDIR}/${FILE}"
+            echo ""
+            echo "    Note: on some systems the default group might be 'wheel'. Use 'chown root:wheel' instead on the files."
+            echo ""
+        fi
 
     if [ ${ISSUE} -eq 0 ]; then
         . ${INCLUDEDIR}/consts
@@ -114,11 +126,21 @@
         echo ""; echo "";
         echo "[X] Security check failed: See action above, to correct this issue."
         echo ""
-        echo "    Why:"
+        echo "    Why do I see this error?"
+        echo "    -------------------------------"
         echo "    This error is a protection mechanism, to prevent root user from executing user created files."
+        echo ""; echo ""
+        echo "    What can I do?"
+        echo "    ---------------------"
+        echo "    1) Check if a trusted user created the files (e.g. you, by using Git, Homebrew or similar)"
         echo ""
-        echo "    Possible action:"
-        echo "    Change ownership and permissions of the related files, or full directory, and start Lynis again."
+        echo "    2) Change ownership and permissions of the related files (or full directory)."
+        echo ""
+        echo "       Commands (full directory):"
+        echo "         # cd .."
+        echo "         # chown -R root:<GROUP TO WHICH ROOT BELONGS> lynis"
+        echo ""
+        echo "    3) Start Lynis again (cd lynis && ./lynis)."
         echo ""; echo "";
         exit 1
     fi

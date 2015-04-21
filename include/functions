@@ -1256,14 +1256,35 @@
       {
         sFILE=$1
         FOUNDPATH=0
+        SYMLINK_USE_PYTHON=0
+        SYMLINK_USE_READLINK=0
         # Check for symlink
         if [ -L ${sFILE} ]; then
-            if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${READLINKBINARY}" = "" ]; then
-                FIND=`which readlink 2> /dev/null`
-                if [ ! "${FIND}" = "" ]; then logtext "Setting temporary readlinkbinary variable"; READLINKBINARY="${FIND}"; fi
-            fi
-            if [ ! "${READLINKBINARY}" = "" ]; then
-                tFILE=`${READLINKBINARY} -f ${sFILE}`
+
+                # Mac OS does not know -f option, nor do some others
+                if [ "${OS}" = "MacOS" ]; then
+                    # If a Python binary is found, use the one in path
+                    if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${PYTHONBINARY}" = "" ]; then
+                        FIND=`which python 2> /dev/null`
+                        if [ ! "${FIND}" = "" ]; then logtext "Setting temporary pythonbinary variable"; PYTHONBINARY="${FIND}"; fi
+                    fi
+                    if [ ! "${PYTHONBINARY}" = "" ]; then
+                        SYMLINK_USE_PYTHON=1
+                        logtext "Note: using Python to determine symlinks"
+                        tFILE=`python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" $1`
+                    fi
+                  else
+                    if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${READLINKBINARY}" = "" ]; then
+                        FIND=`which readlink 2> /dev/null`
+                        if [ ! "${FIND}" = "" ]; then logtext "Setting temporary readlinkbinary variable"; READLINKBINARY="${FIND}"; fi
+                    fi
+
+                    if [ ! "${READLINKBINARY}" = "" ]; then
+                        SYMLINK_USE_READLINK=1
+                        logtext "Note: Using real readlink binary to determine symlinks"
+                        tFILE=`${READLINKBINARY} -f ${sFILE}`
+                    fi
+                fi
                 # Check if we can find the file now
                 if [ "${tFILE}" = "" ]; then
                     logtext "Result: command did not return any value"
@@ -1281,7 +1302,12 @@
                     tFILE="${tDIR}/${tFILE}"
                     if [ -L ${tFILE} ]; then
                         logtext "Result: this symlink links to another symlink"
-                        tFILE=`${READLINKBINARY} -f ${tFILE}`
+                        # Ensure that we use a second try with the right tool as well
+                        if [ ${SYMLINK_USE_PYTHON} -eq 1 ]; then
+                            tFILE=`python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" ${tFILE}`
+                          else
+                            tFILE=`${READLINKBINARY} -f ${tFILE}`
+                        fi
                         if [ -f ${tFILE} ]; then
                             sFILE="${tFILE}"
                             logtext "Result: symlink finally found, seems to be file ${sFILE}"
@@ -1305,9 +1331,6 @@
                         logtext "Result: file ${tFILE} in ${tDIR} not found"
                     fi
                 fi
-              else
-                logtext "Result: no readlink binary available to determine symlink location"
-            fi
           else
             logtext "Result: file not a symlink"
         fi
@@ -1342,6 +1365,7 @@
           read void
         fi
       }
+
 
 
 #================================================================================

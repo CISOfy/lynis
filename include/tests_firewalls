@@ -274,7 +274,24 @@
 #################################################################################
 #
     # Test        : FIRE-4530
-    # Description : Check ipfw
+    # Description : Check ipfw (FreeBSD)
+    Register --test-no FIRE-4530 --os FreeBSD --weight L --network NO --description "Check ipfw status"
+    if [ ! "${SYSCTLBINARY}" = "" ]; then
+        # For now, only check for IPv4.
+        FIND=`${SYSCTLBINARY} net.inet.ip.fw.enable | awk '{ print $2 }'`
+        if [ "${FIND}" = "1" ]; then
+            Display --indent 4 --text "- Checking ipfw status" --result RUNNING --color GREEN
+            logtext "Result: ipfw is enabled and running for IPv4"
+            FIREWALL_ACTIVE=1
+            FIREWALL_SOFTWARE="ipfw"
+          else
+            Display --indent 4 --text "- Checking ipfw status" --result "NOT RUNNING" --color YELLOW
+            logtext "Result: ipfw is not running for IPv4"
+        fi
+    else
+        Display --indent 2 --text "- Checking ipfw" --result SKIPPED --color YELLOW
+        ReportException "${TEST_NO}:4" "No IPFW test available (sysctl missing)"
+    fi
 #
 #################################################################################
 #

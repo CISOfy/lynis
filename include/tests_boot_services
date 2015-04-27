@@ -382,16 +382,22 @@
     # Description : Check for FreeBSD boot services
     Register --test-no BOOT-5165 --os FreeBSD --weight L --network NO --description "Check for FreeBSD boot services"
     if [ ${SKIPTEST} -eq 0 ]; then
-        # FreeBSD (Read /etc/rc.conf file for enabled services)
-        logtext "Searching for services at startup (rc.conf)"
-        FIND=`egrep -v -i '^#|none' /etc/rc.conf | egrep -i '_enable.*(yes|on|1)' | sort | awk -F= '{ print $1 }' | sed 's/_enable//'`
+        if [ ! "${SERVICEBINARY}" = "" ]; then
+            # FreeBSD (Ask services(8) for enabled services)
+            logtext "Searching for services at startup (service)"
+            FIND=`${SERVICEBINARY} -e | sed 's|^.*\/||' | sort`
+        else
+            # FreeBSD (Read /etc/rc.conf file for enabled services)
+            logtext "Searching for services at startup (rc.conf)"
+            FIND=`egrep -v -i '^#|none' /etc/rc.conf | egrep -i '_enable.*(yes|on|1)' | sort | awk -F= '{ print $1 }' | sed 's/_enable//'`
+        fi
         N=0
         for I in ${FIND}; do
-            logtext "Found service (rc.conf): ${I}"
+            logtext "Found service (service/rc.conf): ${I}"
             report "boottask[]=${I}"
             N=`expr ${N} + 1`
         done
-        Display --indent 2 --text "- Checking services at startup (rc.conf)" --result "DONE" --color GREEN
+        Display --indent 2 --text "- Checking services at startup (service/rc.conf)" --result "DONE" --color GREEN
         Display --indent 6 --text "Result: found $N services/options set"
         logtext "Found $N services/options to run at startup"
     fi

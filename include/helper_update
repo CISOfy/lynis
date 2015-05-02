@@ -1,0 +1,266 @@
+#!/bin/sh
+
+######################################################################
+#
+# Helper program to support automatic updates of Lynis
+#
+######################################################################
+#
+# Options:
+# ---------
+# 1) lynis update info     - Show version information (external)
+# 2) lynis update release  - Check and install new release (internal)
+#
+# How to use:
+# ------------
+# Run option 1 to know about current and latest release information.
+# Run option 2 to query internal server for possible upgrade of Lynis.
+#
+# Steps for updating to new release:
+# 1) Run Lynis with: lynis update release
+# 2) Lynis will use this helper and check the profile
+# 3) The configured web server will be queried (lynis-latest-version)
+# 4) The contents of this file will be compared with a local file
+# 5) If there is a difference, download package
+# 6) Check paths and extract files
+# 7) Quit program
+#
+# Suggested documentation if you want to use this functionality:
+# https://cisofy.com/documentation/lynis/upgrading/
+#
+######################################################################
+
+LOCAL_VERSION="-"
+SERVER_VERSION=""
+PERFORM_UPGRADE=0
+
+WGET_EXISTS=`which wget 2> /dev/null`
+CURL_EXISTS=`which curl 2> /dev/null`
+FETCH_EXISTS=`which fetch 2> /dev/null`
+
+# Update version
+if [ "$1" = "release" ]; then
+
+    if [ "${UPDATE_SERVER_PROTOCOL}" = "" ] ; then
+        Display --indent 2 --text "Error: Unknown protocol, please specify (http, https) in profile (update_server_protocol)"
+        ExitFatal
+    fi
+
+    if [ "${UPDATE_SERVER_ADDRESS}" = "" ] ; then
+        Display --indent 2 --text "Error: Unknown download address, please specify in profile (update_server_address)"
+        ExitFatal
+    fi
+
+    if [ "${UPDATE_LATEST_VERSION_DOWNLOAD}" = "" ] ; then
+        Display --indent 2 --text "Error: No URL to latest download has been specifiedrsion on the server, please specify in profile (update_latest_version_download)"
+        ExitFatal
+    fi
+
+    if [ "${UPDATE_LATEST_VERSION_INFO}" = "" ] ; then
+        Display --indent 2 --text "Error: No URL has been specified to know the latest version on the server, please specify in profile (update_latest_version_info)"
+        ExitFatal
+    fi
+
+    if [ "${UPDATE_LOCAL_DIRECTORY}" = "" ] ; then
+        Display --indent 2 --text "Error: No local directory has been specified to store Lynis files. Please specify in profile (update_local_directory)"
+        ExitFatal
+      else
+        if [ ! -d ${UPDATE_LOCAL_DIRECTORY} ]; then
+            Display --indent 2 --text "Error: Directory ${UPDATE_LOCAL_DIRECTORY} does not exist"
+            ExitFatal
+        fi
+    fi
+
+    if [ "${UPDATE_LOCAL_VERSION_INFO}" = "" ] ; then
+        Display --indent 2 --text "Error: No data file has been specified to determine local Lynis version, please specify in profile (update_local_version_info)"
+        ExitFatal
+    fi
+
+    if [ ! -f ${UPDATE_LOCAL_VERSION_INFO} ]; then
+        Display --indent 2 --text "Note: local data file ${UPDATE_LOCAL_VERSION_INFO} does not exist. It will be created after updating. (update_local_version_info)"
+      else
+        LOCAL_VERSION=`cat ${UPDATE_LOCAL_VERSION_INFO}`
+    fi
+
+    # Normal update
+    FULLPATH="${UPDATE_SERVER_PROTOCOL}://${UPDATE_SERVER_ADDRESS}${UPDATE_LATEST_VERSION_INFO}"
+    TMP_FILE=`mktemp /tmp/audit.XXXXXXXXXX`
+    if [ "${TMP_FILE}" = "" ]; then
+        Display --indent 2 --text "Could not create a temporary file in /tmp with mktemp. Aborting.."
+        ExitFatal
+    fi
+    Display --indent 2 --text "${CYAN}[Phase 1] Downloading details${NORMAL}"
+    if [ ! "${WGET_EXISTS}" = "" ]; then
+        logtext "Using wget to download release information"
+        LAST_COMMAND_HELP="wget --output-document ${TMP_FILE} ${FULLPATH}"
+        wget --output-document ${TMP_FILE} ${FULLPATH} 2> /dev/null
+        EXIT_CODE=$?
+    elif [ ! "${CURL_EXISTS}" = "" ]; then
+        logtext "Using curl to download release information"
+        LAST_COMMAND_HELP="curl --fail -o ${TMP_FILE} ${FULLPATH}"
+        curl --fail -o ${TMP_FILE} ${FULLPATH} 2> /dev/null
+        EXIT_CODE=$?
+    else
+        Display --indent 2 --text "No download tool available to perform download"
+        ExitFatal
+    fi
+
+    if [ ! "${TMP_FILE}" = "" ]; then
+        if [ -f ${TMP_FILE} ]; then
+            SERVER_VERSION=`cat ${TMP_FILE}`
+            rm -f ${TMP_FILE}
+        fi
+      else
+        Display --indent 2 --text "Temporary file variable is empty, which is unexpected. Aborting.."
+        ExitFatal
+    fi
+
+    # Determine if downloading meta data was successful
+    if [ ${EXIT_CODE} -eq 0 ]; then
+        if [ "${SERVER_VERSION}" = "" ]; then
+            Display --indent 2 --text "No version found on the server. Aborting.."
+            ExitFatal
+          else
+            Display --indent 2 --text "Version found on server: ${SERVER_VERSION}"
+            Display --indent 2 --text "Local version found: ${LOCAL_VERSION}"
+        fi
+      else
+        Display --indent 2 --text "${RED}Error: ${WHITE}Download utility returned an unexpected error code.${NORMAL} Aborting.."
+        Display --indent 2 --text "Error code: ${EXIT_CODE}"
+        Display --indent 2 --text "Suggested command: ${LAST_COMMAND_HELP}"
+        ExitFatal
+    fi
+
+#==========================================================================================================================================
+
+    Display --indent 2 --text " "
+    Display --indent 2 --text "${CYAN}[Phase 2] Compare results${NORMAL}"
+    if [ ! "${LOCAL_VERSION}" = "${SERVER_VERSION}" ]; then
+        Display --indent 2 --text "Different version available, moving to upgrade phase"
+        PERFORM_UPGRADE=1
+      else
+        Display --indent 2 --text "${GREEN}No upgrade needed${NORMAL}"
+    fi
+
+    # Go to phase 3 if upgrade is needed
+    if [ ${PERFORM_UPGRADE} -eq 1 ]; then
+        FULLPATH="${UPDATE_SERVER_PROTOCOL}://${UPDATE_SERVER_ADDRESS}${UPDATE_LATEST_VERSION_DOWNLOAD}"
+        Display --indent 2 --text " "
+        Display --indent 2 --text "[Phase 3] Downloading latest release"
+        Display --indent 2 --text "Download location: ${FULLPATH}"
+        if [ ! "${WGET_EXISTS}" = "" ]; then
+            logtext "Using wget to download latest release"
+            LAST_COMMAND_HELP="wget --output-document ${TMP_FILE} ${FULLPATH}"
+            wget --output-document ${TMP_FILE} ${FULLPATH} 2> /dev/null
+            EXIT_CODE=$?
+        elif [ ! "${CURL_EXISTS}" = "" ]; then
+            logtext "Using curl to download latest release"
+            LAST_COMMAND_HELP="curl --fail -o ${TMP_FILE} ${FULLPATH}"
+            curl --fail -o ${TMP_FILE} ${FULLPATH} 2> /dev/null
+            EXIT_CODE=$?
+        fi
+        if [ ${EXIT_CODE} -eq 0 ]; then
+            if [ -f ${TMP_FILE} ]; then
+                Display --indent 2 --text "Download successful"
+                # Extract the file to the related path, with 'lynis' appended
+                # Note: by default the tarball includes 'lynis' as directory
+                if [ ! -d ${UPDATE_LOCAL_DIRECTORY} ]; then
+                    Display --indent 2 --text "Error: directory ${UPDATE_LOCAL_DIRECTORY} does not exist"
+                    ExitFatal
+                fi
+                Display --indent 2 --text "Extracting latest version to path ${UPDATE_LOCAL_DIRECTORY}"
+                if [ ! -d ${UPDATE_LOCAL_DIRECTORY}/lynis ]; then
+                    Display --indent 2 --text "Creating 'lynis' directory in ${UPDATE_LOCAL_DIRECTORY}"
+                    mkdir ${UPDATE_LOCAL_DIRECTORY}/lynis
+                    if [ $? -gt 0 ]; then
+                        Display --indent 2 --text "Error: could not create directory ${UPDATE_LOCAL_DIRECTORY}/lynis"
+                        ExitFatal
+                    fi
+                fi
+                if [ -d ${UPDATE_LOCAL_DIRECTORY}/lynis ]; then
+                    Display --indent 2 --text "Extracting files to ${UPDATE_LOCAL_DIRECTORY}"
+                    tar xzf ${TMP_FILE} -C ${UPDATE_LOCAL_DIRECTORY}
+                    if [ $? -eq 0 ]; then
+                        # Check if we can find the Lynis binary (in the created 'lynis' directory)
+                        if [ -f ${UPDATE_LOCAL_DIRECTORY}/lynis/lynis ]; then
+                            # If version was downloaded, update local version
+                            echo ${SERVER_VERSION} > ${UPDATE_LOCAL_VERSION_INFO}
+                          else
+                            Display --indent 2 --text "Error: could not find downloaded file on disk"
+                        fi
+                      else
+                        Display --indent 2 --text "Error: File extraction failed"
+                        ExitFatal
+                    fi
+                  else
+                    Display --indent 2 --text "Error: could not find lynis directory"
+                fi
+              else
+              Display --indent 2 --text "Error: could not find downloaded file on disk"
+              ExitFatal
+            fi
+          else
+            Display --indent 2 --text "Error: could not download latest release"
+            Display --indent 2 --text "Suggestion: ${LAST_COMMAND_HELP}"
+            ExitFatal
+        fi
+    fi
+
+    # Removing temp file
+    logtext "Action: Removing temporary file ${TMP_FILE}"
+    if [ "${TMP_FILE}" = "" ]; then
+        if [ -f ${TMP_FILE} ]; then
+            rm -f ${TMP_FILE}
+        fi
+    fi
+
+    Display --indent 2 --text " "
+    Display --indent 2 --text "Done"
+    Display --indent 2 --text " "
+    ExitClean
+
+# Update check
+elif [ "$1" = "info" ]; then
+
+        # CV - Current Version
+        PROGRAM_AC=`echo ${PROGRAM_version} | awk '{ print $1 }' | sed 's/[.]//g'`
+        PROGRAM_LV=0
+
+        CheckUpdates
+
+        # Reset everything if we can't determine our current version or the latest
+        # available version (due lack of internet connectivity for example)
+        if [ "${PROGRAM_AC}" = "" -o "${PROGRAM_LV}" = "" ]; then
+            # Set both to safe values
+            PROGRAM_AC=0; PROGRAM_LV=0
+        fi
+
+        echo ""; echo " == ${WHITE}${PROGRAM_name}${NORMAL} =="
+        echo ""
+        echo "  Version         : ${PROGRAM_version}"
+        echo -n "  Status          : "
+        if [ ${PROGRAM_LV} -eq 0 ]; then
+            echo "${RED}Unknown${NORMAL}";
+          elif [ ${PROGRAM_LV} -gt ${PROGRAM_AC} ]; then
+            echo "${YELLOW}Outdated${NORMAL}";
+            echo "  Current version : ${PROGRAM_AC}"
+            echo "  Latest version  : ${PROGRAM_LV}"
+          else
+            echo "${GREEN}Up-to-date${NORMAL}"
+        fi
+        echo "  Release date    : ${PROGRAM_releasedate}"
+        echo "  Update location : ${PROGRAM_website}"
+        echo ""; echo ""
+        echo "${PROGRAM_copyright}"
+        echo ""
+
+        # Quit program
+        ExitClean
+
+else
+  Display --indent 2 --text "${RED}Error: ${WHITE}Unknown parameter $1.${NORMAL} Aborting.."
+  ExitFatal
+fi
+
+
+# The End

@@ -23,7 +23,7 @@
     # Program information
     PROGRAM_name="Lynis"
     PROGRAM_version="2.1.1"
-    PROGRAM_releasedate="19 April 2015"
+    PROGRAM_releasedate="29 April 2015"
     PROGRAM_author="CISOfy"
     PROGRAM_author_contact="lynis-dev@cisofy.com"
     PROGRAM_website="https://cisofy.com"
@@ -134,7 +134,7 @@
         echo ""
         echo "    Why do I see this error?"
         echo "    -------------------------------"
-        echo "    This error is a protection mechanism, to prevent root user from executing user created files."
+        echo "    This is a protection mechanism, to prevent the root user from executing user created files."
         echo ""; echo ""
         echo "    What can I do?"
         echo "    ---------------------"
@@ -226,55 +226,6 @@
     # CV - Current Version
     PROGRAM_AC=`echo ${PROGRAM_version} | awk '{ print $1 }' | sed 's/[.]//g'`
     PROGRAM_LV=0
-    #DB_MALWARE_CV=`grep "^#version=" ${DBDIR}/malware.db | cut -d '=' -f2`
-    #DB_FILEPERMS_CV=`grep "^#version=" ${DBDIR}/fileperms.db | cut -d '=' -f2`
-
-    # Number of signatures
-    #DB_MALWARE_IC=`grep -v "^#" ${DBDIR}/malware.db | wc -l | tr -s ' ' | tr -d ' '`
-
-    if [ ${VIEWUPDATEINFO} -eq 1 ]; then
-
-        CheckUpdates
-
-        # Reset everything if we can't determine our current version or the latest
-        # available version (due lack of internet connectivity for example)
-        if [ "${PROGRAM_AC}" = "" -o "${PROGRAM_LV}" = "" ]; then
-            # Set both to safe values
-            PROGRAM_AC=0; PROGRAM_LV=0
-            #DB_MALWARE_LV=0; DB_MALWARE_CV=0
-            #DB_FILEPERMS_LV=0; DB_FILEPERMS_CV=0
-        fi
-
-        echo ""; echo " == ${WHITE}${PROGRAM_name}${NORMAL} =="; echo ""
-        echo "  Version         : ${PROGRAM_version}"
-        echo -n "  Status          : "
-        if [ ${PROGRAM_LV} -eq 0 ]; then
-            echo "${RED}Unknown${NORMAL}";
-          elif [ ${PROGRAM_LV} -gt ${PROGRAM_AC} ]; then
-            echo "${YELLOW}Outdated${NORMAL}";
-            echo "  Current version : ${PROGRAM_AC}"
-            echo "  Latest version  : ${PROGRAM_LV}"
-          else
-            echo "${GREEN}Up-to-date${NORMAL}"
-        fi
-        echo "  Release date    : ${PROGRAM_releasedate}"
-        echo "  Update location : ${PROGRAM_website}"
-#        echo ""
-#        echo " == ${WHITE}Plugins${NORMAL} =="
-#        echo ""
-#        echo " == ${WHITE}Databases${NORMAL} =="
-#        echo "                      Current          Latest           Status"
-#        echo "  -----------------------------------------------------------------------------"    
-#        echo -n "  Malware         :   ${DB_MALWARE_CV}       ${DB_MALWARE_LV}       "
-#        if [ ${DB_MALWARE_LV} -gt ${DB_MALWARE_CV} ]; then echo "${WARNING}Outdated${NORMAL}"; else echo "${OK}Up-to-date${NORMAL}"; fi
-#        echo -n "  File perms      :   ${DB_FILEPERMS_CV}       ${DB_FILEPERMS_LV}       "
-#        if [ ${DB_FILEPERMS_LV} -gt ${DB_FILEPERMS_CV} ]; then echo "${WARNING}Outdated${NORMAL}"; else echo "${OK}Up-to-date${NORMAL}"; fi
-        echo ""; echo ""
-        echo "${PROGRAM_copyright}"; echo ""
-
-        # Quit program
-        ExitClean
-    fi
 #
 #################################################################################
 #
@@ -394,8 +345,11 @@
         echo "        audit system                  : Perform security scan"
         echo "        audit dockerfile <file>       : Analyze Dockerfile"
         echo ""
+        echo "    ${GREEN}update${NORMAL}"
+        echo "        update info                   : Show update details"
+        echo "        update release                : Update Lynis release"
         echo ""
-
+        echo ""
         echo "  ${WHITE}Scan options:${NORMAL}"
         echo "    --auditor \"<name>\"            : Auditor name"
         echo "    --dump-options                : See all available options"
@@ -412,7 +366,6 @@
         echo "    --reverse-colors              : Optimize color display for light backgrounds"
         echo ""
         echo "  ${WHITE}Misc options:${NORMAL}"
-        echo "    --check-update                : Check for updates"
         echo "    --debug                       : Debug logging to screen"
         echo "    --view-manpage (--man)        : View man page"
         echo "    --version (-V)                : Display version number and quit"
@@ -529,7 +482,7 @@
 #
 #################################################################################
 #
-    if [ ${QUIET} -eq 0 ]; then
+    if [ ${QUIET} -eq 0 -a ${SHOW_PROGRAM_DETAILS} -eq 1 ]; then
         echo ""
         echo "  ---------------------------------------------------"
         echo "  Program version:           ${PROGRAM_version}"
@@ -834,12 +787,12 @@
 #################################################################################
 #
     if [ ${RUN_HELPERS} -eq 1 ]; then
-        InsertPluginSection "Audit Module"
         if [ ! "${HELPER}" = "" ]; then
             logtext "Helper tool is $HELPER"
             if [ -f ${INCLUDEDIR}/helper_${HELPER} ]; then
                 SafePerms ${INCLUDEDIR}/helper_${HELPER}
                 logtext "Running helper tool ${HELPER} with params: ${HELPER_PARAMS}"
+                InsertPluginSection "Helper: ${HELPER}"
                 . ${INCLUDEDIR}/helper_${HELPER} ${HELPER_PARAMS}
               else
                 echo "Error, could not find helper"

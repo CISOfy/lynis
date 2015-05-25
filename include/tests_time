@@ -32,6 +32,7 @@
     # Specific for ntpd
     NTPD_RUNNING=0
     CRON_DIRS="/etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /var/spool/crontabs"
+    SYSTEMD_NTP_ENABLED=0
 #
 #################################################################################
 #
@@ -46,9 +47,23 @@
     fi
     Register --test-no TIME-3104 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for running NTP daemon or client"
     if [ ${SKIPTEST} -eq 0 ]; then
-        # Linux/FreeBSD (ntpdate), OpenBSD (ntpd, rdate)
+        # Linux/FreeBSD (ntpdate), OpenBSD (ntpd, rdate), Chrony, systemd-timesyncd
         logtext "Test: Searching for a running NTP daemon or available client"
         FOUND=0
+
+        if [ -f /etc/chrony.conf ]; then
+        IsRunning chronyd
+        if [ ${RUNNING} -eq 1 ]; then
+            FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="chronyd"
+            Display --indent 2 --text "- NTP daemon found: chronyd" --result FOUND --color GREEN
+        fi
+
+        # Check time daemon (eg DragonFly BSD)
+        IsRunning dntpd
+        if [ ${RUNNING} -eq 1 ]; then
+            FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="dntpd"
+            Display --indent 2 --text "- NTP daemon found: dntpd" --result FOUND --color GREEN
+        fi
 
         # Check running processes
         FIND=`${PSBINARY} ax | grep "ntpd" | grep -v "dntpd" | grep -v "grep"`
@@ -66,19 +81,18 @@
             Display --indent 2 --text "- NTP daemon found: timed" --result FOUND --color GREEN
         fi
 
-        # Check time daemon (eg DragonFly BSD)
-        IsRunning dntpd
-        if [ ${RUNNING} -eq 1 ]; then
-            FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="dntpd"
-            Display --indent 2 --text "- NTP daemon found: dntpd" --result FOUND --color GREEN
-        fi
-
         # Check timedate daemon (systemd)
         if [ ! "${TIMEDATECTL}" = "" ]; then
             FIND=`${TIMEDATECTL} status | grep "NTP enabled: yes"`
             if [ ! "${FIND}" = "" ]; then
-                FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="timedated"
-                Display --indent 2 --text "- NTP daemon found: timedated" --result "FOUND" --color GREEN
+                # Check for systemd-timesyncd
+                if [ -f /etc/systemd/timesyncd.conf ]; then
+                    FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="systemd-timesyncd"
+                    Display --indent 2 --text "- NTP daemon found: systemd (timesyncd)" --result "FOUND" --color GREEN
+                    SYSTEMD_NTP_ENABLED=1
+                fi
+              else
+                logtext "Result: time sychronization not performed according timedatectl command"
             fi
         fi
 
@@ -137,7 +151,6 @@
             logtext "Result: no ntpdate or rdate found in cron directories"
         fi
 
-
         # Checking if ntpdate is performed by event
         logtext "Test: checking for file /etc/network/if-up.d/ntpdate"
         if [ -f /etc/network/if-up.d/ntpdate ]; then
@@ -177,6 +190,21 @@
             Display --indent 2 --text "- Checking for a running NTP daemon or client" --result OK --color GREEN
             logtext "Result: Found a time syncing daemon/client."
             AddHP 3 3
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TIME-3106
+    # Description : Check status of systemd time synchronization
+    if [ ${SYSTEMD_NTP_ENABLED} -eq 1 -a ! "${TIMEDATECTL}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no TIME-3106 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check systemd NTP time synchronization status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Check the status of time synchronization via timedatectl"
+        FIND=`${TIMEDATECTL} status | grep "NTP sychronized: yes"`
+        if [ "${FIND}" = "" ]; then
+            logtext "Result: time not synchronized via NTP"
+            ReportSuggestion "${TEST_NO}" "Check timedatectl output. Sychronization via NTP is enabled, but status reflects it is not synchronized"
         fi
     fi
 #

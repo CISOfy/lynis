@@ -403,8 +403,66 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7366
+    # Description : Checking if debsecan is installed and enabled on Debian systems
+    if [ ! "${DEBSECANBINARY}" = "" -a "${OS}" = "Linux" -a "${LINUX_VERSION}" = "Debian" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no "PKGS-7366" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for debsecan utility"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! "${DEBSECANBINARY}" = "" ]; then
+            logtext "Result: debsecan utility is installed"
+            Display --indent 4 --text "- debsecan utility" --result "FOUND" --color GREEN
+            AddHP 3 3
+            PACKAGE_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL="debsecan"
+            FIND=`find /etc/cron* -name debsecan`
+            if [ ! ${FIND} = "" ]; then
+                logtext "Result: cron job is configured for debsecan"
+                Display --indent 6 --text "- debsecan cron job" --result "FOUND" --color GREEN
+                AddHP 3 3
+              else
+                logtext "Result: no cron job is configured for debsecan"
+                Display --indent 4 --text "- debsecan cron job" --result "NOT FOUND" --color YELLOW
+                AddHP 1 3
+                ReportSuggestion ${TEST_NO} "Check debsecan cron job and ensure it is enabled"
+            fi
+          else
+            logtext "Result: debsecan is not installed."
+            Display --indent 4 --text "- debsecan utility" --result "NOT FOUND" --color YELLOW
+            AddHP 0 2
+            ReportSuggestion ${TEST_NO} "Install debsecan to check for vulnerabilities on installed packages."
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7370
-    # Description : Check debsums output
+    # Description : Checking debsums installation status and presence in cron job
+    # Note        : Run this only when it is a DPKG based system
+    if [ ! "${DPKGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no "PKGS-7370" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for debsums utility"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! "${DEBSUMSBINARY}" = "" ]; then
+            logtext "Result: debsums utility is installed"
+            Display --indent 4 --text "- debsums utility" --result "FOUND" --color GREEN
+            AddHP 1 1
+            # Check in /etc/cron.hourly, daily, weekly, monthly etc
+            COUNT=`find /etc/cron* -name debsums | wc -l`
+            if [ ${COUNT} -gt 0 ]; then
+                logtext "Result: Cron job is configured for debsums utility."
+                Display --indent 6 --text "- Cron job for debsums" --result "FOUND" --color GREEN
+                AddHP 3 3
+              else
+                logtext "Result: Cron job is not configured for debsums utility."
+                Display --indent 6 --text "- Cron job for debsums" --result "NOT FOUND" --color YELLOW
+                AddHP 1 3
+                ReportSuggestion "${TEST_NO}" "Check debsums configuration and enable checking regurlarly via a cron job."
+            fi
+          else
+            logtext "Result: debsums utility is not installed."
+            AddHP 0 2
+            ReportSuggestion ${TEST_NO} "Install debsums utility for the verification of packages with known good database."
+        fi
+    fi
 #
 #################################################################################
 #
@@ -933,9 +991,45 @@
 #
 #################################################################################
 #
-# check for popularity-contest (Debian/Ubuntu)
-# check for yum-changelog
-
+    # Test        : PKGS-7410
+    # Description : Count number of installed kernel packages
+    Register --test-no PKGS-7410 --weight L --network NO --description "Count installed kernel packages"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        KERNELS=0
+        if [ ! "${RPMBINARY}" = "" ]; then
+            logtext "Test: Checking how many kernel packages are installed"
+            KERNELS=`rpm -q kernel 2> /dev/null | wc -l`
+            if [ ${KERNELS} -eq 0 ]; then
+                logtext "Result: found no kernels from rpm -q kernel output, which is unexpected"
+                ReportException "KRNL-5840:1" "Could not find any kernel packages from RPM output"
+            elif [ ${KERNELS} -gt 5 ]; then
+                logtext "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
+                ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages with package-cleanup utility (--old-kernels)"
+                AddHP 4 5
+            else
+                logtext "Result: found ${KERNELS} on the system, which is fine"
+                AddHP 1 1
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PKGS-7414
+    # Description : Check installonly_limit in yum.conf
+#
+#################################################################################
+#
+    # Test        : PKGS-7416
+    # Description : Check for popularity-contest (Debian/Ubuntu)
+#
+#################################################################################
+#
+    # Test        : PKGS-7418
+    # Description : Check for yum-changelog
+#
+#################################################################################
+#
 
 if [ ! "${INSTALLED_PACKAGES}" = "" ]; then
     report "installed_packages_array=${INSTALLED_PACKAGES}"

@@ -209,23 +209,46 @@
         FOUND=0
         logtext "Test: query swap partitions from /etc/fstab file"
         # Check if third field contains 'swap'
-        FIND=`awk '{ if ($3=="swap") print $1 }' /etc/fstab`
+        FIND=`awk '{ if ($2=="swap" || $3=="swap") { print $1 }}' /etc/fstab | grep -v "^#"`
         for I in ${FIND}; do
             FOUND=1
+            REAL=""
+            UUID=""
             logtext "Swap partition found: ${I}"
             # YYY Add a test if partition is not a normal partition (e.g. UUID=)
             # Can be ^/dev/mapper/vg-name_lv-name
             # Can be ^/dev/partition
+
             # Can be ^UUID=uuid --> /dev/disk/by-uuid/<uuid>
-            # if [ ! "${BLKIDBINARY}" = "" ]; then
-            #     FIND2=`${BLKIDBINARY} | awk '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | sed 's/:$//'`
-            #   else
-            #     logtext "Result: blkid binary not found, trying by checking device listing"
-            #     if [ -f /dev/disk/by-uuid/${UUID} ]; then
-            #         logtext "Result: found disk via /dev/disk/by-uuid listing"
-            #     fi
-            # fi
-            report "swap_partition[]=${I}"
+            HAS_UUID=`echo ${I} | grep "^UUID="`
+            if [ ! "${HAS_UUID}" = "" ]; then
+                UUID=`echo ${HAS_UUID} | awk -F= '{ print $2 }'`
+                logtext "Result: Using ${UUID} as UUID"
+                if [ ! "${BLKIDBINARYx}" = "" ]; then
+                    FIND2=`${BLKIDBINARY} | awk '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | sed 's/:$//'`
+                    if [ ! "${FIND2}" = "" ]; then
+                          REAL="${FIND2}"
+                    fi
+                  else
+                    logtext "Result: blkid binary not found, trying by checking device listing"
+                    sFILE=""
+                    if [ -L /dev/disk/by-uuid/${UUID} ]; then
+                        logtext "Result: found disk via /dev/disk/by-uuid listing"
+                        ShowSymlinkPath /dev/disk/by-uuid/${UUID}
+                        if [ ! "${sFILE}" = "" ]; then
+                            REAL="${sFILE}"
+                            logtext "Result: disk is ${REAL}"
+                        fi
+                      else
+                        logtext "Result: no symlink found to /dev/disk/by-uuid/${UUID}"
+                    fi
+                fi
+            fi
+            # Set real device
+            if [ "${REAL}" = "" ]; then
+                REAL="${I}"
+            fi
+            report "swap_partition[]=${I},${REAL},"
         done
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Query swap partitions (fstab)" --result OK --color GREEN

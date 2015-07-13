@@ -28,7 +28,7 @@ Main audience:
 ## First run
 
 1. Clone or download the project files. No compilation or installation is required.
-2. Execute: ./lynis audit system
+2. Execute: `./lynis audit system`
 
 By default
 If you want to run the software as root, we suggest to alter the ownership of the files.

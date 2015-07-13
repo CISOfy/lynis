@@ -30,9 +30,8 @@ Main audience:
 1. Clone or download the project files. No compilation or installation is required.
 2. Execute: `./lynis audit system`
 
-By default
-If you want to run the software as root, we suggest to alter the ownership of the files.
-
+If you want to run the software as root, we suggest to alter the ownership of the files. Use chown -R and
+chgrp -R to recursively alter the owner and group.
 
 ## Documentation
 See for full documentation https://cisofy.com/documentation/lynis/

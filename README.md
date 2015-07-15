@@ -3,22 +3,30 @@ lynis
 
 Lynis - Security auditing and hardening tool, for Unix based systems
 
-Lynis is an security auditing and hardening tool for Unix derivatives like Linux, BSD and Solaris. It performs
-an in-depth security scan on the system to detect software and security issues. Besides information related to
-security, it will also scan for general system information, installed packages, and possible configuration
-issues.
+Lynis is a security auditing for Unix derivatives like Linux, BSD, and Solaris. It performs an in-depth security scan
+on the system to detect software and security issues. Besides information related to security, it will also scan for
+general system information, installed packages, and possible configuration issues.
 
 We believe software should be simple, updated on a regular basis and open. You should be able to trust, understand,
 and even alter the software. Many agree with us, as the software is being used by thousands every day to protect
 their systems.
 
-The software is aimed at assisting with automated auditing, configuration management, software patch management,
-penetration testing, vulnerability management, and malware scanning of Unix-based systems.
+Main goals:
+- Automated security auditing
+- Compliance testing
+- Vulnerability management
+
+The software aims to also assist with:
+- Configuration management
+- Software patch management
+- Penetration testing
+- Malware scanning
+- Intrusion detection
 
 License:
 - GPLv3
 
-Main audience:
+Typical users of the software:
 - System administrators
 - Auditors
 - Security officers
@@ -30,11 +38,11 @@ Main audience:
 1. Clone or download the project files. No compilation or installation is required.
 2. Execute: `./lynis audit system`
 
-If you want to run the software as root, we suggest to alter the ownership of the files. Use chown -R and
+If you want to run the software as root, we suggest altering the ownership of the files. Use chown -R and
 chgrp -R to recursively alter the owner and group.
 
 ## Documentation
-See for full documentation https://cisofy.com/documentation/lynis/
+Full documentation: https://cisofy.com/documentation/lynis/
 
 ## Flexibility
 For people who want to expand tests, it is suggested to use the tests_custom file (template in include directory).

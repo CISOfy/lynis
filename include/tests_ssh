@@ -218,6 +218,60 @@
             AddHP 0 1
         fi
     fi
+    
+#
+#################################################################################
+#
+    # Test        : SSH-74400
+    # Description : SSH files authentication
+    # Goal        : Check vital file's owner and group. These must be ownes by root user.
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-74400 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH Files Authentication"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+
+#Check file owner and group
+x="$(cd /etc/ssh/ && ls -l ssh_config| awk '{print $4}')"
+#y="$(cd /etc/ssh/ && ls -l ssh_config sshd_config | awk '{print $5}')"
+
+
+        if [ "${x}" = "root" ]; then
+            logtext "Result: File owner is ${x}"
+            Display --indent 4 --text "- Check SSH Config File Authentication" --result OK --color GREEN
+            FOUND=1
+          else
+            logtext "Result: File owner is ${x}"
+            Display --indent 4 --text "- Check SSH Config File Authentication" --result "WARNING" --color RED
+            ReportSuggestion ${TEST_NO} "Change the ssh_config file's owner via chmod."
+        fi
+              fi
+
+#
+#################################################################################
+#
+
+    # Test        : SSH-74122
+    # Description : SSH port
+    # Goal        : Check SSH port and suggest to change it if have default (22) value.
+    
+if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-74122 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH Port"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: check Port"
+        FIND="$(cat /etc/ssh/sshd_config | grep "^#Port" | awk '{ print $2 }')"
+        if [ "${FIND}" = "22" ]; then
+            logtext "Result: Port is default, 22"
+            Display --indent 4 --text "- Check SSH Port" --result SUGGEST --color YELLOW
+            ReportSuggestion ${TEST_NO} "You can change the port number in ssh_config file."
+            #AddHP 0 3
+          else
+                logtext "Result: Port value is no default, it's OK."
+                Display --indent 4 --text "- Check SSH Port" --result FOUND --color GREEN
+                #AddHP 3 3
+        fi
+    fi
+
+
 #
 #################################################################################
 #

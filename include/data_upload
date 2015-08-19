@@ -90,7 +90,18 @@ output "Settings file: ${SETTINGS_FILE}"
     if [ -f ${REPORTFILE} ]; then
         output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
         # Quit if license is not valid, to reduce load on both client and server.
-        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL}`
+        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
+        EXITCODE=$?
+        if [ ${EXITCODE} -gt 0 ]; then
+            if [ ${EXITCODE} -eq 60 ]; then
+                output "${RED}Self-signed certificate used on Lynis Enterprise node${NORMAL}"
+                output "If you want to accept a self-signed certificate, use the -k option in the profile."
+                output "Example: ${WHITE}config:upload_options:-k:${NORMAL}" 
+              else
+                output "${RED}Error: ${NORMAL}cURL exited with code ${EXITCODE}"
+            fi
+            ExitFatal
+        fi
         UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
         if [ "${UPLOAD_CODE}" = "100" ]; then
             output "${WHITE}License is valid${NORMAL}"
@@ -110,7 +121,7 @@ output "Settings file: ${SETTINGS_FILE}"
             echo "Key: ${LICENSE_KEY}"
             output "Debug information: ${UPLOAD}"
             # Quit
-            ExitClean
+            ExitFatal
         fi
         # Extract the hostid from the parse file
         HOSTID=`cat ${REPORTFILE} | grep "^hostid=" | awk -F= '{ print $2 }'`
@@ -122,27 +133,24 @@ output "Settings file: ${SETTINGS_FILE}"
             UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
             EXITCODE=$?
             if [ ${EXITCODE} -gt 0 ]; then
-                if [ ${EXITCODE} -eq 60 ]; then
-                    output "${RED}Self-signed certificate used on Lynis Enterprise node${NORMAL}"
-                    output "If you want to accept a self-signed certificate, use the -k option in the profile."
-                    output "Example: ${WHITE}config:upload_options:-k:${NORMAL}" 
-                  else
-                    #UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ print $2 }'`
-                    #output "Output code from upload: ${UPLOAD_CODE}"
-                    output "${RED}Error occurred, please check documentation for code ${UPLOAD_CODE}.${NORMAL}"
-                    output "Debug:"
-                    output ${UPLOAD}
-                fi
+                #UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ print $2 }'`
+                #output "Output code from upload: ${UPLOAD_CODE}"
+                output "${RED}Error: ${NORMAL}Error occurred, cURL ended during the upload of the report data."
+                output "Related exit code: ${EXITCODE}"
+                output "Check the last section of the log file for the exact command used, for further troubleshooting"
+                output "Debug:"
+                output ${UPLOAD}
                 # Quit
                 ExitClean
             fi
           else
-            echo "${RED}Fatal error${NORMAL}: No hostid found in report file. Can not upload report file."
+            echo "${RED}Error${NORMAL}: No hostid found in report file. Can not upload report file."
             # Quit
-            ExitClean
+            ExitFatal
         fi
       else
          output "${YELLOW}No report file found to upload.${NORMAL}"
+         ExitFatal
     fi
 
 #

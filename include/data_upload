@@ -119,13 +119,20 @@ output "Settings file: ${SETTINGS_FILE}"
             # Try to connect
             output "Uploading data.."
             logtext "Command used: ${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
-            UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL}`
-            if [ $? -gt 0 ]; then
-                #UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ print $2 }'`
-                #output "Output code from upload: ${UPLOAD_CODE}"
-                output "${RED}Error occurred, please check documentation for code ${UPLOAD_CODE}.${NORMAL}"
-                output "Debug:"
-                output ${UPLOAD}
+            UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
+            EXITCODE=$?
+            if [ ${EXITCODE} -gt 0 ]; then
+                if [ ${EXITCODE} -eq 60 ]; then
+                    output "${RED}Self-signed certificate used on Lynis Enterprise node${NORMAL}"
+                    output "If you want to accept a self-signed certificate, use the -k option in the profile."
+                    output "Example: ${WHITE}config:upload_options:-k:${NORMAL}" 
+                  else
+                    #UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ print $2 }'`
+                    #output "Output code from upload: ${UPLOAD_CODE}"
+                    output "${RED}Error occurred, please check documentation for code ${UPLOAD_CODE}.${NORMAL}"
+                    output "Debug:"
+                    output ${UPLOAD}
+                fi
                 # Quit
                 ExitClean
             fi

@@ -24,6 +24,7 @@
 #
     BOOT_LOADER="unknown"
     BOOT_LOADER_FOUND=0
+    BOOT_LOADER_SEARCHED=0
     GRUB_VERSION=0
     SERVICE_MANAGER="unknown"
 #
@@ -34,6 +35,7 @@
     # Notes       : The AIX bootstrap is called as software ROS. Bootstrap contains IPL (Initial Program loader)
     Register --test-no BOOT-5102 --os AIX --weight L --network NO --root-only YES --description "Check for AIX boot device"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         logtext "Test: Query bootinfo for AIX boot device"
         if [ -x /usr/sbin/bootinfo ]; then
             FIND=`/usr/sbin/bootinfo -b`
@@ -61,6 +63,7 @@
     # upstart         - Used by Debian/Ubuntu
     Register --test-no BOOT-5104 --weight L --network NO --description "Determine service manager"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
@@ -120,6 +123,7 @@
     # Description : Check for GRUB boot loader
     Register --test-no BOOT-5121 --weight L --network NO --description "Check for GRUB boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         FOUND=0
         logtext "Test: Checking for presence GRUB conf file (/boot/grub/grub.conf or /boot/grub/menu.lst)"
         if [ -f /boot/grub/grub.conf -o -f /boot/grub/menu.lst ]; then
@@ -204,6 +208,7 @@
     # Description : Check for FreeBSD boot loader
     Register --test-no BOOT-5124 --os FreeBSD --weight L --network NO --description "Check for FreeBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         if [ -f /boot/boot1 -a -f /boot/boot2 -a -f /boot/loader ]; then
             logtext "Result: found boot1, boot2 and loader files in /boot"
             Display --indent 2 --text "- Checking presence FreeBSD loader" --result FOUND --color GREEN
@@ -220,6 +225,7 @@
     # Description : Check for NetBSD boot loader
     Register --test-no BOOT-5126 --os NetBSD --weight L --network NO --description "Check for NetBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         if [ -f /boot.${HARDWARE} -o -f /boot -o -f /ofwboot ]; then
             logtext "Result: found NetBSD secondary bootstrap"
             Display --indent 2 --text "- Checking presence NetBSD loader" --result FOUND --color GREEN
@@ -238,6 +244,7 @@
     # Notes       : password= or password =
     Register --test-no BOOT-5139 --weight L --network NO --description "Check for LILO boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         LILOCONFFILE="/etc/lilo.conf"
         logtext "Test: checking for presence LILO configuration file"
         if [ -f ${LILOCONFFILE} ]; then
@@ -274,6 +281,7 @@
     # Description : Check for SILO boot loader
     Register --test-no BOOT-5142 --weight L --network NO --description "Check SPARC Improved boot loader (SILO)"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         if [ -f /etc/silo.conf ]; then
             logtext "Result: Found SILO configuration file (/etc/silo.conf)"
             Display --indent 2 --text "- Checking boot loader SILO" --result FOUND --color GREEN
@@ -310,6 +318,7 @@
     # Description : Check for YABOOT boot loader
     Register --test-no BOOT-5155 --weight L --network NO --description "Check for YABOOT boot loader configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         logtext "Test: Check for /etc/yaboot.conf"
         if [ -f /etc/yaboot.conf ]; then
             logtext "Result: Found YABOOT configuration file (/etc/yaboot.conf)"
@@ -328,6 +337,7 @@
     # More info   : Only OpenBSD
     Register --test-no BOOT-5159 --os OpenBSD --weight L --network NO --description "Check for OpenBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         FOUND=0
         # Boot files
         # /usr/mdec/biosboot: first stage bootstrap
@@ -365,7 +375,7 @@
 #
 #################################################################################
 #
-    if [ ${BOOT_LOADER_FOUND} -eq 0 ]; then
+    if [ ${BOOT_LOADER_FOUND} -eq 0 -a ${BOOT_LOADER_SEARCHED} -eq 1 ]; then
         # Your boot loader is not detected. Want to help supporting it, see the README
         ReportException "BOOTLOADER" "No boot loader found"
         Display --indent 4 --text "- Boot loader" --result "NONE FOUND" --color RED
@@ -460,12 +470,15 @@
 #
     # Test        : BOOT-5180
     # Description : Check for Linux boot services (Debian style)
+    # Notes       : Debian 8+ shows runlevel 5
     if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no BOOT-5180 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for Linux boot services (Debian style)"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Runlevel check
-        sRUNLEVEL=`${RUNLEVELBINARY} | grep "N 2"`
-        if [ ! "${sRUNLEVEL}" = "" ]; then
+        sRUNLEVEL=`${RUNLEVELBINARY} | grep "N [0-9]" | awk '{ print $2} '`
+        logtext "Result: found runlevel ${sRUNLEVEL}"
+        if [ "${sRUNLEVEL}" = "2" ]; then
+            logtext "Result: performing find in /etc/rc2.d as runlevel 2 is found"
             FIND=`find /etc/rc2.d -type l -print | cut -d '/' -f4 | sed "s/S[0-9][0-9]//g" | sort`
             if [ ! "${FIND}" = "" ]; then
                 N=0
@@ -475,10 +488,12 @@
                 done
                 Display --indent 2 --text "- Check services at startup (rc2.d)" --result "DONE" --color WHITE
                 Display --indent 4 --text "Result: found $N services"
-                logtext "Found $N services"
+                logtext "Result: found $N services"
             fi
-          else
+        elif [ "${sRUNLEVEL}" = "" ]; then
             ReportSuggestion ${TEST_NO} "Determine runlevel and services at startup"
+          else
+            logtext "Result: skipping further actions"
         fi
     fi
 #

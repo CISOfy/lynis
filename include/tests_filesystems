@@ -496,9 +496,43 @@
 #
 #################################################################################
 #
-    # Test        : FILE-XXXX
+    # Test        : FILE-6355
     # Description : Check /home mount options for Linux
     # Notes       : Expecting nodev,nosuid
+
+    Register --test-no FILE-6355 --os Linux --weight L --network NO --description "Checking /home mount options"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -f /etc/fstab ]; then
+            HARDENED=0
+            FIND=`cat /etc/fstab | awk '{ if ($2=="/home") { print $4 } }'`
+            NODEV=`echo "${FIND}" | awk '{ if ($1=="nodev") { print "YES" } else { print "NO" } }'`
+            NOSUID=`echo "${FIND}" | awk '{ if ($1=="nosuid") { print "YES" } else { print "NO" } }'`
+            if [ "${NODEV}" = "YES" -a "${NOSUID}" = "YES" ]; then HARDENED=1; fi
+            if [ ! "${FIND}" = "" ]; then
+                logtext "Result: mount system /home is configured with options: ${FIND}"
+                if [ ${HARDENED} -eq 1 ]; then
+                    logtext "Result: marked /home options as hardenened"
+                    Display --indent 2 --text "- Mount options of /home" --result HARDENED --color GREEN
+                    AddHP 5 5
+                  else
+                    if [ "${FIND}" = "defaults" ]; then
+                        logtext "Result: marked /home options as default (non hardened)"
+                        Display --indent 2 --text "- Mount options of /home" --result DEFAULT --color RED
+                        ReportSuggestion "${TEST_NO}" "Check your /etc/fstab file for /home partition mount options"
+                        AddHP 3 5
+                      else
+                        logtext "Result: marked /home options as non default (unclear about hardening)"
+                        Display --indent 2 --text "- Mount options of /home" --result "NON DEFAULT" --color YELLOW
+                        ReportSuggestion "${TEST_NO}" "Check your /etc/fstab file for /home partition mount options"
+                        AddHP 4 5
+                    fi
+                fi
+              else
+                logtext "Result: no mount point /home or expected options found"
+            fi
+        fi
+    fi
+
 #
 #################################################################################
 #

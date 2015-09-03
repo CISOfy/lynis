@@ -460,74 +460,73 @@
 #################################################################################
 #
     # Test        : FILE-6374
-    # Description : Check /boot mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
+    # Description : Check mount options for Linux
+    # Notes       : This test determines if the mount point exists. If it does not exist as mount point, yet it is an directory,
+    #               you might consider to make it a separate mount point with restrictions.
+    #
+    #               Depending on the primary goals of a machine, some mount points might be too restrictive. Before applying any
+    #               mount flags, test them on a similar or cloned test system.
+    #
+    #            ---------------------------------------------------------
+    #               Mount point              nodev  noexec  nosuid
+    #               /boot                      v      v       v
+    #               /home                      v              v
+    #               /tmp                       v      v       v
+    #               /var                                      v
+    #               /var/log                   v      v       v
+    #               /var/log/audit             v      v       v
+    #            ---------------------------------------------------------
+
+    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /home:nodev,nosuid /var:nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /tmp:nodev,noexec,nosuid"
     Register --test-no FILE-6374 --os Linux --weight L --network NO --description "Checking /boot mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/fstab ]; then
-            HARDENED=0
-            FIND=`echo /etc/fstab | awk '{ if ($2=="/boot") { print $4 } }'`
-            NODEV=`echo ${FIND} | awk '{ if ($1=="nodev") { print "YES" } else { print "NO" } }'`
-            NOEXEC=`echo ${FIND} | awk '{ if ($1=="noexec") { print "YES" } else { print "NO" } }'`
-            NOSUID=`echo ${FIND} | awk '{ if ($1=="nosuid") { print "YES" } else { print "NO" } }'`
-            if [ "${NODEV}" = "YES" -a "${NOEXEC}" = "YES" -a "${NOSUID}" = "YES" ]; then HARDENED=1; fi
-            if [ ! "${FIND}" = "" ]; then
-                logtext "Result: mount system /boot is configured with options: ${FIND}"
-                if [ ${HARDENED} -eq 1 ]; then
-                    logtext "Result: marked /boot options as hardenened"
-                    Display --indent 2 --text "- Mount options of /boot" --result HARDENED --color GREEN
-                    AddHP 5 5
-                  else
-                    if [ "${FIND}" = "defaults" ]; then
-                        logtext "Result: marked /boot options as default (non hardened)"
-                        Display --indent 2 --text "- Mount options of /boot" --result DEFAULT --color RED
-                        AddHP 3 5
-                      else
-                        logtext "Result: marked /boot options as non default (unclear about hardening)"
-                        Display --indent 2 --text "- Mount options of /boot" --result "NON DEFAULT" --color YELLOW
+            for I in ${FILESYSTEMS_TO_CHECK}; do
+                FILESYSTEM=`echo ${I} | cut -d: -f1`
+                EXPECTED_FLAGS=`echo ${I} | cut -d: -f2 | sed 's/,/ /g'`
+                IN_FSTAB=`cat /etc/fstab | awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print "FOUND" } }'`
+                if [ ! "${IN_FSTAB}" = "" ]; then
+                    FOUND_FLAGS=`cat /etc/fstab | awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' | sed 's/,/ /g'`
+                    logtext "File system:    ${FILESYSTEM}"
+                    logtext "Expected flags: ${EXPECTED_FLAGS}"
+                    logtext "Found flags:    ${FOUND_FLAGS}"
+                    PARTIALLY_HARDENED=0
+                    FULLY_HARDENED=1
+                    for FLAG in ${EXPECTED_FLAGS}; do
+                        FLAG_AVAILABLE=`echo ${FOUND_FLAGS} | grep ${FLAG}`
+                        if [ "${FLAG_AVAILABLE}" = "" ]; then
+                            logtext "Result: Could not find mount option ${FLAG} on file system ${FILESYSTEM}"
+                            FULLY_HARDENED=0
+                          else
+                            logtext "Result: GOOD, found mount option ${FLAG} on file system ${FILESYSTEM}"
+                            PARTIALLY_HARDENED=1
+                        fi
+                    done
+                    if [ ${FULLY_HARDENED} -eq 1 ]; then
+                        logtext "Result: marked ${FILESYSTEM} as fully hardenened"
+                        Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result HARDENED --color GREEN
+                        AddHP 5 5
+                    elif [ ${PARTIALLY_HARDENED} -eq 1 ]; then
+                        logtext "Result: marked ${FILESYSTEM} as fully hardenened"
+                        Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "PARTIALLY HARDENED" --color YELLOW
                         AddHP 4 5
+                    else
+                        if [ "${FOUND_FLAGS}" = "defaults" ]; then
+                            logtext "Result: marked ${FILESYSTEM} options as default (non hardened)"
+                            Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result DEFAULT --color YELLOW
+                            AddHP 3 5
+                          else
+                            logtext "Result: marked ${FILESYSTEM} options as non default (unclear about hardening)"
+                            Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "NON DEFAULT" --color YELLOW
+                            AddHP 4 5
+                        fi
                     fi
+                  else
+                    logtext "Result: file system ${FILESYSTEM} not found in /etc/fstab"
                 fi
-              else
-                logtext "Result: no mount point /boot or expected options found"
-            fi
+            done
         fi
     fi
-#
-#################################################################################
-#
-    # Test        : FILE-XXXX
-    # Description : Check /home mount options for Linux
-    # Notes       : Expecting nodev,nosuid
-#
-#################################################################################
-#
-
-    # Test        : FILE-XXXX
-    # Description : Check /var mount options for Linux
-    # Notes       : Expecting nosuid
-#
-#################################################################################
-#
-    # Test        : FILE-XXXX
-    # Description : Check /var/log mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
-#
-#################################################################################
-#
-    # Test        : FILE-XXXX
-    # Description : Check /var/log/audit mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
-#
-#################################################################################
-#
-
-    # Test        : FILE-XXXX
-    # Description : Check /tmp mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
-#
-#################################################################################
-#
 #
 #################################################################################
 #

@@ -589,8 +589,9 @@
         logtext "Test: Determine if this system is a virtual machine"
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
+        SHORT=""
 
-        # Trying facter
+        # facter
         if [ -x /usr/bin/facter ]; then
             case "`facter is_virtual`" in
             "true")
@@ -603,9 +604,7 @@
             esac
         fi
 
-        SHORT=""
-
-        # Trying systemd
+        # systemd
         if [ "${SHORT}" = "" -a ! "${SYSTEMCTLBINARY}" = "" ]; then
             logtext "Test: trying to guess virtualization technology with systemctl"
             FIND=`${SYSTEMCTLBINARY} | grep "^Virtualization=" | awk -F= '{ print $2 }'`
@@ -614,12 +613,14 @@
             fi
         fi
 
-        # # dmidecode
-        # if [ "${SHORT}" = "" ]; then
-        #     if [ -x /usr/sbin/dmidecode ]; then
-        #         SHORT=`dmidecode -s system-product-name`
-        #     fi
-        # fi
+        # dmidecode
+        # Values: VMware Virtual Platform / VirtualBox
+        if [ "${SHORT}" = "" ]; then
+            logtext "Test: trying to guess virtualization with dmidecode"
+            if [ -x /usr/sbin/dmidecode ]; then
+                SHORT=`dmidecode -s system-product-name | awk '{ print $1 }'`
+            fi
+        fi
 
         # lshw
         if [ "${SHORT}" = "" ]; then
@@ -663,7 +664,7 @@
         # Check if we catched some string along all tests
         if [ ! "${SHORT}" = "" ]; then
             # Lowercase and see if we found a match
-            SHORT=`echo ${SHORT} | tr [[:upper:]] [[:lower:]]`
+            SHORT=`echo ${SHORT} | awk '{ print $1 }' | tr [[:upper:]] [[:lower:]]`
 
                 case ${SHORT} in
                     amazon-ec2)         ISVIRTUALMACHINE=1; VMTYPE="amazon-ec2";      VMFULLTYPE="Amazon AWS EC2 Instance"                 ;;

@@ -590,6 +590,19 @@
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
 
+        # Trying facter
+        if [ -x /usr/bin/facter ]; then
+            case "`facter is_virtual`" in
+            "true")
+                VMTYPE=`facter virtual`
+                logtext "Result: found virtual machine (type: ${VMTYPE})"
+                report "vm=1"
+                report "vmtype=${VMTYPE}"
+                return ;;
+            "false") return ;;
+            esac
+        fi
+
         SHORT=""
 
         # Trying systemd
@@ -600,6 +613,13 @@
                 SHORT="${FIND}"
             fi
         fi
+
+        # # dmidecode
+        # if [ "${SHORT}" = "" ]; then
+        #     if [ -x /usr/sbin/dmidecode ]; then
+        #         SHORT=`dmidecode -s system-product-name`
+        #     fi
+        # fi
 
         # lshw
         if [ "${SHORT}" = "" ]; then

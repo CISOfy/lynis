@@ -30,6 +30,7 @@
     POWERDNS_AUTH_CONFIG_LOCATION=""
     POWERDNS_AUTH_MASTER=0
     POWERDNS_AUTH_SLAVE=0
+    UNBOUND_CONFIG_OK=0
     YPBIND_RUNNING=0
 #
 #################################################################################
@@ -228,11 +229,57 @@
         logtext "Test: checking nscd status"
         IsRunning nscd
         if [ ${RUNNING} -eq 1 ]; then
+            NAME_CACHE_USED=1
             logtext "Result: nscd is running"
             Display --indent 2 --text "- Checking nscd status" --result RUNNING --color GREEN
           else
             logtext "Result: nscd is not running"
             Display --indent 2 --text "- Checking nscd status" --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NAME-4034
+    # Description : Check name service caching daemon (Unbound) status
+    Register --test-no NAME-4034 --weight L --network NO --description "Check Unbound status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: checking Unbound (unbound) status"
+        IsRunning unbound
+        if [ ${RUNNING} -eq 1 ]; then
+            UNBOUND_RUNNING=1
+            NAME_CACHE_USED=1
+            logtext "Result: Unbound daemon is running"
+            Display --indent 2 --text "- Checking Unbound status" --result RUNNING --color GREEN
+          else
+            logtext "Result: Unbound daemon is not running"
+            Display --indent 2 --text "- Checking Unbound status" --result "NOT FOUND" --color WHITE
+       fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NAME-4036
+    # Description : Checking Unbound configuration file
+    if [ ${UNBOUND_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NAME-4036 --preqs-met ${PREQS_MET}  --weight L --network NO --description "Check Unbound configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`which unbound-checkconf`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Test: running unbound-checkconf"
+            # Don't capture any output, just gather exit code (0 is fine, otherwise bad)
+            FIND=`unbound-checkconf > /dev/null 2>&1`
+            if [ $? -eq 0 ]; then
+                UNBOUND_CONFIG_OK=1
+                logtext "Result: Configuration is fine"
+                Display --indent 2 --text "- Checking configuration file" --result OK --color GREEN
+              else
+                logtext "Result: Unbound daemon is not running"
+                Display --indent 2 --text "- Checking configuration file" --result "NOT OK" --color YELLOW
+                ReportWarning "${TEST_NO}" "L" "Found Unbound configuration file issues (run unbound-checkconf)"
+            fi
+          else
+            logtext "Result: skipped, can't find unbound-checkconf utility"
         fi
     fi
 #
@@ -602,6 +649,7 @@
 #################################################################################
 #
 
+report ="name_cache_used=${NAME_CACHE_USED}"
 wait_for_keypress
 
 #

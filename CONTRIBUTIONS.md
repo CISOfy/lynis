@@ -36,3 +36,4 @@ To ensure all pull requests can be easily checked and merged, here are some tips
 * Your code should work on other platforms running the bourne shell (/bin/sh), not just BASH.
 * Properly document your code where needed. Besides the 'what', focus on explaining the 'why'.
 * Check the log information (lynis.log) of your new test or changed code, so that it provides helpful details for others.
+* Most variables should be capitalized, with underscore as word separator (e.g. PROCESS_EXISTS=1)

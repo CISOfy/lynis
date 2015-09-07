@@ -119,6 +119,66 @@
 #
 #################################################################################
 #
+    # Test        : BOOT-5116
+    # Description : Check if system is booted in UEFI mode
+    Register --test-no BOOT-5116 --weight L --network NO --root-only YES --description "Check if system is booted in UEFI mode"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        UEFI_TESTS_PERFORMED=0
+        case ${OS} in
+            Linux)
+                UEFI_TESTS_PERFORMED=1
+                # Check if UEFI is available in this boot
+                logtext "Test: checking if UEFI is used"
+                if [ -d /sys/firmware/efi ]; then
+                    logtext "Result: system booted in UEFI mode"
+                    UEFI_BOOTED=1
+                  else
+                    logtext "Result: UEFI not used, can't find /sys/firmware/efi directory"
+                fi
+
+                # Test if Secure Boot is enabled
+                logtext "Test: determine if Secure Boot is used"
+                if [ -d /sys/firmware/efi/efivars ]; then
+                    FIND=`ls /sys/firmware/efi/efivars/SecureBoot-* 2> /dev/null`
+                    if [ ! "${FIND}" = "" ]; then
+                        for I in ${FIND}; do
+                            logtext "Test: checking file ${I}"
+                            J=`od -An -t u1 ${I} | awk '{ print $5 }'`
+                            if [ "${J}" = "1" ]; then
+                                logtext "Result: found SecureBoot file with enabled status"
+                                UEFI_BOOTED_SECURE=1
+                              else
+                                logtext "Result: system not booted with Secure Boot (status 0 in file ${I})"
+                            fi
+                        done
+                    fi
+                  else
+                    logtext "Result: system not booted with Secure Boot (no SecureBoot file found)"
+                fi
+            ;;
+            #MacOS)
+            # Mac OS ioreg -l -p IODeviceTree | grep firmware-abi
+            #;;
+            *)
+                logtext "Result: no test implemented yet to test for UEFI on this platform"
+            ;;
+        esac
+        if [ ${UEFI_BOOTED} -eq 1 ]; then
+            Display --indent 2 --text "- Checking UEFI boot" --result ENABLED --color GREEN
+            if [ ${UEFI_BOOTED_SECURE} -eq 1 ]; then
+                Display --indent 2 --text "- Checking Secure Boot" --result ENABLED --color GREEN
+              else
+                Display --indent 2 --text "- Checking Secure Boot" --result DISABLED --color YELLOW
+            fi
+          else
+            if [ ${UEFI_TESTS_PERFORMED} -eq 1 ]; then
+                Display --indent 2 --text "- Checking UEFI boot" --result DISABLED --color GREEN
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : BOOT-5121
     # Description : Check for GRUB boot loader
     Register --test-no BOOT-5121 --weight L --network NO --description "Check for GRUB boot loader presence"
@@ -682,6 +742,8 @@
 #
 
 report "boot_loader=${BOOT_LOADER}"
+report "boot_uefi_booted=${UEFI_BOOTED}"
+report "boot_uefi_booted_secure=${UEFI_BOOTED_SECURE}"
 report "service_manager=${SERVICE_MANAGER}"
 
 wait_for_keypress

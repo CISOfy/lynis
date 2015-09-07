@@ -1078,22 +1078,24 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9407
-    # Description : Logging failed login attempts
+    # Test        : AUTH-9408
+    # Description : Logging of failed login attempts
     if [ -f /etc/login.defs ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no AUTH-9407 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Logging failed login attempts"
+    Register --test-no AUTH-9408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Logging of failed login attempts via /etc/login.defs"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking FAILLOG_ENAB option in /etc/login.defs "
         FIND=`grep "^FAILLOG_ENAB" /etc/login.defs | awk '{ if ($1=="FAILLOG_ENAB") { print $2 } }'`
-        if [ "${FIND}" = "" -o "${FIND}" = "no" ]; then
+        # Search for enabled status (yes), otherwise consider it to be disabled (e.g. empty, or other value)
+        if [ "${FIND}" = "yes" ]; then
+            AUTH_FAILED_LOGINS_LOGGED=1
+            logtext "Result: failed login attempts are logged in /var/log/faillog"
+            Display --indent 2 --text "- Logging failed login attempts" --result ENABLED --color GREEN
+            AddHP 3 3
+          else
             logtext "Result: failed login attempts are not logged"
             Display --indent 2 --text "- Logging failed login attempts" --result DISABLED --color YELLOW
-            ReportSuggestion ${TEST_NO} "Configure failed login attempts to be logged in /var/log/faillog"
+            #ReportSuggestion ${TEST_NO} "Configure failed login attempts to be logged in /var/log/faillog"
             AddHP 0 1
-          else
-            logtext "Result: failed login attempts are logged in /var/log/faillog"
-            Display --indent 2 --text "- Logging failed login attempts" --result OK --color GREEN
-            AddHP 3 3
         fi
     fi
 #

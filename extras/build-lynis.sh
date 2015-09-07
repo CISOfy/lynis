@@ -364,7 +364,7 @@ Exit
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-    echo -n "- Cleaning up OpenBSD package build... " 
+    echo -n "- Cleaning up OpenBSD package build... "
     if [ -f openbsd/+CONTENTS ]; then rm openbsd/+CONTENTS; fi
     echo "DONE"
     OPENBSD_CONTENTS="openbsd/+CONTENTS"
@@ -377,7 +377,7 @@ Exit
     for I in ${PACKAGE_LIST_FILES}; do
 
       echo -n "${I} "
-      #FULLNAME=`cat files.dat | grep ":file:include: 
+      #FULLNAME=`cat files.dat | grep ":file:include:
       #echo "${FULLNAME}" >> ${OPENBSD_CONTENTS}
       echo "${I}" >> ${OPENBSD_CONTENTS}
       FILE="../${I}"

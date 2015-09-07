@@ -50,9 +50,13 @@
     # Test        : HTTP-6622
     # Description : Test for Apache installation
     # Notes       : Do not run on NetBSD, -v is unknown option for httpd binary
+    #		    On OpenBSD do not run /usr/sbin/httpd with -v: builtin non-Apache
     if [ ! "${OS}" = "NetBSD" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no HTTP-6622 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking Apache presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+	if [ "${OS}" = "OpenBSD" -a "${HTTPDBINARY}" = "/usr/sbin/httpd" ]; then
+	    HTTPDBINARY=""
+	fi
         if [ "${HTTPDBINARY}" = "" ]; then
             Display --indent 2 --text "- Checking Apache" --result "NOT FOUND" --color WHITE
           else
@@ -194,9 +198,9 @@
 #    	        # Configuration specific tests
 #	        SERVERTOKENSFOUND=0
 #	        APACHE_CONFIGFILES="${APACHE_CONFIGFILE} /usr/local/etc/apache22/extra/httpd-default.conf /etc/apache2/sysconfig.d/global.conf"
-#		
+#
 #	        for APACHE_CONFIGFILE in ${APACHE_CONFIGFILES}; do
-#	            if [ -f ${APACHE_CONFIGFILE} ]; then	            
+#	            if [ -f ${APACHE_CONFIGFILE} ]; then
 #	        	# Check if option ServerTokens is configured
 #	        	SERVERTOKENSTEST=`cat ${APACHE_CONFIGFILE} | grep ServerTokens | grep -v '^#'`
 #	        	if [ ! "${SERVERTOKENSTEST}" = "" ]; then
@@ -215,17 +219,17 @@
 #	    	          else
 #	        	    Display --indent 4 --text "- Checking option ServerTokens" --result "NOT FOUND" --color WHITE
 #	        	fi
-#	    	
+#
 #    		    else
 #    		      # File does not exist, skipping
 #    		      logtext "File ${APACHE_CONFIGFILE} does not exist, so skipping tests on this file"
 #    	      fi
 #    	    done
-#    	    
+#
 #    	    # Display results from checks
 #    	    if [ ${SERVERTOKENSFOUND} -eq 1 ]; then
 #        	Display --indent 6 --text "- Value of ServerTokens" --result OK --color GREEN
-#    	      else	    
+#    	      else
 #    	        Display --indent 6 --text "- Value of ServerTokens" --result WARNING --color RED
 #        	ReportWarning ${TEST_NO} "M" "Value of 'ServerTokens' in Apache config is different than template"
 #    	    fi
@@ -418,6 +422,7 @@
         # Remove temp file
         if [ ! "${TMPFILE}" = "" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
         N=0
+        cat ${NGINX_CONF_LOCATION} | sed -e 's/^[ \t]*//' | grep -v "^#" | grep -v "^$" | sed 's/[\t]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}
         # Search for included configuration files (may include directories and wild cards)
         FIND=`grep "include" ${NGINX_CONF_LOCATION} | ${AWKBINARY} '{ if ($1=="include") { print $2 }}' | sed 's/;$//g'`
         for I in ${FIND}; do

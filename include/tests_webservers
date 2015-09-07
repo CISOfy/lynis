@@ -391,19 +391,16 @@
     Register --test-no HTTP-6704 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check nginx configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: searching nginx configuration file"
-        #YYY warning if multiple nginx.conf files are found
         for I in ${NGINX_CONF_LOCS}; do
             if [ -f ${I}/nginx.conf ]; then
                 NGINX_CONF_LOCATION="${I}/nginx.conf"
                 logtext "Found file ${NGINX_CONF_LOCATION}"
             fi
         done
-        #YYY strings /usr/sbin/nginx | grep "conf$"
         if [ ! "${NGINX_CONF_LOCATION}" = "" ]; then
             logtext "Result: found nginx configuration file"
             report "nginx_main_conf_file=${NGINX_CONF_LOCATION}"
             Display --indent 4 --text "- Searching nginx configuration file" --result FOUND --color GREEN
-            #FIND=`cat ${NGINX_CONF_LOCATION} | sed -e 's/^[ \t]*//' | grep -v "^#" | grep -v "^$" | sed 's/[\t]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE2}`
           else
             logtext "Result: no nginx configuration file found"
             Display --indent 2 --text "- Searching nginx configuration file" --result "NOT FOUND" --color WHITE
@@ -415,7 +412,7 @@
     # Test        : HTTP-6706
     # Description : Search for includes within nginx configuration file
     # Notes       : Daemon nginx should be running, nginx.conf should be found
-    if [ ${NGINX_RUNNING} -eq 1 -a "${NGINX_CONF_LOCATION}" != "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NGINX_RUNNING} -eq 1 -a ! "${NGINX_CONF_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no HTTP-6706 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for additional nginx configuration files"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Remove temp file
@@ -426,14 +423,14 @@
         for I in ${FIND}; do
             FIND2=`${LSBINARY} ${I} 2>/dev/null`
             for J in ${FIND2}; do
-              # Double check if we are dealing with a file
+              # Ensure that we are parsing normal files
               if [ -f ${J} ]; then
                   N=`expr ${N} + 1`
                   logtext "Result: found Nginx configuration file ${J}"
                   report "nginx_sub_conf_file=${J}"
                   FileIsReadable ${J}
                   if [ ${CANREAD} -eq 1 ]; then
-                      FIND3=`cat ${J} | sed -e 's/^[ \t]*//' | grep -v "^#" | grep -v "^$" | sed 's/[\t]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE2}`
+                      FIND3=`cat ${J} | sed -e 's/^[ \t]*//' | grep -v "^#" | grep -v "^$" | sed 's/[\t]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}`
                     else
                       ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
                   fi
@@ -442,14 +439,14 @@
         done
 
         # Sort all discovered configuration lines and store unique ones. Also strip out the mime types configured in nginx
-          SORTFILE=`cat ${TMPFILE2} | sort | uniq | sed 's/ /:space:/g' | egrep -v "(application|audio|image|text|video)/" | egrep -v "({|})"`
-          for I in ${SORTFILE}; do
+        SORTFILE=`cat ${TMPFILE} | sort | uniq | sed 's/ /:space:/g' | egrep -v "(application|audio|image|text|video)/" | egrep -v "({|})"`
+        for I in ${SORTFILE}; do
             I=`echo ${I} | sed 's/:space:/ /g'`
             report "nginx_config_option=${I}";
-          done
+        done
 
         # Remove unsorted file for next tests
-          if [ -f ${TMPFILE2} ]; then rm -f ${TMPFILE2}; fi
+        if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi
 
         if [ ${N} -eq 0 ]; then
             logtext "Result: no nginx include statements found"

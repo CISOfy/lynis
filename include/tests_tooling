@@ -16,12 +16,12 @@
 #
     AUTOMATION_TOOL_FOUND=0
     AUTOMATION_TOOL_RUNNING=""
+    CFENGINE_AGENT_FOUND=0
+    CFENGINE_SERVER_RUNNING=0
     BACKUP_AGENT_FOUND=0
     PUPPET_MASTER_RUNNING=0
     SALT_MASTER_RUNNING=0
     SALT_MINION_RUNNING=0
-    CF3_AGENT_FOUND=0
-    CF3_SERVER_RUNNING=0
 #
 #################################################################################
 #
@@ -42,36 +42,41 @@
 
         # Cfengine
         if [ ! "${CFAGENTBINARY}" = "" ]; then
-            logtext "Result: Cfengine (cfagent) is installed (${CFAGENTBINARY})"
+            logtext "Result: CFEngine (cfagent) is installed (${CFAGENTBINARY})"
             AUTOMATION_TOOL_FOUND=1
+            CFENGINE_AGENT_FOUND=1
+            report "automation_tool_running[]=cf-agent"
             Display --indent 4 --text "Found: Cfengine (cfagent)" --result FOUND --color GREEN
         fi
-        # Cfengine 3
-        CF3_LOCATIONS="/var/cfengine/bin"
-        for I in ${CF3_LOCATIONS}; do
+        OTHER_CFENGINE_LOCATIONS="/var/cfengine/bin"
+        for I in ${OTHER_CFENGINE_LOCATIONS}; do
             if [ -d ${I} ]; then
-                if [ -e ${I}/cf-agent ]; then
-                    logtext "Result: found Cfengine3 agent (cf-agent) in ${I}"
-		    AUTOMATION_TOOL_FOUND=1
-		    CF3_AGENT_FOUND=1
-		    Display --indent 4 --text "Found: Cfengine (cf-agent)" --result FOUND --color GREEN
-		fi
-		IsRunning "cf-server"
-		if [ ${RUNNING} -eq 1 ]; then
-		    logtext "Result: found Cfengine3 server"
-		    CF3_SERVER_RUNNING=1
-		    report "automation_tool_running[]=cf-server"
-		    Display --indent 4 --text "Found: Cfengine (cf-server)" --result FOUND --color GREEN
-		fi
+                if [ -f ${I}/cf-agent ]; then
+                    logtext "Result: found CFEngine agent (cf-agent) in ${I}"
+                    AUTOMATION_TOOL_FOUND=1
+                    CFENGINE_AGENT_FOUND=1
+                    report "automation_tool_running[]=cf-agent"
+                    Display --indent 4 --text "Found: CFEngine (cf-agent)" --result FOUND --color GREEN
+                fi
+                IsRunning "cf-server"
+                if [ ${RUNNING} -eq 1 ]; then
+                    logtext "Result: found CFEngine server"
+                    AUTOMATION_TOOL_FOUND=1
+                    CFENGINE_SERVER_RUNNING=1
+                    report "automation_tool_running[]=cf-server"
+                    Display --indent 4 --text "Found: CFEngine (cf-server)" --result FOUND --color GREEN
+                fi
             fi
         done
 
+        # Chef
         CHEF_LOCATIONS="/opt/chef/bin /opt/chef-server/sv /opt/chefdk/bin"
         for I in ${CHEF_LOCATIONS}; do
             if [ -d ${I} ]; then
                 if [ -f ${I}/chef-client ]; then
                     CHEFCLIENTBINARY="${I}/chef-client"
                     AUTOMATION_TOOL_FOUND=1
+                    report "automation_tool_running[]=chef-client"
                     Display --indent 4 --text "Found: Chef client (chef-client)" --result FOUND --color GREEN
                     logtext "Result: found chef-client (chef client daemon) in ${I}"
                 fi
@@ -79,6 +84,7 @@
                     CHEFSERVERBINARY="${I}/erchef"
                     logtext "Result: Chef Server (erchef) is installed (${CHEFSERVERBINARY})"
                     AUTOMATION_TOOL_FOUND=1
+                    report "automation_tool_running[]=chef-server"
                     Display --indent 4 --text "Found: Chef Server (erchef)" --result FOUND --color GREEN
                     logtext "Result: found erchef (chef server daemon) in ${I}"
                 fi
@@ -89,13 +95,14 @@
         if [ ! "${PUPPETBINARY}" = "" ]; then
             logtext "Result: Puppet is installed (${PUPPETBINARY})"
             AUTOMATION_TOOL_FOUND=1
+            report "automation_tool_running[]=puppet-agent"
             Display --indent 4 --text "Found: Puppet (agent)" --result FOUND --color GREEN
         fi
         IsRunning "puppet master"
         if [ ${RUNNING} -eq 1 ]; then
             logtext "Result: found puppet master"
             PUPPET_MASTER_RUNNING=1
-            report "automation_tool_running[]=puppet"
+            report "automation_tool_running[]=puppet-master"
             Display --indent 4 --text "Found: Puppet (master)" --result FOUND --color GREEN
         fi
 
@@ -104,19 +111,24 @@
             logtext "Result: SaltStack (salt-minion) is installed (${SALTMINIONBINARY})"
             AUTOMATION_TOOL_FOUND=1
             SALT_MINION_RUNNING=1
+            report "automation_tool_running[]=saltstack-minion"
             Display --indent 4 --text "Found: SaltStack minion (salt-minion)" --result FOUND --color GREEN
         fi
         if [ ! "${SALTMASTERBINARY}" = "" ]; then
             logtext "Result: SaltStack (salt-master) is installed (${SALTMASTERBINARY})"
             AUTOMATION_TOOL_FOUND=1
-            Display --indent 4 --text "Found: SaltStack master (salt-master)" --result FOUND --color GREEN
-        fi
-        IsRunning "salt-master"
-        if [ ${RUNNING} -eq 1 ]; then
-            logtext "Result: found SaltStack (master)"
             SALT_MASTER_RUNNING=1
-            report "automation_tool_running[]=saltstack-master"
-            Display --indent 4 --text "Found: SaltStack (master)" --result FOUND --color GREEN
+            report "automation_tool_running[]=saltstack-minion"
+            Display --indent 4 --text "Found: SaltStack master (salt-master)" --result FOUND --color GREEN
+          else
+            IsRunning "salt-master"
+            if [ ${RUNNING} -eq 1 ]; then
+                logtext "Result: found SaltStack (master)"
+                AUTOMATION_TOOL_FOUND=1
+                SALT_MASTER_RUNNING=1
+                report "automation_tool_running[]=saltstack-master"
+                Display --indent 4 --text "Found: SaltStack (master)" --result FOUND --color GREEN
+            fi
         fi
 
         if [ ${AUTOMATION_TOOL_FOUND} -eq 1 ]; then
@@ -138,11 +150,7 @@
 #
 #################################################################################
 #
-    report "cf3_server=${CF3_SERVER_RUNNING}"
-    report "cf3_agent=${CF3_AGENT_INSTALLED}"
-    report "puppet_master=${PUPPET_MASTER_RUNNING}"
-    report "salt_master=${SALT_MASTER_RUNNING}"
-    report "salt_minion=${SALT_MINION_RUNNING}"
+    report "automation_tool_present=${AUTOMATION_TOOL_FOUND}"
 
 
     wait_for_keypress

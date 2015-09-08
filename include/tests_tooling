@@ -20,6 +20,8 @@
     PUPPET_MASTER_RUNNING=0
     SALT_MASTER_RUNNING=0
     SALT_MINION_RUNNING=0
+    CF3_AGENT_FOUND=0
+    CF3_SERVER_RUNNING=0
 #
 #################################################################################
 #
@@ -44,6 +46,25 @@
             AUTOMATION_TOOL_FOUND=1
             Display --indent 4 --text "Found: Cfengine (cfagent)" --result FOUND --color GREEN
         fi
+        # Cfengine 3
+        CF3_LOCATIONS="/var/cfengine/bin"
+        for I in ${CF3_LOCATIONS}; do
+            if [ -d ${I} ]; then
+                if [ -e ${I}/cf-agent ]; then
+                    logtext "Result: found Cfengine3 agent (cf-agent) in ${I}"
+		    AUTOMATION_TOOL_FOUND=1
+		    CF3_AGENT_FOUND=1
+		    Display --indent 4 --text "Found: Cfengine (cf-agent)" --result FOUND --color GREEN
+		fi
+		IsRunning "cf-server"
+		if [ ${RUNNING} -eq 1 ]; then
+		    logtext "Result: found Cfengine3 server"
+		    CF3_SERVER_RUNNING=1
+		    report "automation_tool_running[]=cf-server"
+		    Display --indent 4 --text "Found: Cfengine (cf-server)" --result FOUND --color GREEN
+		fi
+            fi
+        done
 
         CHEF_LOCATIONS="/opt/chef/bin /opt/chef-server/sv /opt/chefdk/bin"
         for I in ${CHEF_LOCATIONS}; do
@@ -117,6 +138,8 @@
 #
 #################################################################################
 #
+    report "cf3_server=${CF3_SERVER_RUNNING}"
+    report "cf3_agent=${CF3_AGENT_INSTALLED}"
     report "puppet_master=${PUPPET_MASTER_RUNNING}"
     report "salt_master=${SALT_MASTER_RUNNING}"
     report "salt_minion=${SALT_MINION_RUNNING}"

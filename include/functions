@@ -592,41 +592,92 @@
         SHORT=""
 
         # facter
-        if [ -x /usr/bin/facter ]; then
-            case "`facter is_virtual`" in
-            "true")
-                VMTYPE=`facter virtual`
-                logtext "Result: found virtual machine (type: ${VMTYPE})"
-                report "vm=1"
-                report "vmtype=${VMTYPE}"
-                return ;;
-            "false") return ;;
-            esac
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/bin/facter ]; then
+                case "`facter is_virtual`" in
+                "true")
+                    SHORT=`facter virtual`
+                    logtext "Result: found ${SHORT}"
+                ;;
+                "false")
+                    logtext "Result: facter says this machine is not a virtual"
+                ;;
+                esac
+              else
+                logtext "Result: facter utility not found"
+            fi
+          else
+            logtext "Result: skipped facter test, as we already found machine type"
         fi
 
         # systemd
-        if [ "${SHORT}" = "" -a -x /usr/bin/systemd-detect-virt ]; then
-            logtext "Test: trying to guess virtualization technology with systemd-detect-virt"
-            FIND=`/usr/bin/systemd-detect-virt`
-            if [ ! "${FIND}" = "" ]; then
-                SHORT="${FIND}"
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/bin/systemd-detect-virt ]; then
+                logtext "Test: trying to guess virtualization technology with systemd-detect-virt"
+                FIND=`/usr/bin/systemd-detect-virt`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                fi
+              else
+                logtext "Result: systemd-detect-virt not found"
             fi
+          else
+            logtext "Result: skipped systemd test, as we already found machine type"
+        fi
+
+        # lscpu
+        # Values: VMware
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/bin/lscpu ]; then
+                logtext "Test: trying to guess virtualization with lscpu"
+                FIND=`lscpu | grep "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g'`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                  else
+                    logtext "Result: can't find hypervisor vendor with lscpu"
+                fi
+              else
+                logtext "Result: lscpu not found"
+            fi
+          else
+            logtext "Result: skipped lscpu test, as we already found machine type"
         fi
 
         # dmidecode
         # Values: VMware Virtual Platform / VirtualBox
         if [ "${SHORT}" = "" ]; then
-            logtext "Test: trying to guess virtualization with dmidecode"
             if [ -x /usr/sbin/dmidecode ]; then
-                SHORT=`dmidecode -s system-product-name | awk '{ print $1 }'`
+                logtext "Test: trying to guess virtualization with dmidecode"
+                FIND=`dmidecode -s system-product-name | awk '{ print $1 }'`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                  else
+                    logtext "Result: can't find product name with dmidecode"
+                fi
+              else
+                logtext "Result: dmidecode not found"
             fi
+          else
+            logtext "Result: skipped dmidecode test, as we already found machine type"
         fi
 
         # lshw
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/lshw ]; then
-                SHORT=`lshw -quiet -class system | awk '{ if ($1=="product:") { print $2 }}'`
+                logtext "Test: trying to guess virtualization with lshw"
+                FIND=`lshw -quiet -class system | awk '{ if ($1=="product:") { print $2 }}'`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                fi
+              else
+                logtext "Result: lshw not found"
             fi
+          else
+            logtext "Result: skipped lshw test, as we already found machine type"
         fi
 
         # Try common guest processes
@@ -644,12 +695,20 @@
                 if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
                 IsRunning VBoxClient
                 if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
+          else
+            logtext "Result: skipped processes test, as we already found platform"
         fi
 
         # Amazon EC2
         if [ "${SHORT}" = "" ]; then
             logtext "Test: checking specific files for Amazon"
-            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then SHORT="amazon-ec2"; fi
+            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then
+                SHORT="amazon-ec2"
+              else
+                logtext "Result: system not hosted on Amazon"
+            fi
+          else
+            logtext "Result: skipped Amazon EC2 test, as we already found platform"
         fi
 
         # sysctl values
@@ -658,7 +717,12 @@
 
             # NetBSD: machdep.dmi.system-product
             # OpenBSD: hw.product
-            SHORT=`sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }'`
+            FIND=`sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }'`
+            if [ ! "${FIND}" = "" ]; then
+                SHORT="${FIND}"
+            fi
+          else
+            logtext "Result: skipped sysctl test, as we already found platform"
         fi
 
         # Check if we catched some string along all tests
@@ -691,9 +755,11 @@
             logtext "Result: found virtual machine (type: ${VMTYPE}, ${VMFULLTYPE})"
             report "vm=1"
             report "vmtype=${VMTYPE}"
-          elif [ ${ISVIRTUALMACHINE} -eq 2 ]; then
+        elif [ ${ISVIRTUALMACHINE} -eq 2 ]; then
             logtext "Result: unknown if this system is a virtual machine"
             report "vm=2"
+          else
+            logtext "Result: system seems to be non-virtual"
         fi
       }
 

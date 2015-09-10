@@ -945,6 +945,41 @@
             logtext "Result: file /etc/init.d/rc does not exist"
         fi
 
+        # FreeBSD
+        if [ -f /etc/login.conf ]; then
+            FOUND=0
+            WEAK_UMASK=0
+            logtext "Result: file /etc/login.conf exists"
+            FIND=`cat /etc/login.conf | grep "umask" | sed 's/#.*//' | sed -E 's/^[[:cntrl:]]//' | grep -v '^$' | awk -F: '{ print $2}' | awk -F= '{ if ($1=="umask") { print $2 }}'`
+            if [ ! "${FIND}" = "" ]; then
+                for UMASK_VALUE in ${FIND}; do
+                    case VALUE in ${UMASK_VALUE}
+                        027|0027|077|0077)
+                            logtext "Result: found umask value ${VALUE}, which is fine"
+                            AddHP 2 2
+                            FOUND=1
+                        ;;
+                        *)
+                            AddHP 0 2
+                            FOUND=1
+                            WEAK_UMASK=1
+                            logtext "Result: found umask value ${VALUE}, which can be more strict"
+                        ;;
+                    esac
+                done
+            fi
+            if [ ${FOUND} -eq 1 ]; then
+                if [ ${WEAK_UMASK} -eq 0 ]; then
+                    Display --indent 4 --text "- Checking umask (/etc/login.conf)" --result OK --color GREEN
+                  else
+                    ReportSuggestion ${TEST_NO} "Umask in /etc/login.conf could be more strict like 027"
+                fi
+              else
+                logtext "Result: no umask setting found in /etc/login.conf, which is unexpected"
+                Display --indent 4 --text "- Checking umask (/etc/login.conf)" --result "NONE" --color YELLOW
+            fi
+        fi
+
         # /etc/init.d/rcS
         logtext "Test: Checking /etc/init.d/rcS"
         if [ -f /etc/init.d/rcS ]; then

@@ -28,6 +28,7 @@
 #    DirectoryExists            Check if a directory exists on the disk
 #    Display                    Output text to screen with colors and identation
 #    ExitClean                  Stop the program (cleanly), with exit code 0
+#    ExitCustom                 Stop the program (cleanly), with custom exit code
 #    ExitFatal                  Stop the program (cleanly), with exit code 1
 #    FileExists                 Check if a file exists on the disk
 #    FileIsEmpty                Check if a file is empty
@@ -248,6 +249,18 @@
       {
         RemovePIDFile
         exit 0
+      }
+
+    # Clean exit with custom code
+    ExitCustom()
+      {
+        RemovePIDFile
+        # Exit with the exit code given, otherwise use 1
+        if [ $# -eq 1 ]; then
+            exit $1
+          else
+            exit 1
+        fi
       }
 
     # Clean exit (removing temp files, PID files), with error code 1
@@ -680,6 +693,10 @@
             logtext "Result: skipped lshw test, as we already found machine type"
         fi
 
+        # Other options
+        # SaltStack: salt-call grains.get virtual
+        # < needs snippet >
+
         # Try common guest processes
         if [ "${SHORT}" = "" ]; then
             logtext "Test: trying to guess virtual machine type by running processes"
@@ -715,6 +732,7 @@
         if [ "${SHORT}" = "" ]; then
             logtext "Test: trying to guess virtual machine type by sysctl keys"
 
+            # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
             # NetBSD: machdep.dmi.system-product
             # OpenBSD: hw.product
             FIND=`sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }'`

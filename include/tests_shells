@@ -214,6 +214,58 @@
 #
 #################################################################################
 #
+    # Test        : SHLL-6230
+    # Description : Check for umask values in shell configurations
+    SHELL_CONFIG_FILES="/etc/bashrc /etc/bash.bashrc /etc/csh.cshrc /etc/profile"
+    Register --test-no SHLL-6230 --weight H --network NO --description "Perform umask check for shell configurations"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        HARDENING_POSSIBLE=0
+        Display --indent 2 --text "- Checking default umask values"
+        for FILE in ${SHELL_CONFIG_FILES}; do
+            FIND=""
+            if [ -f ${FILE} ]; then
+                logtext "Result: file ${FILE} exists"
+                FOUND=1
+                FIND=`grep umask ${FILE} | sed 's/^[ \t]*//g' | sed 's/#.*$//' | grep -v "^$" | awk '{ print $2 }'`
+                if [ "${FIND}" = "" ]; then
+                    logtext "Result: did not find umask configured in ${FILE}"
+                    Display --indent 4 --text "- Checking default umask in ${FILE}" --result NONE --color YELLOW
+                  else
+                    for UMASKVALUE in ${FIND}; do
+                        logtext "Result: found umask ${UMASKVALUE} in ${FILE}"
+                        case ${UMASKVALUE} in
+                            027|0027|077|0077)
+                                    logtext "Result: umask ${UMASKVALUE} is considered a properly hardened value"
+                            ;;
+                            *)
+                                    logtext "Result: umask ${UMASKVALUE} can be hardened "
+                                    HARDENING_POSSIBLE=1
+                            ;;
+                        esac
+                    done
+                    if [ ${HARDENING_POSSIBLE} -eq 0 ]; then
+                        Display --indent 4 --text "- Checking default umask in ${FILE}" --result OK --color GREEN
+                        AddHP 3 3
+                      else
+                        Display --indent 4 --text "- Checking default umask in ${FILE}" --result WEAK --color YELLOW
+                        AddHP 1 3
+                    fi
+                fi
+            else
+              logtext "Result: file ${FILE} not found"
+            fi
+        done
+        #if [ ${FOUND} -eq 1 ]; then
+        #    if [ ${HARDENING_POSSIBLE} -eq 0 ]; then
+        #        logtext "Result: all shell files found, contain a proper umask"
+        #        Display --indent 4 --text "- Default umask" --result OK --color GREEN
+        #    fi
+        #fi
+    fi
+#
+#################################################################################
+#
     # Test        : SHLL-6290
     # Description : Check for Shellshock vulnerability
     Register --test-no SHLL-6290 --weight H --network NO --description "Perform Shellshock vulnerability tests"

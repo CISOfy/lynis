@@ -50,5 +50,5 @@ This software is also available as part of an enterprise suite. It includes addi
 
 ## Contribute
 Got an improvement? Create it as an issue in the tracker on GitHub or send us an e-mail: lynis-dev@cisofy.com
-More details can be found at [Contributors Guide](https://github.com/CISOfy/lynis/blog/master/CONTRIBUTIONS.md)
+More details can be found at [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md)
 

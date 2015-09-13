@@ -290,8 +290,22 @@
 #
 #################################################################################
 #
-    # Check if there is already a PID file (incorrect termination of previous instance)
-    if [ -f lynis.pid -o -f /var/run/lynis.pid ]; then
+
+    # Decide where to write our PID file. For unprivileged users this will be in their home directory, or /tmp if their
+    # home directory isn't set. For root it will be /var/run, or the current workign directory if /var/run doesn't exist.
+    MYHOMEDIR=`echo ~`
+    if [ "${MYHOMEDIR}" = "" ]; then MYHOMEDIR="/tmp"; fi
+
+    if [ ${PRIVILEGED} -eq 0 ]; then
+        PIDFILE="${MYHOMEDIR}/lynis.pid"
+    elif [ -d /var/run ]; then
+        PIDFILE="/var/run/lynis.pid"
+    else
+        PIDFILE="./lynis.pid"
+    fi
+
+    # Check if there is already a PID file in any of the locations (incorrect termination of previous instance)
+    if [ -f "${MYHOMEDIR}/lynis.pid" -o -f "./lynis.pid" -o -f "/var/run/lynis.pid" ]; then
         echo ""
         echo "      ${WARNING}Warning${NORMAL}: ${WHITE}PID file exists, probably another Lynis process is running.${NORMAL}"
         echo "      ------------------------------------------------------------------------------"
@@ -305,26 +319,18 @@
         echo "      ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${NORMAL}"
         echo ""
         wait_for_keypress
-        # Deleting temporary files
+        # Deleting any stale PID files that might exist.
         # Note: Display function does not work yet at this point
-        if [ -f lynis.pid ]; then rm -f lynis.pid; fi
-        if [ -f /var/run/lynis.pid ]; then rm -f /var/run/lynis.pid; fi
+        if [ -f "${MYHOMEDIR}/lynis.pid" ]; then rm -f "${MYHOMEDIR}/lynis.pid"; fi
+        if [ -f "./lynis.pid" ]; then rm -f "./lynis.pid"; fi
+        if [ -f "/var/run/lynis.pid" ]; then rm -f "/var/run/lynis.pid"; fi
     fi
 
-    # Create new PID file (use work directory if /var/run is not available)
-    if [ ${PRIVILEGED} -eq 0 ]; then
-          # Store it in home directory of user
-          MYHOMEDIR=`echo ~`
-          if [ "${MYHOMEDIR}" = "" ]; then HOMEDIR="/tmp"; fi
-          PIDFILE="${MYHOMEDIR}/lynis.pid"
-      elif [ -d /var/run ]; then
-          PIDFILE="/var/run/lynis.pid"
-      else
-          PIDFILE="lynis.pid"
-    fi
+    # Create new PID file writable only by owner. Decrease the window for symlink attacks.
+    (umask 077; rm -f ${PIDFILE} ; touch ${PIDFILE})
     OURPID=`echo $$`
     echo ${OURPID} > ${PIDFILE}
-    chmod 600 ${PIDFILE}
+
 #
 #################################################################################
 #

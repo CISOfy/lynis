@@ -23,7 +23,7 @@
     # Program information
     PROGRAM_name="Lynis"
     PROGRAM_version="2.1.2"
-    PROGRAM_releasedate="9 September 2015"
+    PROGRAM_releasedate="13 September 2015"
     PROGRAM_author="Michael Boelen, CISOfy"
     PROGRAM_author_contact="lynis-dev@cisofy.com"
     PROGRAM_website="https://cisofy.com"
@@ -293,7 +293,7 @@
 
     # Decide where to write our PID file. For unprivileged users this will be in their home directory, or /tmp if their
     # home directory isn't set. For root it will be /var/run, or the current workign directory if /var/run doesn't exist.
-    MYHOMEDIR=`echo ~`
+    MYHOMEDIR=`echo ~ 2> /dev/null`
     if [ "${MYHOMEDIR}" = "" ]; then MYHOMEDIR="/tmp"; fi
 
     if [ ${PRIVILEGED} -eq 0 ]; then
@@ -326,10 +326,16 @@
         if [ -f "/var/run/lynis.pid" ]; then rm -f "/var/run/lynis.pid"; fi
     fi
 
-    # Create new PID file writable only by owner. Decrease the window for symlink attacks.
-    (umask 077; rm -f ${PIDFILE} ; touch ${PIDFILE})
+    # Ensure symlink attack is not possible, by confirming there is no symlink of the file already
     OURPID=`echo $$`
-    echo ${OURPID} > ${PIDFILE}
+    if [ -L ${PIDFILE} ]; then
+        echo "Found symlinked PID file (${PIDFILE}), quitting"
+        ExitFatal
+      else
+        # Create new PID file writable only by owner
+        echo "${OURPID}" > ${PIDFILE}
+        chmod 600 ${PIDFILE}
+    fi
 
 #
 #################################################################################

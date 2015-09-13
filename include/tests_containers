@@ -112,13 +112,16 @@
     # Description : Checking Docker containers (basic stats)
     # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
     if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking Docker info for any warnings"
+    Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather basic stats from Docker"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 6 --text "- Containers"
 
         # Check total of containers
         logtext "Test: checking total amount of Docker containers"
         DOCKER_CONTAINERS_TOTAL=`${DOCKERBINARY} info 2> /dev/null | grep "^Containers: " | awk '{ print $2 }'`
+        if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
+            DOCKER_CONTAINERS_TOTAL=0
+        fi
         logtext "Result: docker info shows ${DOCKER_CONTAINERS_TOTAL} containers"
         DOCKER_CONTAINERS_TOTAL2=`${DOCKERBINARY} ps -a 2> /dev/null | grep -v "CONTAINER" | wc -l`
         logtext "Result: docker ps -a shows ${DOCKER_CONTAINERS_TOTAL2} containers"
@@ -131,7 +134,7 @@
         fi
 
         # Check running instances
-        DOCKER_CONTAINERS_RUNNING=`${DOCKERBINARY} ps | grep -v "CONTAINER" | wc -l`
+        DOCKER_CONTAINERS_RUNNING=`${DOCKERBINARY} ps 2> /dev/null | grep -v "CONTAINER" | wc -l`
         Display --indent 8 --text "- Running containers" --result "${DOCKER_CONTAINERS_RUNNING}" --color GREEN
         if [ ${DOCKER_CONTAINERS_RUNNING} -gt 0 ]; then
             logtext "Result: ${DOCKER_CONTAINERS_RUNNING} containers are currently active"
@@ -158,7 +161,6 @@
 #
 #################################################################################
 #
-
 
 wait_for_keypress
 

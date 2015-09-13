@@ -8,59 +8,205 @@
   Author:                   Michael Boelen (michael.boelen@cisofy.com)
   Description:              Security and system auditing tool
   Website:                  https://cisofy.com/lynis/
-  GitHub:                   https://github.com/CISOfy/Lynis
+  GitHub:                   https://github.com/CISOfy/lynis
 
-  Support policy:           See section 'Support' (README file);
+  Support policy:           See section 'Support' in README file
                             Commercial support and plugins available via CISOfy
-                            https://cisofy.com
 
   Documentation:            See web site, README, FAQ and CHANGELOG file
 
 ================================================================================
 
-  =  Lynis 2.1.0 (2015-04-16)  =
+    =  Lynis 2.1.2  =
 
-  General:
-  ---------
-  Screen output has been improved to provide additional information.
+    This is an major release, which includes both new features and enhancements to existing tests.
 
-  OS support:
-  ------------
-  CUPS detection on Mac OS has been improved. AIX systems will now use csum
-  utility to create host ID. Group check have been altered on AIX, to include
-  the -n ALL. Core dump check on Linux is extended to check for actual values
-  as well.
+    * Operating systems
+    Improved support for Debian 8
+    Don't show boot loader exception when a subset of tests is performed
 
-  Software:
-  ----------
-  McAfee detection has been extended by detecting a running cma binary.
-  Improved detection of pf firewall on BSD and Mac OS. Security patch checking
-  with zypper extended.
+    * Screen output
+    Improved output for tests which before showed results as a warning, while actually are just suggestions
 
-  Session timeout:
-  -----------------
-  Tests to determine shell time out setting have been extended to account for
-  AIX, HP-UX and other platforms. It will now determine also if variable is
-  exported as a readonly variable. Related compliance section PCI DSS 8.1.8
-  has been extended.
+    * Virtual machines
+    Detection of virtual machines extended with vmtoolsd detection
 
-  Documentation:
-  ---------------
-  - New document: Getting started with Lynis
-    https://cisofy.com/documentation/lynis/get-started/
+    * Mount points
+    FILE-6374 is expanded to test for multiple common mount points and define best practice mount flags.
 
-  Plugins (Enterprise):
-  ----------------------
-  - Update to file integrity plugin
-    Changes to PLGN-2606 (capabilities check)
+    * Docker
+    Properly detect Docker on CoreOS systems, where it before gave error as it found directory /usr/libexec/docker
 
-  - New configuration plugins:
-    PLGN-4802 (SSH settings)
-    PLGN-4804 (login.defs)
+    * UEFI and Secure Boot
+    Initial support to test UEFI settings, including Secure Boot option
+    Options boot_uefi_booted and boot_uefi_booted_secure added to report file
 
-  Download link: https://cisofy.com/download/lynis/
+    * Authentication
+    Depending on the operating system, Lynis now tries to determine if failed logins are properly logged. This includes
+    checking for /etc/login.defs [AUTH-9408]
+
+    report option: auth_failed_logins_logged
+    **** ^ NEEDS more tests ###################################
+
+    * DNS and Name services
+    Support added for Unbound DNS caching tool [NAME-4034]
+    Configuration check for Unbound [NAME-4036]
+    Record if a name caching utility is being used like nscd or Unbound. Also logging to report as field name_cache_used
+
+    * Firewalls
+    IPFW firewall on FreeBSD test improved
+
+    * Individual tests
+    BOOT-5180 now only gets executed if runlevel 2 is found
+    AUTH-9328 show correct message when no umask is found in /etc/profile, including correct logging entries
+    AUTH-9204 now excludes NIS entries to avoid false positives
+    TIME-3104 Only shows suggestion now on FreeBSD if ntpdate is configured, yet ntpd isn't running
+    FILE-6410 Added /var/lib/locatedb as search path
+
+    Don't wait when using pentest mode in quick mode
+    Data uploads: provide help when self-signed certificates are used
+
+
+
+    8888888888888888888888888
+    implement base64
+    8888888888888888888888888
+
+
+    * Plugins
+    ---------
+    [PLGN-2804] Limit report output of EXT file systems to 1 item per line
 
   --------------------------------------------------------------
+
+    =  Lynis 2.1.1 (2015-07-22)  =
+
+    This release adds a lot of improvements, with focus on performance, and
+    additional support for common Linux distributions and external utilities.
+    We recommend to use this latest version.
+
+    * Operating system enhancements
+    -------------------------------
+    Support for systems like CentOS, openSUSE, Slackware is improved.
+
+    * Performance
+    -------------
+    Performance tuning has been applied, to speed up execution of the audit on
+    systems with many files. This also includes code cleanups.
+
+    * Automatic updates
+    -------------------
+    Initial work on an automatic updater has been implemented. This way Lynis
+    can be scheduled for automatic updating from a trusted source.
+
+    * Internal functions
+    --------------------
+    Not all systems have readlink, or the -f option of readlink. The
+    ShowSymlinkPath function has been extended with a Python based check, which
+    is often available.
+
+    * Software support
+    ------------------
+    Apache module directory /usr/lib64/apache has been added, which is used on
+    openSUSE.
+
+    Support for Chef has been added.
+
+    Added tests for CSF's lfd utility for integrity monitoring on directories and
+    files. Related tests are FINT-4334 and FINT-4336.
+
+    Added support for Chrony time daemon and timesync daemon. Additionally NTP
+    sychronization status is checked when it is enabled.
+
+    Improved single user mode protection on the rescue.service file.
+
+    * Other
+    -------
+    Check for user permissions has been extended.
+    Python binary is now detected, to help with symlink detection.
+    Several new legal terms have been added, which are used for usage in banners.
+    In several files old tests have been removed, to further clean up the code.
+
+    * Bug fixes
+    ---------
+    Nginx test showed error when access_log had multiple parameters.
+    Tests using locate won't be performed if not present.
+    Fix false positive match on Squid unsafe ports [SQD-3624].
+    The hardening index is now also inserted into the report if it is not displayed
+    on screen.
+
+    * Functions
+    ---------
+    Added AddSystemGroup function
+
+    * New tests
+    ---------
+    Several new tests have been added:
+
+    [PKGS-7366] Scan for debsecan utility on Debian systems
+    [PKGS-7410] Determine amount of installed kernel packages
+    [TIME-3106] Check synchronization status of NTP on systemd based systems
+    [CONT-8102] Docker daemon status and gather basic details
+    [CONT-8104] Check docker info for any Docker warnings
+    [CONT-8106] Check total, running and unused Docker containers
+
+    * Plugins
+    ---------
+    [PLGN-2602] Disabled by default, as it may be too slow for some machines
+    [PLGN-3002] Extended with /sbin/nologin
+
+    * Documentation
+    ---------------
+    A new document has been created to help with the process of upgrading Lynis.
+    It is available at https://cisofy.com/documentation/lynis/upgrading/
+
+  --------------------------------------------------------------
+
+
+    =  Lynis 2.1.0 (2015-04-16)  =
+
+    * General
+    ---------
+    Screen output has been improved to provide additional information.
+
+    * OS support
+    ------------
+    CUPS detection on Mac OS has been improved. AIX systems will now use csum
+    utility to create host ID. Group check have been altered on AIX, to include
+    the -n ALL. Core dump check on Linux is extended to check for actual values
+    as well.
+
+    * Software
+    ----------
+    McAfee detection has been extended by detecting a running cma binary.
+    Improved detection of pf firewall on BSD and Mac OS. Security patch checking
+    with zypper extended.
+
+    * Session timeout
+    -----------------
+    Tests to determine shell time out setting have been extended to account for
+    AIX, HP-UX and other platforms. It will now determine also if variable is
+    exported as a readonly variable. Related compliance section PCI DSS 8.1.8
+    has been extended.
+
+    * Documentation
+    ---------------
+    - New document: Getting started with Lynis
+      https://cisofy.com/documentation/lynis/get-started/
+
+    * Plugins (Enterprise)
+    ----------------------
+    - Update to file integrity plugin
+      Changes to PLGN-2606 (capabilities check)
+
+    - New configuration plugins:
+      PLGN-4802 (SSH settings)
+      PLGN-4804 (login.defs)
+
+    Download link: https://cisofy.com/download/lynis/
+
+  --------------------------------------------------------------
+
 
   =  Lynis 2.0.0 (2015-02-25)  =
 
@@ -835,7 +981,7 @@
  - Added Squid test: reply_body_max_size option [SQD-3630]
  - Added /etc/init.d/rc and /etc/init.d/rcS to umask test [AUTH-9328]
  - Check PHP option allow_url_include [PHP-2378]
- 
+
  Changes:
  - Extended possible Squid configuration file locations
  - Added additional sysctl keys to default profile
@@ -1012,7 +1158,7 @@
  - nginx configuration file check [HTTP-6704]
  - Exim status check [MAIL-8802]
  - Postfix status check [MAIL-8814]
- 
+
  Changes:
  - atd needs to run before testing at files [SCHD-7720]
  - Removed Solaris OS requirement from logrotate test [LOGG-2148]
@@ -1022,7 +1168,7 @@
  - Binary scan optimized and partially combined with other check
  - Only perform iptables tests if kernel module is active
  - Don't show message when /etc/shells can't be found [SHLL-6211]
- - Check /var/spool/cron/crontabs first, if it exists [SCHD-7704] 
+ - Check /var/spool/cron/crontabs first, if it exists [SCHD-7704]
  - Renumbered FreeBSD test SHLL-7225 [SHLL-6202]
  - Renumbered malware test MALW-3292 [HRDN-7230]
  - Improved grep on process status [PRNT-2304]
@@ -1212,10 +1358,10 @@
  New:
  - New test: Passwordless Solaris accounts test [AUTH-9254]
  - New test: AFICK file integrity [FINT-4310]
- - New test: AIDE file integrity [FINT-4314]  
- - New test: Osiris file integrity [FINT-4318]  
- - New test: Samhain file integrity [FINT-4322]  
- - New test: Tripwire file integrity [FINT-4326]   
+ - New test: AIDE file integrity [FINT-4314]
+ - New test: Osiris file integrity [FINT-4318]
+ - New test: Samhain file integrity [FINT-4322]
+ - New test: Tripwire file integrity [FINT-4326]
  - New tests: NIS and NIS+ authentication test [AUTH-9240/42]
  - Initial support added for AFICK, AIDE, Osiris, Samhain, Tripwire
 
@@ -1241,12 +1387,12 @@
  - New test: Promiscuous network interfaces (Linux) [NETW-3015]
  - Report option 'bootloader' added to several tests
  - Added readlink binary check
- 
+
  Changes:
  - Extended file check (IsWorldWritable) for symlinks
  - Show result if no default gateway is found [NETW-3001]
  - Added /usr/local/etc to sudoers test [AUTH-9250]
- - Improved FreeBSD banner output [BANN-7113] 
+ - Improved FreeBSD banner output [BANN-7113]
  - Removed incorrect line at promiscuous interface test [NETW-3014]
  - Fix: Show only once the GRUB test output [BOOT-5121]
  - Fix: Typo in NTP test [TIME-3104]
@@ -1294,7 +1440,7 @@
  - New test: checking for heavy IO waiting processes [PROC-3614]
  - Initial HP-UX support (untested)
  - Initial AIX support (untested)
- - Added iptables binary check 
+ - Added iptables binary check
  - Added dig check, for DNS related tests
  - Added option --no-colors to remove all colors from screen output
  - Added option --reverse-colors for optimizing output at light backgrounds
@@ -1314,7 +1460,7 @@
  - Several tests have their warning reporting improved
  - Improved SuSE Linux detection
  - Improved syslog-ng detection
- - Adjusted README with link to online (extended) documentation 
+ - Adjusted README with link to online (extended) documentation
 
  --
 
@@ -1324,7 +1470,7 @@
  - New test: Check writable startup scripts [BOOT-5184]
  - New test: Syslog-NG consistency check [LOGG-2134]
  - New test: Check yum-utils package and scanning package database [PKGS-7384]
- - New test: Test for empty ruleset when iptables is loaded [FIRE-4512] 
+ - New test: Test for empty ruleset when iptables is loaded [FIRE-4512]
  - New test: Check for expired SSL certificates [CRYP-7902]
  - New test: Check for LDAP authentication support [AUTH-9238]
  - New test: Read available crontab/cron files [SCHD-7704]
@@ -1363,7 +1509,7 @@
  * 1.1.5 (2008-06-10)
 
  New:
- - Assigned ID to Apache configuration file test [HTTP-6624] 
+ - Assigned ID to Apache configuration file test [HTTP-6624]
  - Added pause_between_tests to profile file, to regulate the speed of a scan
  - Assigned ID to dpkg test and solved issue with colon in package names [PKG-7345]
  - Assigned ID to Solaris package test [PKG-7306]
@@ -1646,12 +1792,12 @@
  --
 
   * 1.0.3 (2007-11-19)
-  
+
  New:
  - Added check for sockstat
  - Test: added test for GRUB and password option
  - Test: query listening ports (sockstat)
- 
+
  Changes:
  - Fixed NTPd check (bug)
  - Extended help for 'double installed package' check (BSD systems, pkg_info)
@@ -1703,7 +1849,7 @@
  Changes:
  - [bug] Changed skel directory check
  - Fixed display Apache configuration file
- 
+
  --
 
   * 1.0.0 (2007-11-08)
@@ -1752,4 +1898,3 @@
 
 ================================================================================
  Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
-

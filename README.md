@@ -3,22 +3,27 @@ lynis
 
 Lynis - Security auditing and hardening tool, for Unix based systems
 
-Lynis is an security auditing and hardening tool for Unix derivatives like Linux, BSD and Solaris. It performs
-an in-depth security scan on the system to detect software and security issues. Besides information related to
-security, it will also scan for general system information, installed packages, and possible configuration
-issues.
+Lynis is a security auditing for Unix derivatives like Linux, BSD, and Solaris. It performs an in-depth security scan on the system to detect software and security issues. Besides information related to security, it will also scan for general system information, vulnerable software packages, and possible configuration issues.
 
-We believe software should be simple, updated on a regular basis and open. You should be able to trust, understand,
-and even alter the software. Many agree with us, as the software is being used by thousands every day to protect
-their systems.
+We believe software should be simple, updated on a regular basis and open. You should be able to trust, understand, and even alter the software. Many agree with us, as the software is being used by thousands every day to protect their systems.
 
-The software is aimed at assisting with automated auditing, configuration management, software patch management,
-penetration testing, vulnerability management, and malware scanning of Unix-based systems.
+Main goals:
+- Security auditing (automated)
+- Compliance testing (e.g. PCI-DSS, HIPAA)
+- Vulnerability testing
+
+The software aims to also assist with:
+- Configuration management
+- Software patch management
+- System hardening
+- Penetration testing
+- Malware scanning
+- Intrusion detection
 
 License:
 - GPLv3
 
-Main audience:
+Typical users of the software:
 - System administrators
 - Auditors
 - Security officers
@@ -27,25 +32,23 @@ Main audience:
 
 ## First run
 
-Clone or download the project files. No compilation or installation is required.
+1. Clone or download the project files. No compilation or installation is required.
+2. Execute: `./lynis audit system`
 
-Execute: ./lynis audit system
-
-By default
-If you want to run the software as root, we suggest to alter the ownership of the files.
-
+If you want to run the software as root, we suggest altering the ownership of the files. Use chown -R and
+chgrp -R to recursively alter the owner and group.
 
 ## Documentation
-See for full documentation https://cisofy.com/documentation/lynis/
+Full documentation: https://cisofy.com/documentation/lynis/
 
 ## Flexibility
-For people who want to expand tests, it is suggested to use the tests_custom file (template in include directory).
+If you want to create your own tests, use the 'tests_custom' file (template available in 'include' directory).
 Plugins are another possibility to customize, although their main goal is collecting data.
 
-## Enterprise options
-This software component has additional options and support available for companies. If you want to perform more
-tests and centrally manage them, consider the purchase of a license.
+## Enterprise version
+This software is also available as part of an enterprise suite. It includes additional functionality (plugins, centralized system, reporting, dashboard), and supports.
 
-## Support
-Got an improvement to share? Create an issue in the tracker on GitHub or send us an e-mail: lynis-dev@cisofy.com
+## Contribute
+Got an improvement? Create it as an issue in the tracker on GitHub or send us an e-mail: lynis-dev@cisofy.com
+More details can be found at [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md)
 

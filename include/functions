@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen - CISOfy
-# https://cisofy.com
+# Copyright 2007-2015, Michael Boelen - CISOfy (michael.boelen@cisofy.com)
+# Website: https://cisofy.com
 #
 # This software is licensed under GPL, version 3. See LICENSE file for
 # usage of this software.
@@ -28,6 +28,7 @@
 #    DirectoryExists            Check if a directory exists on the disk
 #    Display                    Output text to screen with colors and identation
 #    ExitClean                  Stop the program (cleanly), with exit code 0
+#    ExitCustom                 Stop the program (cleanly), with custom exit code
 #    ExitFatal                  Stop the program (cleanly), with exit code 1
 #    FileExists                 Check if a file exists on the disk
 #    FileIsEmpty                Check if a file is empty
@@ -89,10 +90,10 @@
             # If 'file' is an directory, use -d
             if [ -d ${CHECKFILE} ]; then
                 FILEVALUE=`ls -d -l ${CHECKFILE} | cut -c 2-10`
-                PROFILEVALUE=`cat ${PROFILE} | grep '^permdir' | grep ":${CHECKFILE}:" | cut -d: -f3` 
+                PROFILEVALUE=`cat ${PROFILE} | grep '^permdir' | grep ":${CHECKFILE}:" | cut -d: -f3`
               else
                 FILEVALUE=`ls -l ${CHECKFILE} | cut -c 2-10`
-                PROFILEVALUE=`cat ${PROFILE} | grep '^permfile' | grep ":${CHECKFILE}:" | cut -d: -f3` 
+                PROFILEVALUE=`cat ${PROFILE} | grep '^permfile' | grep ":${CHECKFILE}:" | cut -d: -f3`
             fi
             if [ "${FILEVALUE}" = "${PROFILEVALUE}" ]; then PERMS="OK"; else PERMS="BAD"; fi
         fi
@@ -132,7 +133,6 @@
     # Check updates
     CheckUpdates()
       {
-        # Possible improvement: determine if host binary exists YYY
         PROGRAM_LV="0000000000"; DB_MALWARE_LV="0000000000"; DB_FILEPERMS_LV="0000000000"
         LYNIS_LV_RECORD="lynis-latest-version.cisofy.com."
         FIND=`which dig 2> /dev/null`
@@ -251,6 +251,18 @@
         exit 0
       }
 
+    # Clean exit with custom code
+    ExitCustom()
+      {
+        RemovePIDFile
+        # Exit with the exit code given, otherwise use 1
+        if [ $# -eq 1 ]; then
+            exit $1
+          else
+            exit 1
+        fi
+      }
+
     # Clean exit (removing temp files, PID files), with error code 1
     ExitFatal()
       {
@@ -351,8 +363,6 @@
                 OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
             fi
         fi
-
-        # YYY check group ownership (just in case)
 
         # Check if we have the read bit
         if [ "${OTHERPERMS}" = "r" ]; then
@@ -592,24 +602,100 @@
         logtext "Test: Determine if this system is a virtual machine"
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
-
         SHORT=""
 
-        # Trying systemd
-        if [ "${SHORT}" = "" -a ! "${SYSTEMCTLBINARY}" = "" ]; then
-            logtext "Test: trying to guess virtualization technology with systemctl"
-            FIND=`${SYSTEMCTLBINARY} | grep "^Virtualization=" | awk -F= '{ print $2 }'`
-            if [ ! "${FIND}" = "" ]; then
-                SHORT="${FIND}"
+        # facter
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/bin/facter ]; then
+                case "`facter is_virtual`" in
+                "true")
+                    SHORT=`facter virtual`
+                    logtext "Result: found ${SHORT}"
+                ;;
+                "false")
+                    logtext "Result: facter says this machine is not a virtual"
+                ;;
+                esac
+              else
+                logtext "Result: facter utility not found"
             fi
+          else
+            logtext "Result: skipped facter test, as we already found machine type"
+        fi
+
+        # systemd
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/bin/systemd-detect-virt ]; then
+                logtext "Test: trying to guess virtualization technology with systemd-detect-virt"
+                FIND=`/usr/bin/systemd-detect-virt`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                fi
+              else
+                logtext "Result: systemd-detect-virt not found"
+            fi
+          else
+            logtext "Result: skipped systemd test, as we already found machine type"
+        fi
+
+        # lscpu
+        # Values: VMware
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/bin/lscpu ]; then
+                logtext "Test: trying to guess virtualization with lscpu"
+                FIND=`lscpu | grep "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g'`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                  else
+                    logtext "Result: can't find hypervisor vendor with lscpu"
+                fi
+              else
+                logtext "Result: lscpu not found"
+            fi
+          else
+            logtext "Result: skipped lscpu test, as we already found machine type"
+        fi
+
+        # dmidecode
+        # Values: VMware Virtual Platform / VirtualBox
+        if [ "${SHORT}" = "" ]; then
+            if [ -x /usr/sbin/dmidecode ]; then
+                logtext "Test: trying to guess virtualization with dmidecode"
+                FIND=`dmidecode -s system-product-name | awk '{ print $1 }'`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                  else
+                    logtext "Result: can't find product name with dmidecode"
+                fi
+              else
+                logtext "Result: dmidecode not found"
+            fi
+          else
+            logtext "Result: skipped dmidecode test, as we already found machine type"
         fi
 
         # lshw
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/lshw ]; then
-                SHORT=`lshw -quiet -class system | awk '{ if ($1=="product:") { print $2 }}'`
+                logtext "Test: trying to guess virtualization with lshw"
+                FIND=`lshw -quiet -class system | awk '{ if ($1=="product:") { print $2 }}'`
+                if [ ! "${FIND}" = "" ]; then
+                    logtext "Result: found ${FIND}"
+                    SHORT="${FIND}"
+                fi
+              else
+                logtext "Result: lshw not found"
             fi
+          else
+            logtext "Result: skipped lshw test, as we already found machine type"
         fi
+
+        # Other options
+        # SaltStack: salt-call grains.get virtual
+        # < needs snippet >
 
         # Try common guest processes
         if [ "${SHORT}" = "" ]; then
@@ -618,33 +704,49 @@
             # VMware
                 IsRunning vmware-guestd
                 if [ ${RUNNING} -eq 1 ]; then SHORT="vmware"; fi
+                IsRunning vmtoolsd
+                if [ ${RUNNING} -eq 1 ]; then SHORT="vmware"; fi
 
             # VirtualBox based on guest services
                 IsRunning vboxguest-service
                 if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
                 IsRunning VBoxClient
                 if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
+          else
+            logtext "Result: skipped processes test, as we already found platform"
         fi
 
         # Amazon EC2
         if [ "${SHORT}" = "" ]; then
             logtext "Test: checking specific files for Amazon"
-            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then SHORT="amazon-ec2"; fi
+            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then
+                SHORT="amazon-ec2"
+              else
+                logtext "Result: system not hosted on Amazon"
+            fi
+          else
+            logtext "Result: skipped Amazon EC2 test, as we already found platform"
         fi
 
         # sysctl values
         if [ "${SHORT}" = "" ]; then
             logtext "Test: trying to guess virtual machine type by sysctl keys"
 
+            # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
             # NetBSD: machdep.dmi.system-product
             # OpenBSD: hw.product
-            SHORT=`sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }'`
+            FIND=`sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }'`
+            if [ ! "${FIND}" = "" ]; then
+                SHORT="${FIND}"
+            fi
+          else
+            logtext "Result: skipped sysctl test, as we already found platform"
         fi
 
         # Check if we catched some string along all tests
         if [ ! "${SHORT}" = "" ]; then
             # Lowercase and see if we found a match
-            SHORT=`echo ${SHORT} | tr [[:upper:]] [[:lower:]]`
+            SHORT=`echo ${SHORT} | awk '{ print $1 }' | tr [[:upper:]] [[:lower:]]`
 
                 case ${SHORT} in
                     amazon-ec2)         ISVIRTUALMACHINE=1; VMTYPE="amazon-ec2";      VMFULLTYPE="Amazon AWS EC2 Instance"                 ;;
@@ -671,9 +773,11 @@
             logtext "Result: found virtual machine (type: ${VMTYPE}, ${VMFULLTYPE})"
             report "vm=1"
             report "vmtype=${VMTYPE}"
-          elif [ ${ISVIRTUALMACHINE} -eq 2 ]; then
+        elif [ ${ISVIRTUALMACHINE} -eq 2 ]; then
             logtext "Result: unknown if this system is a virtual machine"
             report "vm=2"
+          else
+            logtext "Result: system seems to be non-virtual"
         fi
       }
 
@@ -824,12 +928,12 @@
                     NGINX_EXPIRES_FOUND=1
                 ;;
                 error_log)
-                    # YYY Check if debug is appended
+                    # Check if debug is appended
                     FIND=`echo ${VALUE} | awk '{ if ($2=="debug") { print 1 } else { print 0 }}'`
                     if [ ${FIND} -eq 1 ]; then
                         NGINX_ERROR_LOG_DEBUG=1
                     fi
-                    # YYY Check if file exists
+                    # Check if log file exists
                     FILE=`echo ${VALUE} | awk '{ print $1 }'`
                     if [ ! "${FILE}" = "" ]; then
                         if [ ! -f ${FILE} ]; then
@@ -1040,7 +1144,7 @@
             if [ ! "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration"; fi
         fi
 
-        # Skip if test is not in the list 
+        # Skip if test is not in the list
         if [ ${SKIPTEST} -eq 0 -a ! "${TESTS_TO_PERFORM}" = "" ]; then
           FIND=`echo "${TESTS_TO_PERFORM}" | grep "${TEST_NO}"`
           if [ "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Test not in list of tests to perform"; fi
@@ -1126,7 +1230,7 @@
       {
         if [ $1 = "" ]; then TESTID="UNKNOWN"; fi
         # Status: OK, WARNING, NEUTRAL, SUGGESTION
-        # Impact: HIGH, SEVERE, LOW, 
+        # Impact: HIGH, SEVERE, LOW,
         #report "result[]=TESTID-${TESTID},STATUS-$2,IMPACT-$3,MESSAGE-$4-"
         # Reset ID before next test
         TESTID=""
@@ -1135,6 +1239,7 @@
     # Log suggestions to report file
     ReportSuggestion()
       {
+        TOTAL_SUGGESTIONS=`expr ${TOTAL_SUGGESTIONS} + 1`
         # 2 parameters
         # <ID> <suggestion text>
         report "suggestion[]=$1|$2|"
@@ -1144,6 +1249,7 @@
     # Log warning to report file
     ReportWarning()
       {
+        TOTAL_WARNINGS=`expr ${TOTAL_WARNINGS} + 1`
         # 3 parameters
         # <ID> <priority/impact> <warning text>
         if [ "$2" = "L" -o "$2" = "M" -o "$2" = "H" ]; then

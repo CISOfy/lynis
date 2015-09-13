@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -29,7 +29,7 @@
 #
 #################################################################################
 #
-    # Test        : NETW-2704 (YYY move to nameservices section)
+    # Test        : NETW-2704
     # Description : Basic nameserver configuration tests (connectivity)
     Register --test-no NETW-2704 --weight L --network YES --description "Basic nameserver configuration tests"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -44,7 +44,7 @@
                 for I in ${FIND}; do
                     logtext "Found nameserver: ${I}"
                     report "nameserver[]=${I}"
-                    # Check if a local resolver is available (like DNSMasq) 
+                    # Check if a local resolver is available (like DNSMasq)
                     if [ "${I}" = "::1" -o "${I}" = "127.0.0.1" -o "${I}" = "0.0.0.0" ]; then
                          LOCAL_DNSRESOLVER_FOUND=1
                     fi
@@ -200,7 +200,7 @@
         case ${OS} in
             AIX)
                 FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
-                # IPv6 support in AIX? (YYY)
+                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
                 ;;
             DragonFly|FreeBSD|NetBSD)
                 FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
@@ -447,16 +447,17 @@
     # Test        : NETW-3028
     # Description : Checking for many waiting connections
     # Type        : Performance
+    # Notes       : It is common to see a healthy web server seeing to have several thousands of TCP connections in WAIT state
     if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-3028 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking connections in WAIT state"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Using netstat for check for connections in WAIT state"
         FIND=`${NETSTATBINARY} -an | grep WAIT | wc -l | awk '{ print $1 }'`
-        if [ "${OPTIONS_CONN_MAX_WAIT_STATE}" = "" ]; then OPTIONS_CONN_MAX_WAIT_STATE="100"; fi
+        if [ "${OPTIONS_CONN_MAX_WAIT_STATE}" = "" ]; then OPTIONS_CONN_MAX_WAIT_STATE="5000"; fi
         logtext "Result: currently ${FIND} connections are in a waiting state (max configured: ${OPTIONS_CONN_MAX_WAIT_STATE})."
         if [ ${FIND} -gt ${OPTIONS_CONN_MAX_WAIT_STATE} ]; then
             Display --indent 2 --text "- Checking waiting connections" --result WARNING --color YELLOW
-            ReportWarning ${TEST_NO} "H" "Found too much connections in WAIT state (${FIND})"
+            ReportSuggestion "${TEST_NO}" "Determine why system has many connections in WAIT state (${FIND})"
           else
             Display --indent 2 --text "- Checking waiting connections" --result OK --color GREEN
             logtext "Result: ${FIND} connections are in WAIT state"
@@ -472,27 +473,11 @@
         IsRunning dhclient
         if [ ${RUNNING} -eq 1 ]; then
             Display --indent 2 --text "- Checking status DHCP client" --result RUNNING --color WHITE
-            #YYY report if system type is server, that it is running with DHCP client, might be a badly configured machine
-            #report "manual[]=System is running DHCP client"
             DHCP_CLIENT_RUNNING=1
           else
             Display --indent 2 --text "- Checking status DHCP client" --result "NOT ACTIVE" --color WHITE
         fi
     fi
-#
-#################################################################################
-#
-    # Test        : NETW-3060
-    # Description : Check if IPv6 is configured AND used
-    # /etc/modprobe.d (add 'install ipv6 /bin/true' if IPv6 isn't used)
-    #  or
-    # aliased (/etc/modprobe.d/aliases?): alias net-pf-10 off ipv6 (to disable)
-    #Register --test-no NETW-3060 --weight L --network NO --description "Checking IPv6 connectivity"
-    #if [ ${SKIPTEST} -eq 0 ]; then
-#
-#################################################################################
-#
-# Linux: net.ipv4.ip_always_defrag
 #
 #################################################################################
 #
@@ -502,4 +487,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen - www.rootkit.nl - The Netherlands
+# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com

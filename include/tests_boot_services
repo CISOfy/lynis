@@ -24,6 +24,7 @@
 #
     BOOT_LOADER="unknown"
     BOOT_LOADER_FOUND=0
+    BOOT_LOADER_SEARCHED=0
     GRUB_VERSION=0
     SERVICE_MANAGER="unknown"
 #
@@ -34,6 +35,7 @@
     # Notes       : The AIX bootstrap is called as software ROS. Bootstrap contains IPL (Initial Program loader)
     Register --test-no BOOT-5102 --os AIX --weight L --network NO --root-only YES --description "Check for AIX boot device"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         logtext "Test: Query bootinfo for AIX boot device"
         if [ -x /usr/sbin/bootinfo ]; then
             FIND=`/usr/sbin/bootinfo -b`
@@ -49,7 +51,6 @@
             fi
         fi
     fi
-
 #
 #################################################################################
 #
@@ -61,6 +62,7 @@
     # upstart         - Used by Debian/Ubuntu
     Register --test-no BOOT-5104 --weight L --network NO --description "Determine service manager"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
@@ -116,10 +118,71 @@
 #
 #################################################################################
 #
+    # Test        : BOOT-5116
+    # Description : Check if system is booted in UEFI mode
+    Register --test-no BOOT-5116 --weight L --network NO --root-only YES --description "Check if system is booted in UEFI mode"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        UEFI_TESTS_PERFORMED=0
+        case ${OS} in
+            Linux)
+                UEFI_TESTS_PERFORMED=1
+                # Check if UEFI is available in this boot
+                logtext "Test: checking if UEFI is used"
+                if [ -d /sys/firmware/efi ]; then
+                    logtext "Result: system booted in UEFI mode"
+                    UEFI_BOOTED=1
+                  else
+                    logtext "Result: UEFI not used, can't find /sys/firmware/efi directory"
+                fi
+
+                # Test if Secure Boot is enabled
+                logtext "Test: determine if Secure Boot is used"
+                if [ -d /sys/firmware/efi/efivars ]; then
+                    FIND=`ls /sys/firmware/efi/efivars/SecureBoot-* 2> /dev/null`
+                    if [ ! "${FIND}" = "" ]; then
+                        for I in ${FIND}; do
+                            logtext "Test: checking file ${I}"
+                            J=`od -An -t u1 ${I} | awk '{ print $5 }'`
+                            if [ "${J}" = "1" ]; then
+                                logtext "Result: found SecureBoot file with enabled status"
+                                UEFI_BOOTED_SECURE=1
+                              else
+                                logtext "Result: system not booted with Secure Boot (status 0 in file ${I})"
+                            fi
+                        done
+                    fi
+                  else
+                    logtext "Result: system not booted with Secure Boot (no SecureBoot file found)"
+                fi
+            ;;
+            #MacOS)
+            # Mac OS ioreg -l -p IODeviceTree | grep firmware-abi
+            #;;
+            *)
+                logtext "Result: no test implemented yet to test for UEFI on this platform"
+            ;;
+        esac
+        if [ ${UEFI_BOOTED} -eq 1 ]; then
+            Display --indent 2 --text "- Checking UEFI boot" --result ENABLED --color GREEN
+            if [ ${UEFI_BOOTED_SECURE} -eq 1 ]; then
+                Display --indent 2 --text "- Checking Secure Boot" --result ENABLED --color GREEN
+              else
+                Display --indent 2 --text "- Checking Secure Boot" --result DISABLED --color YELLOW
+            fi
+          else
+            if [ ${UEFI_TESTS_PERFORMED} -eq 1 ]; then
+                Display --indent 2 --text "- Checking UEFI boot" --result DISABLED --color GREEN
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : BOOT-5121
     # Description : Check for GRUB boot loader
     Register --test-no BOOT-5121 --weight L --network NO --description "Check for GRUB boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         FOUND=0
         logtext "Test: Checking for presence GRUB conf file (/boot/grub/grub.conf or /boot/grub/menu.lst)"
         if [ -f /boot/grub/grub.conf -o -f /boot/grub/menu.lst ]; then
@@ -127,7 +190,7 @@
             BOOT_LOADER="GRUB"
             BOOT_LOADER_FOUND=1
             GRUB_VERSION=1
-            Display --indent 4 --text "- Checking presence GRUB" --result "OK" --color GREEN
+            Display --indent 2 --text "- Checking presence GRUB" --result "OK" --color GREEN
             if [ -f /boot/grub/grub.conf ]; then GRUBCONFFILE="/boot/grub/grub.conf"; else GRUBCONFFILE="/boot/grub/menu.lst"; fi
         fi
 
@@ -137,16 +200,13 @@
             BOOT_LOADER="GRUB2"
             BOOT_LOADER_FOUND=1
             GRUB_VERSION=2
-            Display --indent 4 --text "- Checking presence GRUB2" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking presence GRUB2" --result FOUND --color GREEN
             if [ -f /boot/grub/grub.cfg ]; then
                 GRUBCONFFILE="/boot/grub/grub.cfg"
             elif [ -f /boot/grub2/grub.cfg ]; then
                 GRUBCONFFILE="/boot/grub2/grub.cfg"
             fi
             logtext "Result: found GRUB2 configuration file (${GRUBCONFFILE})"
-            # YYY password check, when documentation of GRUB2 project is improved
-            # YYY Add check permission check (600)
-
         fi
 
         # Some OSes like Gentoo do not have /boot mounted by default
@@ -207,6 +267,7 @@
     # Description : Check for FreeBSD boot loader
     Register --test-no BOOT-5124 --os FreeBSD --weight L --network NO --description "Check for FreeBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         if [ -f /boot/boot1 -a -f /boot/boot2 -a -f /boot/loader ]; then
             logtext "Result: found boot1, boot2 and loader files in /boot"
             Display --indent 2 --text "- Checking presence FreeBSD loader" --result FOUND --color GREEN
@@ -223,6 +284,7 @@
     # Description : Check for NetBSD boot loader
     Register --test-no BOOT-5126 --os NetBSD --weight L --network NO --description "Check for NetBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         if [ -f /boot.${HARDWARE} -o -f /boot -o -f /ofwboot ]; then
             logtext "Result: found NetBSD secondary bootstrap"
             Display --indent 2 --text "- Checking presence NetBSD loader" --result FOUND --color GREEN
@@ -241,6 +303,7 @@
     # Notes       : password= or password =
     Register --test-no BOOT-5139 --weight L --network NO --description "Check for LILO boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         LILOCONFFILE="/etc/lilo.conf"
         logtext "Test: checking for presence LILO configuration file"
         if [ -f ${LILOCONFFILE} ]; then
@@ -263,7 +326,6 @@
                     logtext "Result: LILO password option set"
                     AddHP 4 4
                 fi
-                #YYY (making /etc/lilo.conf immutable is a good idea, chattr +i /etc/lilo.conf)
               else
                 logtext "Result: can not read ${LILOCONFFILE} (no permission)"
             fi
@@ -278,6 +340,7 @@
     # Description : Check for SILO boot loader
     Register --test-no BOOT-5142 --weight L --network NO --description "Check SPARC Improved boot loader (SILO)"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         if [ -f /etc/silo.conf ]; then
             logtext "Result: Found SILO configuration file (/etc/silo.conf)"
             Display --indent 2 --text "- Checking boot loader SILO" --result FOUND --color GREEN
@@ -314,11 +377,11 @@
     # Description : Check for YABOOT boot loader
     Register --test-no BOOT-5155 --weight L --network NO --description "Check for YABOOT boot loader configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         logtext "Test: Check for /etc/yaboot.conf"
         if [ -f /etc/yaboot.conf ]; then
             logtext "Result: Found YABOOT configuration file (/etc/yaboot.conf)"
             Display --indent 4 --text "- Checking boot loader YABOOT" --result FOUND --color GREEN
-            #YYY add permission check
             BOOT_LOADER="YABOOT"
             BOOT_LOADER_FOUND=1
           else
@@ -333,6 +396,7 @@
     # More info   : Only OpenBSD
     Register --test-no BOOT-5159 --os OpenBSD --weight L --network NO --description "Check for OpenBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         FOUND=0
         # Boot files
         # /usr/mdec/biosboot: first stage bootstrap
@@ -370,7 +434,7 @@
 #
 #################################################################################
 #
-    if [ ${BOOT_LOADER_FOUND} -eq 0 ]; then
+    if [ ${BOOT_LOADER_FOUND} -eq 0 -a ${BOOT_LOADER_SEARCHED} -eq 1 ]; then
         # Your boot loader is not detected. Want to help supporting it, see the README
         ReportException "BOOTLOADER" "No boot loader found"
         Display --indent 4 --text "- Boot loader" --result "NONE FOUND" --color RED
@@ -395,11 +459,6 @@
         Display --indent 6 --text "Result: found $N services/options set"
         logtext "Found $N services/options to run at startup"
     fi
-#
-#################################################################################
-#
-    # Test        : BOOT-5166
-    # Description : Check for /etc/rc.local file (and contents)
 #
 #################################################################################
 #
@@ -468,49 +527,17 @@
 #
 #################################################################################
 #
-    # Test        : BOOT-5178
-    # Description : Check for Linux boot services (Red Hat style)
-    #    if [ ! "${CHKCONFIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #    Register --test-no BOOT-5178 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for unneeded Linux boot services (Red Hat style)"
-    #    if [ ${SKIPTEST} -eq 0 ]; then
-    #	N=0
-    #	N=`expr ${N} + 1`
-
-	#* mctrans (if selinux is NOT enabled)
-	#* restorecond (if selinux is NOT enabled) --> and is it really needed? 
-	#
-	# if profile is server, warn if found:
-	#* pcscd (if profile=server)
-	#* avahi-daemon
-	#	Redhat: /etc/sysconfig/network
-	#		check if NOZEROCONF=yes is available
-	#
-	#* xfs (if /usr/bin/startx is not found)
-	#
-	#if [ ! -f /etc/mdadm.conf -a ! -f /etc/mdadm/mdadm.conf ]; then
-	#* mdmonitor
-	#
-	#
-	#* firstboot
-	#  Display warning if [ ! -f /etc/reconfigSys ]
-	#    AND "RUN_FIRSTBOOT=YES" is NOT in /etc/sysconfig/firstboot
-	#
-	#* acpid
-	#  Display warning if no modules are loaded (lsmod | grep -i acpi)
-	#
-	#
-	#    fi
-#
-#################################################################################
-#
     # Test        : BOOT-5180
     # Description : Check for Linux boot services (Debian style)
+    # Notes       : Debian 8+ shows runlevel 5
     if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no BOOT-5180 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for Linux boot services (Debian style)"
     if [ ${SKIPTEST} -eq 0 ]; then
-        # YYY runlevel check
-        sRUNLEVEL=`${RUNLEVELBINARY} | grep "N 2"`
-        if [ ! "${sRUNLEVEL}" = "" ]; then
+        # Runlevel check
+        sRUNLEVEL=`${RUNLEVELBINARY} | grep "N [0-9]" | awk '{ print $2} '`
+        logtext "Result: found runlevel ${sRUNLEVEL}"
+        if [ "${sRUNLEVEL}" = "2" ]; then
+            logtext "Result: performing find in /etc/rc2.d as runlevel 2 is found"
             FIND=`find /etc/rc2.d -type l -print | cut -d '/' -f4 | sed "s/S[0-9][0-9]//g" | sort`
             if [ ! "${FIND}" = "" ]; then
                 N=0
@@ -520,10 +547,12 @@
                 done
                 Display --indent 2 --text "- Check services at startup (rc2.d)" --result "DONE" --color WHITE
                 Display --indent 4 --text "Result: found $N services"
-                logtext "Found $N services"
+                logtext "Result: found $N services"
             fi
-          else
+        elif [ "${sRUNLEVEL}" = "" ]; then
             ReportSuggestion ${TEST_NO} "Determine runlevel and services at startup"
+          else
+            logtext "Result: skipping further actions"
         fi
     fi
 #
@@ -610,16 +639,6 @@
 #
 #################################################################################
 #
-    # Add autostart services, like from KDE/Gnome
-    # Test        : BOOT-5102
-    # Description : Check for tasks which are autostarted via /etc/inittab
-    #Register --test-no BOOT-5102 --weight L --network NO --description "Check inittab for services"
-    #if [ ${SKIPTEST} -eq 0 ]; then
-    #fi
-    #YYY check against static list?
-#
-#################################################################################
-#
     # Test        : BOOT-5202
     # Description : Check uptime of system
     Register --test-no BOOT-5202 --weight L --network NO --description "Check uptime of system"
@@ -702,7 +721,7 @@
          if [ -f /usr/lib/systemd/system/rescue.service ]; then
              logtext "Result: file /usr/lib/systemd/system/rescue.service"
              logtext "Test: checking presence sulogin for single user mode"
-             FIND=`egrep "^ExecStart=-(/usr)?/sbin/sulogin" /usr/lib/systemd/system/rescue.service`
+             FIND=`egrep "^ExecStart=-(/bin/sh -c \")?(/usr)?/(s)?bin/sulogin" /usr/lib/systemd/system/rescue.service`
              if [ ! "${FIND}" = "" ]; then
                  FOUND=1
                  logtext "Result: found sulogin, so single user is protected"
@@ -721,8 +740,9 @@
 #################################################################################
 #
 
-
 report "boot_loader=${BOOT_LOADER}"
+report "boot_uefi_booted=${UEFI_BOOTED}"
+report "boot_uefi_booted_secure=${UEFI_BOOTED_SECURE}"
 report "service_manager=${SERVICE_MANAGER}"
 
 wait_for_keypress

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2015 Michael Boelen, CISOfy (michael.boelen@cisofy.com)
-# Website: https://cisofy.com
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -22,9 +22,9 @@
 #
     # Program information
     PROGRAM_name="Lynis"
-    PROGRAM_version="2.1.1"
-    PROGRAM_releasedate="27 May 2015"
-    PROGRAM_author="CISOfy"
+    PROGRAM_version="2.1.2"
+    PROGRAM_releasedate="13 September 2015"
+    PROGRAM_author="Michael Boelen, CISOfy"
     PROGRAM_author_contact="lynis-dev@cisofy.com"
     PROGRAM_website="https://cisofy.com"
     PROGRAM_copyright="Copyright 2007-2015 - ${PROGRAM_author}, ${PROGRAM_website}"
@@ -276,7 +276,7 @@
     if [ "${PROFILE}" = "" ]; then
         echo "${RED}Fatal error: ${WHITE}No profile defined and could not find default profile${NORMAL}"
         echo "Search paths used --> ${tPROFILE_TARGETS}"
-        ExitFatal
+        ExitCustom 66
     fi
     # Initialize and check profile file, auditor name, log file and report file
     if [ ! -r ${PROFILE} ];             then echo "Fatal error: Can't open profile file (${PROFILE})"; exit 1; fi
@@ -290,8 +290,22 @@
 #
 #################################################################################
 #
-    # Check if there is already a PID file (incorrect termination of previous instance)
-    if [ -f lynis.pid -o -f /var/run/lynis.pid ]; then
+
+    # Decide where to write our PID file. For unprivileged users this will be in their home directory, or /tmp if their
+    # home directory isn't set. For root it will be /var/run, or the current workign directory if /var/run doesn't exist.
+    MYHOMEDIR=`echo ~ 2> /dev/null`
+    if [ "${MYHOMEDIR}" = "" ]; then MYHOMEDIR="/tmp"; fi
+
+    if [ ${PRIVILEGED} -eq 0 ]; then
+        PIDFILE="${MYHOMEDIR}/lynis.pid"
+    elif [ -d /var/run ]; then
+        PIDFILE="/var/run/lynis.pid"
+    else
+        PIDFILE="./lynis.pid"
+    fi
+
+    # Check if there is already a PID file in any of the locations (incorrect termination of previous instance)
+    if [ -f "${MYHOMEDIR}/lynis.pid" -o -f "./lynis.pid" -o -f "/var/run/lynis.pid" ]; then
         echo ""
         echo "      ${WARNING}Warning${NORMAL}: ${WHITE}PID file exists, probably another Lynis process is running.${NORMAL}"
         echo "      ------------------------------------------------------------------------------"
@@ -305,26 +319,24 @@
         echo "      ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${NORMAL}"
         echo ""
         wait_for_keypress
-        if [ -f lynis.pid ]; then rm -f lynis.pid; fi
-        if [ -f /var/run/lynis.pid ]; then rm -f /var/run/lynis.pid; fi
-        #YYY Display function not working yet from here, due to OS detection
-        #Display --indent 2 --text "- Deleting old PID file..." --result DONE --color GREEN
+        # Deleting any stale PID files that might exist.
+        # Note: Display function does not work yet at this point
+        if [ -f "${MYHOMEDIR}/lynis.pid" ]; then rm -f "${MYHOMEDIR}/lynis.pid"; fi
+        if [ -f "./lynis.pid" ]; then rm -f "./lynis.pid"; fi
+        if [ -f "/var/run/lynis.pid" ]; then rm -f "/var/run/lynis.pid"; fi
     fi
 
-    # Create new PID file (use work directory if /var/run is not available)
-    if [ ${PRIVILEGED} -eq 0 ]; then
-          # Store it in home directory of user
-          MYHOMEDIR=`echo ~`
-          if [ "${MYHOMEDIR}" = "" ]; then HOMEDIR="/tmp"; fi
-          PIDFILE="${MYHOMEDIR}/lynis.pid"
-      elif [ -d /var/run ]; then
-          PIDFILE="/var/run/lynis.pid"
-      else
-          PIDFILE="lynis.pid"
-    fi
+    # Ensure symlink attack is not possible, by confirming there is no symlink of the file already
     OURPID=`echo $$`
-    echo ${OURPID} > ${PIDFILE}
-    chmod 600 ${PIDFILE}
+    if [ -L ${PIDFILE} ]; then
+        echo "Found symlinked PID file (${PIDFILE}), quitting"
+        ExitFatal
+      else
+        # Create new PID file writable only by owner
+        echo "${OURPID}" > ${PIDFILE}
+        chmod 600 ${PIDFILE}
+    fi
+
 #
 #################################################################################
 #
@@ -389,7 +401,7 @@
         # Cleanup PID file if we drop out earlier
         RemovePIDFile
         # Exit with exit code 1
-        exit 1
+        exit 64
     fi
 #
 #################################################################################
@@ -417,7 +429,7 @@
         echo ""
         echo "  ###################################################################"
         echo "${NORMAL}"; echo ""
-        if [ ${NEVERBREAK} -eq 0 ]; then read void; fi
+        if [ ${QUICKMODE} -eq 0 ]; then read void; fi
     fi
 #
 #################################################################################
@@ -488,7 +500,7 @@
         echo "  Program version:           ${PROGRAM_version}"
         echo "  Operating system:          ${OS}"
         echo "  Operating system name:     ${OS_NAME}"
-        echo "  Operating system version:  ${OS_VERSION}" 
+        echo "  Operating system version:  ${OS_VERSION}"
         if [ ! "${OS_MODE}" = "" ]; then echo "  Operating system mode:     ${OS_MODE}"; fi
         echo "  Kernel version:            ${OS_KERNELVERSION}"
         echo "  Hardware platform:         ${HARDWARE}"
@@ -499,7 +511,6 @@
         echo "  Report file:               ${REPORTFILE}"
         echo "  Report version:            ${REPORT_version}"
         echo "  Plugin directory:          ${PLUGINDIR}"
-        #echo "  Database directory:        ${DBDIR}"
         echo "  ---------------------------------------------------"
     fi
 
@@ -522,9 +533,7 @@
     logtext "-----------------------------------------------------"
     logtext "Include directory:         ${INCLUDEDIR}"
     logtext "Plugin directory:          ${PLUGINDIR}"
-    logtext "Database directory:        ${DBDIR}"
     logtextbreak
-    #wait_for_keypress
 
 #
 #################################################################################
@@ -722,7 +731,7 @@
                            filesystems storage storage_nfs nameservices ports_packages networking printers_spools \
                            mail_messaging firewalls webservers ssh snmp databases ldap php squid logging \
                            insecure_services banners scheduling accounting time crypto virtualization containers \
-                           mac_frameworks file_integrity hardening_tools tooling malware file_permissions homedirs \
+                           mac_frameworks file_integrity tooling malware file_permissions homedirs \
                            kernel_hardening hardening"
           else
             INCLUDE_TESTS="${TESTS_CATEGORY_TO_PERFORM}"
@@ -812,6 +821,9 @@
     # Show report
     if [ -f ${INCLUDEDIR}/report ]; then SafePerms ${INCLUDEDIR}/report; . ${INCLUDEDIR}/report; fi
 
+    # Show tool tips
+    if [ -f ${INCLUDEDIR}/hints_tips ]; then SafePerms ${INCLUDEDIR}/hints_tips; . ${INCLUDEDIR}/hints_tips; fi
+
     logtext "================================================================================"
     logtext "Tests performed:     ${CTESTS_PERFORMED}"
     logtext "Total tests:         ${TOTAL_TESTS}"
@@ -839,7 +851,11 @@
     logtext "================================================================================"
 
     # Clean exit (Delete PID file)
-    ExitClean
+    if [ ${TOTAL_WARNINGS} -gt 0 ]; then
+        ExitCustom 78
+      else
+        ExitClean
+    fi
 
     # The End
 

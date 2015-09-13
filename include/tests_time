@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -22,6 +22,7 @@
 #
 #################################################################################
 #
+    CRON_DIRS="/etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /var/spool/crontabs"
     NTP_DAEMON=""
     NTP_DAEMON_RUNNING=0
     NTP_CONFIG_FOUND=0
@@ -29,9 +30,7 @@
     NTP_CONFIG_TYPE_SCHEDULED=0
     NTP_CONFIG_TYPE_EVENTBASED=0
     NTP_CONFIG_TYPE_STARTUP=0
-    # Specific for ntpd
-    NTPD_RUNNING=0
-    CRON_DIRS="/etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /var/spool/crontabs"
+    NTPD_RUNNING=0 # Specific for ntpd
     SYSTEMD_NTP_ENABLED=0
 #
 #################################################################################
@@ -117,10 +116,6 @@
             fi
         done
 
-        ##########################
-        # To do: test on Solaris #
-        ##########################
-
         # Don't run check in cron job directory on Solaris
         # /etc/cron.d/FIFO is a special file and test get stuck at this file
         FOUND_IN_CRON=0
@@ -169,10 +164,12 @@
                 FIND=`grep 'ntpdate_enable="YES"' /etc/rc.conf`
                 if [ ! "${FIND}" = "" ]; then
                     logtext "Result: ntpdate is enabled in rc.conf"
-                    # Mark system having a NTP client, but remind user to improve it
                     FOUND=1
                     NTP_CONFIG_TYPE_STARTUP=1
-                    ReportSuggestion ${TEST_NO} "Although ntpdate is enabled in rc.conf, it is adviced to run it at least daily or use a NTP daemon"
+                    # Only show suggestion when ntpdate is enabled, however ntpd is not running
+                    if [ ${NTP_DAEMON_RUNNING} -eq 0 ]; then
+                        ReportSuggestion ${TEST_NO} "Although ntpdate is enabled in rc.conf, it is adviced to run it at least daily or use a NTP daemon"
+                    fi
                   else
                     logtext "Result: ntpdate is not enabled in rc.conf"
                 fi
@@ -360,7 +357,6 @@
 #
     # Test        : TIME-3136
     # Description : Check ntpq reported ntp version (Linux)
-    # Notes       : Test could be improved by checking every host (YYY)
     if [ ${NTPD_RUNNING} -eq 1 -a ! "${NTPQBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3136 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check NTP protocol version"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -460,4 +456,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com

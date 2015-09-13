@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -262,18 +262,20 @@
 #
     # Test        : FILE-6336
     # Description : Check swap mount options
+    # Examples    : [partition] swap swap defaults 0 0
+    #               [partition] none swap sw 0 0
     if [ -f /etc/fstab ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6336 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking swap mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Swap partitions should be mounted with 'sw' or 'swap'
         logtext "Test: check swap partitions with incorrect mount options"
         #FIND=`awk '{ if ($3=="swap" && ($4!="sw" && $4!="swap" && $4!="defaults")) print $1 }' /etc/fstab`
-        FIND=`awk '{ if ($3=="swap" && $4~/sw/) { print $1 }}' /etc/fstab`
+        FIND=`awk '{ if ($3=="swap" && ($4~/sw/ || $4=="defaults")) { print $1 }}' /etc/fstab`
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Testing swap partitions" --result OK --color GREEN
             logtext "Result: all swap partitions have correct options (sw or swap)"
           else
-            Display --indent 2 --text "- Testing swap partitions" --result WARNING --color RED
+            Display --indent 2 --text "- Testing swap partitions" --result "CHECK NEEDED" --color YELLOW
             logtext "Result: possible incorrect mount options used for mounting swap partition (${FIND})"
             #ReportWarning ${TEST_NO} "L" "Possible incorrect mount options used for swap parition (${FIND})"
             ReportSuggestion ${TEST_NO} "Check your /etc/fstab file for swap partition mount options"
@@ -295,7 +297,7 @@
             Display --indent 2 --text "- Checking for old files in /tmp" --result OK --color GREEN
             logtext "Result: no files found in /tmp which are older than 3 months"
           else
-            Display --indent 2 --text "- Checking for old files in /tmp" --result WARNING --color RED
+            Display --indent 2 --text "- Checking for old files in /tmp" --result FOUND --color RED
             N=0
             for I in ${FIND}; do
                 FILE=`echo ${I} | sed 's/!space!/ /g'`
@@ -320,7 +322,7 @@
     #SKELDIRS="/etc/skel /usr/share/skel"
 
     #for I in ${SKELDIRS}; do
-    #    
+    #
     #    logtext "Searching skel directory ${I}"
     #
     #    if [ -d ${I} ]; then
@@ -458,74 +460,73 @@
 #################################################################################
 #
     # Test        : FILE-6374
-    # Description : Check /boot mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
+    # Description : Check mount options for Linux
+    # Notes       : This test determines if the mount point exists. If it does not exist as mount point, yet it is an directory,
+    #               you might consider to make it a separate mount point with restrictions.
+    #
+    #               Depending on the primary goals of a machine, some mount points might be too restrictive. Before applying any
+    #               mount flags, test them on a similar or cloned test system.
+    #
+    #            ---------------------------------------------------------
+    #               Mount point              nodev  noexec  nosuid
+    #               /boot                      v      v       v
+    #               /home                      v              v
+    #               /tmp                       v      v       v
+    #               /var                                      v
+    #               /var/log                   v      v       v
+    #               /var/log/audit             v      v       v
+    #            ---------------------------------------------------------
+
+    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /home:nodev,nosuid /var:nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /tmp:nodev,noexec,nosuid"
     Register --test-no FILE-6374 --os Linux --weight L --network NO --description "Checking /boot mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/fstab ]; then
-            HARDENED=0
-            FIND=`echo /etc/fstab | awk '{ if ($2=="/boot") { print $4 } }'`
-            NODEV=`echo ${FIND} | awk '{ if ($1=="nodev") { print "YES" } else { print "NO" } }'`
-            NOEXEC=`echo ${FIND} | awk '{ if ($1=="noexec") { print "YES" } else { print "NO" } }'`
-            NOSUID=`echo ${FIND} | awk '{ if ($1=="nosuid") { print "YES" } else { print "NO" } }'`
-            if [ "${NODEV}" = "YES" -a "${NOEXEC}" = "YES" -a "${NOSUID}" = "YES" ]; then HARDENED=1; fi
-            if [ ! "${FIND}" = "" ]; then
-                logtext "Result: mount system /boot is configured with options: ${FIND}"
-                if [ ${HARDENED} -eq 1 ]; then
-                    logtext "Result: marked /boot options as hardenened"
-                    Display --indent 2 --text "- Mount options of /boot" --result HARDENED --color GREEN
-                    AddHP 5 5
-                  else
-                    if [ "${FIND}" = "defaults" ]; then
-                        logtext "Result: marked /boot options as default (non hardened)"
-                        Display --indent 2 --text "- Mount options of /boot" --result DEFAULT --color RED
-                        AddHP 3 5
-                      else
-                        logtext "Result: marked /boot options as non default (unclear about hardening)"
-                        Display --indent 2 --text "- Mount options of /boot" --result "NON DEFAULT" --color YELLOW
+            for I in ${FILESYSTEMS_TO_CHECK}; do
+                FILESYSTEM=`echo ${I} | cut -d: -f1`
+                EXPECTED_FLAGS=`echo ${I} | cut -d: -f2 | sed 's/,/ /g'`
+                IN_FSTAB=`cat /etc/fstab | awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print "FOUND" } }'`
+                if [ ! "${IN_FSTAB}" = "" ]; then
+                    FOUND_FLAGS=`cat /etc/fstab | awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' | sed 's/,/ /g'`
+                    logtext "File system:    ${FILESYSTEM}"
+                    logtext "Expected flags: ${EXPECTED_FLAGS}"
+                    logtext "Found flags:    ${FOUND_FLAGS}"
+                    PARTIALLY_HARDENED=0
+                    FULLY_HARDENED=1
+                    for FLAG in ${EXPECTED_FLAGS}; do
+                        FLAG_AVAILABLE=`echo ${FOUND_FLAGS} | grep ${FLAG}`
+                        if [ "${FLAG_AVAILABLE}" = "" ]; then
+                            logtext "Result: Could not find mount option ${FLAG} on file system ${FILESYSTEM}"
+                            FULLY_HARDENED=0
+                          else
+                            logtext "Result: GOOD, found mount option ${FLAG} on file system ${FILESYSTEM}"
+                            PARTIALLY_HARDENED=1
+                        fi
+                    done
+                    if [ ${FULLY_HARDENED} -eq 1 ]; then
+                        logtext "Result: marked ${FILESYSTEM} as fully hardenened"
+                        Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result HARDENED --color GREEN
+                        AddHP 5 5
+                    elif [ ${PARTIALLY_HARDENED} -eq 1 ]; then
+                        logtext "Result: marked ${FILESYSTEM} as fully hardenened"
+                        Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "PARTIALLY HARDENED" --color YELLOW
                         AddHP 4 5
+                    else
+                        if [ "${FOUND_FLAGS}" = "defaults" ]; then
+                            logtext "Result: marked ${FILESYSTEM} options as default (non hardened)"
+                            Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result DEFAULT --color YELLOW
+                            AddHP 3 5
+                          else
+                            logtext "Result: marked ${FILESYSTEM} options as non default (unclear about hardening)"
+                            Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "NON DEFAULT" --color YELLOW
+                            AddHP 4 5
+                        fi
                     fi
+                  else
+                    logtext "Result: file system ${FILESYSTEM} not found in /etc/fstab"
                 fi
-              else
-                logtext "Result: no mount point /boot or expected options found"
-            fi
+            done
         fi
     fi
-#
-#################################################################################
-#
-    # Test        : FILE-XXXX
-    # Description : Check /home mount options for Linux
-    # Notes       : Expecting nodev,nosuid
-#
-#################################################################################
-#
-
-    # Test        : FILE-XXXX
-    # Description : Check /var mount options for Linux
-    # Notes       : Expecting nosuid
-#
-#################################################################################
-#
-    # Test        : FILE-XXXX
-    # Description : Check /var/log mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
-#
-#################################################################################
-#
-    # Test        : FILE-XXXX
-    # Description : Check /var/log/audit mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
-#
-#################################################################################
-#
-
-    # Test        : FILE-XXXX
-    # Description : Check /tmp mount options for Linux
-    # Notes       : Expecting nodev,noexec,nosuid
-#
-#################################################################################
-#
 #
 #################################################################################
 #
@@ -561,11 +562,11 @@
     #                       or /var/cache/locate/locatedb
     #               FreeBSD /var/db/locate.database
     if [ ! "${LOCATEBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no FILE-6410 --os Linux --weight L --network NO --description "Checking Locate database"
+    Register --test-no FILE-6410 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --description "Checking Locate database"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking locate database"
         FOUND=0
-        LOCATE_DBS="/var/lib/mlocate/mlocate.db /var/lib/locatedb /var/lib/slocate/slocate.db /var/cache/locate/locatedb /var/db/locate.database"
+        LOCATE_DBS="/var/lib/mlocate/mlocate.db /var/lib/locate/locatedb /var/lib/locatedb /var/lib/slocate/slocate.db /var/cache/locate/locatedb /var/db/locate.database"
         for I in ${LOCATE_DBS}; do
             if [ -f ${I} ]; then
                 logtext "Result: locate database found (${I})"
@@ -621,4 +622,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen - www.rootkit.nl - The Netherlands
+# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com

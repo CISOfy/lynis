@@ -14,7 +14,8 @@
 #
 #################################################################################
 #
-# Check which tools are installed
+# * Check which binaries and tools are installed
+# * With the results a customized scan can be performed for every single system.
 #
 #################################################################################
 #
@@ -25,23 +26,18 @@
 #################################################################################
 #
     if [ ${CHECK_BINARIES} -eq 1 ]; then
-    InsertSection "System Tools"
-    #
-    #################################################################################
-    #
+        InsertSection "System Tools"
+        Display --indent 2 --text "- Scanning available tools..."
+        logtext "Start scanning for available audit binaries and tools..."
 
-    Display --indent 2 --text "- Scanning available tools..."
-    logtext "Start scanning for available audit binaries and tools..."
-
-    # Test        : FILE-7502
-    # Description : Check all system binaries
-    # Notes       : Always perform test, dependency for many other tests
-    Register --test-no FILE-7502 --weight L --network NO --description "Check all system binaries"
-    #if [ ${SKIPTEST} -eq 0 ]; then
+        # Test        : FILE-7502
+        # Description : Check all system binaries
+        # Notes       : Always perform test, dependency for many other tests
+        Register --test-no FILE-7502 --weight L --network NO --description "Check all system binaries"
         BINARY_PATHS_FOUND=""; N=0
         Display --indent 2 --text "- Checking system binaries..."
         logtext "Status: Starting binary scan..."
-        for SCANDIR in ${BINPATHS}; do
+        for SCANDIR in ${BIN_PATHS}; do
             logtext "Test: Check if directory exists"
             ORGPATH=""
             if [ -d ${SCANDIR} ]; then
@@ -78,7 +74,6 @@
                         N=`expr ${N} + 1`
                         BINARY="${SCANDIR}/${I}"
                         DISCOVERED_BINARIES="${DISCOVERED_BINARIES}${BINARY} "
-                        logtext "Binary: ${BINARY}"
                         # Optimized, much quicker (limited file access needed)
                         case ${I} in
                             aa-status)              APPARMORFOUND=1;       AASTATUSBINARY=${BINARY};                                                      logtext "  Found known binary: aa-status (apparmor component) - ${BINARY}"                                ;;
@@ -98,8 +93,11 @@
                             comm)                   COMMBINARY="${BINARY}";                                                                               logtext "  Found known binary: comm (file compare) - ${BINARY}"                                           ;;
                             csum)                   CSUMFOUND=1;           CSUMBINARY="${BINARY}";                                                        logtext "  Found known binary: csum (hashing tool on AIX) - ${BINARY}"                                    ;;
                             curl)                   CURLFOUND=1;           CURLBINARY="${BINARY}";                                                        logtext "  Found known binary: curl (browser) - ${BINARY}"                                                ;;
+                            debsecan)               DEBSECANBINARY="${BINARY}";                                                                           logtext "  Found known binary: debsecan (package vulnerability checking) - ${BINARY}"                     ;;
+                            debsums)                DEBSUMSBINARY="${BINARY}";                                                                            logtext "  Found known binary: debsums (package integrity checking) - ${BINARY}"                          ;;
                             dig)                    if [ -f ${BINARY} ]; then DIGFOUND=1;                          DIGBINARY=${BINARY};                   logtext "  Found known binary: dig (network/dns tool) - ${BINARY}";                                    fi ;;
                             dnsdomainname)          DNSDOMAINNAMEFOUND=1;  DNSDOMAINNAMEBINARY="${BINARY}";                                               logtext "  Found known binary: dnsdomainname (DNS domain) - ${BINARY}"                                    ;;
+                            docker)                 if [ -f ${BINARY} ]; then DOCKERBINARY="${BINARY}";                                                   logtext "  Found known binary: docker (container technology) - ${BINARY}";                             fi ;;
                             domainname)             DOMAINNAMEFOUND=1;     DOMAINNAMEBINARY="${BINARY}";                                                  logtext "  Found known binary: domainname (NIS domain) - ${BINARY}"                                       ;;
                             dpkg)                   DPKGBINARY="${BINARY}";                                                                               logtext "  Found known binary: dpkg (package management) - ${BINARY}"                                     ;;
                             egrep)                  EGREPFOUND=1;          EGREPBINARY=${BINARY};                                                         logtext "  Found known binary: egrep (text search) - ${BINARY}"                                           ;;
@@ -145,7 +143,7 @@
                             openssl)                OPENSSLFOUND=1;        OPENSSLBINARY="${BINARY}"; OPENSSLVERSION=`${BINARY} version 2> /dev/null | head -n 1 | awk '{ print $2 }' | xargs`; logtext "Found ${BINARY} (version ${OPENSSLVERSION})"               ;;
                             pacman)                 PACMANFOUND=1;         PACMANBINARY="${BINARY}";                                                      logtext "  Found known binary: pacman (package manager) - ${BINARY}"                                      ;;
                             perl)                   PERLFOUND=1;           PERLBINARY="${BINARY}"; PERLVERSION=`${BINARY} -V:version | sed 's/^version=//' | sed 's/;//' | xargs`; logtext "Found ${BINARY} (version ${PERLVERSION})"                               ;;
-                            php)                    PHPFOUND=1;            PHPBINARY="${BINARY}"; PHPVERSION=`${BINARY} -v | awk '{ if ($1=="PHP") { print $2 }}' | head -1`; logtext "Found known binary: php (programming language) - ${BINARY} (version ${PHPVERSION})" ;;
+                            php)                    PHPFOUND=1;            PHPBINARY="${BINARY}"; PHPVERSION=`${BINARY} -v | awk '{ if ($1=="PHP") { print $2 }}' | head -1`; logtext "Found known binary: php (programming language intrepreter) - ${BINARY} (version ${PHPVERSION})" ;;
                             pkg_admin)              PKGADMINBINARY="${BINARY}";                                                                           logtext "  Found known binary: pkg_admin (software package administration) - ${BINARY}"                   ;;
                             postconf)               POSTCONFFOUND=1;       POSTCONFBINARY="${BINARY}";                                                    logtext "  Found known binary: postconf (postfix configuration) - ${BINARY}"                              ;;
                             postfix)                POSTFIXFOUND=1;        POSTFIXBINARY="${BINARY}";                                                     logtext "  Found known binary: postfix (postfix binary) - ${BINARY}"                                      ;;
@@ -154,6 +152,7 @@
                             ps)                     PSFOUND=1;             PSBINARY="${BINARY}";                                                          logtext "  Found known binary: ps (process listing) - ${BINARY}"                                          ;;
                             puppet)                 PUPPETFOUND=1;         PUPPETBINARY="${BINARY}";                                                      logtext "  Found known binary: puppet (automation tooling) - ${BINARY}"                                   ;;
                             puppetmasterd)          PUPPETMASTERDFOUND=1;  PUPPETMASTERDBINARY="${BINARY}";                                               logtext "  Found known binary: puppetmasterd (puppet master daemon) - ${BINARY}"                          ;;
+                            python)                 PYTHONBINARY="${BINARY}";                                                                             logtext "  Found known binary: python (programming language intepreter) - ${BINARY}"                      ;;
                             readlink)               READLINKFOUND=1;       READLINKBINARY="${BINARY}";                                                    logtext "  Found known binary: readlink (follows symlinks) - ${BINARY}"                                   ;;
                             rkhunter)               RKHUNTERFOUND=1;       RKHUNTERBINARY="${BINARY}";             MALWARE_SCANNER_INSTALLED=1;           logtext "  Found known binary: rkhunter (malware scanner) - ${BINARY}"                                    ;;
                             rootsh)                 ROOTSHFOUND=1;         ROOTSHBINARY="${BINARY}";                                                      logtext "  Found known binary: rootsh (wrapper for shells) - ${BINARY}"                                   ;;
@@ -204,13 +203,11 @@
         logtext "Discovered directories: ${BINARY_PATHS_FOUND}"
         report "binary_paths=${BINARY_PATHS_FOUND}"
         BINARY_SCAN_FINISHED=1
-    #fi
-
-    logtext "Result: found ${N} binaries"
-    report "binaries_count=${N}"
+        logtext "Result: found ${N} binaries"
+        report "binaries_count=${N}"
 
       else
-        logtext "Result: checking binaries skipped in this mode"
+        logtext "Result: checking of binaries skipped in this mode"
     fi
 
 #

@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -49,7 +49,7 @@
                         logtext "Result: Found match on runlevel5/graphical"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
                         report "linux_default_runlevel=5"
-                      else 
+                      else
                         logtext "Result: No match found on runlevel, defaulting to runlevel 3"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
                         report "linux_default_runlevel=3"
@@ -252,6 +252,8 @@
 #
     # Test        : KRNL-5730
     # Description : Checking default I/O kernel scheduler
+    # Notes       : This test could be extended with testing some of the specific devices like disks
+    #               cat /sys/block/sda/queue/scheduler
     PREQS_MET="NO"
     if [ ! "${LINUXCONFIGFILE}" = "" ]; then
         if [ -f ${LINUXCONFIGFILE} ]; then PREQS_MET="YES"; fi
@@ -277,17 +279,13 @@
 #
 #################################################################################
 #
-# YYY Check for kernel options
-#
-#################################################################################
-#
     # Test        : KRNL-5745
     # Description : Checking FreeBSD loaded kernel modules
     Register --test-no KRNL-5745 --os FreeBSD --weight L --network NO --description "Checking FreeBSD loaded kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking active kernel modules"
-        logtext "Test: ${KERNEL_ACTIVE_MODULES_TITLE}"
-        logtext "Description: ${KERNEL_ACTIVE_MODULES_DESCRIPTION}"
+        logtext "Test: Active kernel modules (KLDs)"
+        logtext "Description: View all active kernel modules (including kernel)"
         logtext "Test: Checking modules"
         if [ -f /sbin/kldstat ]; then
             FIND=`kldstat | grep -v 'Name' | tr -s ' ' | cut -d ' ' -f6`
@@ -340,7 +338,6 @@
         logtext "Test: Searching apt-cache, to determine if a newer kernel is available"
         if [ -x /usr/bin/apt-cache ]; then
             logtext "Result: found /usr/bin/apt-cache"
-            # YYY Test for presence /usr/bin/apt-cache and dpkg
             logtext "Test: checking readlink location of /vmlinuz"
             FINDKERNFILE=`readlink -f /vmlinuz`
             logtext "Output: readlink reported file ${FINDKERNFILE}"
@@ -381,7 +378,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking presence /etc/security/limits.conf"
         if [ -f /etc/security/limits.conf ]; then
-            logtext "Result: file /etc/security/limits.conf exists" 
+            logtext "Result: file /etc/security/limits.conf exists"
             logtext "Test: Checking if core dumps are disabled in /etc/security/limits.conf"
             FIND1=`cat /etc/security/limits.conf | grep -v "^#" | grep -v "^$" | awk '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="1") { print "soft core enabled" } }'`
             FIND2=`cat /etc/security/limits.conf | grep -v "^#" | grep -v "^$" | awk '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="1") { print "hard core enabled" } }'`
@@ -443,7 +440,7 @@
         FILE="/var/run/reboot-required.pkgs"
         logtext "Test: Checking presence ${FILE}"
         if [ -f ${FILE} ]; then
-            logtext "Result: file ${FILE} exists" 
+            logtext "Result: file ${FILE} exists"
             FIND=`cat ${FILE}`
             if [ "${FIND}" = "" ]; then
                 logtext "Result: No reboot needed (file empty)"
@@ -516,7 +513,8 @@
                     FIND=`ls /boot/vmlinuz* 2> /dev/null`
                     if [ ! "${FIND}" = "" ]; then
                          # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
-                         KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+                         # Remove generic. and huge. for Slackware machines
+                         KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/generic.//' | sed 's/huge.//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
                       elif [ ! `ls /boot/kernel* 2> /dev/null` = "" ]; then
                          # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
                          # Examples:
@@ -580,4 +578,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen - http://cisofy.com - The Netherlands
+# Lynis - Copyright 2007-2015, CISOfy - https://cisofy.com

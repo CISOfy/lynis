@@ -31,11 +31,12 @@
 
     # Test        : AUTH-9204
     # Description : Check users with UID zero (0)
+    # Notes       : Ignores :0: in file if match is in NIS related line
     Register --test-no AUTH-9204 --weight L --network NO --description "Check users with an UID of zero"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Search accounts with UID 0
         logtext "Test: Searching accounts with UID 0"
-        FIND=`grep ':0:' /etc/passwd | egrep -v '^#|^root:|^:0:0:::' | cut -d ":" -f1,3 | grep ':0'`
+        FIND=`grep ':0:' /etc/passwd | egrep -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | grep ':0'`
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Search administrator accounts" --result WARNING --color RED
             logtext "Result: Found more than one administrator accounts"
@@ -58,10 +59,8 @@
 #
     # Test        : AUTH-9208
     # Description : Check non-unique accounts
-    Register --test-no AUTH-9208 --weight L --network NO --description "Check non-unique accounts"
+    Register --test-no AUTH-9208 --weight L --network NO --description "Check non-unique accounts in passwd file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: ${USER_PASSWD_DOUBLEUID_AUDIT_TITLE}"
-        logtext "Description: ${USER_PASSWD_DOUBLEUID_AUDIT_DESCRIPTION}"
         logtext "Test: Checking for non-unique accounts"
         if  [ "${OS}" = "DragonFly" -o "${OS}" = "FreeBSD" -o "${OS}" = "NetBSD" ]; then
             PASSWD_FILE="/etc/master.passwd"
@@ -84,7 +83,7 @@
             Display --indent 2 --text "- Checking UIDs" --result SKIPPED --color WHITE
             logtext "Result: test skipped, ${PASSWD_FILE} file not available"
         fi
-        logtext "Remarks: ${USER_PASSWD_DOUBLEUID_AUDIT_TEXT}"
+        logtext "Remarks: Non unique UIDs can riskful for the system or part of a configuration mistake"
     fi
 #
 #################################################################################
@@ -251,27 +250,6 @@
 #
 #################################################################################
 #
-#    # Test        : AUTH-9229
-#    # Description : Check AIX password file consistency
-#    # Notes       : Read only mode?
-#    if [ -x /usr/bin/usrck ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no AUTH-9229 --os AIX --preqs-met ${PREQS_MET} --weight L --network NO --description "Check password file consistency"
-#    if [ ${SKIPTEST} -eq 0 ]; then
-#        logtext "Test: Checking password file consistency (usrck)"
-#        FIND=`/usr/bin/usrck -n ALL 2>; echo $?`
-#        if [ "${FIND}" = "0" ]; then
-#            Display --indent 2 --text "- Checking password file consistency" --result OK --color GREEN
-#            logtext "Result: usrck finished didn't find problems"
-#          else
-#            Display --indent 2 --text "- Checking password file consistency" --result WARNING --color RED
-#            logtext "Result: usrck found one or more errors/warnings in the password file."
-#            ReportWarning ${TEST_NO} "M" "usrck found one or more errors/warnings in the password file"
-#            ReportSuggestion ${TEST_NO} "Run usrck manually and correct found issues."
-#        fi
-#    fi
-#
-#################################################################################
-#
     # Test        : AUTH-9230
     # Description : Check Solaris password file consistency
     if [ -x /usr/sbin/pwck ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -289,47 +267,6 @@
             ReportSuggestion ${TEST_NO} "Run pwck manually and correct found issues."
         fi
     fi
-#
-#################################################################################
-#
-#    # Test        : AUTH-9231
-#    # Description : Check HP-UX password file consistency
-#    # Notes       : Read only mode?
-#    if [ -x /usr/sbin/pwck ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no AUTH-9231 --os HP-UX --preqs-met ${PREQS_MET} --weight L --network NO --description "Check password file consistency"
-#    if [ ${SKIPTEST} -eq 0 ]; then
-#        logtext "Test: Checking password file consistency (pwck)"
-#        FIND=`/usr/sbin/pwck 2> /dev/null; echo $?`
-#        if [ "${FIND}" = "0" ]; then
-#            Display --indent 2 --text "- Checking password file consistency" --result OK --color GREEN
-#            logtext "Result: pwck finished didn't find problems"
-#          else
-#            Display --indent 2 --text "- Checking password file consistency" --result WARNING --color RED
-#            logtext "Result: pwck found one or more errors/warnings in the password file."
-#            ReportWarning ${TEST_NO} "M" "pwck found one or more errors/warnings in the password file"
-#            ReportSuggestion ${TEST_NO} "Run pwck manually and correct found issues."
-#        fi
-#    fi
-#
-#################################################################################
-#
-#    # Test        : AUTH-9232
-#    # Description : Check HP-UX group file consistency
-#    if [ -x /usr/sbin/grpck ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no AUTH-9232 --os HP-UX --preqs-met ${PREQS_MET} --weight L --network NO --description "Check password file consistency"
-#    if [ ${SKIPTEST} -eq 0 ]; then
-#        logtext "Test: Checking group file consistency (grpck)"
-#        FIND=`/usr/sbin/grpck 2> /dev/null; echo $?`
-#        if [ "${FIND}" = "0" ]; then
-#            Display --indent 2 --text "- Checking group file consistency" --result OK --color GREEN
-#            logtext "Result: grpck finished didn't find problems"
-#          else
-#            Display --indent 2 --text "- Checking group file consistency" --result WARNING --color RED
-#            logtext "Result: grpck found one or more errors/warnings in the group file."
-#            ReportWarning ${TEST_NO} "M" "grpck found one or more errors/warnings in the group file"
-#            ReportSuggestion ${TEST_NO} "Run grpck manually and correct found issues."
-#        fi
-#    fi
 #
 #################################################################################
 #
@@ -435,23 +372,6 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9244
-    # Description : Query NIS servers
-    #Register --test-no AUTH-9244 --weight L --network NO --description "Query NIS servers"
-    #if [ ${SKIPTEST} -eq 0 ]; then
-    #fi
-#
-#################################################################################
-#
-    # Test        : AUTH-9246
-    # Description : Query NIS active
-    #Register --test-no AUTH-9246 --weight L --network NO --description "Query active NIS servers"
-    #if [ ${SKIPTEST} -eq 0 ]; then
-    #if
-    #grep '^+' /etc/passwd /etc/group
-#
-#################################################################################
-#
     # Test        : AUTH-9250
     # Description : Check for sudoers file
     Register --test-no AUTH-9250 --weight L --network NO --description "Checking sudoers file"
@@ -470,7 +390,6 @@
         if [ ${FOUND} -eq 1 ]; then
             logtext "Result: sudoers file found (${SUDOERS_FILE})"
             Display --indent 2 --text "- Checking sudoers file" --result FOUND --color GREEN
-            # YYY add more tests to audit sudoers file
           else
             logtext "Result: sudoers file NOT found"
             Display --indent 2 --text "- Checking sudoers file" --result "NOT FOUND" --color YELLOW
@@ -516,64 +435,8 @@
 #
 #################################################################################
 #
-#    # Test        : AUTH-9255
-#    # Description : Solaris test for unique UIDs
-#    Register --test-no AUTH-9255 --os Solaris --weight L --network NO --description "Solaris unique UIDs"
-#    if [ ${SKIPTEST} -eq 0 ]; then
-#	FIND=`logins -d | awk '{ print $1 }'`
-#	if [ "${FIND}" = "" ]; then
-#	    logtext "Result: no duplicate accounts found, all accounts have an unique ID"
-#	    Display --indent 2 --text "- Checking unique UIDs on Solaris" --result OK --color GREEN
-#	  else
-#	    for I in ${FIND}; do
-#		ReportWarning ${TEST_NO} "H" "Found passwordless account (${I})"
-#	    done
-#	    Display --indent 2 --text "- Checking unique UIDs on Solaris" --result WARNING --color RED
-#	fi
-#    fi
-#
-#################################################################################
-#
-    # Test        : AUTH-9260 [T]
-    # Description : Search for account lockout on Linux
-    # Notes       : lib directory should be fixed
-#    Register --test-no AUTH-9260 --os Linux --weight L --network NO --description "Checking account lockout"
-#    if [ ${SKIPTEST} -eq 0 ]; then
-#	logtext "Test: searching for /lib/security/pam_tally.so"
-#	if [ -f /lib/security/pam_tally.so ]; then
-#	    logtext "Result: /lib/security/pam_tally.so found"
-#	    AddHP 1 1
-#	    Display --indent 2 --text "- Checking account lockout module (pam_tally)" --result FOUND --color GREEN
-#	    if [ -f /etc/pam.d/system-auth ]; then
-#		logtext "Test: search for enable pam_tally module in system-auth, with a deny value higher than zero"
-#		FIND=`grep "account required" /etc/pam.d/system-auth | grep "pam_tally.so" | grep "deny=" | grep -v "deny=0"`
-#		if [ "${FIND}" = "" ]; then
-#		    logtext "Result: pam_tally properly configured"
-#		    logtext "Output: ${FIND}"
-#		    AddHP 1 1
-#		    Display --indent 4 --text "- Checking lockout policy" --result FOUND --color GREEN
-#		  else
-#		    logtext "Result: pam_tally not (properly) configured"
-#		    logtext "Output: ${FIND}"
-#		    Display --indent 4 --text "- Checking lockout policy" --result SUGGESTION --color YELLOW
-#		    AddHP 0 1
-#		    ReportSuggestion ${TEST_NO} "Configure pam_tally in system-auth: account required /lib/security/pam_tally.so deny=3 no_magic_root reset"
-#		fi
-#	      else
-#	        logtext "Result: skipped, /etc/pam.d/system-auth not found"
-#	    fi
-#	  else
-#	    logtext "Result: /lib/security/pam_tally.so not found"
-#	    AddHP 0 1
-#	    Display --indent 2 --text "- Checking account lockout module (pam_tally)" --result "SUGGESTION" --color YELLOW
-#	    ReportSuggestion ${TEST_NO} "Install a PAM module for account lockout to counter brute force attacks"
-#	fi
-#
-#################################################################################
-#
     # Test        : AUTH-9262
     # Description : Search for PAM password strength testing libraries
-    # Notes       : YYY (combine with other PAM modules)
     Register --test-no AUTH-9262 --weight L --network NO --description "Checking presence password strength testing tools (PAM)"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
@@ -709,11 +572,6 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9270
-    # Description : Audit PAM configuration files
-#
-#################################################################################
-#
     # Test        : AUTH-9278
     # Description : Search LDAP support in PAM files
     Register --test-no AUTH-9278 --weight L --network NO --description "Checking LDAP pam status"
@@ -732,7 +590,6 @@
               else
                 logtext "Result: LDAP module not found"
                 Display --indent 2 --text "- Checking LDAP module in PAM" --result "NOT FOUND" --color WHITE
-                # YYY display message when ldap is enabled in /etc/passwd, but not found in PAM
             fi
           else
             logtext "Result: file /etc/pam.d/common-auth not found, skipping test"
@@ -815,7 +672,6 @@
         logtext "Test: Checking PASS_MAX_DAYS option in /etc/login.defs "
         FIND=`grep "^PASS_MAX_DAYS" /etc/login.defs | awk '{ if ($1=="PASS_MAX_DAYS") { print $2 } }'`
         if [ "${FIND}" = "" -o "${FIND}" = "99999" ]; then
-            # YYY check if LDAP is used with password policies
             logtext "Result: password aging limits are not configured"
             Display --indent 2 --text "- Checking user password aging" --result DISABLED --color YELLOW
             ReportSuggestion ${TEST_NO} "Configure password aging limits to enforce password changing on a regular base"
@@ -830,14 +686,9 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9292
-    # Description : Check locked accounts (exclamation mark as first char in second column)
-#
-#################################################################################
-#
     # Test        : AUTH-9304
     # Description : Check if single user mode login is properly configured in Solaris
-    # Notes       : sulogin should be called from svm script (Solaris <10) in /etc/rcS.d (YYY)
+    # Notes       : sulogin should be called from svm script (Solaris <10) in /etc/rcS.d
     Register --test-no AUTH-9304 --os Solaris --weight L --network NO --description "Check single user login configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if file exists (Solaris 10 does not have this file by default)
@@ -938,16 +789,9 @@
                 AddHP 2 2
             fi
           else
-             # YYY
              logtext "Result: No inittab or init file found, unsure if system is protected"
         fi
     fi
-#
-#################################################################################
-#
-    # Test        : AUTH-9322
-    # Description : Authentication time restrictions
-    # /etc/security/time.conf
 #
 #################################################################################
 #
@@ -967,10 +811,12 @@
             logtext "Test: Checking umask value in /etc/profile"
             FIND=`grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }'`
             FIND2=`grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }' | wc -l`
-            #FIND2=`egrep "^([[:space:]])([[:tab:]])*umask" /etc/profile | awk '{ print $2 }' | wc -l`
             WEAK_UMASK=0
             FOUND_UMASK=0
-            if [ "${FIND2}" = "1" ]; then
+            if [ "${FIND2}" = "0" ]; then
+                logtext "Result: did not find umask in /etc/profile"
+                #YYY possibly weak umask
+            elif [ "${FIND2}" = "1" ]; then
                 logtext "Result: found umask (prefixed with spaces)"
                 FOUND_UMASK=1
                 if [ ! "${FIND}" = "077" -a ! "${FIND}" = "027" ]; then
@@ -981,7 +827,7 @@
                 fi
               # Found more than 1 umask value in profile
               else
-                logtext "Result: found several umask values configured in /etc/profile"
+                logtext "Result: found multiple umask values configured in /etc/profile"
                 FOUND_UMASK=1
                 for I in ${FIND}; do
                     if [ ! "${I}" = "077" -a ! "${I}" = "027" ]; then
@@ -1018,7 +864,7 @@
         logtext "Test: Checking umask entries in /etc/passwd (pam_umask)"
         if [ -f /etc/passwd ]; then
             logtext "Result: file /etc/passwd exists"
-            logtext "Test: Checking umask value in /etc/profile"
+            logtext "Test: Checking umask value in /etc/passwd"
             FIND=`grep "umask=" /etc/passwd`
             if [ "${FIND}" = "" ]; then
                 ReportManual "AUTH-9328:03"
@@ -1027,11 +873,10 @@
             logtext "Result: file /etc/passwd does not exist"
         fi
 
-
         # /etc/login.defs
         logtext "Test: Checking /etc/login.defs"
         if [ -f /etc/login.defs ]; then
-            logtext "Result: file /etc/profile exists"
+            logtext "Result: file /etc/login.defs exists"
             logtext "Test: Checking umask value in /etc/login.defs"
             FIND=`grep "^UMASK" /etc/login.defs | awk '{ print $2 }'`
             if [ "${FIND}" = "" ]; then
@@ -1075,8 +920,7 @@
             logtext "Result: file /etc/init.d/functions does not exist"
         fi
 
-        # /etc/init.d/rc [T]
-        # Always needed? (YYY)
+        # /etc/init.d/rc
         logtext "Test: Checking /etc/init.d/rc"
         if [ -f /etc/init.d/rc ]; then
             logtext "Result: file /etc/init.d/rc exists"
@@ -1101,8 +945,43 @@
             logtext "Result: file /etc/init.d/rc does not exist"
         fi
 
-        # /etc/init.d/rcS [T]
-        # Always needed? (YYY)
+        # FreeBSD
+        if [ -f /etc/login.conf ]; then
+            FOUND=0
+            WEAK_UMASK=0
+            logtext "Result: file /etc/login.conf exists"
+            FIND=`cat /etc/login.conf | grep "umask" | sed 's/#.*//' | sed -E 's/^[[:cntrl:]]//' | grep -v '^$' | awk -F: '{ print $2}' | awk -F= '{ if ($1=="umask") { print $2 }}'`
+            if [ ! "${FIND}" = "" ]; then
+                for UMASK_VALUE in ${FIND}; do
+                    case ${UMASK_VALUE} in
+                        027|0027|077|0077)
+                            logtext "Result: found umask value ${VALUE}, which is fine"
+                            AddHP 2 2
+                            FOUND=1
+                        ;;
+                        *)
+                            AddHP 0 2
+                            FOUND=1
+                            WEAK_UMASK=1
+                            logtext "Result: found umask value ${VALUE}, which can be more strict"
+                        ;;
+                    esac
+                done
+            fi
+            if [ ${FOUND} -eq 1 ]; then
+                if [ ${WEAK_UMASK} -eq 0 ]; then
+                    Display --indent 4 --text "- Checking umask (/etc/login.conf)" --result OK --color GREEN
+                  else
+                    Display --indent 4 --text "- Checking umask (/etc/login.conf)" --result WEAK --color YELLOW
+                    ReportSuggestion ${TEST_NO} "Umask in /etc/login.conf could be more strict like 027"
+                fi
+              else
+                logtext "Result: no umask setting found in /etc/login.conf, which is unexpected"
+                Display --indent 4 --text "- Checking umask (/etc/login.conf)" --result NONE --color YELLOW
+            fi
+        fi
+
+        # /etc/init.d/rcS
         logtext "Test: Checking /etc/init.d/rcS"
         if [ -f /etc/init.d/rcS ]; then
             logtext "Result: file /etc/init.d/rcS exists"
@@ -1188,36 +1067,6 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9342 [T]
-    # Description : AIX account locking
-    # Notes       : /usr/sbin/lsuser -a logretries ALL
-    #               should return ${ACCOUNT_MAX_RETRIES} or less for each user, but not 0
-#
-#################################################################################
-#
-    # Test        : AUTH-9344 [T]
-    # Description : HP-UX account locking
-    # Notes       : grep :u_maxtries# /tcb/files/auth/system/default
-    #               should return ${ACCOUNT_MAX_RETRIES} or less, but not 0
-#
-#################################################################################
-#
-    # Test        : AUTH-9348 [T]
-    # Description : Delay time after each failed login
-    # Notes       : This control counters brute force attacking by delaying each
-    #               attempt, while giving normal users to try typing in their
-    #               account details after a reasonable delay
-    #               Should return ${ACCOUNT_DELAY_TIME} or more
-    #               (4 seconds would be good)
-    #               AIX
-    #               grep "logindelay" /etc/security/login.cfg
-    #               Linux
-    #               grep "FAIL_DELAY" /etc/login.defs
-    #               HP-UX
-    #               grep ":t_logdelay#" /tcb/files/auth/system/default
-#
-#################################################################################
-#
     # Test        : AUTH-9402
     # Description : Query LDAP authentication support
     Register --test-no AUTH-9402 --weight L --network NO --description "Query LDAP authentication support"
@@ -1239,31 +1088,6 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9404
-    # Description : Check LDAP client configuration
-#    if [ ${LDAP_AUTH_ENABLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no AUTH-9404 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query LDAP servers in client configuration"
-#    if [ ${SKIPTEST} -eq 0 ]; then
-#	logtext "Test: checking ldap.conf locations"    
-#	for I in ${LDAP_CONF_LOCATIONS}; do
-#	    logtext "Test: checking ${I}"
-#	    if [ -f ${I} ]; then
-#	        logtext "Result: file ${I} exists"
-#		logtext "Test: checking LDAP servers in file ${I}"
-#		FIND2=`egrep "^host " ${I} | awk '{ print $2 }'`
-#		for I in ${FIND2}; do
-#		    Display --indent 6 --text "LDAP server: ${I}"
-#		    logtext "Result: found LDAP server ${I}"
-#		    # YYY check if host(s) are reachable/respond to queries
-#		done
-#	      else
-#	        logtext "Result: ${I} does NOT exist"
-#	    fi
-#	done
-#    fi
-#
-#################################################################################
-#
     # Test        : AUTH-9406
     # Description : Check LDAP servers in client configuration
     if [ ${LDAP_AUTH_ENABLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -1273,13 +1097,14 @@
         for I in ${LDAP_CONF_LOCATIONS}; do
             logtext "Test: checking ${I}"
             if [ -f ${I} ]; then
-                logtext "Result: file ${I} exists"
+                logtext "Result: file ${I} exists, LDAP being used"
+                LDAP_CLIENT_CONFIG_FILE="${I}"
                 logtext "Test: checking LDAP servers in file ${I}"
                 FIND2=`egrep "^host " ${I} | awk '{ print $2 }'`
                 for I in ${FIND2}; do
                     Display --indent 6 --text "LDAP server: ${I}"
                     logtext "Result: found LDAP server ${I}"
-                    # YYY check if host(s) are reachable/respond to queries
+                    report "ldap_server[]=${I}"
                 done
               else
                 logtext "Result: ${I} does NOT exist"
@@ -1289,44 +1114,39 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-92xx
-    # Description : login.access checks
-    #Register --test-no AUTH-92xx --weight L --network NO --description "login.access checks"
-#
-#################################################################################
-#
-# pam_unix.so
-# pam_cracklib.so
-# pam_pwcheck.so
-# pam_env.so
-# pam_xauth.so
-# pam_tally.so
-# pam_wheel.so
-# pam_limits.so
-# pam_nologin.so
-# pam_deny.so
-# pam_securetty.so
-# pam_time.so
-# pam_access.so
-# pam_listfile.so
-# pam_lastlog.so
-# pam_warn.so
-# pam_console.so
-# pam_resmgr.so
-# pam_devperm.so
-#
-#################################################################################
-#
-# sudoers: Check for potential harmful commands like vi, echo, cat
+    # Test        : AUTH-9408
+    # Description : Logging of failed login attempts
+    if [ -f /etc/login.defs ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no AUTH-9408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Logging of failed login attempts via /etc/login.defs"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Checking FAILLOG_ENAB option in /etc/login.defs "
+        FIND=`grep "^FAILLOG_ENAB" /etc/login.defs | awk '{ if ($1=="FAILLOG_ENAB") { print $2 } }'`
+        # Search for enabled status (yes), otherwise consider it to be disabled (e.g. empty, or other value)
+        if [ "${FIND}" = "yes" ]; then
+            AUTH_FAILED_LOGINS_LOGGED=1
+            logtext "Result: failed login attempts are logged in /var/log/faillog"
+            Display --indent 2 --text "- Logging failed login attempts" --result ENABLED --color GREEN
+            AddHP 3 3
+          else
+            logtext "Result: failed login attempts are not logged"
+            Display --indent 2 --text "- Logging failed login attempts" --result DISABLED --color YELLOW
+            #ReportSuggestion ${TEST_NO} "Configure failed login attempts to be logged in /var/log/faillog"
+            AddHP 0 1
+        fi
+    fi
 #
 #################################################################################
 #
 
+report "auth_failed_logins_logged=${AUTH_FAILED_LOGINS_LOGGED}"
 report "ldap_auth_enabled=${LDAP_AUTH_ENABLED}"
 report "ldap_pam_enabled=${LDAP_PAM_ENABLED}"
+if [ ! "${LDAP_CLIENT_CONFIG_FILE}" = "" ]; then
+    report "ldap_config_file=${LDAP_CLIENT_CONFIG_FILE}"
+fi
 
 wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015 Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com

@@ -1,0 +1,169 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+# Containers, Zones, Jails
+#
+#################################################################################
+#
+    InsertSection "Containers"
+#
+#################################################################################
+#
+    # Test        : CONT-8004
+    # Description : Query running Solaris zones
+    if [ -x /usr/sbin/zoneadm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8004 --os Solaris --weight L --network NO --description "Query running Solaris zones"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: query zoneadm to list all running zones"
+        FIND=`/usr/sbin/zoneadm list -p | awk -F: '{ if ($2!="global") print $0 }'`
+        if [ ! "${FIND}" = "" ]; then
+            N=0
+            for I in ${FIND}; do
+                N=`expr ${N} + 1`
+                ZONEID=`echo ${I} | cut -d ':' -f1`
+                ZONENAME=`echo ${I} | cut -d ':' -f2`
+                logtext "Result: found zone ${ZONENAME} (running)"
+                report "solaris_running_zone[]=${ZONENAME} [id:${ZONEID}]"
+            done
+            logtext "Result: total of ${N} running zones"
+            Display --indent 2 --text "- Checking Solaris Zones" --result "FOUND ${N} zones" --color GREEN
+          else
+            logtext "Result: no running zones found"
+            Display --indent 2 --text "- Checking Solaris Zones" --result NONE --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CONT-1906
+    # Description : Query running Xen zones
+    #if [ -x /usr/bin/xm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #Register --test-no CONT-1906 --weight L --network NO --description "Query Xen guests"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+        # Show Xen guests
+        #FIND=`xm list | awk '$1 != "Name|Domain-0" {print $1","$2}'`
+        #for I in ${FIND}; do
+            #XENGUESTNAME=`echo ${I} | cut -d ':' -f1`
+            #XENGUESTID=`echo ${I} | cut -d ':' -f2`
+            #logtext "Result: found Xen guest ${XENGUESTNAME} (ID: ${XENGUESTID})"
+        #done
+    #fi
+#
+#################################################################################
+#
+    # Test        : CONT-8102
+    # Description : Checking Docker daemon status and basic information for later tests
+    Register --test-no CONT-8102 --weight L --network NO --description "Checking Docker status and information"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        IsRunning "docker -d"
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: found Docker daemon running"
+            report "docker_daemon_running=1"
+            DOCKER_DAEMON_RUNNING=1
+            Display --indent 4 --text "- Docker"
+            Display --indent 6 --text "- Docker daemon" --result RUNNING --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CONT-8104
+    # Description : Checking Docker info for any warnings
+    # Notes       : Hardening points are awarded, as usually warnings are the result of missing controls to restrict boundaries like memory
+    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8104 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking Docker info for any warnings"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        COUNT=0
+        logtext "Test: Check for any warnings"
+        FIND=`${DOCKERBINARY} info 2>&1 | grep "^WARNING:" | cut -d " " -f 2- | sed 's/ /:space:/g'`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Result: found warning(s) in output"
+            for I in ${FIND}; do
+                J=`echo ${I} | sed 's/:space:/ /g'`
+                logtext "Output: ${J}"
+                COUNT=`expr ${COUNT} + 1`
+            done
+            Display --indent 8 --text "- Docker info output (warnings)" --result "${COUNT}" --color RED
+            ReportSuggestion "${TEST_NO}" "Run 'docker info' to see warnings applicable to Docker daemon"
+            AddHP 3 4
+          else
+            logtext "Result: no warnings found from 'docker info' output"
+            Display --indent 8 --text "- Docker info output (warnings)" --result "NONE" --color GREEN
+            AddHP 1 1
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CONT-8106
+    # Description : Checking Docker containers (basic stats)
+    # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
+    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather basic stats from Docker"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        Display --indent 6 --text "- Containers"
+
+        # Check total of containers
+        logtext "Test: checking total amount of Docker containers"
+        DOCKER_CONTAINERS_TOTAL=`${DOCKERBINARY} info 2> /dev/null | grep "^Containers: " | awk '{ print $2 }'`
+        if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
+            DOCKER_CONTAINERS_TOTAL=0
+        fi
+        logtext "Result: docker info shows ${DOCKER_CONTAINERS_TOTAL} containers"
+        DOCKER_CONTAINERS_TOTAL2=`${DOCKERBINARY} ps -a 2> /dev/null | grep -v "CONTAINER" | wc -l`
+        logtext "Result: docker ps -a shows ${DOCKER_CONTAINERS_TOTAL2} containers"
+        if [ ! "${DOCKER_CONTAINERS_TOTAL}" = "${DOCKER_CONTAINERS_TOTAL2}" ]; then
+            logtext "Result: difference detected, which is unexpected"
+            ReportSuggestion "${TEST_NO}" "Test output of both 'docker ps -a' and 'docker info', to determine why they report a different amount of containers"
+            Display --indent 8 --text "- Total containers" --result "UNKNOWN" --color RED
+          else
+            Display --indent 8 --text "- Total containers" --result "${DOCKER_CONTAINERS_TOTAL}" --color WHITE
+        fi
+
+        # Check running instances
+        DOCKER_CONTAINERS_RUNNING=`${DOCKERBINARY} ps 2> /dev/null | grep -v "CONTAINER" | wc -l`
+        Display --indent 8 --text "- Running containers" --result "${DOCKER_CONTAINERS_RUNNING}" --color GREEN
+        if [ ${DOCKER_CONTAINERS_RUNNING} -gt 0 ]; then
+            logtext "Result: ${DOCKER_CONTAINERS_RUNNING} containers are currently active"
+            report "docker_containers_running=${DOCKER_CONTAINERS_RUNNING}"
+          else
+            logtext "Result: no active containers"
+            report "docker_containers_running=0"
+        fi
+
+        # Check if there aren't too many unused containers on the system
+        if [ ${DOCKER_CONTAINERS_TOTAL} -gt 0 ]; then
+            DOCKER_CONTAINERS_UNUSED=`expr ${DOCKER_CONTAINERS_TOTAL} - ${DOCKER_CONTAINERS_RUNNING}`
+            if [ ${DOCKER_CONTAINERS_UNUSED} -gt 10 ]; then
+                ReportSuggestion "${TEST_NO}" "More than 10 unused containers found on the system. Clean up old containers by using output of 'docker ps -a' command"
+                Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color RED
+                AddHP 0 2
+              else
+               logtext "Result: found ${DOCKER_CONTAINERS_UNUSED} unused containers"
+               Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color YELLOW
+               AddHP 1 1
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+
+wait_for_keypress
+
+#
+#================================================================================
+# Lynis - Copyright 2007-2015, CISOfy - https://cisofy.com

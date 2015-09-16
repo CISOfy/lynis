@@ -90,7 +90,21 @@ output "Settings file: ${SETTINGS_FILE}"
     if [ -f ${REPORTFILE} ]; then
         output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
         # Quit if license is not valid, to reduce load on both client and server.
-        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL}`
+        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
+        EXITCODE=$?
+        if [ ${EXITCODE} -gt 0 ]; then
+            if [ ${EXITCODE} -eq 60 ]; then
+                echo "${RED}Self-signed certificate used on Lynis Enterprise node${NORMAL}"
+                echo "If you want to accept a self-signed certificate, use the -k option in the profile."
+                echo "Example: ${WHITE}config:upload_options:-k:${NORMAL}"
+                logtext "Result: found self-signed certificate, however cURL -k option not used."
+              else
+                output "${RED}Error: ${NORMAL}cURL exited with code ${EXITCODE}"
+                logtext "Result: cURL exited with code ${EXITCODE}"
+            fi
+            logtext "Result: quitting, can't check license"
+            ExitFatal
+        fi
         UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
         if [ "${UPLOAD_CODE}" = "100" ]; then
             output "${WHITE}License is valid${NORMAL}"
@@ -110,7 +124,7 @@ output "Settings file: ${SETTINGS_FILE}"
             echo "Key: ${LICENSE_KEY}"
             output "Debug information: ${UPLOAD}"
             # Quit
-            ExitClean
+            ExitFatal
         fi
         # Extract the hostid from the parse file
         HOSTID=`cat ${REPORTFILE} | grep "^hostid=" | awk -F= '{ print $2 }'`
@@ -119,23 +133,27 @@ output "Settings file: ${SETTINGS_FILE}"
             # Try to connect
             output "Uploading data.."
             logtext "Command used: ${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
-            UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL}`
-            if [ $? -gt 0 ]; then
+            UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
+            EXITCODE=$?
+            if [ ${EXITCODE} -gt 0 ]; then
                 #UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ print $2 }'`
                 #output "Output code from upload: ${UPLOAD_CODE}"
-                output "${RED}Error occurred, please check documentation for code ${UPLOAD_CODE}.${NORMAL}"
-                output "Debug:"
-                output ${UPLOAD}
+                echo "${RED}Error: ${NORMAL}Error occurred, cURL ended during the upload of the report data."
+                echo "Related exit code: ${EXITCODE}"
+                echo "Check the last section of the log file for the exact command used, for further troubleshooting"
+                echo "Debug:"
+                echo ${UPLOAD}
                 # Quit
                 ExitClean
             fi
           else
-            echo "${RED}Fatal error${NORMAL}: No hostid found in report file. Can not upload report file."
+            echo "${RED}Error${NORMAL}: No hostid found in report file. Can not upload report file."
             # Quit
-            ExitClean
+            ExitFatal
         fi
       else
          output "${YELLOW}No report file found to upload.${NORMAL}"
+         ExitFatal
     fi
 
 #

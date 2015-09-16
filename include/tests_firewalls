@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -30,10 +30,6 @@
 #
 #################################################################################
 #
-# YYY Improvement needed for iptables to check if kernel modules are used or not.
-# If they are not used and iptables is not found in configuration, no checks should be performed.
-#
-
     # Test        : FIRE-4511
     # Description : Check iptables kernel module
     Register --test-no FIRE-4511 --os Linux --weight L --network NO --description "Check iptables kernel module"
@@ -124,7 +120,7 @@
             Display --indent 4 --text "- Checking for unused rules" --result OK --color GREEN
             logtext "Result: There are no unused rules present"
           else
-            Display --indent 4 --text "- Checking for unused rules" --result WARNING --color YELLOW
+            Display --indent 4 --text "- Checking for unused rules" --result FOUND --color YELLOW
             logtext "Result: Found one or more possible unused rules"
             logtext "Description: Unused rules can be a sign that the firewall rules aren't optimized or up-to-date"
             logtext "Note: Sometimes rules aren't triggered but still in use. Keep this in mind before cleaning up rules."
@@ -189,7 +185,6 @@
                 PFLOGDFOUND=1
               else
                 logtext "Result: pflog daemon not found in process list"
-                Display --indent 4 --text "- Checking pflogd status" --result "NOT FOUND" --color YELLOW
             fi
         fi
 
@@ -198,7 +193,6 @@
             FIREWALL_SOFTWARE="pf"
           else
             logtext "Result: pf not running on this system"
-            Display --indent 2 --text "- Checking pf" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -274,7 +268,34 @@
 #################################################################################
 #
     # Test        : FIRE-4530
-    # Description : Check ipfw
+    # Description : Check IPFW (FreeBSD)
+    Register --test-no FIRE-4530 --os FreeBSD --weight L --network NO --description "Check IPFW status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! "${SYSCTLBINARY}" = "" ]; then
+            # For now, only check for IPv4.
+            FIND=`${SYSCTLBINARY} net.inet.ip.fw.enable | awk '{ print $2 }'`
+            if [ "${FIND}" = "1" ]; then
+                Display --indent 2 --text "- Checking IPFW status" --result RUNNING --color GREEN
+                logtext "Result: IPFW is running for IPv4"
+                FIREWALL_ACTIVE=1
+                FIREWALL_SOFTWARE="ipfw"
+                IPFW_ENABLED=`service -e | grep -o ipfw`
+                if [ "${IPFW_ENABLED}" = "ipfw" ]; then
+                    Display --indent 4 --text "- IPFW enabled in /etc/rc.conf" --result YES --color GREEN
+                    logtext "Result: IPFW is enabled at start-up for IPv4"
+                else
+                    Display --indent 4 --text "- ipfw enabled in /etc/rc.conf" --result NO --color YELLOW
+                    logtext "Result: IPFW is disabled at start-up for IPv4"
+                fi
+            else
+                Display --indent 2 --text "- Checking IPFW status" --result "NOT RUNNING" --color YELLOW
+                logtext "Result: IPFW is not running for IPv4"
+            fi
+        else
+            Display --indent 2 --text "- Checking IPFW" --result SKIPPED --color YELLOW
+            ReportException "${TEST_NO}:1" "No IPFW test available (sysctl missing)"
+        fi
+    fi
 #
 #################################################################################
 #

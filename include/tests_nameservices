@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -30,6 +30,7 @@
     POWERDNS_AUTH_CONFIG_LOCATION=""
     POWERDNS_AUTH_MASTER=0
     POWERDNS_AUTH_SLAVE=0
+    UNBOUND_CONFIG_OK=0
     YPBIND_RUNNING=0
 #
 #################################################################################
@@ -93,7 +94,7 @@
         # Check amount of search domains (max 1)
             FIND=`cat /etc/resolv.conf | grep "^search" | wc -l | tr -s ' ' | tr -d ' '`
             if [ ! "${FIND}" = "0" -a ! "${FIND}" = "1" ]; then
-                logtext "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"    
+                logtext "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"
                 Display --indent 4 --text "- Checking search domains lines" --result "CONFIG ERROR" --color YELLOW
                 ReportWarning ${TEST_NO} "L" "Found more than 1 search lines in /etc/resolv.conf, which is probably a misconfiguration"
               else
@@ -228,12 +229,57 @@
         logtext "Test: checking nscd status"
         IsRunning nscd
         if [ ${RUNNING} -eq 1 ]; then
+            NAME_CACHE_USED=1
             logtext "Result: nscd is running"
             Display --indent 2 --text "- Checking nscd status" --result RUNNING --color GREEN
           else
             logtext "Result: nscd is not running"
             Display --indent 2 --text "- Checking nscd status" --result "NOT FOUND" --color WHITE
-            #YYY show performance suggestion if LDAP is used
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NAME-4034
+    # Description : Check name service caching daemon (Unbound) status
+    Register --test-no NAME-4034 --weight L --network NO --description "Check Unbound status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: checking Unbound (unbound) status"
+        IsRunning unbound
+        if [ ${RUNNING} -eq 1 ]; then
+            UNBOUND_RUNNING=1
+            NAME_CACHE_USED=1
+            logtext "Result: Unbound daemon is running"
+            Display --indent 2 --text "- Checking Unbound status" --result RUNNING --color GREEN
+          else
+            logtext "Result: Unbound daemon is not running"
+            Display --indent 2 --text "- Checking Unbound status" --result "NOT FOUND" --color WHITE
+       fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NAME-4036
+    # Description : Checking Unbound configuration file
+    if [ ${UNBOUND_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NAME-4036 --preqs-met ${PREQS_MET}  --weight L --network NO --description "Check Unbound configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`which unbound-checkconf`
+        if [ ! "${FIND}" = "" ]; then
+            logtext "Test: running unbound-checkconf"
+            # Don't capture any output, just gather exit code (0 is fine, otherwise bad)
+            FIND=`unbound-checkconf > /dev/null 2>&1`
+            if [ $? -eq 0 ]; then
+                UNBOUND_CONFIG_OK=1
+                logtext "Result: Configuration is fine"
+                Display --indent 2 --text "- Checking configuration file" --result OK --color GREEN
+              else
+                logtext "Result: Unbound daemon is not running"
+                Display --indent 2 --text "- Checking configuration file" --result "NOT OK" --color YELLOW
+                ReportWarning "${TEST_NO}" "L" "Found Unbound configuration file issues (run unbound-checkconf)"
+            fi
+          else
+            logtext "Result: skipped, can't find unbound-checkconf utility"
         fi
     fi
 #
@@ -263,7 +309,6 @@
     Register --test-no NAME-4204 --preqs-met ${PREQS_MET} --weight L --network NO --description "Search BIND configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Search BIND configuration file"
-        #YYY add chrooted environments
         for I in ${BIND_CONFIG_LOCS}; do
             if [ -f ${I}/named.conf ]; then
                 BIND_CONFIG_LOCATION="${I}/named.conf"
@@ -377,7 +422,6 @@
     Register --test-no NAME-4232 --preqs-met ${PREQS_MET} --weight L --network NO --description "Search PowerDNS configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Search PowerDNS configuration file"
-        #YYY add chrooted environments
         for I in ${POWERDNS_CONFIG_LOCS}; do
             if [ -f ${I}/pdns.conf ]; then
                 POWERDNS_AUTH_CONFIG_LOCATION="${I}/pdns.conf"
@@ -522,7 +566,7 @@
             fi
         fi
         # Check if we found any NIS domain
-        if [ ! "${NISDOMAIN}" = "" ]; then    
+        if [ ! "${NISDOMAIN}" = "" ]; then
             logtext "Found NIS domain: ${NISDOMAIN}"
             report "nisdomain=${NISDOMAIN}"
             Display --indent 4 --text "- Checking NIS domain" --result "FOUND" --color GREEN
@@ -569,7 +613,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Check /etc/hosts contains an entry for this server name"
         if [ -f /etc/hosts ]; then
-            sFIND=`cat /etc/hosts | egrep -v '^(#|$|::1|localhost)' | grep ${HOSTNAME}`
+            sFIND=`cat /etc/hosts | egrep -v '^(#|$|^::1\s|localhost)' | grep ${HOSTNAME}`
             if [ "${sFIND}" != "" ]; then
                 logtext "Result: Found entry for ${HOSTNAME} in /etc/hosts"
                 Display --indent 4 --text "- Checking /etc/hosts (hostname)" --result OK --color GREEN
@@ -590,7 +634,7 @@
     Register --test-no NAME-4406 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check server hostname mapping"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Check server hostname not locally mapped in /etc/hosts"
-        sFIND=`cat /etc/hosts | egrep -v '^(#|$)' | egrep '(localhost|::1)' | grep ${HOSTNAME}`
+        sFIND=`cat /etc/hosts | egrep -v '^(#|$)' | egrep '(localhost|^::1\s)' | grep -w ${HOSTNAME}`
         if  [ ! "${sFIND}" = "" ]; then
           logtext "Result: Found this server hostname mapped to a local address"
           Display --indent 4 --text "- Checking /etc/hosts (localhost)" --result SUGGESTION --color YELLOW
@@ -605,8 +649,9 @@
 #################################################################################
 #
 
+report ="name_cache_used=${NAME_CACHE_USED}"
 wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015 Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com

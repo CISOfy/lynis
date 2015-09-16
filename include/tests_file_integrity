@@ -14,6 +14,8 @@
 #
 #################################################################################
 #
+    CSF_CONFIG="/etc/csf/csf.conf"
+    FILE_INT_TOOL=""
     FILE_INT_TOOL_FOUND=0     # Boolean, file integrity tool found
 #
 #################################################################################
@@ -30,11 +32,11 @@
         logtext "Test: Checking AFICK binary"
         if [ ! "${AFICKBINARY}" = "" ]; then
             logtext "Result: AFICK is installed (${AFICKBINARY})"
+            FILE_INT_TOOL="afick"
             FILE_INT_TOOL_FOUND=1
             Display --indent 4 --text "- AFICK" --result FOUND --color GREEN
           else
             logtext "Result: AFICK is not installed"
-            Display --indent 4 --text "- AFICK" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -47,11 +49,11 @@
         logtext "Test: Checking AIDE binary"
         if [ ! "${AIDEBINARY}" = "" ]; then
             logtext "Result: AIDE is installed (${AIDEBINARY})"
+            FILE_INT_TOOL="aide"
             FILE_INT_TOOL_FOUND=1
             Display --indent 4 --text "- AIDE" --result FOUND --color GREEN
           else
             logtext "Result: AIDE is not installed"
-            Display --indent 4 --text "- AIDE" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -92,7 +94,7 @@
     Register --test-no FINT-4316 --preqs-met ${PREQS_MET} --weight L --network NO --description "AIDE configuration: Checksums (SHA256 or SHA512)"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=`${GREPBINARY} "^Checksums" ${AIDECONFIG}`
-        FIND2=`${GREPBINARY} "^Checksums" ${AIDECONFIG} | ${EGREPBINARY} "sha256|sha512"` 
+        FIND2=`${GREPBINARY} "^Checksums" ${AIDECONFIG} | ${EGREPBINARY} "sha256|sha512"`
         if [ "${FIND}" = "" ]; then
             logtext "Result: Unclear how AIDE is dealing with checksums"
             Display --indent 6 --text "- AIDE config (Checksums)" --result UNKNOWN --color YELLOW
@@ -119,11 +121,11 @@
         logtext "Test: Checking Osiris binary"
         if [ ! "${OSIRISBINARY}" = "" ]; then
             logtext "Result: Osiris is installed (${OSIRISBINARY})"
+            FILE_INT_TOOL="osiris"
             FILE_INT_TOOL_FOUND=1
             Display --indent 4 --text "- Osiris" --result FOUND --color GREEN
           else
             logtext "Result: Osiris is not installed"
-            Display --indent 4 --text "- Osiris" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -136,11 +138,11 @@
         logtext "Test: Checking Samhain binary"
         if [ ! "${SAMHAINBINARY}" = "" ]; then
             logtext "Result: Samhain is installed (${SAMHAINBINARY})"
+            FILE_INT_TOOL="samhain"
             FILE_INT_TOOL_FOUND=1
             Display --indent 4 --text "- Samhain" --result FOUND --color GREEN
           else
             logtext "Result: Samhain is not installed"
-            Display --indent 4 --text "- Samhain" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -153,11 +155,11 @@
         logtext "Test: Checking Tripwire binary"
         if [ ! "${TRIPWIREBINARY}" = "" ]; then
             logtext "Result: Tripwire is installed (${TRIPWIREBINARY})"
+            FILE_INT_TOOL="tripwire"
             FILE_INT_TOOL_FOUND=1
             Display --indent 4 --text "- Tripwire" --result FOUND --color GREEN
           else
             logtext "Result: Tripwire is not installed"
-            Display --indent 4 --text "- Tripwire" --result "NOT FOUND" --color WHITE
         fi
     fi
 #
@@ -170,10 +172,12 @@
         logtext "Test: Checking if OSSEC syscheck daemon is running"
         IsRunning ossec-syscheckd
         if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: syscheck (OSSEC) installed"
+            FILE_INT_TOOL="ossec-syscheck"
             FILE_INT_TOOL_FOUND=1
             Display --indent 4 --text "- OSSEC (syscheck)" --result FOUND --color GREEN
           else
-            Display --indent 4 --text "- OSSEC (syscheck)" --result "NOT FOUND" --color WHITE
+            logtext "Result: syscheck (OSSEC) not installed"
         fi
     fi
 #
@@ -187,11 +191,59 @@
         logtext "Test: Checking mtree binary"
         if [ ! "${MTREEBINARY}" = "" ]; then
             logtext "Result: mtree is installed (${MTREEBINARY})"
+            FILE_INT_TOOL="mtree"
             FILE_INT_TOOL_FOUND=1
             Display --indent 4 --text "- mtree" --result FOUND --color GREEN
           else
             logtext "Result: mtree is not installed"
-            Display --indent 4 --text "- mtree" --result "NOT FOUND" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4334
+    # Description : Check if LFD is used (part of CSF suite)
+    if [ -f ${CSF_CONFIG} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FINT-4334 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check lfd daemon status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        Display --indent 4 --text "- lfd (CSF)" --result FOUND --color GREEN
+        IsRunning 'lfd '
+        if [ ${RUNNING} -eq 1 ]; then
+            logtext "Result: lfd daemon is running (CSF)"
+            Display --indent 6 --text "- Daemon status" --result RUNNING --color GREEN
+            FILE_INT_TOOL="csf-lfd"
+            FILE_INT_TOOL_FOUND=1
+          else
+            Display --indent 6 --text "- Daemon status" --result "NOT RUNNING" --color YELLOW
+        fi
+    fi
+    # Test        : FINT-4336
+    # Description : Check if LFD is enabled (part of CSF suite)
+    if [ -f ${CSF_CONFIG} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FINT-4336 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check lfd configuration status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # LFD configuration parameters
+        ENABLED=`grep "^LF_DAEMON = \"1\"" ${CSF_CONFIG}`
+        if [ ! "${ENABLED}" = "" ]; then
+            logtext "Result: lfd service is configured to run"
+            Display --indent 6 --text "- Configuration status" --result ENABLED --color GREEN
+          else
+            logtext "Result: lfd service is configured NOT to run"
+            Display --indent 6 --text "- Configuration status" --result DISABLED --color YELLOW
+        fi
+        ENABLED=`grep "^LF_DIRWATCH =" ${CSF_CONFIG} | awk '{ print $3 }' | sed 's/\"//g'`
+        if [ ! "${ENABLED}" = "0" -a ! "${ENABLED}" = "" ]; then
+            logtext "Result: lfd directory watching is enabled (value: ${ENABLED})"
+            Display --indent 6 --text "- Temporary directory watches" --result ENABLED --color GREEN
+          else
+            logtext "Result: lfd directory watching is disabled"
+            Display --indent 6 --text "- Temporary directory watches" --result DISABLED --color YELLOW
+        fi
+        ENABLED=`grep "^LF_DIRWATCH_FILE =" ${CSF_CONFIG} | awk '{ print $3 }' | sed 's/\"//g'`
+        if [ ! "${ENABLED}" = "0" -a ! "${ENABLED}" = "" ]; then
+            Display --indent 6 --text "- Directory/File watches" --result ENABLED --color GREEN
+          else
+            Display --indent 6 --text "- Directory/File watches" --result DISABLED --color YELLOW
         fi
     fi
 #
@@ -209,7 +261,7 @@
           else
             logtext "Result: No file integrity tools found"
             Display --indent 2 --text "- Checking presence integrity tool" --result "NOT FOUND" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Install a file integrity tool"
+            ReportSuggestion ${TEST_NO} "Install a file integrity tool to monitor changes to critical and sensitive files"
             AddHP 0 5
         fi
     fi
@@ -217,6 +269,7 @@
 #################################################################################
 #
 
+report "file_integrity_tool=${FILE_INT_TOOL}"
 report "file_integrity_tool_installed=${FILE_INT_TOOL_FOUND}"
 wait_for_keypress
 

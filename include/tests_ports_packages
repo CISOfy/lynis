@@ -5,8 +5,8 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
+# Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -79,35 +79,6 @@
 #
 #################################################################################
 #
-# Temporary disabled due false positives
-# Packages like docbook, gcc, automake report multiple installed versions
-#    # Test        : PKGS-7303
-#    # Description : Query FreeBSD pkg_info
-#    if [ -x /usr/sbin/pkg_info ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no PKGS-7303 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query FreeBSD for double installed packages"
-#    if [ ${SKIPTEST} -eq 0 ]; then    
-#	SDOUBLEINSTALLED=`pkg_info | sort | sed -e 's/-[0-9].*$//' | uniq -c | grep -v '^[[:space:]]*1' | tr -s ' ' | cut -d ' ' -f3`
-#	if [ "${SDOUBLEINSTALLED}" = "" ]; then
-#	    Display --indent 6 --text "- Querying pkg_info for double installed packages" --result OK --color GREEN
-#	    logtext "Ok, no packages show up twice or more in the package listing."
-#	  else
-#	    Display --indent 6 --text "- Querying pkg_info for double installed packages" --result WARNING --color RED
-#	    for J in ${SDOUBLEINSTALLED}; do
-#	        ReportWarning ${TEST_NO} "M" "Found probably incorrect installed package (${J})"
-#		logtext "This package ${J} is visible twice or more in the pkg_info listing."
-#		ReportSuggestion ${TEST_NO} "(FreeBSD) run pkgdb -F and check this manually."
-#	        ReportSuggestion ${TEST_NO} "(OpenBSD) check dependencies to see if one of the double "
-#		logtext "installed packages is unneeded."
-#		report "double_installed_package[]=${J}"
-#	    done
-#	fi
-#      else
-#        Display --indent 4 --text "- Searching pkg_info" --result "NOT FOUND" --color WHITE
-#	logtext "Result: pkg_info can NOT be found on this system"
-#    fi    
-#
-#################################################################################
-#
     # Test        : PKGS-7304
     # Description : Gentoo packages
     if [ -x /usr/bin/emerge -a -x /usr/bin/equery ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -151,7 +122,6 @@
       else
         logtext "Result: pkginfo can NOT be found on this system"
     fi
-#
 #
 #################################################################################
 #
@@ -202,7 +172,6 @@
         if [ "${SPACKAGES}" = "" ]; then
             logtext "Result: pacman binary available, but package list seems to be empty"
             logtext "Info: looks like the pacman binary is installed, but not used for package installation"
-            #YYY ReportException?
           else
             for J in ${SPACKAGES}; do
                 N=`expr ${N} + 1`
@@ -380,7 +349,7 @@
     fi
 #
 #################################################################################
-
+#
     # Test        : PKGS-7348
     # Description : Show unneeded distfiles if present
     # Notes       : Portsclean seems to be gone from the ports, so no suggestion or warning is
@@ -403,8 +372,66 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7366
+    # Description : Checking if debsecan is installed and enabled on Debian systems
+    if [ ! "${DEBSECANBINARY}" = "" -a "${OS}" = "Linux" -a "${LINUX_VERSION}" = "Debian" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no "PKGS-7366" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for debsecan utility"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! "${DEBSECANBINARY}" = "" ]; then
+            logtext "Result: debsecan utility is installed"
+            Display --indent 4 --text "- debsecan utility" --result "FOUND" --color GREEN
+            AddHP 3 3
+            PACKAGE_AUDIT_TOOL_FOUND=1
+            PACKAGE_AUDIT_TOOL="debsecan"
+            FIND=`find /etc/cron* -name debsecan`
+            if [ ! ${FIND} = "" ]; then
+                logtext "Result: cron job is configured for debsecan"
+                Display --indent 6 --text "- debsecan cron job" --result "FOUND" --color GREEN
+                AddHP 3 3
+              else
+                logtext "Result: no cron job is configured for debsecan"
+                Display --indent 4 --text "- debsecan cron job" --result "NOT FOUND" --color YELLOW
+                AddHP 1 3
+                ReportSuggestion ${TEST_NO} "Check debsecan cron job and ensure it is enabled"
+            fi
+          else
+            logtext "Result: debsecan is not installed."
+            Display --indent 4 --text "- debsecan utility" --result "NOT FOUND" --color YELLOW
+            AddHP 0 2
+            ReportSuggestion ${TEST_NO} "Install debsecan to check for vulnerabilities on installed packages."
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7370
-    # Description : Check debsums output
+    # Description : Checking debsums installation status and presence in cron job
+    # Note        : Run this only when it is a DPKG based system
+    if [ ! "${DPKGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no "PKGS-7370" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for debsums utility"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! "${DEBSUMSBINARY}" = "" ]; then
+            logtext "Result: debsums utility is installed"
+            Display --indent 4 --text "- debsums utility" --result "FOUND" --color GREEN
+            AddHP 1 1
+            # Check in /etc/cron.hourly, daily, weekly, monthly etc
+            COUNT=`find /etc/cron* -name debsums | wc -l`
+            if [ ${COUNT} -gt 0 ]; then
+                logtext "Result: Cron job is configured for debsums utility."
+                Display --indent 6 --text "- Cron job for debsums" --result "FOUND" --color GREEN
+                AddHP 3 3
+              else
+                logtext "Result: Cron job is not configured for debsums utility."
+                Display --indent 6 --text "- Cron job for debsums" --result "NOT FOUND" --color YELLOW
+                AddHP 1 3
+                ReportSuggestion "${TEST_NO}" "Check debsums configuration and enable checking regurlarly via a cron job."
+            fi
+          else
+            logtext "Result: debsums utility is not installed."
+            AddHP 0 2
+            ReportSuggestion ${TEST_NO} "Install debsums utility for the verification of packages with known good database."
+        fi
+    fi
 #
 #################################################################################
 #
@@ -482,7 +509,6 @@
             if [ "${FIND}" = "" ]; then
                 logtext "Result: pkg audit results are clean"
                 Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result NONE --color GREEN
-              # Don't check yet, output of found vulnerable packages unclear (YYY)
               else
                 logtext "Result: ${FIND}"
                 #Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result WARNING --color RED
@@ -834,7 +860,7 @@
         SCAN_PERFORMED=0
         # Update portage.
         # Multiple ways to do this.  Some require extra packages to be installed,
-        # others require potential firewall ports to be open, outbound.  This is the 
+        # others require potential firewall ports to be open, outbound.  This is the
         # "most friendly" way.
         logtext "Action: updating portage with emerge-webrsync"
         /usr/bin/emerge-webrsync --quiet 2> /dev/null
@@ -933,9 +959,30 @@
 #
 #################################################################################
 #
-# check for popularity-contest (Debian/Ubuntu)
-# check for yum-changelog
-
+    # Test        : PKGS-7410
+    # Description : Count number of installed kernel packages
+    Register --test-no PKGS-7410 --weight L --network NO --description "Count installed kernel packages"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        KERNELS=0
+        if [ ! "${RPMBINARY}" = "" ]; then
+            logtext "Test: Checking how many kernel packages are installed"
+            KERNELS=`rpm -q kernel 2> /dev/null | wc -l`
+            if [ ${KERNELS} -eq 0 ]; then
+                logtext "Result: found no kernels from rpm -q kernel output, which is unexpected"
+                ReportException "KRNL-5840:1" "Could not find any kernel packages from RPM output"
+            elif [ ${KERNELS} -gt 5 ]; then
+                logtext "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
+                ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages with package-cleanup utility (--old-kernels)"
+                AddHP 4 5
+            else
+                logtext "Result: found ${KERNELS} on the system, which is fine"
+                AddHP 1 1
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
 
 if [ ! "${INSTALLED_PACKAGES}" = "" ]; then
     report "installed_packages_array=${INSTALLED_PACKAGES}"
@@ -949,4 +996,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015 Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com

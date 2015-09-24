@@ -231,40 +231,37 @@
 #################################################################################
 #
     # Test        : AUTH-9228
-    # Description : Check Linux password file consistency
+    # Description : Check password file consistency with pwck
+    # Notes       : Operating systems include Linux, Solaris
     if [ -x /usr/sbin/pwck ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no AUTH-9228 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check password file consistency"
+    Register --test-no AUTH-9228 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check password file consistency with pwck"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking password file consistency (pwck)"
-        FIND=`/usr/sbin/pwck -q -r 2> /dev/null; echo $?`
-        if [ "${FIND}" = "0" ]; then
+        TESTED=0
+        case ${OS} in)
+            "Linux")
+                FIND=`/usr/sbin/pwck -q -r 2> /dev/null; echo $?`
+                TESTED=1
+            ;;
+            "Solaris")
+                FIND=`/usr/sbin/pwck 2> /dev/null; echo $?`
+                TESTED=1
+            ;;
+            *)
+                logtext "Dev: found /usr/sbin/pwck, but unsure how to call it on this operating system"
+            ;;
+        esac
+        # Only display if this test has been executed
+        if [ ${TESTED} -eq 1 -a "${FIND}" = "0" ]; then
             Display --indent 2 --text "- Checking password file consistency" --result OK --color GREEN
             logtext "Result: pwck check didn't find any problems"
+            AddHP 2 2
           else
             Display --indent 2 --text "- Checking password file consistency" --result WARNING --color RED
             logtext "Result: pwck found one or more errors/warnings in the password file."
             ReportWarning ${TEST_NO} "M" "pwck found one or more errors/warnings in the password file"
             ReportSuggestion ${TEST_NO} "Run pwck manually and correct found issues."
-        fi
-    fi
-#
-#################################################################################
-#
-    # Test        : AUTH-9230
-    # Description : Check Solaris password file consistency
-    if [ -x /usr/sbin/pwck ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no AUTH-9230 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --description "Check password file consistency"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking password file consistency (pwck)"
-        FIND=`/usr/sbin/pwck 2> /dev/null; echo $?`
-        if [ "${FIND}" = "0" ]; then
-            Display --indent 2 --text "- Checking password file consistency" --result OK --color GREEN
-            logtext "Result: pwck finished didn't find problems"
-          else
-            Display --indent 2 --text "- Checking password file consistency" --result WARNING --color RED
-            logtext "Result: pwck found one or more errors/warnings in the password file."
-            ReportWarning ${TEST_NO} "M" "pwck found one or more errors/warnings in the password file"
-            ReportSuggestion ${TEST_NO} "Run pwck manually and correct found issues."
+            AddHP 0 2
         fi
     fi
 #

@@ -22,6 +22,10 @@
 #
 #################################################################################
 #
+    DOCKER_FILE_PERMISSIONS_WARNINGS=0
+#
+#################################################################################
+#
     # Test        : CONT-8004
     # Description : Query running Solaris zones
     if [ -x /usr/sbin/zoneadm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -156,6 +160,38 @@
                Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color YELLOW
                AddHP 1 1
             fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CONT-8108
+    # Description : Checking Docker file permissions
+    # Notes       : /var/run/docker.sock - Usually root as owner, docker as group - should not be world writable
+    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8108 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check file permissions for Docker files"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        NOT_WORLD_WRITABLE="/var/run/docker.sock"
+        for I in ${NOT_WORLD_WRITABLE}; do
+            logtext "Test: Check ${I}"
+            if [ -f ${I} ]; then
+                logtext "Result: file ${I} found, permissions will be tested"
+                IsWorldWritable ${I}
+                if [ $? -eq 1 ]; then
+                    logtext "Result: file is writable by others, which is a security risk (e.g. privilege escalation)"
+                    ReportWarning "${TEST_NO}" "Docker file is world writable" "${I}" "-"
+                    DOCKER_FILE_PERMISSIONS_WARNINGS=`expr ${DOCKER_FILE_PERMISSIONS_WARNINGS} + 1`
+                  else
+                    logtext "Result: file is not writable by others, which is fine"
+                fi
+            fi
+        done
+        if [ ${DOCKER_FILE_PERMISSIONS_WARNINGS} -gt 0 ]; then
+            Display --indent 4 --text "- File permissions" --result WARNINGS --color YELLOW
+            AddHP 0 5
+          else
+            Display --indent 4 --text "- File permissions" --result OK --color GREEN
+            AddHP 5 5
         fi
     fi
 #

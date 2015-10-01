@@ -27,8 +27,8 @@
 #
     # Program information
     PROGRAM_name="Lynis"
-    PROGRAM_version="2.1.3"
-    PROGRAM_releasedate="24 September 2015"
+    PROGRAM_version="2.1.4"
+    PROGRAM_releasedate="1 October 2015"
     PROGRAM_author="Michael Boelen, CISOfy"
     PROGRAM_author_contact="lynis-dev@cisofy.com"
     PROGRAM_website="https://cisofy.com"
@@ -639,30 +639,39 @@
 #
 
     if [ ${RUN_PLUGINS} -eq 1 ]; then
+
+        # Plugins function
+        RunPlugins()
+        {
+        if [ $# -eq 0 ]; then echo "RunPlugins should be started with phase number"; ExitFatal; fi
+        PLUGIN_PHASE=$1
+        if [ ${PLUGIN_PHASE} -eq 0 -o ${PLUGIN_PHASE} -gt 2 ]; then echo "Incorrect phase number when calling RunPlugins"; ExitFatal; fi
         logtextbreak
-        InsertPluginSection "Plugins (phase 1)"
-        Display --text "Note: plugins have more extensive tests, which may take a few minutes to complete"
-        Display --text " "
-        logtext "Searching plugins..."
+        InsertPluginSection "Plugins (phase ${PLUGIN_PHASE})"
+        if [ ${PLUGIN_PHASE} -eq 1 ]; then
+            Display --text "Note: plugins have more extensive tests, which may take a few minutes to complete"
+            Display --text " "
+            logtext "Searching plugins..."
+        fi
         N_PLUGIN=0
         N_PLUGIN_ENABLED=0
 
         # Search plugins
-        FIND=`find ${PLUGINDIR} -type f -name "plugin_[a-z]*" -exec echo \{\} \; | sort`
-        for I in ${FIND}; do
+        FIND_PLUGINS=`find ${PLUGINDIR} -type f -name "plugin_[a-z]*" -exec echo \{\} \; | sort`
+        for PLUGIN_FILE in ${FIND_PLUGINS}; do
             logtext "Found plugin file: ${I}"
             # Double check if output is a valid file name
-            if [ -f ${I} ]; then
-                FIND2=`grep "^# PLUGIN_NAME=" ${I} | awk -F= '{ print $2 }'`
+            if [ -f ${PLUGIN_FILE} ]; then
+                FIND2=`grep "^# PLUGIN_NAME=" ${PLUGIN_FILE} | awk -F= '{ print $2 }'`
                 if [ ! "${FIND2}" = "" -a ! "${FIND2}" = "[plugin_name]" ]; then
                     N_PLUGIN=`expr ${N_PLUGIN} + 1`
                     FIND3=`grep "^plugin=${FIND2}" ${PROFILE}`
                     if [ ! "${FIND3}" = "" ]; then
                         logtext "Plugin ${FIND2} is enabled"
                         # Plugins should have at least a _phase1 part, _phase2 is optional at this moment
-                        PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase1"
+                        PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase${PLUGIN_PHASE}"
                         if [ -f ${PLUGINFILE} ]; then
-                            PLUGIN_VERSION=`grep "^# PLUGIN_VERSION=" ${I} | awk -F= '{ print $2 }'`
+                            PLUGIN_VERSION=`grep "^# PLUGIN_VERSION=" ${PLUGIN_FILE} | awk -F= '{ print $2 }'`
                             PLUGIN_VERSION_NODOTS=`echo ${PLUGIN_VERSION} | sed 's/.//g'`
                             FIND4=`ls -l ${PLUGINFILE} | cut -c 2-10`
                             if [ "${FIND4}" = "rw-r--r--" -o "${FIND4}" = "rw-r-----" -o "${FIND4}" = "rw-------" -o "${FIND4}" = "r--------" ]; then
@@ -670,13 +679,11 @@
                                 report "plugin_enabled_phase1[]=${FIND2}|${PLUGIN_VERSION}|"
                                 N_PLUGIN_ENABLED=`expr ${N_PLUGIN_ENABLED} + 1`
                                 Display --indent 2 --text "- ${CYAN}Plugin${NORMAL}: ${WHITE}${FIND2}${NORMAL}"
-                                #Display --indent 0 --text "   [" --no-break
-                                Progress "    ["
+                                if [ ${PLUGIN_PHASE} -eq 1 ]; then Progress "    ["; fi
                                 . ${PLUGINFILE}
-                                Progress "]"
-                                Progress --finish
+                                if [ ${PLUGIN_PHASE} -eq 1 ]; then Progress "]"; Progress --finish; fi
                                 logtextbreak
-                                logtext "Result: ${FIND2} plugin (phase 1) finished"
+                                logtext "Result: ${FIND2} plugin (phase ${PLUGIN_PHASE}) finished"
                               else
                                 logtext "Plugin ${FIND2}: Skipped (bad file permissions, should be 640, 600 or 400)"
                             fi
@@ -687,13 +694,15 @@
                         logtext "Plugin ${FIND2}: Skipped (not enabled)"
                     fi
                   else
-                    logtext "Skipping plugin file ${I} (no valid plugin name found)"
+                    logtext "Skipping plugin file ${PLUGIN_FILE} (no valid plugin name found)"
                 fi
             fi
             logtext "--"
         done
         logtext "Result: Found ${N_PLUGIN} plugins of which ${N_PLUGIN_ENABLED} are enabled"
-        logtext "Result: Plugins finished"
+        logtext "Result: Plugins ${PLUGIN_PHASE} finished"
+        }
+        RunPlugins 1
 
         if [ ${N_PLUGIN_ENABLED} -eq 0 ]; then
             Display --indent 2 --text "- Plugins enabled " --result "NONE" --color WHITE
@@ -810,6 +819,17 @@
                 echo "Error, could not find helper"
             fi
         fi
+    fi
+
+#
+#################################################################################
+#
+# Run phase 2 of plugins
+#
+#################################################################################
+#
+    if [ ${RUN_PLUGINS} -eq 1 ]; then
+        RunPlugins 2
     fi
 #
 #################################################################################

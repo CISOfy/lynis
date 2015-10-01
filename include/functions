@@ -50,6 +50,7 @@
 #    Register                   Register a test (for logging and execution)
 #    SafePerms                  Check if a directory has safe permissions
 #    SearchItem                 Search a string in a file
+#    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
 #    ViewCategories             Display tests categories
 #    logtext                    Log text strings to logfile, prefixed with date/time
@@ -1409,6 +1410,83 @@
             #report "warning=$2"
         ;;
         esac
+      }
+
+
+    ################################################################################
+    # Name        : ShowComplianceFinding()
+    # Description : Display a section of a compliance standard which is not fulfilled
+    # Parameters  : <misc>
+    # Returns     : Nothing
+    ################################################################################
+
+    ShowComplianceFinding()
+      {
+        REASON=""
+        STANDARD_NAME=""
+        STANDARD_VERSION=""
+        STANDARD_SECTION=""
+        STANDARD_SECTION_TITLE=""
+        ACTUAL_VALUE=""
+        EXPECTED_VALUE=""
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --standard)
+                    shift
+                    STANDARD_NAME=$1
+                ;;
+                --version)
+                    shift
+                    STANDARD_VERSION=$1
+                ;;
+                --section)
+                    shift
+                    STANDARD_SECTION=$1
+                ;;
+                --section-title)
+                    shift
+                    STANDARD_SECTION_TITLE=$1
+                ;;
+                --reason)
+                    shift
+                    REASON=$1
+                ;;
+                --actual)
+                    shift
+                    ACTUAL_VALUE=$1
+                ;;
+                --expected)
+                    shift
+                    EXPECTED_VALUE=$1
+                ;;
+
+                *)
+                    echo "INVALID OPTION (ShowComplianceFinding): $1"
+                    exit 1
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+        # Should we show this non-compliance on screen?
+        SHOW=0
+        case ${STANDARD_NAME} in
+            hipaa)
+                if [ ${COMPLIANCE_HIPAA} -eq 1 ]; then SHOW=1; fi
+            ;;
+            iso27001)
+                if [ ${COMPLIANCE_ISO27001} -eq 1 ]; then SHOW=1; fi
+            ;;
+            pci-dss)
+                if [ ${COMPLIANCE_PCI_DSS} -eq 1 ]; then SHOW=1; fi
+            ;;
+        esac
+        # Only display if standard is enabled in the profile
+        if [ ${SHOW} -eq 1 ]; then
+            Display --indent 2 --text "[${WHITE}${STANDARD_NAME} ${STANDARD_VERSION}${NORMAL}] ${STANDARD_SECTION} ${STANDARD_SECTION_TITLE}"
+            Display --indent 2 --text "Details: ${REASON}"
+            Display --indent 2 --text "Values:  ${RED}${ACTUAL_VALUE}${NORMAL} / ${WHITE}${EXPECTED_VALUE}${NORMAL}"
+        fi
       }
 
 

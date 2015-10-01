@@ -28,6 +28,7 @@
 #    DigitsOnly                 Return only the digits from a string
 #    DirectoryExists            Check if a directory exists on the disk
 #    Display                    Output text to screen with colors and identation
+#    DisplayManual              Output text to screen without any layout
 #    ExitClean                  Stop the program (cleanly), with exit code 0
 #    ExitCustom                 Stop the program (cleanly), with custom exit code
 #    ExitFatal                  Stop the program (cleanly), with exit code 1
@@ -100,7 +101,6 @@
             if [ "${FILEVALUE}" = "${PROFILEVALUE}" ]; then PERMS="OK"; else PERMS="BAD"; fi
         fi
       }
-
 
 
     ################################################################################
@@ -177,11 +177,17 @@
         fi
       }
 
-    # More information on the screen
+    ################################################################################
+    # Name        : Debug
+    # Description : Show additional information on screen
+    # Returns     : Nothing
+    ################################################################################
+
     Debug()
       {
         if [ ${DEBUG} -eq 1 ]; then echo "DEBUG: $1"; fi
       }
+
 
     ################################################################################
     # Name        : DigitsOnly
@@ -197,10 +203,15 @@
             VALUE=`echo ${VALUE} | grep -Eo '[0-9]{1,}'`
         fi
         logtext "Returning value: ${VALUE}"
-        #return $VALUE
       }
 
-    # Display text
+
+    ################################################################################
+    # Name        : Display
+    # Description : Show text on screen, with markup
+    # Returns     : Nothing
+    ################################################################################
+
     Display()
       {
         INDENT=0; TEXT=""; RESULT=""; COLOR=""; SPACES=0
@@ -262,6 +273,21 @@
             fi
         fi
       }
+
+
+    ################################################################################
+    # Name        : DisplayManual
+    # Description : Show text on screen, without any markup
+    # Returns     : Nothing
+    ################################################################################
+
+    DisplayManual()
+      {
+            if [ ${QUIET} -eq 0 ]; then
+                ${ECHOCMD} "$1"
+            fi
+      }
+
 
     # Clean exit (removing temp files, PID files)
     ExitClean()
@@ -1471,21 +1497,30 @@
         # Should we show this non-compliance on screen?
         SHOW=0
         case ${STANDARD_NAME} in
+            cis)
+                if [ ${COMPLIANCE_ENABLE_CIS} -eq 1 ]; then SHOW=1; fi
+                STANDARD_FRIENDLY_NAME="CIS"
+            ;;
             hipaa)
-                if [ ${COMPLIANCE_HIPAA} -eq 1 ]; then SHOW=1; fi
+                if [ ${COMPLIANCE_ENABLE_HIPAA} -eq 1 ]; then SHOW=1; fi
+                STANDARD_FRIENDLY_NAME="HIPAA"
             ;;
             iso27001)
-                if [ ${COMPLIANCE_ISO27001} -eq 1 ]; then SHOW=1; fi
+                if [ ${COMPLIANCE_ENABLE_ISO27001} -eq 1 ]; then SHOW=1; fi
+                STANDARD_FRIENDLY_NAME="ISO27001"
             ;;
             pci-dss)
-                if [ ${COMPLIANCE_PCI_DSS} -eq 1 ]; then SHOW=1; fi
+                if [ ${COMPLIANCE_ENABLE_PCI_DSS} -eq 1 ]; then SHOW=1; fi
+                STANDARD_FRIENDLY_NAME="PCI DSS"
             ;;
         esac
-        # Only display if standard is enabled in the profile
+        # Only display if standard is enabled in the profile and mark system as non-compliant
         if [ ${SHOW} -eq 1 ]; then
-            Display --indent 2 --text "[${WHITE}${STANDARD_NAME} ${STANDARD_VERSION}${NORMAL}] ${STANDARD_SECTION} ${STANDARD_SECTION_TITLE}"
-            Display --indent 2 --text "Details: ${REASON}"
-            Display --indent 2 --text "Values:  ${RED}${ACTUAL_VALUE}${NORMAL} / ${WHITE}${EXPECTED_VALUE}${NORMAL}"
+            COMPLIANCE_FINDINGS_FOUND=1
+            DisplayManual "  [${WHITE}${STANDARD_FRIENDLY_NAME} ${STANDARD_VERSION}${NORMAL}] - ${CYAN}Section ${STANDARD_SECTION}${NORMAL} - ${WHITE}${STANDARD_SECTION_TITLE}${NORMAL}"
+            DisplayManual "  - Details:        ${REASON}"
+            DisplayManual "  - Configuration:  ${RED}${ACTUAL_VALUE}${NORMAL} / ${EXPECTED_VALUE}"
+            DisplayManual ""
         fi
       }
 
@@ -1494,7 +1529,7 @@
     # Name        : ShowSymlinkPath()
     # Description : Check if we can find the path behind a symlink
     # Parameters  : $1 = file
-    # Returns     : FOUNDPATH (0 not found, 1 found path))
+    # Returns     : FOUNDPATH (0 not found, 1 found path)
     ################################################################################
 
     ShowSymlinkPath()

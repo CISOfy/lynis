@@ -224,7 +224,7 @@
         COUNT=0
         # Check configuration options (options start with a capital)
         logtext "Test: searching configured options in ${PACMANCONF}"
-        FIND=`grep "^[A-Z]" ${PACMANCONF} | sort | uniq | sed 's/ /:space:/g'`
+        FIND=`grep "^[A-Z]" ${PACMANCONF} | sort -u | sed 's/ /:space:/g'`
         for I in ${FIND}; do
             PMOPTION=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $1 }'`
             PMVALUE=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $2 }'`
@@ -282,7 +282,7 @@
                 logtext "Result: Zypper found one or more installed packages which are vulnerable."
                 ReportWarning ${TEST_NO} "H" "Found one or more vulnerable packages installed"
                 # Unfortunately zypper does not properly give back which package it is. Usually best guess is last word on the line
-                FIND=`${ZYPPERBINARY} lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | sed 's/:$//' | grep -v "^$" | sort | uniq`
+                FIND=`${ZYPPERBINARY} lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | sed 's/:$//' | grep -v "^$" | sort -u`
                 logtext "List of vulnerable packages/version:"
                 for I in ${FIND}; do
                     report "vulnerable_package[]=${I}"
@@ -477,7 +477,7 @@
                     logtext "Result: pkg_admin audit found one or more installed packages which are vulnerable."
                     ReportWarning ${TEST_NO} "M" "Found one or more vulnerable packages."
                     logtext "List of vulnerable packages/version:"
-                    for I in `/usr/sbin/pkg_admin audit | awk '{ print $2 }' | sort | uniq`; do
+                    for I in `/usr/sbin/pkg_admin audit | awk '{ print $2 }' | sort -u`; do
                         report "vulnerable_package[]=${I}"
                         logtext "Vulnerable package: ${I}"
                         # Decrease hardening points for every found vulnerable package
@@ -516,7 +516,7 @@
                 #ReportWarning ${TEST_NO} "M" "Found one or more vulnerable packages."
                 #ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
                 #logtext "List of vulnerable packages/version:"
-                #for I in `/usr/sbin/pkg audit -F | grep "Affected package" | cut -d ' ' -f3 | sort | uniq`; do
+                #for I in `/usr/sbin/pkg audit -F | grep "Affected package" | cut -d ' ' -f3 | sort -u`; do
                 #    report "vulnerable_package[]=${I}"
                 #    logtext "Vulnerable package: ${I}"
                 #    # Decrease hardening points for every found vulnerable package
@@ -548,7 +548,7 @@
                 ReportWarning ${TEST_NO} "M" "Found one or more vulnerable packages."
                 ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
                 logtext "List of vulnerable packages/version:"
-                for I in `/usr/local/sbin/portaudit | grep "Affected package" | cut -d ' ' -f3 | sort | uniq`; do
+                for I in `/usr/local/sbin/portaudit | grep "Affected package" | cut -d ' ' -f3 | sort -u`; do
                     report "vulnerable_package[]=${I}"
                     logtext "Vulnerable package: ${I}"
                     # Decrease hardening points for every found vulnerable package
@@ -821,7 +821,7 @@
 
         # Trying also with apt-get directly (does not always work, as updates are distributed on both -security and -updates)
         # Show packages which would be upgraded and match 'security' in repository name
-        FIND=`/usr/bin/apt-get --dry-run --show-upgraded upgrade 2> /dev/null | grep '-security' | grep "^Inst" | cut -d ' ' -f2 | sort | uniq`
+        FIND=`/usr/bin/apt-get --dry-run --show-upgraded upgrade 2> /dev/null | grep '-security' | grep "^Inst" | cut -d ' ' -f2 | sort -u`
         if [ ! "${FIND}" = "" ]; then
             #Display --indent 2 --text "- Checking vulnerable packages" --result WARNING --color RED
             VULNERABLE_PACKAGES_FOUND=1

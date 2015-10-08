@@ -254,7 +254,7 @@
     Register --test-no LOGG-2148 --weight L --preqs-met ${PREQS_MET} --network NO --description "Checking logrotated files"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking which files are rotated with logrotate and if they exist"
-        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | egrep "considering log|skipping" | grep -v '*' | sort | uniq | awk '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }'`
+        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | egrep "considering log|skipping" | grep -v '*' | sort -u | awk '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }'`
         if [ "${FIND}" = "" ]; then
             logtext "Result: nothing found"
           else
@@ -273,7 +273,7 @@
     Register --test-no LOGG-2150 --weight L --preqs-met ${PREQS_MET} --network NO --description "Checking directories in logrotate configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking which directories can be found in logrotate configuration"
-        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | egrep "considering log|skipping" | grep -v '*' | sort | uniq | awk '{ if ($2=="log") { print $3 } }' | sed 's@/[^/]*$@@g' | sort | uniq`
+        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | egrep "considering log|skipping" | grep -v '*' | sort -u | awk '{ if ($2=="log") { print $3 } }' | sed 's@/[^/]*$@@g' | sort -u`
         if [ "${FIND}" = "" ]; then
             logtext "Result: nothing found"
           else
@@ -380,7 +380,7 @@
     Register --test-no LOGG-2162 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking directories in /etc/newsyslog.conf"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: parsing directories from /etc/newsyslog.conf file"
-        FIND=`cat /etc/newsyslog.conf | sort | uniq | grep "^/" | awk '{ print $1 }' | sed 's/\/*[a-zA-Z_.-]*$//g' | sort | uniq`
+        FIND=`cat /etc/newsyslog.conf | sort -u | grep "^/" | awk '{ print $1 }' | sed 's/\/*[a-zA-Z_.-]*$//g' | sort -u`
         for I in ${FIND}; do
             if [ -d ${I} ]; then
                 logtext "Result: Directory ${I} found and exists"
@@ -400,7 +400,7 @@
     Register --test-no LOGG-2164 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking files specified /etc/newsyslog.conf"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: parsing files from /etc/newsyslog.conf file"
-        FIND=`cat /etc/newsyslog.conf | sort | uniq | grep "^/" | awk '{ print $1 }'`
+        FIND=`cat /etc/newsyslog.conf | sort -u | grep "^/" | awk '{ print $1 }'`
         for I in ${FIND}; do
             if [ -f ${I} ]; then
                 logtext "Result: File ${I} found and exists"
@@ -437,7 +437,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: checking open log files with lsof"
         if [ ! "${LSOFBINARY}" = "" ]; then
-            FIND=`${LSOFBINARY} -n 2>&1 | grep "log$" | egrep -v "WARNING|Output information" | awk '{ if ($5=="REG") { print $9 } }' | sort | uniq | grep -v "^$"`
+            FIND=`${LSOFBINARY} -n 2>&1 | grep "log$" | egrep -v "WARNING|Output information" | awk '{ if ($5=="REG") { print $9 } }' | sort -u | grep -v "^$"`
             for I in ${FIND}; do
                 logtext "Found logfile: ${I}"
                 report "open_logfile[]=${I}"
@@ -458,7 +458,7 @@
     Register --test-no LOGG-2190 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking deleted files in file table"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: checking deleted files but are still in use"
-        FIND=`${LSOFBINARY} -n +L 1 2>&1 | egrep -v "WARNING|Output information" | awk '{ if ($5=="REG") { print $10 } }' | grep -v "^$" | sort | uniq`
+        FIND=`${LSOFBINARY} -n +L 1 2>&1 | egrep -v "WARNING|Output information" | awk '{ if ($5=="REG") { print $10 } }' | grep -v "^$" | sort -u`
         if [ ! "${FIND}" = "" ]; then
             logtext "Result: found one or more files which are deleted, but still in use"
             for I in ${FIND}; do

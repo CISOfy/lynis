@@ -212,7 +212,7 @@
     if [ -f ${SOURCEFILE_RPM} ]; then
         if [ -f lynis.spec ]; then
             # adjust version in spec file
-            VERSION_IN_SPECFILE=`cat lynis.spec | grep "^Version:" | sed 's/ //g' | awk -F: '{ print $2 }'`
+            VERSION_IN_SPECFILE=`awk '/^Version:/ { print $2 }' lynis.spec`
             echo "[=] Found version ${VERSION_IN_SPECFILE}"
             if [ ${VERSION_IN_SPECFILE} = "" -o ! "${VERSION_IN_SPECFILE}" = "${LYNIS_VERSION}" ]; then
                echo "[X] Version in specfile is outdated"
@@ -372,12 +372,12 @@ Exit
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     echo -n "- Creating MD5 hashes..."
-    PACKAGE_LIST_FILES=`cat files.dat | grep "^file:" | cut -d ':' -f3`
+    PACKAGE_LIST_FILES=`grep "^file:" files.dat | cut -d ':' -f3`
 
     for I in ${PACKAGE_LIST_FILES}; do
 
       echo -n "${I} "
-      #FULLNAME=`cat files.dat | grep ":file:include:
+      #FULLNAME=`grep ":file:include:" files.dat
       #echo "${FULLNAME}" >> ${OPENBSD_CONTENTS}
       echo "${I}" >> ${OPENBSD_CONTENTS}
       FILE="../${I}"

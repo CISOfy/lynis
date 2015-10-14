@@ -144,14 +144,14 @@
             FileIsReadable ${I}
             if [ ${CANREAD} -eq 1 ]; then
                 # Search Virtual Hosts
-                for J in `cat ${I} | grep "ServerName" | grep -v "^#" | awk '{ if ($1=="ServerName") print $2 }'`; do
+                for J in `grep "ServerName" ${I} | grep -v "^#" | awk '{ if ($1=="ServerName") print $2 }'`; do
                     if [ ! -z ${J} ]; then
                         tVHOSTS="${tVHOSTS} ${J}"
                         cVHOSTS=`expr ${cVHOSTS} + 1`
                     fi
                 done
                 # Search Server aliases
-                for J in `cat ${I} | grep "ServerAlias" | grep -v "^#" | sed "s/.* ServerAlias//g" | sed "s/#.*//g"`; do
+                for J in `grep "ServerAlias" ${I} | grep -v "^#" | sed "s/.* ServerAlias//g" | sed "s/#.*//g"`; do
                     if [ ! -z ${J} ]; then
                         tVHOSTS="${tVHOSTS} ${J}"
                         cVHOSTS=`expr ${cVHOSTS} + 1`
@@ -200,12 +200,12 @@
 #	        for APACHE_CONFIGFILE in ${APACHE_CONFIGFILES}; do
 #	            if [ -f ${APACHE_CONFIGFILE} ]; then
 #	        	# Check if option ServerTokens is configured
-#	        	SERVERTOKENSTEST=`cat ${APACHE_CONFIGFILE} | grep ServerTokens | grep -v '^#'`
+#	        	SERVERTOKENSTEST=`grep ServerTokens ${APACHE_CONFIGFILE} | grep -v '^#'`
 #	        	if [ ! "${SERVERTOKENSTEST}" = "" ]; then
 #	    		    Display --indent 4 --text "- Checking option ServerTokens" --result FOUND --color WHITE
 #	        	    SERVERTOKENSTEST=`echo ${SERVERTOKENSTEST} | sed 's/ServerTokens//' | tr -d ' '`
 #	    		    logtext "Option ServerTokens found: ${SERVERTOKENSTEST}"
-#	    		    SERVERTOKENSEXPECTED=`cat ${PROFILE} | grep 'apache' | grep 'ServerTokens' | cut -d ':' -f3`
+#	    		    SERVERTOKENSEXPECTED=`grep 'apache' ${PROFILE} | grep 'ServerTokens' | cut -d ':' -f3`
 #	    		    if [ "${SERVERTOKENSEXPECTED}" = "${SERVERTOKENSTEST}" ]; then
 #	    		        logtext "Result: Value from configuration file yielded the same output as in template"
 #	    		        SERVERTOKENSFOUND=1
@@ -420,7 +420,7 @@
         # Remove temp file
         if [ ! "${TMPFILE}" = "" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
         N=0
-        cat ${NGINX_CONF_LOCATION} | sed -e 's/^[ 	]*//' | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}
+        sed -e 's/^[ 	]*//' ${NGINX_CONF_LOCATION} | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}
         # Search for included configuration files (may include directories and wild cards)
         FIND=`grep "include" ${NGINX_CONF_LOCATION} | ${AWKBINARY} '{ if ($1=="include") { print $2 }}' | sed 's/;$//g'`
         for I in ${FIND}; do
@@ -433,7 +433,7 @@
                   report "nginx_sub_conf_file=${J}"
                   FileIsReadable ${J}
                   if [ ${CANREAD} -eq 1 ]; then
-                      FIND3=`cat ${J} | sed -e 's/^[ 	]*//' | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}`
+                      FIND3=`sed -e 's/^[ 	]*//' ${J} | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}`
                     else
                       ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
                   fi
@@ -442,7 +442,7 @@
         done
 
         # Sort all discovered configuration lines and store unique ones. Also strip out the mime types configured in nginx
-        SORTFILE=`cat ${TMPFILE} | sort -u | sed 's/ /:space:/g' | egrep -v "(application|audio|image|text|video)/" | egrep -v "({|})"`
+        SORTFILE=`sort -u ${TMPFILE} | sed 's/ /:space:/g' | egrep -v "(application|audio|image|text|video)/" | egrep -v "({|})"`
         for I in ${SORTFILE}; do
             I=`echo ${I} | sed 's/:space:/ /g'`
             report "nginx_config_option=${I}";

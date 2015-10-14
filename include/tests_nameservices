@@ -42,7 +42,7 @@
         logtext "Test: check /etc/resolv.conf for default domain"
         if [ -f /etc/resolv.conf ]; then
             logtext "Result: /etc/resolv.conf found"
-            FIND=`cat /etc/resolv.conf | grep "^domain" | awk '{ print $2 }'`
+            FIND=`awk '/^domain/ { print $2 }' /etc/resolv.conf`
             if [ "${FIND}" = "" ]; then
                 logtext "Result: no default domain found"
                 Display --indent 2 --text "- Checking default DNS search domain" --result NONE --color WHITE
@@ -67,7 +67,7 @@
         logtext "Test: check /etc/resolv.conf for search domains"
         if [ -f /etc/resolv.conf ]; then
             logtext "Result: /etc/resolv.conf found"
-            FIND=`cat /etc/resolv.conf | grep "^search" | sed 's/^search //'`
+            FIND=`awk '/^search/ { print $2 }' /etc/resolv.conf`
             if [ "${FIND}" = "" ]; then
                 logtext "Result: no search domains found, default domain is being used"
               else
@@ -92,7 +92,7 @@
         fi
 
         # Check amount of search domains (max 1)
-            FIND=`cat /etc/resolv.conf | grep "^search" | wc -l | tr -s ' ' | tr -d ' '`
+            FIND=`grep -c "^search" /etc/resolv.conf`
             if [ ! "${FIND}" = "0" -a ! "${FIND}" = "1" ]; then
                 logtext "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"
                 Display --indent 4 --text "- Checking search domains lines" --result "CONFIG ERROR" --color YELLOW
@@ -452,7 +452,7 @@
     Register --test-no NAME-4236 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PowerDNS backends"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking for PowerDNS backends"
-        FIND=`cat ${POWERDNS_AUTH_CONFIG_LOCATION} | grep "^launch" | awk -F= '{ print $2 }'`
+        FIND=`awk -F= '/^launch/ { print $2 }' ${POWERDNS_AUTH_CONFIG_LOCATION}`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 logtext "Found backend: ${I}"
@@ -472,7 +472,7 @@
     Register --test-no NAME-4238 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PowerDNS authoritive status"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking for PowerDNS master status"
-        FIND=`cat ${POWERDNS_AUTH_CONFIG_LOCATION} | grep "^master=yes"`
+        FIND=`grep "^master=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
         if [ ! "${FIND}" = "" ]; then
             logtext "Found master=yes in configuration file"
             Display --indent 4 --text "- PowerDNS authoritive master: YES"
@@ -482,7 +482,7 @@
             Display --indent 4 --text "- PowerDNS authoritive master: NO"
         fi
         logtext "Test: Checking for PowerDNS slave status"
-        FIND=`cat ${POWERDNS_AUTH_CONFIG_LOCATION} | grep "^slave=yes"`
+        FIND=`grep "^slave=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
         if [ ! "${FIND}" = "" ]; then
             logtext "Found slave=yes in configuration file"
             Display --indent 4 --text "- PowerDNS authoritive slave: YES"
@@ -588,7 +588,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: check duplicate line in /etc/hosts"
         if [ -f /etc/hosts ]; then
-            sFIND=`cat /etc/hosts | egrep -v '^(#|$)' | sort | uniq -d`
+            sFIND=`egrep -v '^(#|$)' /etc/hosts | awk '{ print $1, $2 }' | sort | uniq -d`
             if [ "${sFIND}" = "" ]; then
                 logtext "Result: OK, no duplicate lines found"
                 Display --indent 4 --text "- Checking /etc/hosts (duplicates)" --result OK --color GREEN
@@ -613,7 +613,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Check /etc/hosts contains an entry for this server name"
         if [ -f /etc/hosts ]; then
-            sFIND=`cat /etc/hosts | egrep -v '^(#|$|^::1\s|localhost)' | grep ${HOSTNAME}`
+            sFIND=`egrep -v '^(#|$|^::1\s|localhost)' /etc/hosts | grep ${HOSTNAME}`
             if [ "${sFIND}" != "" ]; then
                 logtext "Result: Found entry for ${HOSTNAME} in /etc/hosts"
                 Display --indent 4 --text "- Checking /etc/hosts (hostname)" --result OK --color GREEN
@@ -634,7 +634,7 @@
     Register --test-no NAME-4406 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check server hostname mapping"
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Check server hostname not locally mapped in /etc/hosts"
-        sFIND=`cat /etc/hosts | egrep -v '^(#|$)' | egrep '(localhost|^::1\s)' | grep -w ${HOSTNAME}`
+        sFIND=`egrep -v '^(#|$)' /etc/hosts | egrep '(localhost|^::1\s)' | grep -w ${HOSTNAME}`
         if  [ ! "${sFIND}" = "" ]; then
           logtext "Result: Found this server hostname mapped to a local address"
           Display --indent 4 --text "- Checking /etc/hosts (localhost)" --result SUGGESTION --color YELLOW

@@ -33,7 +33,7 @@
                     logtext "Now checking PAM file ${PAM_FILE}"
                     while read line; do
                         # Strip empty lines, commented lines, tabs, line breaks (\), then finally remove all double spaces
-                        LINE=`echo $line | grep -v "^#" | grep -v "^$" | tr '\011' ' ' | sed 's/\\\n/ /' | sed 's/  / /g'`
+                        LINE=`echo $line | grep -v "^#" | grep -v "^$" | tr '\011' ' ' | sed 's/\\\n/ /' | sed 's/  / /g' | sed 's/ #\(.*\)$//'`
                         if [ ! "${LINE}" = "" ]; then
                             PAM_SERVICE=`echo ${PAM_FILE} | awk -F/ '{ print $NF }'`
                             PAM_CONTROL_FLAG="-"
@@ -45,7 +45,7 @@
                             case ${PAM_TYPE} in
                                 "@include")
                                     FILE=`echo ${LINE} | awk '{ print $2 }'`
-                                    #echo "Found @include. Including PAM configuration from file ${FILE}"
+                                    logtext "Result: Found @include. Does include PAM settings from file ${FILE} (which is individually processed)"
                                 ;;
                                 "account")
                                     PARSELINE=1
@@ -67,27 +67,31 @@
                                 MULTIPLE_OPTIONS=`echo ${LINE} | awk '$2 ~ /^\[/'`
                                 if [ ! "${MULTIPLE_OPTIONS}" = "" ]; then
                                     # Needs more parsing, depending on the options found
-                                    logtext "Result: Found brackets, indicating multiple options for control flags"
                                     PAM_CONTROL_OPTIONS=`echo ${LINE} | sed "s/^.*\[//" | sed "s/\].*$//"`
-                                  else
-                                    PAM_CONTROL_FLAG=`echo ${LINE} | awk '{ print $2 }'`
-                                    case ${PAM_CONTROL_FLAG} in
+                                    logtext "Result: Found brackets in line, indicating multiple options for control flags: ${PAM_CONTROL_OPTIONS}"
+                                    LINE=`echo ${LINE} | sed "s/ \[.*\] / other /"`
+                                fi
+                                PAM_MODULE=`echo ${LINE} | awk '{ print $3 }'`
+                                PAM_MODULE_OPTIONS=`echo ${LINE} | cut -d ' ' -f 4-`
+                                PAM_CONTROL_FLAG=`echo ${LINE} | awk '{ print $2 }'`
+                                case ${PAM_CONTROL_FLAG} in
                                         "optional"|"required"|"requisite"|"sufficient")
-                                            logtext "Result: Found known control flag: ${PAM_CONTROL_FLAG}"
-                                            PAM_MODULE=`echo ${LINE} | awk '{ print $3 }'`
-                                            PAM_MODULE_OPTIONS=`echo ${LINE} | cut -d ' ' -f 4-`
-                                            if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
-                                                logtext "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) with options ${PAM_MODULE_OPTIONS}"
-                                              else
-                                                PAM_MODULE_OPTIONS="-"
-                                                logtext "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) without options configured"
-                                            fi
+                                            Debug "Found a common control flag: ${PAM_CONTROL_FLAG} for ${PAM_MODULE}"
+                                        ;;
+                                        "other")
+                                            logtext "Result: brackets used, ignoring control flags"
                                         ;;
                                         *)
                                             logtext "Unknown control flag found (${PAM_CONTROL_FLAG})"
                                         ;;
-                                    esac
+                                esac
+                                if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
+                                    logtext "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) with options ${PAM_MODULE_OPTIONS}"
+                                  else
+                                    PAM_MODULE_OPTIONS="-"
+                                    logtext "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) without options configured"
                                 fi
+
                                 PAM_MODULE_NAME=`echo ${PAM_MODULE} | sed 's/.so$//'`
                                 #
                                 # Specific PAMs are commonly seen on these platforms:
@@ -185,7 +189,16 @@
                                     # Password strength testing
                                     pam_cracklib | pam_pwquality)
                                         logtext "Result: found module ${PAM_MODULE} for password strength testing"
-                                        Debug "FOUND"
+
+                                        # Set default values
+                                        if [ "${CREDITS_D_PASSWORD}" = "" ]; then CREDITS_D_PASSWORD=1; fi
+                                        if [ "${CREDITS_L_PASSWORD}" = "" ]; then CREDITS_L_PASSWORD=1; fi
+                                        if [ "${CREDITS_O_PASSWORD}" = "" ]; then CREDITS_O_PASSWORD=1; fi
+                                        if [ "${CREDITS_U_PASSWORD}" = "" ]; then CREDITS_U_PASSWORD=1; fi
+                                        if [ "${MAX_PASSWORD_RETRY}" = "" ]; then MAX_PASSWORD_RETRY=1; fi
+                                        if [ "${MIN_PASSWORD_CLASS}" = "" ]; then MIN_PASSWORD_CLASS=0; fi
+                                        if [ "${MIN_PASSWORD_LENGTH}" = "" ]; then MIN_PASSWORD_LENGTH=6; fi
+
                                         PAM_MODULE_PASSWORD_STRENGTH_TESTED=1
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
                                             Debug "Module options configured"
@@ -201,28 +214,29 @@
                                                         DigitsOnly ${VALUE}
                                                         MIN_PASSWORD_LENGTH=${VALUE}
                                                     ;;
+                                                    # Digital characters
                                                     dccredit)
                                                         # Digits only
                                                         DigitsOnly ${VALUE}
-                                                        # Digital characters
                                                         if [ ${VALUE} -gt 0 ]; then CREDITS_CONFIGURED=1; fi
                                                     ;;
+                                                    # Lowercase characters
                                                     lccredit)
                                                         # Digits only
                                                         DigitsOnly ${VALUE}
-                                                        # Lowercase characters
                                                         if [ ${VALUE} -gt 0 ]; then CREDITS_CONFIGURED=1; fi
                                                     ;;
+                                                    # Other characters
                                                     occredit)
                                                         # Digits only
                                                         DigitsOnly ${VALUE}
-                                                        # Other characters
+
                                                         if [ ${VALUE} -gt 0 ]; then CREDITS_CONFIGURED=1; fi
                                                     ;;
+                                                    # Uppercase characters
                                                     uccredit)
                                                         # Digits only
                                                         DigitsOnly ${VALUE}
-                                                        # Uppercase characters
                                                         if [ ${VALUE} -gt 0 ]; then CREDITS_CONFIGURED=1; fi
                                                     ;;
                                                     *)
@@ -257,6 +271,9 @@
                                                 esac
                                             done
                                         fi
+                                    ;;
+                                    "-")
+                                        logtext "NOTE: this module is not parsed, as it uses an unknown control flag or type"
                                     ;;
                                     *)
                                         logtext "Result: found pluggable authentication module ${PAM_MODULE}, which is unknown"
@@ -298,12 +315,6 @@ if [ ! "${AUTH_UNLOCK_TIME}" = "-1" ]; then
     logtext "[PAM] Authentication unlock time: not configured"
 fi
 
-logtext "[PAM] Password strength testing enabled: ${PAM_PASSWORD_STRENGTH_TESTED}"
-
-if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
-    report "password_strength_tested=1"
-fi
-
 logtext "[PAM] Password brute force protection: ${PAM_AUTH_BRUTE_FORCE_PROTECTION}"
 
 if [ ${PAM_AUTH_BRUTE_FORCE_PROTECTION} -eq 1 ]; then
@@ -316,6 +327,62 @@ if [ ! "${MIN_PASSWORD_LENGTH}" = "-1" ]; then
   else
     logtext "[PAM] Minimum password length: not configured"
 fi
+
+logtext "[PAM] Password strength testing enabled: ${PAM_PASSWORD_STRENGTH_TESTED}"
+if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
+    report "password_strength_tested=1"
+
+        if [ ${CREDITS_D_PASSWORD} -ge 1 ] && [ ${CREDITS_L_PASSWORD} -ge 1 ] && [ ${CREDITS_O_PASSWORD} -ge 1 ] && [ ${CREDITS_U_PASSWORD} -ge 1 ]; then
+                # Show how many password class are required out of 4
+                logtext "[PAM] Minimum password class out of 4: ${MIN_PASSWORD_CLASS}"
+                report "min_password_class=${MIN_PASSWORD_CLASS}"
+        else
+                logtext "[PAM] Minimum password class setting of ${MIN_PASSWORD_CLASS} out of 4 is ignored since at least 1 class are forced "
+                report "min_password_class=ignored"
+        fi
+
+        # Digits
+        if [ ${CREDITS_D_PASSWORD} -lt 0 ]; then
+                CREDITS_D_PASSWORD=`echo ${CREDITS_D_PASSWORD} | cut -b 2-`
+                logtext "[PAM] Minimum number of Digital characters required: ${CREDITS_D_PASSWORD}"
+                report "password_min_digital_required=${CREDITS_D_PASSWORD}"
+        elif [ ${CREDITS_D_PASSWORD} -ge 0 ]; then
+                logtext "[PAM] Maximum credit for Digital characters: ${CREDITS_D_PASSWORD}"
+                report "password_max_digital_credit=${CREDITS_D_PASSWORD}"
+        fi
+
+        # Lowercase
+        if [ ${CREDITS_L_PASSWORD} -lt 0 ]; then
+                CREDITS_L_PASSWORD=`echo ${CREDITS_L_PASSWORD} | cut -b 2-`
+                logtext "[PAM] Minimum number of Lowercase characters required: ${CREDITS_L_PASSWORD}"
+                report "password_min_l_required=${CREDITS_L_PASSWORD}"
+        elif [ ${CREDITS_L_PASSWORD} -ge 0 ]; then
+                logtext "[PAM] Maximum credit for Lowercase characters: ${CREDITS_L_PASSWORD}"
+                report "password_max_l_credit=${CREDITS_L_PASSWORD}"
+        fi
+
+        # Other characters
+        if [ ${CREDITS_O_PASSWORD} -lt 0 ]; then
+                CREDITS_O_PASSWORD=`echo ${CREDITS_O_PASSWORD} | cut -b 2-`
+                logtext "[PAM] Minimum number of Other characters required: ${CREDITS_O_PASSWORD}"
+                report "password_min_other_required=${CREDITS_O_PASSWORD}"
+        elif [ ${CREDITS_O_PASSWORD} -ge 0 ]; then
+                logtext "[PAM] Maximum credit for Other characters: ${CREDITS_O_PASSWORD}"
+                report "password_max_other_credit=${CREDITS_O_PASSWORD}"
+        fi
+
+        # Uppercase
+        if [ ${CREDITS_U_PASSWORD} -lt 0 ]; then
+                CREDITS_U_PASSWORD=`echo ${CREDITS_U_PASSWORD} | cut -b 2-`
+                logtext "[PAM] Minimum number of Uppercase characters required: ${CREDITS_U_PASSWORD}"
+                report "password_min_u_required=${CREDITS_U_PASSWORD}"
+        elif [ ${CREDITS_U_PASSWORD} -ge 0 ]; then
+                logtext "[PAM] Maximum credit for Uppercase characters: ${CREDITS_U_PASSWORD}"
+                report "password_max_u_credit=${CREDITS_U_PASSWORD}"
+        fi
+fi
+
+
 
 # If auditd is running, but pam_loginuid not, events might not be properly logged
 if [ ${AUDITD_RUNNING} -eq 1 ]; then

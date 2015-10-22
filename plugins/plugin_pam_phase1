@@ -150,6 +150,29 @@
                                     pam_mail | pam_mkhomedir | pam_motd) ;;
                                     pam_namespace | pam_nologin) ;;
                                     pam_permit) ;;
+                                    # Password history - Can be configured via pam_unix or pam_pwhistory
+                                    pam_pwhistory)
+                                        logtext "Result: found ${PAM_MODULE} module (password history)"
+                                        # set default for having pam_pwhistory enabled
+                                        if [ "${PAM_PASSWORD_PWHISTORY_AMOUNT}" = "" ]; then PAM_PASSWORD_PWHISTORY_AMOUNT=10; fi
+                                        if [ "${PAM_PASSWORD_PWHISTORY_ENABLED}" = "" ]; then PAM_PASSWORD_PWHISTORY_ENABLED=1; fi
+                                        if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
+                                            for I in ${PAM_MODULE_OPTIONS}; do
+                                                OPTION=`echo ${I} | awk -F= '{ print $1 }'`
+                                                VALUE=`echo ${I} | awk -F= '{ print $2 }'`
+                                                CREDITS_CONFIGURED=0
+                                                case ${OPTION} in
+                                                    remember)
+                                                        logtext "Result: password history (remember) configured for pam_pwhistory"
+                                                        DigitsOnly ${VALUE}
+                                                        PAM_PASSWORD_PWHISTORY_AMOUNT=${VALUE}
+                                                        Debug "Found password history enabled with module ${PAM_MODULE_NAME} and password amount ${PAM_PASSWORD_PWHISTORY_AMOUNT}"
+                                                    ;;
+                                                esac
+                                            done
+                                        fi
+                                    ;;
+
                                     pam_rootok) ;;
                                     pam_rhosts) ;;
                                     pam_securetty) ;;
@@ -158,9 +181,9 @@
                                     pam_stress | pam_succeed_if | pam_systemd) ;;
                                     pam_time | pam_timestamp) ;;
                                     pam_umask) ;;
-                                    # Password history
-                                    # Can be configured via pam_unix or pam_pwhistory
-                                    pam_unix | pam_pwhistory)
+
+                                    # Password history - Can be configured via pam_unix or pam_pwhistory
+                                    pam_unix)
                                         logtext "Result: found ${PAM_MODULE} module (generic)"
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
                                             for I in ${PAM_MODULE_OPTIONS}; do
@@ -168,19 +191,18 @@
                                                 VALUE=`echo ${I} | awk -F= '{ print $2 }'`
                                                 CREDITS_CONFIGURED=0
                                                 case ${OPTION} in
-                                                    # pam_pwhistory / pam_unix
                                                     remember)
-                                                        # Minimum length (remove 1 if credits are configured, at later stage in function)
-                                                        logtext "Result: password history configured"
+                                                        logtext "Result: password history configured for pam_unix"
                                                         DigitsOnly ${VALUE}
-                                                        PAM_PASSWORD_HISTORY_AMOUNT=${VALUE}
-                                                        PAM_PASSWORD_HISTORY_ENABLED=1
-                                                        Debug "Found password history enabled with module ${PAM_MODULE_NAME} and password amount ${PAM_PASSWORD_HISTORY_AMOUNT}"
+                                                        PAM_PASSWORD_UXHISTORY_AMOUNT=${VALUE}
+                                                        PAM_PASSWORD_UXHISTORY_ENABLED=1
+                                                        Debug "Found password history enabled with module ${PAM_MODULE_NAME} and password amount ${PAM_PASSWORD_UXHISTORY_AMOUNT}"
                                                     ;;
                                                 esac
                                             done
                                         fi
                                     ;;
+
                                     pam_unix_acct| pam_unix_auth | pam_unix_passwd | pam_unix_session | pam_unix2) ;;
                                     pam_vbox) ;;
                                     pam_warn | pam_wheel) ;;
@@ -215,7 +237,7 @@
                                                         MIN_PASSWORD_LENGTH=${VALUE}
                                                     ;;
                                                     retry)
-                                                        # Maximum  password retry
+                                                        # Maximum password retry
                                                         logtext "Result: Max password Retry configured"
                                                         DigitsOnly ${VALUE}
                                                         MAX_PASSWORD_RETRY=${VALUE}
@@ -224,7 +246,7 @@
                                                         # Minimum number of class required out of upper, lower, digit and oters
                                                         logtext "Result: Min number of password class is configured"
                                                         MIN_PASSWORD_CLASS=${VALUE}
-                                                    ;;        
+                                                    ;;
                                                     dcredit)
                                                         CREDITS_D_PASSWORD=${VALUE}
                                                     ;;
@@ -326,7 +348,7 @@ logtext "[PAM] Password strength testing enabled: ${PAM_PASSWORD_STRENGTH_TESTED
 if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
     report "password_strength_tested=1"
 
-        if [ ${CREDITS_D_PASSWORD} -ge 1 ] && [ ${CREDITS_L_PASSWORD} -ge 1 ] && [ ${CREDITS_O_PASSWORD} -ge 1 ] && [ ${CREDITS_U_PASSWORD} -ge 1 ]; then
+        if [ ${CREDITS_D_PASSWORD} -ge 1 && ${CREDITS_L_PASSWORD} -ge 1 && ${CREDITS_O_PASSWORD} -ge 1 && ${CREDITS_U_PASSWORD} -ge 1 ]; then
                 # Show how many password class are required out of 4
                 logtext "[PAM] Minimum password class out of 4: ${MIN_PASSWORD_CLASS}"
                 report "min_password_class=${MIN_PASSWORD_CLASS}"
@@ -377,8 +399,12 @@ if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
 fi
 
 # Show how many retries are allowed to change password
-logtext "[PAM] Password maximum retry: ${MAX_PASSWORD_RETRY}"
-report "max_password_retry=${MAX_PASSWORD_RETRY}"
+if [ ! "${MAX_PASSWORD_RETRY}" = "" ]; then
+    logtext "[PAM] Password maximum retry: ${MAX_PASSWORD_RETRY}"
+    report "max_password_retry=${MAX_PASSWORD_RETRY}"
+  else
+    logtext "[PAM] Password maximum retry: Not configured"
+fi
 
 # If auditd is running, but pam_loginuid not, events might not be properly logged
 if [ ${AUDITD_RUNNING} -eq 1 ]; then
@@ -387,8 +413,22 @@ if [ ${AUDITD_RUNNING} -eq 1 ]; then
     fi
 fi
 
-logtext "[PAM] Password history enabled: ${PAM_PASSWORD_HISTORY_ENABLED}"
-logtext "[PAM] Password history amount: ${PAM_PASSWORD_HISTORY_AMOUNT}"
+if [ ${PAM_PASSWORD_PWHISTORY_ENABLED} -eq 1 ]; then
+    logtext "[PAM] Password history with pam_pwhistory enabled: ${PAM_PASSWORD_PWHISTORY_ENABLED}"
+    logtext "[PAM] Password history with pam_pwhistory amount: ${PAM_PASSWORD_PWHISTORY_AMOUNT}"
+    report "password_history_amount=${PAM_PASSWORD_PWHISTORY_AMOUNT}"
+else
+    logtext "[PAM] Password history with pam_pwhistory IS NOT enabled"
+fi
+
+if [ ${PAM_PASSWORD_UXHISTORY_ENABLED} -eq 1 ]; then
+    logtext "[PAM] Password history with pam_unix enabled: ${PAM_PASSWORD_UXHISTORY_ENABLED}"
+    logtext "[PAM] Password history with pam_unix amount: ${PAM_PASSWORD_UXHISTORY_AMOUNT}"
+    report "password_history_amount=${PAM_PASSWORD_UXHISTORY_AMOUNT}"
+else
+    logtext "[PAM] Password history with pam_unix IS NOT enabled"
+fi
+
 
 
 #EOF

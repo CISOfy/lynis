@@ -589,12 +589,33 @@
             fi
         fi
 
-        # Create host ID when a MAC address was not found
-        #SSH_KEY_FILES="ssh_host_ecdsa_key ssh_host_ecdsa_key.pub ssh_host_dsa_key ssh_host_dsa_key.pub ssh_host_rsa_key ssh_host_rsa_key.pub"
-        #for I in ${SSH_KEY_FILES}; do
-        #done
+        if [ "${HOSTID}" = "" ]; then
+            logtext "Result: no HOSTID available, trying to use SSH key as unique source"
+            # Create host ID when a MAC address was not found
+            SSH_KEY_FILES="ssh_host_ecdsa_key ssh_host_ecdsa_key.pub ssh_host_dsa_key ssh_host_dsa_key.pub ssh_host_rsa_key ssh_host_rsa_key.pub"
+            if [ -d /etc/ssh ]; then
+                for I in ${SSH_KEY_FILES}; do
+                    if [ "${HOSTID}" = "" ]; then
+                        if [ -f /etc/ssh/${I} ]; then
+                            logtext "Result: found ${I} in /etc/ssh"
+                            if [ ! "${SHA1SUMBINARY}" = "" ]; then
+                                HOSTID=`cat /etc/ssh/${I} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                                logtext "result: Created HostID with SSH key ($I): ${HOSTID}"
+                              else
+                                ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
+                            fi
+                        fi
+                    fi
+                done
+              else
+                logtext "Result: no /etc/ssh directory found, skipping"
+            fi
+        fi
 
-
+        # Show an exception if no HostID could be created, to ensure each system (and scan) has one
+        if [ "${HOSTID}" = "" ]; then
+            ReportException "GetHostID" "No unique host identifier could be created."
+        fi
       }
 
     # Insert section block

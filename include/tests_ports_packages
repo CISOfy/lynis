@@ -285,6 +285,7 @@
                 FIND=`${ZYPPERBINARY} lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | sed 's/:$//' | grep -v "^$" | sort -u`
                 logtext "List of vulnerable packages/version:"
                 for I in ${FIND}; do
+                    VULNERABLE_PACKAGES_FOUND=1
                     report "vulnerable_package[]=${I}"
                     logtext "Vulnerable package: ${I}"
                     # Decrease hardening points for every found vulnerable package
@@ -478,6 +479,7 @@
                     ReportWarning ${TEST_NO} "M" "Found one or more vulnerable packages."
                     logtext "List of vulnerable packages/version:"
                     for I in `/usr/sbin/pkg_admin audit | awk '{ print $2 }' | sort -u`; do
+                        VULNERABLE_PACKAGES_FOUND=1
                         report "vulnerable_package[]=${I}"
                         logtext "Vulnerable package: ${I}"
                         # Decrease hardening points for every found vulnerable package
@@ -511,6 +513,9 @@
                 Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result NONE --color GREEN
               else
                 logtext "Result: ${FIND}"
+                VULNERABLE_PACKAGES_FOUND=1
+                Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result FOUND --color YELLOW
+                ReportSuggestion ${TEST_NO} "Check output of pkg audit"
                 #Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result WARNING --color RED
                 #logtext "Result: pkg audit found one or more installed packages which are vulnerable."
                 #ReportWarning ${TEST_NO} "M" "Found one or more vulnerable packages."
@@ -549,6 +554,7 @@
                 ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
                 logtext "List of vulnerable packages/version:"
                 for I in `/usr/local/sbin/portaudit | grep "Affected package" | cut -d ' ' -f3 | sort -u`; do
+                    VULNERABLE_PACKAGES_FOUND=1
                     report "vulnerable_package[]=${I}"
                     logtext "Vulnerable package: ${I}"
                     # Decrease hardening points for every found vulnerable package
@@ -674,6 +680,7 @@
                 logtext "Result: found vulnerable package(s)"
                 Display --indent 2 --text "- Checking missing security packages" --result WARNING --color RED
                 for I in ${FIND2}; do
+                    VULNERABLE_PACKAGES_FOUND=1
                     report "vulnerable_package[]=${I}"
                     logtext "Vulnerable package: ${I}"
                     AddHP 1 2
@@ -823,7 +830,6 @@
         # Show packages which would be upgraded and match 'security' in repository name
         FIND=`/usr/bin/apt-get --dry-run --show-upgraded upgrade 2> /dev/null | grep '-security' | grep "^Inst" | cut -d ' ' -f2 | sort -u`
         if [ ! "${FIND}" = "" ]; then
-            #Display --indent 2 --text "- Checking vulnerable packages" --result WARNING --color RED
             VULNERABLE_PACKAGES_FOUND=1
             SCAN_PERFORMED=1
             logtext "Result: found vulnerable package(s) via apt-get (-security channel)"
@@ -990,6 +996,7 @@ fi
 
 report "package_audit_tool=${PACKAGE_AUDIT_TOOL}"
 report "package_audit_tool_found=${PACKAGE_AUDIT_TOOL_FOUND}"
+report "vulnerable_packages_found=${VULNERABLE_PACKAGES_FOUND}"
 
 wait_for_keypress
 

@@ -127,16 +127,42 @@
 #
     # Test        : NETW-3004
     # Description : Find available network interfaces on FreeBSD and others
-    if [ "${OS}" = "DragonFly" -o "${OS}" = "FreeBSD" -o "${OS}" = "NetBSD" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-3004 --preqs-met ${PREQS_MET} --weight L --network NO --description "Search available network interfaces on FreeBSD and others"
+    Register --test-no NETW-3004 --weight L --network NO --description "Search available network interfaces on FreeBSD and others"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${IFCONFIGBINARY} -l`
+        FIND=""
         N=0
-        for I in ${FIND}; do
-            logtext "Found network interface: ${I}"
-            N=`expr ${N} + 1`
-            report "network_interface[]=${I}"
-        done
+        case ${OS} in
+            AIX)
+                FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ":" '{ print  $1 }'`
+            ;;
+            Linux)
+                if [ ! "${IPBINARY}" = "" ]; then
+                    FIND=`${IPBINARY} link show | ${GREPBINARY} "^[0-9]" | ${AWKBINARY} '{ print $2 }' | sed 's/://g'`
+                elif [ ! "${IFCONFIGBINARY}" = "" ]; then
+                    FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ( $2 == "Link" ) { print  $1 }}'`
+                fi
+            ;;
+            DragonFly|FreeBSD|NetBSD)
+                FIND=`${IFCONFIGBINARY} -l`
+            ;;
+            Solaris)
+                FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ": " '{ print  $1 }'`
+            ;;
+            *)
+                # Having a system currently unsupported? Share your details to determine network interfaces
+                ReportException "${TEST_NO}:1" "No support for this OS (${OS}) to find available network interfaces"
+            ;;
+        esac
+        if [ ! "${FIND}" = "" ]; then
+            for I in ${FIND}; do
+                NETWORK_INTERFACES="${NETWORK_INTERFACES}|${I}"
+                logtext "Found network interface: ${I}"
+                N=`expr ${N} + 1`
+                report "network_interface[]=${I}"
+            done
+          else
+            ReportException "${TEST_NO}:1" "No interfaces found on this system (OS=${OS})"
+        fi
     fi
 #
 #################################################################################

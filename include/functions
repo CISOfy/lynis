@@ -423,6 +423,8 @@
       {
         HOSTID="-"
         FIND=""
+        # Avoid some hashes (empty, only zeros)
+        BLACKLISTED_HASHES="6ef1338f520d075957424741d7ed35ab5966ae97 adc83b19e793491b1c6ea0fd8b46cd9f32e592fc"
         if [ ! "${SHA1SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
 
             case "${OS}" in
@@ -574,6 +576,15 @@
                         ReportException "GetHostID" "Can't create HOSTID as OS is not supported yet by this function"
                 ;;
             esac
+            # Remove HOSTID if it contains a default MAC address with a related hash value
+            if [ ! "${HOSTID}" = "" ]; then
+                for CHECKHASH in ${BLACKLISTED_HASHES}; do
+                    if [ "${CHECKHASH}" = "${HOSTID}" ]; then
+                        logtext "Result: hostid is a blacklisted value"
+                        HOSTID=""
+                    fi
+                done
+            fi
           else
             ReportException "GetHostID" "Can't create HOSTID as there is no SHA1 hash tool available (sha1, sha1sum, openssl)"
         fi
@@ -589,12 +600,33 @@
             fi
         fi
 
-        # Create host ID when a MAC address was not found
-        #SSH_KEY_FILES="ssh_host_ecdsa_key ssh_host_ecdsa_key.pub ssh_host_dsa_key ssh_host_dsa_key.pub ssh_host_rsa_key ssh_host_rsa_key.pub"
-        #for I in ${SSH_KEY_FILES}; do
-        #done
+        if [ "${HOSTID}" = "" ]; then
+            logtext "Result: no HOSTID available, trying to use SSH key as unique source"
+            # Create host ID when a MAC address was not found
+            SSH_KEY_FILES="ssh_host_ecdsa_key ssh_host_ecdsa_key.pub ssh_host_dsa_key ssh_host_dsa_key.pub ssh_host_rsa_key ssh_host_rsa_key.pub"
+            if [ -d /etc/ssh ]; then
+                for I in ${SSH_KEY_FILES}; do
+                    if [ "${HOSTID}" = "" ]; then
+                        if [ -f /etc/ssh/${I} ]; then
+                            logtext "Result: found ${I} in /etc/ssh"
+                            if [ ! "${SHA1SUMBINARY}" = "" ]; then
+                                HOSTID=`cat /etc/ssh/${I} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                                logtext "result: Created HostID with SSH key ($I): ${HOSTID}"
+                              else
+                                ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
+                            fi
+                        fi
+                    fi
+                done
+              else
+                logtext "Result: no /etc/ssh directory found, skipping"
+            fi
+        fi
 
-
+        # Show an exception if no HostID could be created, to ensure each system (and scan) has one
+        if [ "${HOSTID}" = "" ]; then
+            ReportException "GetHostID" "No unique host identifier could be created."
+        fi
       }
 
     # Insert section block

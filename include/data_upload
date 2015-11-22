@@ -93,14 +93,18 @@ output "Settings file: ${SETTINGS_FILE}"
         UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
         EXITCODE=$?
         if [ ${EXITCODE} -gt 0 ]; then
-            if [ ${EXITCODE} -eq 60 ]; then
+            if [ ${EXITCODE} -eq 7 ]; then
+                logtext "Result: could not contact license server."
+                logtext "Details: used URL ${LICENSE_SERVER_URL}"
+                logtext "Suggestion: check if the upload host is correctly configured."
+            elif [ ${EXITCODE} -eq 60 ]; then
                 echo "${RED}Self-signed certificate used on Lynis Enterprise node${NORMAL}"
                 echo "If you want to accept a self-signed certificate, use the -k option in the profile."
                 echo "Example: ${WHITE}config:upload_options:-k:${NORMAL}"
                 logtext "Result: found self-signed certificate, however cURL -k option not used."
               else
-                echo "${RED}Upload Error: ${NORMAL}cURL exited with code ${EXITCODE}"
-                logtext "Result: cURL exited with code ${EXITCODE}"
+                echo "${RED}Upload Error: ${NORMAL}cURL exited with code ${EXITCODE}. See ${LOGFILE} for details."
+                logtext "Result: cURL exited with code ${EXITCODE}."
             fi
             logtext "Result: quitting, can't check license"
             ExitFatal

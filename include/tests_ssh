@@ -221,7 +221,32 @@
 #
 #################################################################################
 #
-
+    # Test        : SSH-7618
+    # Description : Check SSH MaxAuthTries option
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-7618 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: MaxAuthTries"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Check configured MaxAuthTries option"
+        FIND=`awk '/^MaxAuthTries/ { print $2 }' ${SSH_DAEMON_CONFIG}`
+        if [ "${FIND}" -le 3 ]; then
+            logtext "Result: MaxAuthTries option is set to at least 3 tries"
+            Display --indent 4 --text "- SSH option: MaxAuthTries" --result OK --color GREEN
+            AddHP 3 3
+            else
+            if [ "${FIND}" -gt 3 ]; then
+                logtext "Result: MaxAuthTries option is set to more than 3 tries"
+                Display --indent 4 --text "- SSH option: MaxAuthTries" --result WARNING --color RED
+                AddHP 0 3
+                else
+                logtext "Result: value of MaxAuthTries is unknown (not defined)"
+                ReportWarning ${TEST_NO} "M" "MaxAuthTries is not set up"
+                Display --indent 4 --text "- SSH option: MaxAuthTries" --result DEFAULT --color WHITE
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
 report "ssh_daemon_running=${SSH_DAEMON_RUNNING}"
 #report "ssh_daemon_port=${SSH_DAEMON_PORT}"
 

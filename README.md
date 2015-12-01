@@ -1,6 +1,12 @@
 lynis
 =====
 
+** Help requested **
+Want to help the project? In 1 minute you can make a big difference. Vote for the project as best security tool of 2015:
+http://www.toolswatch.org/2015/11/vote-for-2015-best-security-tool/
+
+---
+
 Lynis - Security auditing and hardening tool, for Unix based systems
 
 Lynis is a security auditing for Unix derivatives like Linux, BSD, and Solaris. It performs an in-depth security scan on the system to detect software and security issues. Besides information related to security, it will also scan for general system information, vulnerable software packages, and possible configuration issues.

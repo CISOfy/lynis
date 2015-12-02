@@ -96,6 +96,32 @@
 #
 #################################################################################
 #
+    # Test        : SSH-7442
+    # Description : Check SSH PermitEmptyPasswords option
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-7442 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: PermitEmptyPasswords"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: check PermitEmptyPasswords option"
+        FIND=`awk '/^PermitEmptyPasswords/ { print $2 }' ${SSH_DAEMON_CONFIG}`
+        FIND=`echo "${FIND}" | awk '{ print toupper($0) }'`
+        if [ "${FIND}" = "YES" ]; then
+            logtext "Result: PermitEmptyPasswords is enabled, login without password is possible"
+            Display --indent 4 --text "- SSH option: PermitEmptyPasswords" --result WARNING --color RED
+            ReportWarning ${TEST_NO} "M" "It is possible to login with empty password"
+            AddHP 0 3
+        elif [ "${FIND}" = "NO" ]; then
+            logtext "Result: PermitEmptyPasswords is disabled. Users with blank passwords will be unable to login via SSH"
+            Display --indent 4 --text "- SSH option: PermitEmptyPasswords" --result DISABLED --color GREEN
+            AddHP 3 3
+            # YYY add test for DenyUsers root
+        else
+            logtext "Result: Value of PermitEmptyPasswords is unknown (not defined)"
+            Display --indent 4 --text "- SSH option: PermitEmptyPasswords" --result DEFAULT --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : SSH-7412
     # Description : Check SSH PermitRootLogin option
     if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi

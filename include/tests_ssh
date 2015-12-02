@@ -154,6 +154,34 @@
 #
 #################################################################################
 #
+    # Test        : SSH-7426
+    # Description : Check SSH VerifyReverseMapping option
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-7426 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: VerifyReverseMapping"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        logtext "Test: Check configured VerifyReverseMapping option"
+        FIND=`awk '/^VerifyReverseMapping/ { print $2 }' ${SSH_DAEMON_CONFIG}`
+        FIND=`echo "${FIND}" | awk '{ print toupper($0) }'`
+        if [ "${FIND}" = "NO" ]; then
+            logtext "Result: VerifyReverseMapping option is set to 'no', which means reverse DNS mapping is NOT checked"
+            Display --indent 4 --text "- SSH option: VerifyReverseMapping" --result WARNING --color RED
+            ReportWarning ${TEST_NO} "M" "VerifyReverseMapping is turned off"
+            ReportSuggestion ${TEST_NO} "Check VerifyReverseMapping option in sshd_config"
+            AddHP 0 3
+          else
+            if [ "${FIND}" = "YES"  ]; then
+                logtext "Result: VerifyReverseMapping active, reverse DNS is checked"
+                Display --indent 4 --text "- SSH option: VerifyReverseMapping" --result OK --color GREEN
+                AddHP 3 3
+              else
+                logtext "Result: value of VerifyReverseMapping is unknown (not defined)"
+                Display --indent 4 --text "- SSH option: VerifyReverseMapping" --result "NOT FOUND" --color WHITE
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : SSH-7416
     # Description : Check SSH StrictModes option
     if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi

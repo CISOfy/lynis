@@ -83,100 +83,66 @@
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
     if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH defined options"
+    Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking all specific defined options in ${SSH_DAEMON_CONFIG}"
-        FIND=`grep -v "^#" ${SSH_DAEMON_CONFIG} | grep -v "^$" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g'`
-        for I in ${FIND}; do
-            I=`echo ${I} | sed 's/!space!/ /g'`
-            logtext "Found SSH option: ${I}"
+        logtext "Test: Checking specific defined options in ${SSH_DAEMON_CONFIG}"
+        ## SSHOPTIONS scheme:
+        ##      <OptionName>:<ExpectedValue>,<MediumScoreValue>,<WrongValue>
+        ##      Example:
+        ##      PermitRootLogin:NO,WITHOUT-PASSWORD,YES
+        SSHOPS="Protocol:2,,1\
+                PermitRootLogin:NO,WITHOUT-PASSWORD,YES\
+                StrictModes:YES,,NO\
+                VerifyReverseMapping:YES,,NO\
+                IgnoreRhosts:YES,,NO\
+                UseDNS:YES,,NO\
+                X11Forwarding:NO,,YES\
+                PrintLastLog:YES,,NO"
+
+        for I in ${SSHOPS};
+        do
+            OPTIONNAME=`echo ${I} | cut -d ':' -f1`
+
+            EXPECTEDVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f1`
+            MEDIUMSCOREDVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f2`
+            WRONGVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f3`
+
+            FOUNDVALUE=`awk -v OPT="${OPTIONNAME}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_CONFIG}`
+
+            logtext "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_CONFIG}"
+
+            if [ ! "${FOUNDVALUE}" = "" ]; then
+                logtext "Result: Option ${OPTIONNAME} found in ${SSH_DAEMON_CONFIG}"
+                logtext "Result: Option ${OPTIONNAME} value is  ${FOUNDVALUE}"
+
+                if [ "${FOUNDVALUE}" = "${EXPECTEDVALUE}" ]; then
+                    logtext "Result: SSH option ${OPTIONNAME} is configured very well"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result OK --color GREEN
+                    AddHP 3 3
+
+                elif [ "${FOUNDVALUE}" = "${MEDIUMSCOREDVALUE}" ]; then
+                    logtext "Result: SSH option ${OPTIONNAME} is configured totally wrong"
+                    ReportSuggestion ${TEST_NO} "Harder SSH option: ${OPTIONNAME}"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "MEDIUM" --color YELLOW
+                    AddHP 1 3
+
+                elif [ "${FOUNDVALUE}" = "${WRONGVALUE}" ]; then
+                    logtext "Result: SSH option ${OPTIONNAME} is configured totally wrong"
+                    ReportWarning ${TEST_NO} "M" "Unsafe configured SSH option: ${OPTIONNAME}"
+                    ReportSuggestion ${TEST_NO} "Reconfigure ${OPTIONNAME}"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result WARNING --color RED
+                    AddHP 0 3
+
+                else
+                    logtext "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
+                fi
+
+            else
+                logtext "Result: Option ${OPTIONNAME} not found in ${SSH_DAEMON_CONFIG}"
+                Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "NOT FOUND" --color WHITE
+            fi
         done
-        Display --indent 4 --text "- Checking defined SSH options" --result "DONE" --color GREEN
-    fi
-#
-#################################################################################
-#
-    # Test        : SSH-7412
-    # Description : Check SSH PermitRootLogin option
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7412 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: PermitRootLogin"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: check PermitRootLogin option"
-        FIND=`awk '/^PermitRootLogin/ { print $2 }' ${SSH_DAEMON_CONFIG}`
-        if [ "${FIND}" = "yes" -o "${FIND}" = "YES" -o "${FIND}" = "Yes" ]; then
-            logtext "Result: PermitRootLogin is enabled, root can login directly"
-            Display --indent 4 --text "- SSH option: PermitRootLogin" --result WARNING --color RED
-            ReportWarning ${TEST_NO} "M" "Root can directly login via SSH"
-            AddHP 0 3
-          else
-            # YYY add test for DenyUsers root
-            if [ "${FIND}" = "no" -o "${FIND}" = "No" ]; then
-                logtext "Result: PermitRootLogin is disabled. Root can't login directly"
-                Display --indent 4 --text "- SSH option: PermitRootLogin" --result DISABLED --color GREEN
-                AddHP 3 3
-            elif [ "${FIND}" = "without-password" ]; then
-                # Check if password authentication is disabled for root user, so this option is used properly
-                logtext "Result: PermitRootLogin is disabled. Root can't login directly"
-                Display --indent 4 --text "- SSH option: PermitRootLogin (without-password)" --result OK --color GREEN
-                AddHP 3 3
-              else
-                logtext "Result: Value of PermitRootLogin is unknown (not defined)"
-                Display --indent 4 --text "- SSH option: PermitRootLogin" --result DEFAULT --color WHITE
-            fi
-        fi
-    fi
-#
-#################################################################################
-#
-    # Test        : SSH-7414
-    # Description : Check SSH Protocol option
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7414 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: Protocol"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: check allowed SSH protocol versions"
-        FIND=`awk '/^Protocol/ { print $2 }' ${SSH_DAEMON_CONFIG}`
-        if [ "${FIND}" = "1" -o "${FIND}" = "2,1" -o "${FIND}" = "1,2" ]; then
-            logtext "Result: Protocol option is set to allow SSH protocol version 1"
-            Display --indent 4 --text "- SSH option: Protocol" --result WARNING --color RED
-            ReportWarning ${TEST_NO} "M" "SSH protocol version 1 is allowed"
-            AddHP 0 3
-          else
-            if [ "${FIND}" = "2" ]; then
-                logtext "Result: only protocol 2 is allowed"
-                Display --indent 4 --text "- SSH option: Protocol" --result OK --color GREEN
-                AddHP 3 3
-              else
-                logtext "Result: value of Protocol is unknown (not defined)"
-                Display --indent 4 --text "- SSH option: Protocol" --result DEFAULT --color WHITE
-            fi
-        fi
-    fi
-#
-#################################################################################
-#
-    # Test        : SSH-7416
-    # Description : Check SSH StrictModes option
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7416 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: StrictModes"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Check configured StrictModes option"
-        FIND=`awk '/^StrictModes/ { print $2 }' ${SSH_DAEMON_CONFIG}`
-        if [ "${FIND}" = "no" -o "${FIND}" = "NO" -o "${FIND}" = "No" ]; then
-            logtext "Result: StrictModes option is set to 'no', which means file permissions are NOT checked"
-            Display --indent 4 --text "- SSH option: StrictModes" --result WARNING --color RED
-            ReportWarning ${TEST_NO} "M" "StrictModes is turned off"
-            ReportSuggestion ${TEST_NO} "Check StrictModes option in sshd_config"
-            AddHP 0 3
-          else
-            if [ "${FIND}" = "yes" -o "${FIND}" = "YES" -o "${FIND}" = "Yes" ]; then
-                logtext "Result: StrictModes active, file permissions are checked"
-                Display --indent 4 --text "- SSH option: StrictModes" --result OK --color GREEN
-                AddHP 3 3
-              else
-                logtext "Result: value of StrictModes is unknown (not defined)"
-                Display --indent 4 --text "- SSH option: StrictModes" --result DEFAULT --color WHITE
-            fi
-        fi
     fi
 #
 #################################################################################

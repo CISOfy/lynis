@@ -87,28 +87,48 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         logtext "Test: Checking specific defined options in ${SSH_DAEMON_CONFIG}"
         ## SSHOPTIONS scheme:
-        ##      <OptionName>:<ExpectedValue>,<MediumScoreValue>,<WeakValue>
+        ##      <OptionName>:<ExpectedValue>,<MediumScoreValue>,<WeakValue>:<TestType>
+        ##
+        ##      Test types:
+        ##      (a) '='         -- equal to is better,
+        ##      (b) '<'         -- less or equal is better,
+        ##      (c) '>'         -- more or equal is better,
+        ##      (d) '!'         -- not equal is better.
+        ##
         ##      Example:
-        ##      PermitRootLogin:NO,WITHOUT-PASSWORD,YES
-        SSHOPS="Compression:NO,DELAYED,YES,\
-                FingerprintHash:SHA256,MD5,,\
-                IgnoreRhosts:YES,,NO,\
-                LogLevel:VERBOSE,INFO,,\
-                PermitRootLogin:NO,WITHOUT-PASSWORD,YES,\
-                PrintLastLog:YES,,NO,\
-                Protocol:2,,1,\
-                StrictModes:YES,,NO,\
-                TCPKeepAlive:YES,,NO,\
-                UseDNS:YES,,NO,\
-                UsePrivilegeSeparation:SANDBOX,YES,NO,\
-                VerifyReverseMapping:YES,,NO,\
-                X11Forwarding:NO,,YES,"
+        ##      PermitRootLogin:NO,WITHOUT-PASSWORD,YES,:=
+        SSHOPS="Compression:NO,DELAYED,YES:=\
+                FingerprintHash:SHA256,MD5,:=\
+                IgnoreRhosts:YES,,NO:=\
+                LogLevel:VERBOSE,INFO,:=\
+                PermitRootLogin:NO,WITHOUT-PASSWORD,YES:=\
+                PrintLastLog:YES,,NO:=\
+                Protocol:2,,1:=\
+                StrictModes:YES,,NO:=\
+                TCPKeepAlive:YES,,NO:=\
+                UseDNS:YES,,NO:=\
+                UsePrivilegeSeparation:SANDBOX,YES,NO:=\
+                VerifyReverseMapping:YES,,NO:=\
+                X11Forwarding:NO,,YES:=\
+                MaxAuthTries:1,3,6:<\
+                ClientAliveCountMax:2,4,16:<\
+                ClientAliveInterval:300,600,900:<\
+                Port:,,22:!\
+                LoginGraceTime:120,240,480:<\
+                MaxStartups:4,8,16:<\
+                MaxSessions:2,4,8:<
+                PermitUserEnvironment:NO,,YES:=\
+                GatewayPorts:NO,,YES:=\
+                PermitTunnel:NO,,YES:=\
+                AllowTcpForwarding:NO,LOCAL,YES:="
 
         for I in ${SSHOPS}; do
             OPTIONNAME=`echo ${I} | cut -d ':' -f1`
             EXPECTEDVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f1`
             MEDIUMSCOREDVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f2`
             WEAKVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f3`
+            TESTTYPE=`echo ${I} | cut -d ':' -f3`
+            RESULT="NONE"
             FOUNDVALUE=`awk -v OPT="${OPTIONNAME}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_CONFIG}`
             logtext "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_CONFIG}"
 
@@ -116,32 +136,79 @@
                 logtext "Result: Option ${OPTIONNAME} found in ${SSH_DAEMON_CONFIG}"
                 logtext "Result: Option ${OPTIONNAME} value is  ${FOUNDVALUE}"
 
-                if [ "${FOUNDVALUE}" = "${EXPECTEDVALUE}" ]; then
-                    logtext "Result: SSH option ${OPTIONNAME} is configured very well"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result OK --color GREEN
-                    AddHP 3 3
-                elif [ "${FOUNDVALUE}" = "${MEDIUMSCOREDVALUE}" ]; then
-                    logtext "Result: SSH option ${OPTIONNAME} is configured reasonably"
-                    ReportSuggestion ${TEST_NO} "Consider hardening of SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "MEDIUM" --color YELLOW
-                    AddHP 1 3
-                elif [ "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
-                    logtext "Result: SSH option ${OPTIONNAME} is in a weak configuruation state and should be fixed"
-                    #ReportWarning ${TEST_NO} "M" "Unsafe configured SSH option: ${OPTIONNAME}"
-                    ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result WARNING --color RED
-                    AddHP 0 3
-                else
-                    logtext "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
-                    #ReportException "SSH-7408:01" "Unknown SSH option"
-                    report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
-                fi
+                if [ "${TESTTYPE}" = "=" ]; then
+                    if [ "${FOUNDVALUE}" = "${EXPECTEDVALUE}" ]; then
+                        RESULT="GOOD"
+                    elif [ "${FOUNDVALUE}" = "${MEDIUMSCOREDVALUE}" ]; then
+                        RESULT="MIDSCORED"
+                    elif [ "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
+                        RESULT="WEAK"
+                    else
+                        RESULT="UNKNOWN"
+                    fi
 
+                elif [ "${TESTTYPE}" = "<" ]; then
+                    if [ "${FOUNDVALUE}" -ge "${WEAKVALUE}" ]; then
+                        RESULT="WEAK"
+                    elif [ "${FOUNDVALUE}" -ge "${MEDIUMSCOREDVALUE}" -o "${FOUNDVALUE}" -le "${MEDIUMSCOREDVALUE}" ]; then
+                        RESULT="MIDSCORED"
+                    elif [ "${FOUNDVALUE}" -le "${EXPECTEDVALUE}" ]; then
+                        RESULT="GOOD"
+                    else
+                        RESULT="UNKNOWN"
+                    fi
+
+                elif [ "${TESTTYPE}" = ">" ]; then
+                    if [ "${FOUNDVALUE}" -le "${WEAKVALUE}" ]; then
+                        RESULT="WEAK"
+                    elif [ "${FOUNDVALUE}" -le "${WEAKVALUE}" -a "${FOUNDVALUE}" -ge "${MEDIUMSCOREDVALUE}" ]; then
+                        RESULT="MIDSCORED"
+                    elif [ "${FOUNDVALUE}" -ge "${EXPECTEDVALUE}" ]; then
+                        RESULT="GOOD"
+                    else
+                        RESULT="UNKNOWN"
+                    fi
+
+                elif [ "${TESTTYPE}" = "!" ]; then
+                    if [ "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
+                        RESULT="WEAK"
+                    elif [ ! "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
+                        RESULT="GOOD"
+                    else
+                        RESULT="UNKNOWN"
+                    fi
+
+                else
+                    RESULT="NONE"
+                fi
+            fi
+
+
+            if [ "${RESULT}" = "GOOD" ]; then
+                logtext "Result: SSH option ${OPTIONNAME} is configured very well"
+                Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result OK --color GREEN
+                AddHP 3 3
+            elif [ "${RESULT}" = "MIDSCORED" ]; then
+                logtext "Result: SSH option ${OPTIONNAME} is configured reasonably"
+                ReportSuggestion ${TEST_NO} "Consider hardening of SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
+                Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "MEDIUM" --color YELLOW
+                AddHP 1 3
+            elif [ "${RESULT}" = "WEAK" ]; then
+                logtext "Result: SSH option ${OPTIONNAME} is in a weak configuruation state and should be fixed"
+                #ReportWarning ${TEST_NO} "M" "Unsafe configured SSH option: ${OPTIONNAME}"
+                ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
+                Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result WARNING --color RED
+                AddHP 0 3
+            elif [ "${RESULT}" = "UNKNOWN" ]; then
+                logtext "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
+                Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
+                #ReportException "SSH-7408:01" "Unknown SSH option"
+                report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
             else
                 logtext "Result: Option ${OPTIONNAME} not found in ${SSH_DAEMON_CONFIG}"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "NOT FOUND" --color WHITE
             fi
+
         done
     fi
 #

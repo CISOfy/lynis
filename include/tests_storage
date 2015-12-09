@@ -60,6 +60,34 @@
             Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "DISABLED" --color GREEN
             AddHP 3 3
         fi
+
+
+        logtext "Test: Checking USB devices authorization to connect to the system"
+        FOUND=0
+        USBDEVICESPATH="/sys/bus/usb/devices/usb"
+        for device in "${USBDEVICESPATH}"*; do
+            if [ -e "${device}/authorized" ] || [ -e "${device}/authorized_default" ]; then
+                if [ `cat "${device}/authorized_default"` -eq 1 ]; then
+                    FOUND=1
+                    logtext "Test: ${device} is authorized by default"
+                elif [ `cat "${device}/authorized"` -eq 1 ]; then
+                    FOUND=1
+                    logtext "Test: ${device} is authorized for now"
+                fi
+            fi
+        done
+
+        if [ ${FOUND} -eq 1 ]; then
+            logtext "Result: Some USB devices are authorized by default or temporary to connect to the system"
+            Display --indent 2 --text "- Checking USB devices authorization" --result "ENABLED" --color RED
+            ReportSuggestion ${TEST_NO} "Disable USB devices authorization, to prevent unauthorized storage or data theft"
+            AddHP 0 3
+        else
+            logtext "Result: None USB devices are authorized by default or temporary to connect to the system"
+            Display --indent 2 --text "- Checking USB devices authorization" --result "DISABLED" --color GREEN
+            AddHP 3 3
+        fi
+
     fi
 #
 #################################################################################

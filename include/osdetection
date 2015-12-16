@@ -249,7 +249,6 @@
                     LINUX_VERSION="Scientific"
                 fi
 
-
           fi
 
           # PCLinuxOS
@@ -292,8 +291,19 @@
 
           # Turbo Linux
           if [ -e "/etc/turbolinux-release" ]; then	OS_FULLNAME=`cat /etc/turbolinux-release`; fi
+
           # YellowDog
           if [ -e "/etc/yellowdog-release" ]; then	OS_FULLNAME=`cat /etc/yellowdog-release`; fi
+
+          # VMware
+          if [ -e "/etc/vmware-release" ]; then
+              OS_FULLNAME=`cat /etc/vmware-release`
+              OS_VERSION=`uname -r`
+              IS_VMWARE_ESXI=`vmware -vl | grep VMware ESXi`
+              if [ ! "${IS_VMWARE_ESXI}" = "" ]; then
+                  OS_FULLNAME="VMware ESXi ${OS_VERSION}"
+              fi
+          fi
 
           # ===================================================================
           # Set OS name to the discovered Linux version
@@ -344,10 +354,31 @@
           SYSCTL_READKEY=""
         ;;
 
+        # VMware products
+        VMkernel)
+            OS="VMware"
+            OS_FULLNAME=""
+            OS_VERSION=""
+            HARDWARE=`uname -m`
+            if [ -e "/etc/vmware-release" ]; then
+                OS_FULLNAME=`cat /etc/vmware-release`
+                OS_VERSION=`uname -r`
+            fi
+            HAS_VMWARE_UTIL=`which vmware 2> /dev/null`
+            if [ ! "${HAS_VMWARE_UTIL}" = "" ]; then
+                IS_VMWARE_ESXI=`vmware -vl | grep VMware ESXi`
+                if [ ! "${IS_VMWARE_ESXI}" = "" ]; then
+                    OS_NAME="VMware ESXi"
+                    OS_FULLNAME="VMware ESXi ${OS_VERSION}"
+                fi
+            fi
+        ;;
+
+
         # Unknown or unsupported systems
         *)
           echo "[ ${WARNING}WARNING${NORMAL} ]"
-          echo "${WARNING}Error${NORMAL}: ${WHITE}Unknown OS found. No support available for this OS or platform...${NORMAL}"
+          echo "${WARNING}Error${NORMAL}: ${WHITE}Unknown OS found. No support available yet for this OS or platform...${NORMAL}"
           echo "Please consult the README/documentation for more information."
           exit 1
         ;;

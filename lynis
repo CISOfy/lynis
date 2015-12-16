@@ -1,10 +1,5 @@
 #!/bin/sh
 
-# Quit when commands give exit code greater than zero (-e)
-#set -e
-# Strict mode (-u)
-#set -u
-
 #################################################################################
 #
 #   Lynis
@@ -25,10 +20,15 @@
 #
 #################################################################################
 #
+    # Quit when commands exit with code greater than zero (-e)
+    #set -e
+    # Strict mode (-u)
+    #set -u
+
     # Program information
     PROGRAM_name="Lynis"
     PROGRAM_version="2.1.5"
-    PROGRAM_releasedate="8 October 2015"
+    PROGRAM_releasedate="16 December 2015"
     PROGRAM_author="Michael Boelen, CISOfy"
     PROGRAM_author_contact="lynis-dev@cisofy.com"
     PROGRAM_website="https://cisofy.com"
@@ -39,6 +39,8 @@
     PROGRAM_extrainfo="Enterprise support and plugins available via CISOfy"
     # Release version (beta or final)
     PROGRAM_releasetype="final"
+    PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
+
     # Version number of report files (when format changes in future)
     REPORT_version_major="1"; REPORT_version_minor="0"
     REPORT_version="${REPORT_version_major}.${REPORT_version_minor}"
@@ -49,34 +51,35 @@
 #
 #################################################################################
 #
-
-    # Set default to none for later testing
-    INCLUDEDIR=""
-    # Default paths to check (CWD as last option, in case we run from standalone)
-    tINCLUDE_TARGETS="/usr/local/include/lynis /usr/local/lynis/include /usr/share/lynis/include ./include"
-
     # Test from which directories we can use all functions and tests
-    for I in ${tINCLUDE_TARGETS}; do if [ -d ${I} ]; then INCLUDEDIR=${I}; fi; done
-    # Drop out if our include directory can't be found
-    if [ "${INCLUDEDIR}" = "" ]; then
-        echo "Fatal error: can't find include directory"
-        echo "Make sure to execute ${PROGRAM_name} from untarred directory or check your installation."
-        exit 1
-    fi
 
-    tDB_TARGETS="/usr/local/share/lynis/db /usr/local/lynis/db /usr/share/lynis/db ./db"
-    for I in ${tDB_TARGETS};      do if [ -d ${I} ]; then DBDIR=${I};      fi; done
+        INCLUDEDIR=""  # Set default include directory to none
+        tINCLUDE_TARGETS="/usr/local/include/lynis /usr/local/lynis/include /usr/share/lynis/include ./include"  # Default paths to check (CWD as last option, in case we run from standalone)
+        for I in ${tINCLUDE_TARGETS}; do if [ -d ${I} ]; then INCLUDEDIR=${I}; fi; done
+
+    # Drop out if our include directory can't be found
+
+        if [ "${INCLUDEDIR}" = "" ]; then
+            echo "Fatal error: can't find include directory"
+            echo "Make sure to execute ${PROGRAM_name} from untarred directory or check your installation."
+            exit 1
+        fi
+
+    # Test for database directory
+
+        DBDIR=""; tDB_TARGETS="/usr/local/share/lynis/db /usr/local/lynis/db /usr/share/lynis/db ./db"
+        for I in ${tDB_TARGETS}; do if [ -d ${I} ]; then DBDIR=${I}; fi; done
 #
 #################################################################################
 #
     MYID=""
-    # Check user. We need root to be able to audit and use all required system tools
-    # If we encounter Solaris, use that instead
+    # Check user to determine file permissions later on. If we encounter Solaris, use related id binary instead
     if [ -x /usr/xpg4/bin/id ]; then
-        MYID=`/usr/xpg4/bin/id -u`
+        MYID=`/usr/xpg4/bin/id -u 2> /dev/null`
       else
-        MYID=`id -u`
+        MYID=`id -u 2> /dev/null`
     fi
+    if [ "${MYID}" = "" ]; then Display "Could not find user ID with id command. Want to help improving Lynis? Raise a ticket at ${PROGRAM_SOURCE}"; ExitFatal; fi
 #
 #################################################################################
 #

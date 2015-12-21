@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen (michael.boelen@cisofy.com)
 # Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -33,7 +33,7 @@
     # Description : Check for a running SSH daemon
     Register --test-no SSH-7402 --weight L --network NO --description "Check for running SSH daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Searching for a SSH daemon"
+        LogText "Test: Searching for a SSH daemon"
         IsRunning sshd
         if [ ${RUNNING} -eq 1 ]; then
             SSH_DAEMON_RUNNING=1
@@ -51,29 +51,29 @@
     Register --test-no SSH-7404 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH daemon file location"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        logtext "Test: searching for sshd_config file"
+        LogText "Test: searching for sshd_config file"
         for I in ${SSH_DAEMON_CONFIG_LOCS}; do
             if [ -f "${I}/sshd_config" ]; then
-              logtext "Result: ${I}/sshd_config exists"
+              LogText "Result: ${I}/sshd_config exists"
               if [ ${FOUND} -eq 1 ]; then
                   ReportException "${TEST_NO}:01"
-                  logtext "Result: we already had found another sshd_config file. Using this new file then."
+                  LogText "Result: we already had found another sshd_config file. Using this new file then."
               fi
               FileIsReadable ${I}/sshd_config
               if [ ${CANREAD} -eq 1 ]; then
                   FOUND=1
                   SSH_DAEMON_CONFIG="${I}/sshd_config"
                 else
-                  logtext "Result: can not read ${I}/sshd_config file (no permission)"
+                  LogText "Result: can not read ${I}/sshd_config file (no permission)"
               fi
             fi
         done
         if [ "${SSH_DAEMON_CONFIG}" = "" ]; then
-            logtext "Result: No sshd configuration found"
+            LogText "Result: No sshd configuration found"
             Display --indent 4 --text "- Searching SSH configuration" --result "NOT FOUND" --color YELLOW
             ReportException "${TEST_NO}:1" "SSH daemon is running, but no readable configuration file found"
           else
-            logtext "Result: using last found configuration file: ${SSH_DAEMON_CONFIG}"
+            LogText "Result: using last found configuration file: ${SSH_DAEMON_CONFIG}"
             Display --indent 4 --text "- Searching SSH configuration" --result FOUND --color GREEN
         fi
     fi
@@ -85,7 +85,7 @@
     if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking specific defined options in ${SSH_DAEMON_CONFIG}"
+        LogText "Test: Checking specific defined options in ${SSH_DAEMON_CONFIG}"
         ## SSHOPTIONS scheme:
         ##      <OptionName>:<ExpectedValue>,<MediumScoreValue>,<WeakValue>:<TestType>
         ##
@@ -130,11 +130,11 @@
             TESTTYPE=`echo ${I} | cut -d ':' -f3`
             RESULT="NONE"
             FOUNDVALUE=`awk -v OPT="${OPTIONNAME}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_CONFIG}`
-            logtext "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_CONFIG}"
+            LogText "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_CONFIG}"
 
             if [ ! "${FOUNDVALUE}" = "" ]; then
-                logtext "Result: Option ${OPTIONNAME} found in ${SSH_DAEMON_CONFIG}"
-                logtext "Result: Option ${OPTIONNAME} value is  ${FOUNDVALUE}"
+                LogText "Result: Option ${OPTIONNAME} found in ${SSH_DAEMON_CONFIG}"
+                LogText "Result: Option ${OPTIONNAME} value is  ${FOUNDVALUE}"
 
                 if [ "${TESTTYPE}" = "=" ]; then
                     if [ "${FOUNDVALUE}" = "${EXPECTEDVALUE}" ]; then
@@ -185,27 +185,27 @@
 
 
             if [ "${RESULT}" = "GOOD" ]; then
-                logtext "Result: SSH option ${OPTIONNAME} is configured very well"
+                LogText "Result: SSH option ${OPTIONNAME} is configured very well"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result OK --color GREEN
                 AddHP 3 3
             elif [ "${RESULT}" = "MIDSCORED" ]; then
-                logtext "Result: SSH option ${OPTIONNAME} is configured reasonably"
+                LogText "Result: SSH option ${OPTIONNAME} is configured reasonably"
                 ReportSuggestion ${TEST_NO} "Consider hardening of SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "MEDIUM" --color YELLOW
                 AddHP 1 3
             elif [ "${RESULT}" = "WEAK" ]; then
-                logtext "Result: SSH option ${OPTIONNAME} is in a weak configuruation state and should be fixed"
+                LogText "Result: SSH option ${OPTIONNAME} is in a weak configuruation state and should be fixed"
                 #ReportWarning ${TEST_NO} "M" "Unsafe configured SSH option: ${OPTIONNAME}"
                 ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result WARNING --color RED
                 AddHP 0 3
             elif [ "${RESULT}" = "UNKNOWN" ]; then
-                logtext "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
+                LogText "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
                 #ReportException "SSH-7408:01" "Unknown SSH option"
-                report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
+                Report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
             else
-                logtext "Result: Option ${OPTIONNAME} not found in ${SSH_DAEMON_CONFIG}"
+                LogText "Result: Option ${OPTIONNAME} not found in ${SSH_DAEMON_CONFIG}"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "NOT FOUND" --color WHITE
             fi
 
@@ -224,30 +224,30 @@
         # AllowUsers
         FIND=`egrep "^AllowUsers" ${SSH_DAEMON_CONFIG} | awk '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: AllowUsers set, with value ${FIND}"
+            LogText "Result: AllowUsers set, with value ${FIND}"
             Display --indent 4 --text "- SSH option: AllowUsers" --result FOUND --color GREEN
             FOUND=1
           else
-            logtext "Result: AllowUsers is not set"
+            LogText "Result: AllowUsers is not set"
             Display --indent 4 --text "- SSH option: AllowUsers" --result "NOT FOUND" --color WHITE
         fi
 
         # AllowGroups
         FIND=`egrep "^AllowGroups" ${SSH_DAEMON_CONFIG} | awk '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: AllowUsers set ${FIND}"
+            LogText "Result: AllowUsers set ${FIND}"
             Display --indent 4 --text "- SSH option: AllowGroups" --result FOUND --color GREEN
             FOUND=1
           else
-            logtext "Result: AllowGroups is not set"
+            LogText "Result: AllowGroups is not set"
             Display --indent 4 --text "- SSH option: AllowGroups" --result "NOT FOUND" --color WHITE
         fi
 
         if [ ${FOUND} -eq 1 ]; then
-            logtext "Result: SSH is limited to a specific set of users, which is good"
+            LogText "Result: SSH is limited to a specific set of users, which is good"
             AddHP 2 2
           else
-            logtext "Result: SSH has no specific user or group limitation. Most likely all valid users can SSH to this machine."
+            LogText "Result: SSH has no specific user or group limitation. Most likely all valid users can SSH to this machine."
             AddHP 0 1
         fi
     fi
@@ -255,11 +255,11 @@
 #################################################################################
 #
 
-report "ssh_daemon_running=${SSH_DAEMON_RUNNING}"
-#report "ssh_daemon_port=${SSH_DAEMON_PORT}"
+Report "ssh_daemon_running=${SSH_DAEMON_RUNNING}"
+#Report "ssh_daemon_port=${SSH_DAEMON_PORT}"
 
 wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2016, Michael Boelen, CISOfy - https://cisofy.com

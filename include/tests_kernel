@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen (michael.boelen@cisofy.com)
 # Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -35,56 +35,56 @@
     Register --test-no KRNL-5622 --os Linux --weight L --network NO --description "Determine Linux default run level"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Checking if we can find the systemd default target
-        logtext "Test: Checking for systemd default.target"
+        LogText "Test: Checking for systemd default.target"
         if [ -L /etc/systemd/system/default.target ]; then
-            logtext "Result: symlink found"
+            LogText "Result: symlink found"
             if [ ! "${READLINKBINARY}" = "" ]; then
                 FIND=`${READLINKBINARY} /etc/systemd/system/default.target`
                 if [ "${FIND}" = "" ]; then
-                    logtext "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
+                    LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
                     ReportException "${TEST_NO}:01"
                   else
                     FIND2=`echo ${FIND} | egrep "runlevel5|graphical"`
                     if [ ! "${FIND2}" = "" ]; then
-                        logtext "Result: Found match on runlevel5/graphical"
+                        LogText "Result: Found match on runlevel5/graphical"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
-                        report "linux_default_runlevel=5"
+                        Report "linux_default_runlevel=5"
                       else
-                        logtext "Result: No match found on runlevel, defaulting to runlevel 3"
+                        LogText "Result: No match found on runlevel, defaulting to runlevel 3"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
-                        report "linux_default_runlevel=3"
+                        Report "linux_default_runlevel=3"
                     fi
                 fi
               else
-                logtext "Result: No readlink binary, can't determine where symlink is pointing to"
+                LogText "Result: No readlink binary, can't determine where symlink is pointing to"
                 Display --indent 2 --text "- Checking default run level" --result UNKNOWN --color YELLOW
             fi
           else
-            logtext "Result: no systemd found, so trying inittab"
-            logtext "Test: Checking /etc/inittab"
+            LogText "Result: no systemd found, so trying inittab"
+            LogText "Test: Checking /etc/inittab"
             if [ -f /etc/inittab ]; then
-                logtext "Result: file /etc/inittab found"
-                logtext "Test: Checking default Linux run level"
+                LogText "Result: file /etc/inittab found"
+                LogText "Test: Checking default Linux run level"
                 FIND=`awk -F: '/^id/ { print $2; }' /etc/inittab | head -n 1`
                 if [ "${FIND}" = "" ]; then
                     Display --indent 2 --text "- Checking default runlevel" --result UNKNOWN --color YELLOW
-                    logtext "Result: Can't determine default run level from /etc/inittab"
+                    LogText "Result: Can't determine default run level from /etc/inittab"
                   else
                     Display --indent 2 --text "- Checking default run level" --result "${FIND}" --color GREEN
-                    logtext "Found default run level '${FIND}'"
-                    report "linux_default_runlevel=${FIND}"
+                    LogText "Found default run level '${FIND}'"
+                    Report "linux_default_runlevel=${FIND}"
                 fi
               else
-                logtext "Result: file /etc/inittab not found"
+                LogText "Result: file /etc/inittab not found"
                 if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then
-                    logtext "Test: Checking run level with who -r, for Debian based systems"
+                    LogText "Test: Checking run level with who -r, for Debian based systems"
                     FIND=`who -r | awk '{ if ($1=="run-level") { print $2 } }'`
                     if [ ! "${FIND}" = "" ]; then
-                        logtext "Result: Found default run level '${FIND}'"
-                        report "linux_default_runlevel=${FIND}"
+                        LogText "Result: Found default run level '${FIND}'"
+                        Report "linux_default_runlevel=${FIND}"
                         Display --indent 2 --text "- Checking default run level" --result "RUNLEVEL ${FIND}" --color GREEN
                       else
-                        logtext "Result: Can't determine default run level from who -r"
+                        LogText "Result: Can't determine default run level from who -r"
                         Display --indent 2 --text "- Checking default run level" --result UNKNOWN --color YELLOW
                     fi
                 fi
@@ -101,37 +101,37 @@
     Register --test-no KRNL-5677 --os Linux --weight L --network NO --description "Check CPU options and support"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking CPU support (NX/PAE)"
-        logtext "Test: Checking /proc/cpuinfo"
+        LogText "Test: Checking /proc/cpuinfo"
         if [ -f /proc/cpuinfo ]; then
-            logtext "Result: found /proc/cpuinfo"
-            logtext "Test: Checking CPU options (XD/NX/PAE)"
+            LogText "Result: found /proc/cpuinfo"
+            LogText "Test: Checking CPU options (XD/NX/PAE)"
             FIND_PAE_NX=`grep " pae " /proc/cpuinfo | grep " nx "`
             FIND_PAE=`grep " pae " /proc/cpuinfo`
             FIND_NX=`grep " nx " /proc/cpuinfo`
             FOUND=0
             if [ ! "${FIND_PAE_NX}" = "" ]; then
-                logtext "PAE: Yes"
-                logtext "NX: Yes"
+                LogText "PAE: Yes"
+                LogText "NX: Yes"
                 CPU_PAE=1
                 CPU_NX=1
-                logtext "Result: PAE or No eXecute option(s) both found"
-                report "cpu_pae=1"
-                report "cpu_nx=1"
+                LogText "Result: PAE or No eXecute option(s) both found"
+                Report "cpu_pae=1"
+                Report "cpu_nx=1"
                 FOUND=1
               else
                 if [ ! "${FIND_PAE}" = "" -a "${FIND_NX}" = "" ]; then
-                    report "cpu_pae=1"
-                    logtext "Result: found PAE"
+                    Report "cpu_pae=1"
+                    LogText "Result: found PAE"
                     CPU_PAE=1
                     FOUND=1
                   else
                     if [ ! "${FIND_NX}" = "" -a "${FIND_PAE}" = "" ]; then
-                        report "cpu_nx=1"
-                        logtext "Result: found No eXecute"
+                        Report "cpu_nx=1"
+                        LogText "Result: found No eXecute"
                         CPU_NX=1
                         FOUND=1
                       else
-                        logtext "Result: found no CPU options enabled (PAE or NX bit)"
+                        LogText "Result: found no CPU options enabled (PAE or NX bit)"
                     fi
                 fi
             fi
@@ -143,7 +143,7 @@
             fi
           else
             Display --indent 4 --text "CPU support: no /proc/cpuinfo" --result SKIPPED --color YELLOW
-            logtext "Result: /proc/cpuinfo not found"
+            LogText "Result: /proc/cpuinfo not found"
         fi
     fi
 #
@@ -162,12 +162,12 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Kernel number (and suffix)
         LINUX_KERNEL_RELEASE=`uname -r`
-        report "linux_kernel_release=${LINUX_KERNEL_RELEASE}"
-        logtext "Result: found kernel release ${LINUX_KERNEL_RELEASE}"
+        Report "linux_kernel_release=${LINUX_KERNEL_RELEASE}"
+        LogText "Result: found kernel release ${LINUX_KERNEL_RELEASE}"
         # Type and build date
         LINUX_KERNEL_VERSION=`uname -v`
-        report "linux_kernel_version=${LINUX_KERNEL_VERSION}"
-        logtext "Result: found kernel version ${LINUX_KERNEL_VERSION}"
+        Report "linux_kernel_version=${LINUX_KERNEL_VERSION}"
+        LogText "Result: found kernel version ${LINUX_KERNEL_VERSION}"
         Display --indent 2 --text "- Checking kernel version and release" --result DONE --color GREEN
     fi
 #
@@ -178,21 +178,21 @@
     Register --test-no KRNL-5723 --os Linux --weight L --network NO --description "Determining if Linux kernel is monolithic"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
-            logtext "Test: checking if kernel is monolithic or modular"
+            LogText "Test: checking if kernel is monolithic or modular"
             # Checking if any modules are loaded
             FIND=`${LSMODBINARY} | grep -v "^Module" | wc -l | tr -s ' ' | tr -d ' '`
             Display --indent 2 --text "- Checking kernel type" --result DONE --color GREEN
             if [ "${FIND}" = "0" ]; then
-                logtext "Result: Found monolithic kernel"
-                report "linux_kernel_type=monolithic"
+                LogText "Result: Found monolithic kernel"
+                Report "linux_kernel_type=monolithic"
                 MONOLITHIC_KERNEL=1
               else
-                logtext "Result: Found modular kernel"
-                report "linux_kernel_type=modular"
+                LogText "Result: Found modular kernel"
+                Report "linux_kernel_type=modular"
                 MONOLITHIC_KERNEL=0
             fi
           else
-            logtext "Test skipped, lsmod binary not found or /proc/modules can not be opened"
+            LogText "Test skipped, lsmod binary not found or /proc/modules can not be opened"
         fi
     fi
 #
@@ -206,20 +206,20 @@
             FIND=`lsmod | awk '{ if ($1!="Module") print $1 }' | sort`
             Display --indent 2 --text "- Checking loaded kernel modules" --result DONE --color GREEN
             if [ ! "${FIND}" = "" ]; then
-                logtext "Loaded modules according lsmod:"
+                LogText "Loaded modules according lsmod:"
                 N=0
                 for I in ${FIND}; do
-                        logtext "Loaded module: ${I}"
-                        report "loaded_kernel_module[]=${I}"
+                        LogText "Loaded module: ${I}"
+                        Report "loaded_kernel_module[]=${I}"
                         N=`expr ${N} + 1`
                 done
                 Display --indent 6 --text "Found ${N} active modules"
               else
-                logtext "Result: no loaded modules found"
-                logtext "Notice: No loaded kernel modules could indicate a broken/malformed lsmod, or a (custom) monolithic kernel"
+                LogText "Result: no loaded modules found"
+                LogText "Notice: No loaded kernel modules could indicate a broken/malformed lsmod, or a (custom) monolithic kernel"
             fi
           else
-            logtext "Test skipped, lsmod binary not found or /proc/modules can not be opened"
+            LogText "Test skipped, lsmod binary not found or /proc/modules can not be opened"
         fi
     fi
 #
@@ -232,19 +232,19 @@
         CHECKFILE="/boot/config-`uname -r`"
         if [ -f ${CHECKFILE} ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
-            logtext "Result: found config (${LINUXCONFIGFILE})"
+            LogText "Result: found config (${LINUXCONFIGFILE})"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result FOUND --color GREEN
           elif [ -f /proc/config.gz ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LINUXCONFIGFILE_ZIPPED=1
-            logtext "Result: found config: /proc/config.gz (compressed)"
+            LogText "Result: found config: /proc/config.gz (compressed)"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result FOUND --color GREEN
           else
-            logtext "Result: no Linux kernel configuration file found in /boot"
+            LogText "Result: no Linux kernel configuration file found in /boot"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "NOT FOUND" --color WHITE
         fi
         if [ ! "${LINUXCONFIGFILE}" = "" ]; then
-            report "linux_config_file=${LINUXCONFIGFILE}"
+            Report "linux_config_file=${LINUXCONFIGFILE}"
         fi
     fi
 #
@@ -262,14 +262,14 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
         if [ ! "${GREPTOOL}" = "" ]; then
-            logtext "Test: Checking the default I/O kernel scheduler"
+            LogText "Test: Checking the default I/O kernel scheduler"
             LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | awk -F= '{ print $2 }' | sed s/\"//g`
             if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
-                logtext "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
+                LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result FOUND --color GREEN
-                report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
+                Report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
               else
-                logtext "Result: no default i/o kernel scheduler found"
+                LogText "Result: no default i/o kernel scheduler found"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "NOT FOUND" --color WHITE
             fi
           else
@@ -284,27 +284,27 @@
     Register --test-no KRNL-5745 --os FreeBSD --weight L --network NO --description "Checking FreeBSD loaded kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking active kernel modules"
-        logtext "Test: Active kernel modules (KLDs)"
-        logtext "Description: View all active kernel modules (including kernel)"
-        logtext "Test: Checking modules"
+        LogText "Test: Active kernel modules (KLDs)"
+        LogText "Description: View all active kernel modules (including kernel)"
+        LogText "Test: Checking modules"
         if [ -f /sbin/kldstat ]; then
             FIND=`kldstat | grep -v 'Name' | tr -s ' ' | cut -d ' ' -f6`
             if [ $? -eq 0 ]; then
-                logtext "Loaded modules according kldstat:"
+                LogText "Loaded modules according kldstat:"
                 N=0
                 for I in ${FIND}; do
-                    logtext "Loaded module: ${I}"
-                    report "loaded_kernel_module[]=${I}"
+                    LogText "Loaded module: ${I}"
+                    Report "loaded_kernel_module[]=${I}"
                     N=`expr ${N} + 1`
                 done
                 Display --indent 4 --text "Found ${N} kernel modules" --result DONE --color GREEN
               else
                 Display --indent 4 --text "Test failed" --result WARNING --color RED
-                logtext "Result: Problem with executing kldstat"
+                LogText "Result: Problem with executing kldstat"
             fi
           else
             echo "[ ${WHITE}SKIPPED${NORMAL} ]"
-            logtext "Result: no results, can't find /sbin/kldstat"
+            LogText "Result: no results, can't find /sbin/kldstat"
         fi
     fi
 #
@@ -314,16 +314,16 @@
     # Description : Checking Solaris load modules
     Register --test-no KRNL-5770 --os Solaris --weight L --network NO --description "Checking active kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: searching loaded kernel modules"
+        LogText "Test: searching loaded kernel modules"
         FIND=`modinfo -c -w | grep -v "UNLOADED" | grep LOADED | awk '{ print $3 }' | sort`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
-                logtext "Found module: ${I}"
-                report "loaded_kernel_module[]=${I}"
+                LogText "Found module: ${I}"
+                Report "loaded_kernel_module[]=${I}"
             done
             Display --indent 2 --text "- Checking Solaris active kernel modules" --result DONE --color GREEN
           else
-            logtext "Result: no output"
+            LogText "Result: no output"
             Display --indent 2 --text "- Checking Solaris active kernel modules" --result UNKNOWN --color YELLOW
         fi
     fi
@@ -335,38 +335,38 @@
     if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no KRNL-5788 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking availability new Linux kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Searching apt-cache, to determine if a newer kernel is available"
+        LogText "Test: Searching apt-cache, to determine if a newer kernel is available"
         if [ -x /usr/bin/apt-cache ]; then
-            logtext "Result: found /usr/bin/apt-cache"
-            logtext "Test: checking readlink location of /vmlinuz"
+            LogText "Result: found /usr/bin/apt-cache"
+            LogText "Test: checking readlink location of /vmlinuz"
             FINDKERNFILE=`readlink -f /vmlinuz`
-            logtext "Output: readlink reported file ${FINDKERNFILE}"
-            logtext "Test: checking package from dpkg -S"
+            LogText "Output: readlink reported file ${FINDKERNFILE}"
+            LogText "Test: checking package from dpkg -S"
             FINDKERNEL=`dpkg -S ${FINDKERNFILE} 2> /dev/null | awk -F : '{print $1}'`
-            logtext "Output: dpkg -S reported package ${FINDKERNEL}"
-            logtext "Test: Using apt-cache policy to determine if there is an update available"
+            LogText "Output: dpkg -S reported package ${FINDKERNEL}"
+            LogText "Test: Using apt-cache policy to determine if there is an update available"
             FINDINST=`apt-cache policy ${FINDKERNEL} | egrep 'Installed' | cut -d ':' -f2 | tr -d ' '`
             FINDCAND=`apt-cache policy ${FINDKERNEL} | egrep 'Candidate' | cut -d ':' -f2 | tr -d ' '`
-            logtext "Kernel installed: ${FINDINST}"
-            logtext "Kernel candidate: ${FINDCAND}"
+            LogText "Kernel installed: ${FINDINST}"
+            LogText "Kernel candidate: ${FINDCAND}"
             if [ "${FINDINST}" = "" ]; then
                 Display --indent 2 --text "- Checking for available kernel update" --result UNKNOWN --color YELLOW
-                logtext "Result: Exception occured, no output from apt-cache policy"
+                LogText "Result: Exception occured, no output from apt-cache policy"
                 ReportException "${TEST_NO}:01"
-                logtext "Exception: apt-cache policy did not return an installed kernel version"
+                LogText "Exception: apt-cache policy did not return an installed kernel version"
                 ReportSuggestion ${TEST_NO} "Check the output of apt-cache policy manually to determine why output is empty"
               else
                 if [ "${FINDINST}" = "${FINDCAND}" ]; then
                     Display --indent 2 --text "- Checking for available kernel update" --result OK --color GREEN
-                    logtext "Result: no kernel update available"
+                    LogText "Result: no kernel update available"
                   else
                     Display --indent 2 --text "- Checking for available kernel update" --result "UPDATE AVAILABLE" --color YELLOW
-                    logtext "Result: kernel update available according 'apt-cache policy'."
+                    LogText "Result: kernel update available according 'apt-cache policy'."
                     ReportSuggestion ${TEST_NO} "Determine priority for available kernel update"
                 fi
             fi
           else
-            logtext "Result: could NOT find /usr/bin/apt-cache, skipped other tests."
+            LogText "Result: could NOT find /usr/bin/apt-cache, skipped other tests."
         fi
     fi
 #
@@ -376,50 +376,50 @@
     # Description : Checking core dumps configuration (Linux)
     Register --test-no KRNL-5820 --os Linux --weight L --network NO --description "Checking core dumps configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking presence /etc/security/limits.conf"
+        LogText "Test: Checking presence /etc/security/limits.conf"
         if [ -f /etc/security/limits.conf ]; then
-            logtext "Result: file /etc/security/limits.conf exists"
-            logtext "Test: Checking if core dumps are disabled in /etc/security/limits.conf"
+            LogText "Result: file /etc/security/limits.conf exists"
+            LogText "Test: Checking if core dumps are disabled in /etc/security/limits.conf"
             FIND1=`grep -v "^#" /etc/security/limits.conf | grep -v "^$" | awk '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="1") { print "soft core enabled" } }'`
             FIND2=`grep -v "^#" /etc/security/limits.conf | grep -v "^$" | awk '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="1") { print "hard core enabled" } }'`
             if [ "${FIND1}" = "soft core enabled" -o "${FIND2}" = "hard core enabled" ]; then
-                logtext "Result: core dumps (soft or hard) are enabled"
+                LogText "Result: core dumps (soft or hard) are enabled"
                 Display --indent 2 --text "- Checking core dumps configuration" --result ENABLED --color YELLOW
                 AddSuggestion "${TEST_NO}" "Check if core dumps need to be enabled on this system"
                 AddHP 1 2
               else
-                logtext "Result: core dumps (soft and hard) are both disabled"
+                LogText "Result: core dumps (soft and hard) are both disabled"
                 Display --indent 2 --text "- Checking core dumps configuration" --result DISABLED --color GREEN
                 CORE_DUMPS_DISABLED=1
                 AddHP 3 3
             fi
 
             # Sysctl option
-            logtext "Test: Checking sysctl value of fs.suid_dumpable"
+            LogText "Test: Checking sysctl value of fs.suid_dumpable"
             FIND=`${SYSCTLBINARY} fs.suid_dumpable 2> /dev/null | awk '{ if ($1=="fs.suid_dumpable") { print $3 } }'`
             if [ "${FIND}" = "" ]; then
-                logtext "Result: value ${FIND} found"
+                LogText "Result: value ${FIND} found"
               else
-                logtext "Result: sysctl key fs.suid_dumpable not found"
+                LogText "Result: sysctl key fs.suid_dumpable not found"
             fi
             if [ "${FIND}" = "2" ]; then
-                logtext "Result: programs can dump core dump, but only readable by root (value 2, for debugging with file protection)"
+                LogText "Result: programs can dump core dump, but only readable by root (value 2, for debugging with file protection)"
                 Display --indent 4 --text "- Checking setuid core dumps configuration" --result PROTECTED --color GREEN
                 AddHP 1 1
             elif [ "${FIND}" = "1" ]; then
-                logtext "Result: all programs can perform core dumps (value 1, for debugging)"
+                LogText "Result: all programs can perform core dumps (value 1, for debugging)"
                 Display --indent 2 --text "- Checking setuid core dumps configuration" --result DEBUG --color YELLOW
                 ReportSuggestion ${TEST_NO} "Determine if really all binaries need to be able to core dump"
                 AddHP 0 1
               else
-                logtext "Result: found default option, some programs can dump (not processes which need to change credentials)"
+                LogText "Result: found default option, some programs can dump (not processes which need to change credentials)"
                 Display --indent 4 --text "- Checking setuid core dumps configuration" --result DEFAULT --color YELLOW
                 AddHP 1 1
             fi
             # Check ulimit settings and harden it
             # echo 'ulimit -S -c 0 > /dev/null 2>&1' >> /etc/profile
           else
-            logtext "Result: file /etc/security/limits.conf does not exist, skipping test"
+            LogText "Result: file /etc/security/limits.conf does not exist, skipping test"
         fi
     fi
 #
@@ -438,31 +438,31 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         REBOOT_NEEDED=2
         FILE="/var/run/reboot-required.pkgs"
-        logtext "Test: Checking presence ${FILE}"
+        LogText "Test: Checking presence ${FILE}"
         if [ -f ${FILE} ]; then
-            logtext "Result: file ${FILE} exists"
+            LogText "Result: file ${FILE} exists"
             FIND=`cat ${FILE}`
             if [ "${FIND}" = "" ]; then
-                logtext "Result: No reboot needed (file empty)"
+                LogText "Result: No reboot needed (file empty)"
                 REBOOT_NEEDED=0
               else
                 PKGSCOUNT=`cat ${FILE} | wc -l`
-                logtext "Result: reboot is needed, related to ${PKGSCOUNT} packages"
+                LogText "Result: reboot is needed, related to ${PKGSCOUNT} packages"
                 for I in ${FIND}; do
-                    logtext "Package: ${I}"
+                    LogText "Package: ${I}"
                 done
                 REBOOT_NEEDED=1
             fi
           else
-            logtext "Result: file ${FILE} not found"
+            LogText "Result: file ${FILE} not found"
         fi
         # Check if /boot exists
         if [ -d /boot ]; then
-            logtext "Result: /boot exists, performing more tests from here"
+            LogText "Result: /boot exists, performing more tests from here"
             FIND=`ls /boot/* 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
                 if [ -f /boot/vmlinuz -a ! -L /boot/vmlinuz ]; then
-                    logtext "Result: found /boot/vmlinuz (not symlinked)"
+                    LogText "Result: found /boot/vmlinuz (not symlinked)"
                     NEXTLINE=0
                     FINDVERSION=""
                     for I in `file /boot/vmlinuz-linux`; do
@@ -476,40 +476,40 @@
                     if [ ! "${FINDVERSION}" = "" ]; then
                         CURRENT_KERNEL=`uname -r`
                         if [ ! "${CURRENT_KERNEL}" = "${FINDVERSION}" ]; then
-                            logtext "Result: reboot needed, as current kernel is different than the one loaded"
+                            LogText "Result: reboot needed, as current kernel is different than the one loaded"
                             REBOOT_NEEDED=1
                         fi
                       else
                         ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
                     fi
                 elif [ -f /boot/vmlinuz-linux ]; then
-                    logtext "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
-                    logtext "Test: checking kernel version on disk"
+                    LogText "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
+                    LogText "Test: checking kernel version on disk"
                     VERSION_ON_DISK=`file -b /boot/vmlinuz-linux | awk '{ if ($1=="Linux" && $7=="version") { print $8 }}'`
                     if [ ! "${VERSION_ON_DISK}" = "" ]; then
-                        logtext "Result: found version ${VERSION_ON_DISK}"
+                        LogText "Result: found version ${VERSION_ON_DISK}"
                         ACTIVE_KERNEL=`uname -r`
-                        logtext "Result: active kernel version ${ACTIVE_KERNEL}"
+                        LogText "Result: active kernel version ${ACTIVE_KERNEL}"
                         if [ "${VERSION_ON_DISK}" = "${ACTIVE_KERNEL}" ]; then
                             REBOOT_NEEDED=0
-                            logtext "Result: no reboot needed, active kernel is the same version as the one on disk"
+                            LogText "Result: no reboot needed, active kernel is the same version as the one on disk"
                           else
                             REBOOT_NEEDED=1
-                            logtext "Result: reboot needed, as there is a difference between active kernel and the one on disk"
+                            LogText "Result: reboot needed, as there is a difference between active kernel and the one on disk"
                         fi
                       else
-                        logtext "Result: could not find the version on disk"
+                        LogText "Result: could not find the version on disk"
                         ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
                     fi
                   else
                     if [ -L /boot/vmlinuz ]; then
-                        logtext "Result: found symlink of /boot/vmlinuz, skipping file"
+                        LogText "Result: found symlink of /boot/vmlinuz, skipping file"
                       else
-                        logtext "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
+                        LogText "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
                     fi
                     # Extra current kernel version and replace dashes to allow numeric sort later on
                     MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's/-/./g'`
-                    logtext "Result: using ${MYKERNEL} as my kernel version (stripped)"
+                    LogText "Result: using ${MYKERNEL} as my kernel version (stripped)"
                     FIND=`ls /boot/vmlinuz* 2> /dev/null`
                     if [ ! "${FIND}" = "" ]; then
                          # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
@@ -528,14 +528,14 @@
                          for I in ${KERNELS}; do
                              # Check if we already found a kernel and it is not equal to what we run (e.g. double versions may exist)
                              if [ ${FOUND_KERNEL} -eq 1 -a ! "${MYKERNEL}" = "${I}" ]; then
-                                 logtext "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
+                                 LogText "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
                                  REBOOT_NEEDED=1
                              fi
                              if [ "${MYKERNEL}" = "${I}" ]; then
                                  FOUND_KERNEL=1
-                                 logtext "Result: Found ${I} (= our kernel)"
+                                 LogText "Result: Found ${I} (= our kernel)"
                                else
-                                 logtext "Result: Found ${I}"
+                                 LogText "Result: Found ${I}"
                              fi
                          done
                          # Check if we at least found the kernel on disk
@@ -544,7 +544,7 @@
                            else
                              # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
                              if [ ${REBOOT_NEEDED} -eq 2 ]; then
-                                 logtext "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
+                                 LogText "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
                                  REBOOT_NEEDED=0
                              fi
                          fi
@@ -552,10 +552,10 @@
                 fi
               # No files in /boot
               else
-                 logtext "Result: Skipping this test, as there are no files in /boot"
+                 LogText "Result: Skipping this test, as there are no files in /boot"
             fi
           else
-            logtext "Result: /boot does not exist"
+            LogText "Result: /boot does not exist"
         fi
 
         # Display discovered status
@@ -578,4 +578,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2016, CISOfy - https://cisofy.com

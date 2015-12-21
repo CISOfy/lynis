@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen (michael.boelen@cisofy.com)
 # Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -29,7 +29,7 @@
     Register --test-no STRG-1840 --os Linux --weight L --network NO --description "Check if USB storage is disabled"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        logtext "Test: Checking USB storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
+        LogText "Test: Checking USB storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
         if [ -d /etc/modprobe.d ]; then
             FIND=`ls /etc/modprobe.d/* 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
@@ -37,53 +37,53 @@
                 FIND2=`egrep -r "^blacklist usb[-_]storage" /etc/modprobe.d/*`
                 if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
                     FOUND=1
-                    logtext "Result: found usb-storage driver in disabled state (blacklisted)"
+                    LogText "Result: found usb-storage driver in disabled state (blacklisted)"
                 fi
               else
-                logtext "Result: uncommon situation. Found /etc/modprobe.d directory, but no files in it."
+                LogText "Result: uncommon situation. Found /etc/modprobe.d directory, but no files in it."
             fi
         fi
         if [ -f /etc/modprobe.conf ]; then
             FIND=`egrep "install usb[-_]storage /bin/(false|true)" /etc/modprobe.conf | grep "usb-storage" | grep -v "#"`
             if [ ! "${FIND}" = "" ]; then
                 FOUND=1
-                logtext "Result: found usb-storage driver in disabled state"
+                LogText "Result: found usb-storage driver in disabled state"
             fi
         fi
         if [ ${FOUND} -eq 0 ]; then
-            logtext "Result: usb-storage driver is not explicitly disabled"
+            LogText "Result: usb-storage driver is not explicitly disabled"
             Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "NOT DISABLED" --color WHITE
             ReportSuggestion ${TEST_NO} "Disable drivers like USB storage when not used, to prevent unauthorized storage or data theft"
             AddHP 2 3
           else
-            logtext "Result: usb-storage driver is disabled"
+            LogText "Result: usb-storage driver is disabled"
             Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "DISABLED" --color GREEN
             AddHP 3 3
         fi
 
 
-        logtext "Test: Checking USB devices authorization to connect to the system"
+        LogText "Test: Checking USB devices authorization to connect to the system"
         FOUND=0
         USBDEVICESPATH="/sys/bus/usb/devices/usb"
         for device in "${USBDEVICESPATH}"*; do
             if [ -e "${device}/authorized" ] || [ -e "${device}/authorized_default" ]; then
                 if [ `cat "${device}/authorized_default"` -eq 1 ]; then
                     FOUND=1
-                    logtext "Test: ${device} is authorized by default"
+                    LogText "Test: ${device} is authorized by default"
                 elif [ `cat "${device}/authorized"` -eq 1 ]; then
                     FOUND=1
-                    logtext "Test: ${device} is authorized for now"
+                    LogText "Test: ${device} is authorized for now"
                 fi
             fi
         done
 
         if [ ${FOUND} -eq 1 ]; then
-            logtext "Result: Some USB devices are authorized by default or temporary to connect to the system"
+            LogText "Result: Some USB devices are authorized by default or temporary to connect to the system"
             Display --indent 2 --text "- Checking USB devices authorization" --result "ENABLED" --color RED
             ReportSuggestion ${TEST_NO} "Disable USB devices authorization, to prevent unauthorized storage or data theft"
             AddHP 0 3
         else
-            logtext "Result: None USB devices are authorized by default or temporary to connect to the system"
+            LogText "Result: None USB devices are authorized by default or temporary to connect to the system"
             Display --indent 2 --text "- Checking USB devices authorization" --result "DISABLED" --color GREEN
             AddHP 3 3
         fi
@@ -98,7 +98,7 @@
     Register --test-no STRG-1846 --os Linux --weight L --network NO --description "Check if firewire storage is disabled"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        logtext "Test: Checking firewire storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
+        LogText "Test: Checking firewire storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
         if [ -d /etc/modprobe.d ]; then
             FIND=`ls /etc/modprobe.d/* 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
@@ -106,10 +106,10 @@
                 FIND2=`egrep "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" /etc/modprobe.d/* | grep -v "#"`
                 if [ ! "${FIND1}" = "" -o ! "${FIND2}" = "" ]; then
                     FOUND=1
-                    logtext "Result: found firewire ohci driver in disabled state"
+                    LogText "Result: found firewire ohci driver in disabled state"
                 fi
               else
-                logtext "Result: skipping /etc/modprobe.d, directory found but no files in it"
+                LogText "Result: skipping /etc/modprobe.d, directory found but no files in it"
             fi
         fi
         if [ -f /etc/modprobe.conf ]; then
@@ -117,18 +117,18 @@
             FIND2=`egrep -r "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" /etc/modprobe.conf | grep -v "#"`
             if [ ! "${FIND1}" = "" -o ! "${FIND2}" = "" ]; then
                 FOUND=1
-                logtext "Result: found firewire ohci driver in disabled state"
+                LogText "Result: found firewire ohci driver in disabled state"
             fi
         fi
 
         if [ ${FOUND} -eq 0 ]; then
-            logtext "Result: firewire ohci driver is not explicitly disabled"
+            LogText "Result: firewire ohci driver is not explicitly disabled"
             Display --indent 2 --text "- Checking firewire ohci driver (modprobe config)" --result "NOT DISABLED" --color WHITE
             ReportSuggestion ${TEST_NO} "Disable drivers like firewire storage when not used, to prevent unauthorized storage or data theft"
             # after blacklisting modules, make sure to remove them from the initram filesystem: update-initramfs -u
             AddHP 2 3
           else
-            logtext "Result: firewire ohci driver is disabled"
+            LogText "Result: firewire ohci driver is disabled"
             Display --indent 2 --text "- Checking firewire ohci driver (modprobe config)" --result "DISABLED" --color GREEN
             AddHP 3 3
         fi
@@ -141,4 +141,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, CISOfy, Michael Boelen - https://cisofy.com
+# Lynis - Copyright 2007-2016, CISOfy, Michael Boelen - https://cisofy.com

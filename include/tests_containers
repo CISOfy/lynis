@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen (michael.boelen@cisofy.com)
 # Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -31,7 +31,7 @@
     if [ -x /usr/sbin/zoneadm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8004 --os Solaris --weight L --network NO --description "Query running Solaris zones"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: query zoneadm to list all running zones"
+        LogText "Test: query zoneadm to list all running zones"
         FIND=`/usr/sbin/zoneadm list -p | awk -F: '{ if ($2!="global") print $0 }'`
         if [ ! "${FIND}" = "" ]; then
             N=0
@@ -39,13 +39,13 @@
                 N=`expr ${N} + 1`
                 ZONEID=`echo ${I} | cut -d ':' -f1`
                 ZONENAME=`echo ${I} | cut -d ':' -f2`
-                logtext "Result: found zone ${ZONENAME} (running)"
-                report "solaris_running_zone[]=${ZONENAME} [id:${ZONEID}]"
+                LogText "Result: found zone ${ZONENAME} (running)"
+                Report "solaris_running_zone[]=${ZONENAME} [id:${ZONEID}]"
             done
-            logtext "Result: total of ${N} running zones"
+            LogText "Result: total of ${N} running zones"
             Display --indent 2 --text "- Checking Solaris Zones" --result "FOUND ${N} zones" --color GREEN
           else
-            logtext "Result: no running zones found"
+            LogText "Result: no running zones found"
             Display --indent 2 --text "- Checking Solaris Zones" --result NONE --color WHITE
         fi
     fi
@@ -62,7 +62,7 @@
         #for I in ${FIND}; do
             #XENGUESTNAME=`echo ${I} | cut -d ':' -f1`
             #XENGUESTID=`echo ${I} | cut -d ':' -f2`
-            #logtext "Result: found Xen guest ${XENGUESTNAME} (ID: ${XENGUESTID})"
+            #LogText "Result: found Xen guest ${XENGUESTNAME} (ID: ${XENGUESTID})"
         #done
     #fi
 #
@@ -74,8 +74,8 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         IsRunning "docker -d"
         if [ ${RUNNING} -eq 1 ]; then
-            logtext "Result: found Docker daemon running"
-            report "docker_daemon_running=1"
+            LogText "Result: found Docker daemon running"
+            Report "docker_daemon_running=1"
             DOCKER_DAEMON_RUNNING=1
             Display --indent 4 --text "- Docker"
             Display --indent 6 --text "- Docker daemon" --result RUNNING --color GREEN
@@ -91,20 +91,20 @@
     Register --test-no CONT-8104 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking Docker info for any warnings"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
-        logtext "Test: Check for any warnings"
+        LogText "Test: Check for any warnings"
         FIND=`${DOCKERBINARY} info 2>&1 | grep "^WARNING:" | cut -d " " -f 2- | sed 's/ /:space:/g'`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: found warning(s) in output"
+            LogText "Result: found warning(s) in output"
             for I in ${FIND}; do
                 J=`echo ${I} | sed 's/:space:/ /g'`
-                logtext "Output: ${J}"
+                LogText "Output: ${J}"
                 COUNT=`expr ${COUNT} + 1`
             done
             Display --indent 8 --text "- Docker info output (warnings)" --result "${COUNT}" --color RED
             ReportSuggestion "${TEST_NO}" "Run 'docker info' to see warnings applicable to Docker daemon"
             AddHP 3 4
           else
-            logtext "Result: no warnings found from 'docker info' output"
+            LogText "Result: no warnings found from 'docker info' output"
             Display --indent 8 --text "- Docker info output (warnings)" --result "NONE" --color GREEN
             AddHP 1 1
         fi
@@ -121,16 +121,16 @@
         Display --indent 6 --text "- Containers"
 
         # Check total of containers
-        logtext "Test: checking total amount of Docker containers"
+        LogText "Test: checking total amount of Docker containers"
         DOCKER_CONTAINERS_TOTAL=`${DOCKERBINARY} info 2> /dev/null | grep "^Containers: " | awk '{ print $2 }'`
         if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
             DOCKER_CONTAINERS_TOTAL=0
         fi
-        logtext "Result: docker info shows ${DOCKER_CONTAINERS_TOTAL} containers"
+        LogText "Result: docker info shows ${DOCKER_CONTAINERS_TOTAL} containers"
         DOCKER_CONTAINERS_TOTAL2=`${DOCKERBINARY} ps -a 2> /dev/null | grep -v "CONTAINER" | wc -l`
-        logtext "Result: docker ps -a shows ${DOCKER_CONTAINERS_TOTAL2} containers"
+        LogText "Result: docker ps -a shows ${DOCKER_CONTAINERS_TOTAL2} containers"
         if [ ! "${DOCKER_CONTAINERS_TOTAL}" = "${DOCKER_CONTAINERS_TOTAL2}" ]; then
-            logtext "Result: difference detected, which is unexpected"
+            LogText "Result: difference detected, which is unexpected"
             ReportSuggestion "${TEST_NO}" "Test output of both 'docker ps -a' and 'docker info', to determine why they report a different amount of containers"
             Display --indent 8 --text "- Total containers" --result "UNKNOWN" --color RED
           else
@@ -141,11 +141,11 @@
         DOCKER_CONTAINERS_RUNNING=`${DOCKERBINARY} ps 2> /dev/null | grep -v "CONTAINER" | wc -l`
         Display --indent 8 --text "- Running containers" --result "${DOCKER_CONTAINERS_RUNNING}" --color GREEN
         if [ ${DOCKER_CONTAINERS_RUNNING} -gt 0 ]; then
-            logtext "Result: ${DOCKER_CONTAINERS_RUNNING} containers are currently active"
-            report "docker_containers_running=${DOCKER_CONTAINERS_RUNNING}"
+            LogText "Result: ${DOCKER_CONTAINERS_RUNNING} containers are currently active"
+            Report "docker_containers_running=${DOCKER_CONTAINERS_RUNNING}"
           else
-            logtext "Result: no active containers"
-            report "docker_containers_running=0"
+            LogText "Result: no active containers"
+            Report "docker_containers_running=0"
         fi
 
         # Check if there aren't too many unused containers on the system
@@ -156,7 +156,7 @@
                 Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color RED
                 AddHP 0 2
               else
-               logtext "Result: found ${DOCKER_CONTAINERS_UNUSED} unused containers"
+               LogText "Result: found ${DOCKER_CONTAINERS_UNUSED} unused containers"
                Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color YELLOW
                AddHP 1 1
             fi
@@ -173,16 +173,15 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         NOT_WORLD_WRITABLE="/var/run/docker.sock"
         for I in ${NOT_WORLD_WRITABLE}; do
-            logtext "Test: Check ${I}"
+            LogText "Test: Check ${I}"
             if [ -f ${I} ]; then
-                logtext "Result: file ${I} found, permissions will be tested"
-                IsWorldWritable ${I}
-                if [ $? -eq 1 ]; then
-                    logtext "Result: file is writable by others, which is a security risk (e.g. privilege escalation)"
+                LogText "Result: file ${I} found, permissions will be tested"
+                if IsWorldWritable ${I}; then
+                    LogText "Result: file is writable by others, which is a security risk (e.g. privilege escalation)"
                     ReportWarning "${TEST_NO}" "Docker file is world writable" "${I}" "-"
                     DOCKER_FILE_PERMISSIONS_WARNINGS=`expr ${DOCKER_FILE_PERMISSIONS_WARNINGS} + 1`
                   else
-                    logtext "Result: file is not writable by others, which is fine"
+                    LogText "Result: file is not writable by others, which is fine"
                 fi
             fi
         done
@@ -202,4 +201,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2016, CISOfy - https://cisofy.com

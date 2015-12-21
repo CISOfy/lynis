@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen (michael.boelen@cisofy.com)
 # Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -36,25 +36,25 @@
         Display --indent 2 --text "- Checking mount points"
         SEPARATED_FILESYTEMS="/home /tmp /var"
         for I in ${SEPARATED_FILESYTEMS}; do
-            logtext "Test: Checking if ${I} is mounted separately or mounted on / file system"
+            LogText "Test: Checking if ${I} is mounted separately or mounted on / file system"
             if [ -L ${I} ]; then
-                logtext "Result: ${I} is a symlink. Manual check required to determine exact file system"
+                LogText "Result: ${I} is a symlink. Manual check required to determine exact file system"
                 Display --indent 4 --text "- Checking ${I} mount point" --result SYMLINK --color WHITE
               elif [ -d ${I} ]; then
-                logtext "Result: directory ${I} exists"
+                LogText "Result: directory ${I} exists"
                 FIND=`mount | grep "${I}"`
                 if [ ! "${FIND}" = "" ]; then
-                    logtext "Result: found ${I} as a separated mount point"
+                    LogText "Result: found ${I} as a separated mount point"
                     Display --indent 4 --text "- Checking ${I} mount point" --result OK --color GREEN
                     AddHP 10 10
                   else
-                    logtext "Result: ${I} not found in mount list. Directory most likely stored on / file system"
+                    LogText "Result: ${I} not found in mount list. Directory most likely stored on / file system"
                     Display --indent 4 --text "- Checking ${I} mount point" --result SUGGESTION --color YELLOW
                     ReportSuggestion ${TEST_NO} "To decrease the impact of a full ${I} file system, place ${I} on a separated partition"
                     AddHP 9 10
                 fi
               else
-                logtext "Result: directory ${I} does not exist"
+                LogText "Result: directory ${I} does not exist"
             fi
         done
     fi
@@ -67,7 +67,7 @@
     if [ ! "${VGDISPLAYBINARY}" = "" -o ! "${LSVGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6311 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking LVM volume groups"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking for LVM volume groups"
+        LogText "Test: Checking for LVM volume groups"
         case ${OS} in
             AIX)
                  FIND=`${LSVGBINARY} -o`
@@ -80,15 +80,15 @@
             ;;
         esac
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: found one or more volume groups"
+            LogText "Result: found one or more volume groups"
             for I in ${FIND}; do
-                logtext "Found LVM volume group: ${I}"
-                report "lvm_volume_group[]=${I}"
+                LogText "Found LVM volume group: ${I}"
+                Report "lvm_volume_group[]=${I}"
             done
             LVM_VG_USED=1
             Display --indent 2 --text "- Checking LVM volume groups" --result FOUND --color GREEN
           else
-            logtext "Result: no LVM volume groups found"
+            LogText "Result: no LVM volume groups found"
             Display --indent 2 --text "- Checking LVM volume groups" --result NONE --color WHITE
         fi
     fi
@@ -100,7 +100,7 @@
     if [ ${LVM_VG_USED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6312 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking LVM volumes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking for LVM volumes"
+        LogText "Test: Checking for LVM volumes"
         case ${OS} in
             AIX)
                  ACTIVE_VG_LIST=`${LSVGBINARY} -o`
@@ -114,14 +114,14 @@
             ;;
         esac
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: found one or more volumes"
+            LogText "Result: found one or more volumes"
             for I in ${FIND}; do
-                logtext "Found LVM volume: ${I}"
-                report "lvm_volume[]=${I}"
+                LogText "Found LVM volume: ${I}"
+                Report "lvm_volume[]=${I}"
             done
             Display --indent 4 --text "- Checking LVM volumes" --result FOUND --color GREEN
           else
-            logtext "Result: no LVM volume groups found"
+            LogText "Result: no LVM volume groups found"
             Display --indent 4 --text "- Checking LVM volumes" --result NONE --color WHITE
         fi
     fi
@@ -140,19 +140,19 @@
     # Description : Checking Linux EXT2, EXT3, EXT4 file systems
     Register --test-no FILE-6323 --os Linux --weight L --network NO --description "Checking EXT file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking for Linux EXT file systems"
+        LogText "Test: Checking for Linux EXT file systems"
         FIND=`mount -t ext2,ext3,ext4 | awk '{ print $3","$5 }'`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: found one or more EXT file systems"
+            LogText "Result: found one or more EXT file systems"
             for I in ${FIND}; do
                 FILESYSTEM=`echo ${I} | cut -d ',' -f1`
                 FILETYPE=`echo ${I} | cut -d ',' -f2`
-                logtext "File system: ${FILESYSTEM} (type: ${FILETYPE})"
-                report "file_systems_ext[]=${FILESYSTEM}|${FILETYPE}|"
+                LogText "File system: ${FILESYSTEM} (type: ${FILETYPE})"
+                Report "file_systems_ext[]=${FILESYSTEM}|${FILETYPE}|"
             done
           else
-            logtext "Result: no EXT file systems found"
-            report "file_systems_ext[]=none"
+            LogText "Result: no EXT file systems found"
+            Report "file_systems_ext[]=none"
         fi
     fi
 #
@@ -163,17 +163,17 @@
     if [ -f /etc/fstab ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6329 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking FFS/UFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Query /etc/fstab for available FFS/UFS mount points"
+        LogText "Test: Query /etc/fstab for available FFS/UFS mount points"
         FIND=`awk '{ if ($3 == "ufs" || $3 == "ffs" ) { print $1":"$2":"$3":"$4":" }}' /etc/fstab`
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result NONE --color WHITE
-            logtext "Result: unable to find any single mount point (FFS/UFS)"
+            LogText "Result: unable to find any single mount point (FFS/UFS)"
           else
             Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result FOUND --color GREEN
-            report "filesystem[]=ufs"
+            Report "filesystem[]=ufs"
             for I in ${FIND}; do
-                logtext "FFS/UFS mount found: ${I}"
-                report "mountpoint_ufs[]=${I}"
+                LogText "FFS/UFS mount found: ${I}"
+                Report "mountpoint_ufs[]=${I}"
             done
         fi
     fi
@@ -184,17 +184,17 @@
     # Description : Query all ZFS mounts from /etc/fstab
     Register --test-no FILE-6330 --os FreeBSD --weight L --network NO --description "Checking ZFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Query /etc/fstab for available ZFS mount points"
+        LogText "Test: Query /etc/fstab for available ZFS mount points"
         FIND=`mount -p | awk '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}'`
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result NONE --color WHITE
-            logtext "Result: unable to find any single mount point (ZFS)"
+            LogText "Result: unable to find any single mount point (ZFS)"
           else
             Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result FOUND --color GREEN
-            report "filesystem[]=zfs"
+            Report "filesystem[]=zfs"
             for I in ${FIND}; do
-                logtext "ZFS mount found: ${I}"
-                report "mountpoint_zfs[]=${I}"
+                LogText "ZFS mount found: ${I}"
+                Report "mountpoint_zfs[]=${I}"
             done
         fi
     fi
@@ -207,14 +207,14 @@
     Register --test-no FILE-6332 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking swap partitions"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        logtext "Test: query swap partitions from /etc/fstab file"
+        LogText "Test: query swap partitions from /etc/fstab file"
         # Check if third field contains 'swap'
         FIND=`awk '{ if ($2=="swap" || $3=="swap") { print $1 }}' /etc/fstab | grep -v "^#"`
         for I in ${FIND}; do
             FOUND=1
             REAL=""
             UUID=""
-            logtext "Swap partition found: ${I}"
+            LogText "Swap partition found: ${I}"
             # YYY Add a test if partition is not a normal partition (e.g. UUID=)
             # Can be ^/dev/mapper/vg-name_lv-name
             # Can be ^/dev/partition
@@ -223,24 +223,24 @@
             HAS_UUID=`echo ${I} | grep "^UUID="`
             if [ ! "${HAS_UUID}" = "" ]; then
                 UUID=`echo ${HAS_UUID} | awk -F= '{ print $2 }'`
-                logtext "Result: Using ${UUID} as UUID"
+                LogText "Result: Using ${UUID} as UUID"
                 if [ ! "${BLKIDBINARYx}" = "" ]; then
                     FIND2=`${BLKIDBINARY} | awk '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | sed 's/:$//'`
                     if [ ! "${FIND2}" = "" ]; then
                           REAL="${FIND2}"
                     fi
                   else
-                    logtext "Result: blkid binary not found, trying by checking device listing"
+                    LogText "Result: blkid binary not found, trying by checking device listing"
                     sFILE=""
                     if [ -L /dev/disk/by-uuid/${UUID} ]; then
-                        logtext "Result: found disk via /dev/disk/by-uuid listing"
+                        LogText "Result: found disk via /dev/disk/by-uuid listing"
                         ShowSymlinkPath /dev/disk/by-uuid/${UUID}
                         if [ ! "${sFILE}" = "" ]; then
                             REAL="${sFILE}"
-                            logtext "Result: disk is ${REAL}"
+                            LogText "Result: disk is ${REAL}"
                         fi
                       else
-                        logtext "Result: no symlink found to /dev/disk/by-uuid/${UUID}"
+                        LogText "Result: no symlink found to /dev/disk/by-uuid/${UUID}"
                     fi
                 fi
             fi
@@ -248,13 +248,13 @@
             if [ "${REAL}" = "" ]; then
                 REAL="${I}"
             fi
-            report "swap_partition[]=${I},${REAL},"
+            Report "swap_partition[]=${I},${REAL},"
         done
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Query swap partitions (fstab)" --result OK --color GREEN
           else
             Display --indent 2 --text "- Query swap partitions (fstab)" --result NONE --color YELLOW
-            logtext "Result: no swap partitions found in /etc/fstab"
+            LogText "Result: no swap partitions found in /etc/fstab"
         fi
     fi
 #
@@ -268,18 +268,18 @@
     Register --test-no FILE-6336 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking swap mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Swap partitions should be mounted with 'sw' or 'swap'
-        logtext "Test: check swap partitions with incorrect mount options"
+        LogText "Test: check swap partitions with incorrect mount options"
         #FIND=`awk '{ if ($3=="swap" && ($4!="sw" && $4!="swap" && $4!="defaults")) print $1 }' /etc/fstab`
         FIND=`awk '{ if ($3=="swap" && ($4~/sw/ || $4=="defaults")) { print $1 }}' /etc/fstab`
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Testing swap partitions" --result OK --color GREEN
-            logtext "Result: all swap partitions have correct options (sw or swap)"
+            LogText "Result: all swap partitions have correct options (sw or swap)"
           else
             Display --indent 2 --text "- Testing swap partitions" --result "CHECK NEEDED" --color YELLOW
-            logtext "Result: possible incorrect mount options used for mounting swap partition (${FIND})"
+            LogText "Result: possible incorrect mount options used for mounting swap partition (${FIND})"
             #ReportWarning ${TEST_NO} "L" "Possible incorrect mount options used for swap parition (${FIND})"
             ReportSuggestion ${TEST_NO} "Check your /etc/fstab file for swap partition mount options"
-            logtext "Notes: usually swap partition have 'sw' or 'swap' in the options field (4th)"
+            LogText "Notes: usually swap partition have 'sw' or 'swap' in the options field (4th)"
         fi
     fi
 #
@@ -290,25 +290,25 @@
     if [ -d /tmp ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6354 --preqs-met ${PREQS_MET} --weight L --network NO --description "Searching for old files in /tmp"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Searching for old files in /tmp"
+        LogText "Test: Searching for old files in /tmp"
         # Search for files only in /tmp, with an access time older than X days
         FIND=`find /tmp -type f -atime +${TMP_OLD_DAYS} 2> /dev/null | sed 's/ /!space!/g'`
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Checking for old files in /tmp" --result OK --color GREEN
-            logtext "Result: no files found in /tmp which are older than 3 months"
+            LogText "Result: no files found in /tmp which are older than 3 months"
           else
             Display --indent 2 --text "- Checking for old files in /tmp" --result FOUND --color RED
             N=0
             for I in ${FIND}; do
                 FILE=`echo ${I} | sed 's/!space!/ /g'`
-                logtext "Old temporary file: ${FILE}"
+                LogText "Old temporary file: ${FILE}"
                 N=`expr ${N} + 1`
             done
-            logtext "Result: found old files in /tmp, which were not modified in the last ${TMP_OLD_DAYS} days"
-            logtext "Advice: check and clean up unused files in /tmp. Old files can fill up a disk or contain"
-            logtext "private information and should be deleted it not being used actively. Use a tool like lsof to"
-            logtext "see which programs possibly are using a particular file. Some systems can cleanup temporary"
-            logtext "directories by setting a boot option."
+            LogText "Result: found old files in /tmp, which were not modified in the last ${TMP_OLD_DAYS} days"
+            LogText "Advice: check and clean up unused files in /tmp. Old files can fill up a disk or contain"
+            LogText "private information and should be deleted it not being used actively. Use a tool like lsof to"
+            LogText "see which programs possibly are using a particular file. Some systems can cleanup temporary"
+            LogText "directories by setting a boot option."
             ReportSuggestion ${TEST_NO} "Check ${N} files in /tmp which are older than ${TMP_OLD_DAYS} days"
         fi
     fi
@@ -323,29 +323,29 @@
 
     #for I in ${SKELDIRS}; do
     #
-    #    logtext "Searching skel directory ${I}"
+    #    LogText "Searching skel directory ${I}"
     #
     #    if [ -d ${I} ]; then
-    #        logtext "Result: Directory found, scanning for unsafe file permissions"
+    #        LogText "Result: Directory found, scanning for unsafe file permissions"
     #	FIND=`ls -A ${I} | wc -l | sed 's/ //g'`
     #	if [ ! "${FIND}" = "0" ]; then
     #     	    FIND=`find ${I} -type f -a \( -perm -004 -o -perm -002 -o -perm -001 \)`
     #	    if [ "${FIND}" = "" ]; then
     #	        Display --indent 2 --text "- Checking skel file permissions (${I})" --result OK --color GREEN
-    #		logtext "Result: Directory seems to be ok, no files found with read/write/execute bit set."
-    #		logtext "Status: OK"
+    #		LogText "Result: Directory seems to be ok, no files found with read/write/execute bit set."
+    #		LogText "Status: OK"
     #	      else
     #	        Display --indent 2 --text "- Checking skel file permissions (${I})" --result WARNING --color RED
-    #	        logtext "Result: The following files do have non restrictive permissions: ${FIND}"
+    #	        LogText "Result: The following files do have non restrictive permissions: ${FIND}"
     #	        ReportSuggestion ${TEST_NO} "Remove the read, write or execute bit from these files (chmod o-rwx)"
     #	    fi
     #	  else
     #	    Display --indent 2 --text "- Checking skel file permissions (${I})" --result EMPTY --color WHITE
-    #	    logtext "Directory ${I} is empty, no scan performed"
+    #	    LogText "Directory ${I} is empty, no scan performed"
     #	fi
     #      else
     #        Display --indent 2 --text "- Checking skel file permissions (${I})" --result "NOT FOUND" --color WHITE
-    #	logtext "Result: Skel directory (${I}) not found"
+    #	LogText "Result: Skel directory (${I}) not found"
     #    fi
     #done
 #
@@ -360,7 +360,7 @@
         FIND=`ls -l / | tr -s ' ' | awk -F" " '{ if ( $8 == "tmp" || $9 == "tmp" ) { print $1 } }' | cut -c 10`
         if [ "${FIND}" = "t" -o "${FIND}" = "T" ]; then
             Display --indent 2 --text "- Checking /tmp sticky bit" --result OK --color GREEN
-            logtext "Result: Sticky bit (${FIND}) found on /tmp directory"
+            LogText "Result: Sticky bit (${FIND}) found on /tmp directory"
             AddHP 3 3
           else
             Display --indent 2 --text "- Checking /tmp sticky bit" --result WARNING --color RED
@@ -369,7 +369,7 @@
             AddHP 0 3
         fi
       else
-        logtext "Result: Sticky bit test (on /tmp) skipped. Possible reason: missing or symlinked directory, or test skipped."
+        LogText "Result: Sticky bit test (on /tmp) skipped. Possible reason: missing or symlinked directory, or test skipped."
     fi
 #
 #################################################################################
@@ -385,14 +385,14 @@
     Register --test-no FILE-6368 --os Linux --weight L --network NO --root-only YES --description "Checking ACL support on root file system"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        logtext "Test: Checking acl option on root file system"
+        LogText "Test: Checking acl option on root file system"
         FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/ext[2-4]/) { print $6 } }' | grep acl`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: found ACL option"
+            LogText "Result: found ACL option"
             FOUND=1
           else
-            logtext "Result: mount point probably mounted with defaults"
-            logtext "Test: Checking device which holds root file system"
+            LogText "Result: mount point probably mounted with defaults"
+            LogText "Test: Checking device which holds root file system"
             # Get device on which root file system is mounted. Use /dev/root if it exists, or
             # else check output of mount
             if [ -b /dev/root ]; then
@@ -404,28 +404,28 @@
             fi
             # Trying to determine default mount options from EXT2/EXT3/EXT4 file systems
             if [ ! "${FIND1}" = "" ]; then
-                logtext "Result: found ${FIND1}"
-                logtext "Test: Checking default options on ${FIND1}"
+                LogText "Result: found ${FIND1}"
+                LogText "Test: Checking default options on ${FIND1}"
                 FIND2=`${TUNE2FSBINARY} -l ${FIND1} 2> /dev/null | grep "^Default mount options" | grep "acl"`
                 if [ ! "${FIND2}" = "" ]; then
-                    logtext "Result: found ACL option in default mount options"
+                    LogText "Result: found ACL option in default mount options"
                     FOUND=1
                   else
-                    logtext "Result: no ACL option found in default mount options list"
+                    LogText "Result: no ACL option found in default mount options list"
                 fi
               else
-                logtext "Result: No file system found with root file system"
+                LogText "Result: No file system found with root file system"
             fi
         fi
 
         if [ ${FOUND} -eq 0 ]; then
-            logtext "Result: ACL option NOT enabled on root file system"
-            logtext "Additional information: if file access need to be more restricted, ACLs could be used. Install the acl utilities and remount the file system with the acl option"
-            logtext "Activate acl support on and active file system with mount -o remount,acl / and add the acl option to the fstab file"
+            LogText "Result: ACL option NOT enabled on root file system"
+            LogText "Additional information: if file access need to be more restricted, ACLs could be used. Install the acl utilities and remount the file system with the acl option"
+            LogText "Activate acl support on and active file system with mount -o remount,acl / and add the acl option to the fstab file"
             Display --indent 2 --text "- ACL support root file system" --result DISABLED --color YELLOW
             AddHP 0 1
           else
-            logtext "Result: ACL option enabled on root file system"
+            LogText "Result: ACL option enabled on root file system"
             Display --indent 2 --text "- ACL support root file system" --result ENABLED --color GREEN
             AddHP 3 3
         fi
@@ -445,14 +445,14 @@
             NOSUID=`echo ${FIND} | awk '{ if ($1=="nosuid") { print "YES" } else { print "NO" } }'`
 
             if [ ! "${FIND}" = "" ]; then
-                logtext "Result: mount system / is configured with options: ${FIND}"
+                LogText "Result: mount system / is configured with options: ${FIND}"
                 if [ "${FIND}" = "defaults" ]; then
                     Display --indent 2 --text "- Mount options of /" --result OK --color GREEN
                   else
                     Display --indent 2 --text "- Mount options of /" --result "NON DEFAULT" --color YELLOW
                 fi
               else
-                logtext "Result: no mount point / or expected options found"
+                LogText "Result: no mount point / or expected options found"
             fi
         fi
     fi
@@ -487,42 +487,42 @@
                 IN_FSTAB=`cat /etc/fstab | awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print "FOUND" } }'`
                 if [ ! "${IN_FSTAB}" = "" ]; then
                     FOUND_FLAGS=`cat /etc/fstab | awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' | sed 's/,/ /g'`
-                    logtext "File system:    ${FILESYSTEM}"
-                    logtext "Expected flags: ${EXPECTED_FLAGS}"
-                    logtext "Found flags:    ${FOUND_FLAGS}"
+                    LogText "File system:    ${FILESYSTEM}"
+                    LogText "Expected flags: ${EXPECTED_FLAGS}"
+                    LogText "Found flags:    ${FOUND_FLAGS}"
                     PARTIALLY_HARDENED=0
                     FULLY_HARDENED=1
                     for FLAG in ${EXPECTED_FLAGS}; do
                         FLAG_AVAILABLE=`echo ${FOUND_FLAGS} | grep ${FLAG}`
                         if [ "${FLAG_AVAILABLE}" = "" ]; then
-                            logtext "Result: Could not find mount option ${FLAG} on file system ${FILESYSTEM}"
+                            LogText "Result: Could not find mount option ${FLAG} on file system ${FILESYSTEM}"
                             FULLY_HARDENED=0
                           else
-                            logtext "Result: GOOD, found mount option ${FLAG} on file system ${FILESYSTEM}"
+                            LogText "Result: GOOD, found mount option ${FLAG} on file system ${FILESYSTEM}"
                             PARTIALLY_HARDENED=1
                         fi
                     done
                     if [ ${FULLY_HARDENED} -eq 1 ]; then
-                        logtext "Result: marked ${FILESYSTEM} as fully hardenened"
+                        LogText "Result: marked ${FILESYSTEM} as fully hardenened"
                         Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result HARDENED --color GREEN
                         AddHP 5 5
                     elif [ ${PARTIALLY_HARDENED} -eq 1 ]; then
-                        logtext "Result: marked ${FILESYSTEM} as fully hardenened"
+                        LogText "Result: marked ${FILESYSTEM} as fully hardenened"
                         Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "PARTIALLY HARDENED" --color YELLOW
                         AddHP 4 5
                     else
                         if [ "${FOUND_FLAGS}" = "defaults" ]; then
-                            logtext "Result: marked ${FILESYSTEM} options as default (non hardened)"
+                            LogText "Result: marked ${FILESYSTEM} options as default (non hardened)"
                             Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result DEFAULT --color YELLOW
                             AddHP 3 5
                           else
-                            logtext "Result: marked ${FILESYSTEM} options as non default (unclear about hardening)"
+                            LogText "Result: marked ${FILESYSTEM} options as non default (unclear about hardening)"
                             Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "NON DEFAULT" --color YELLOW
                             AddHP 4 5
                         fi
                     fi
                   else
-                    logtext "Result: file system ${FILESYSTEM} not found in /etc/fstab"
+                    LogText "Result: file system ${FILESYSTEM} not found in /etc/fstab"
                 fi
             done
         fi
@@ -564,23 +564,23 @@
     if [ ! "${LOCATEBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6410 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --description "Checking Locate database"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking locate database"
+        LogText "Test: Checking locate database"
         FOUND=0
         LOCATE_DBS="/var/lib/mlocate/mlocate.db /var/lib/locate/locatedb /var/lib/locatedb /var/lib/slocate/slocate.db /var/cache/locate/locatedb /var/db/locate.database"
         for I in ${LOCATE_DBS}; do
             if [ -f ${I} ]; then
-                logtext "Result: locate database found (${I})"
+                LogText "Result: locate database found (${I})"
                 FOUND=1
                 LOCATE_DB="${I}"
               else
-                logtext "Result: file ${I} not found"
+                LogText "Result: file ${I} not found"
             fi
         done
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking Locate database" --result FOUND --color GREEN
-            report "locate_db=${LOCATE_DB}"
+            Report "locate_db=${LOCATE_DB}"
           else
-            logtext "Result: database not found"
+            LogText "Result: database not found"
             Display --indent 2 --text "- Checking Locate database" --result "NOT FOUND" --color YELLOW
             ReportSuggestion ${TEST_NO} "The database required for 'locate' could not be found. Run 'updatedb' or 'locate.updatedb' to create this file."
         fi
@@ -622,4 +622,4 @@ wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2016, Michael Boelen, CISOfy - https://cisofy.com

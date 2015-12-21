@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
 # Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -30,11 +30,11 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${AASTATUSBINARY}" = "" ]; then
             APPARMORFOUND=0
-            logtext "Result: aa-status binary not found, AppArmor not installed"
+            LogText "Result: aa-status binary not found, AppArmor not installed"
             Display --indent 2 --text "- Checking presence AppArmor" --result "NOT FOUND" --color WHITE
           else
             APPARMORFOUND=1
-            logtext "Result: aa-status binary found, AppArmor is installed"
+            LogText "Result: aa-status binary found, AppArmor is installed"
             Display --indent 2 --text "- Checking presence AppArmor" --result FOUND --color GREEN
         fi
     fi
@@ -56,20 +56,20 @@
             FIND=`${AASTATUSBINARY} > /dev/null; echo $?`
             if [ ${FIND} -eq 0 ]; then
                 MAC_FRAMEWORK_ACTIVE=1
-                logtext "Result: AppArmor is enabled and a policy is loaded"
+                LogText "Result: AppArmor is enabled and a policy is loaded"
                 Display --indent 4 --text "- Checking AppArmor status" --result "ENABLED" --color GREEN
               elif [ ${FIND} -eq 4 ]; then
-                logtext "Result: Can not determine status, most likely due to lacking permissions"
+                LogText "Result: Can not determine status, most likely due to lacking permissions"
                 Display --indent 4 --text "- Checking AppArmor status" --result "UNKNOWN" --color RED
               elif [ ${FIND} -eq 3 ]; then
-                logtext "Result: Can not check control files"
+                LogText "Result: Can not check control files"
                 Display --indent 4 --text "- Checking AppArmor status" --result "UNKNOWN" --color RED
               elif [ ${FIND} -eq 2 ]; then
-                logtext "Result: AppArmor is enabled, but no policy is loaded"
+                LogText "Result: AppArmor is enabled, but no policy is loaded"
                 ReportSuggestion ${TEST_NO} "Disable AppArmor or load a policy"
                 Display --indent 4 --text "- Checking AppArmor status" --result "NON-ACTIVE" --color GREEN
               elif [ ${FIND} -eq 1 ]; then
-                logtext "Result: AppArmor is disabled"
+                LogText "Result: AppArmor is disabled"
                 Display --indent 4 --text "- Checking AppArmor status" --result "DISABLED" --color YELLOW
               else
                 Display --indent 4 --text "- Checking AppArmor status" --result "UNKNOWN" --color RED
@@ -84,12 +84,12 @@
     # Description : Check SELINUX for installation
     Register --test-no MACF-6232 --weight L --network NO --description "Check SELINUX presence"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: checking if we have sestatus binary"
+        LogText "Test: checking if we have sestatus binary"
         if [ ! "${SESTATUSBINARY}" = "" ]; then
-            logtext "Result: found sestatus binary (${SESTATUSBINARY})"
+            LogText "Result: found sestatus binary (${SESTATUSBINARY})"
             Display --indent 2 --text "- Checking presence SELinux" --result "FOUND" --color GREEN
           else
-            logtext "Result: sestatus binary NOT found"
+            LogText "Result: sestatus binary NOT found"
             Display --indent 2 --text "- Checking presence SELinux" --result "NOT FOUND" --color WHITE
         fi
     fi
@@ -105,26 +105,26 @@
         FIND=`${SESTATUSBINARY} | grep "^SELinux status" | awk '{ print $3 }'`
         if [ "${FIND}" = "enabled" ]; then
                 MAC_FRAMEWORK_ACTIVE=1
-                logtext "Result: SELinux framework is enabled"
-                report "selinux_status=1"
+                LogText "Result: SELinux framework is enabled"
+                Report "selinux_status=1"
                 SELINUXFOUND=1
                 Display --indent 4 --text "- Checking SELinux status" --result "ENABLED" --color GREEN
                 FIND=`${SESTATUSBINARY} | grep "^Current mode" | awk '{ print $3 }'`
-                report "selinux_mode=${FIND}"
+                Report "selinux_mode=${FIND}"
                 FIND2=`${SESTATUSBINARY} | grep "^Mode from config file" | awk '{ print $5 }'`
-                logtext "Result: current SELinux mode is ${FIND}"
-                logtext "Result: mode configured in config file is ${FIND2}"
+                LogText "Result: current SELinux mode is ${FIND}"
+                LogText "Result: mode configured in config file is ${FIND2}"
                 if [ "${FIND}" = "${FIND2}" ]; then
-                    logtext "Result: Current SELinux mode is the same as in config file."
+                    LogText "Result: Current SELinux mode is the same as in config file."
                     Display --indent 6 --text "- Checking current mode and config file" --result "OK" --color GREEN
                   else
-                    logtext "Result: Current SELinux mode (${FIND}) is NOT the same as in config file (${FIND2})."
+                    LogText "Result: Current SELinux mode (${FIND}) is NOT the same as in config file (${FIND2})."
                     ReportWarning ${TEST_NO} "M" "Current SELinux mode is different from config file (current: ${FIND}, config file: ${FIND2})"
                     Display --indent 6 --text "- Checking current mode and config file" --result "WARNING" --color RED
                 fi
                 Display --indent 8 --text "Current SELinux mode: ${FIND}"
           else
-                logtext "Result: SELinux framework is disabled"
+                LogText "Result: SELinux framework is disabled"
                 Display --indent 4 --text "- Checking SELinux status" --result "DISABLED" --color YELLOW
         fi
     fi
@@ -139,18 +139,18 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -e /dev/grsec ]; then
             GRSECFOUND=1
-            logtext "Result: grsecurity available (/dev/grsec found)"
+            LogText "Result: grsecurity available (/dev/grsec found)"
            else
-            logtext "Result: grsecurity not present (/dev/grsec not found)"
+            LogText "Result: grsecurity not present (/dev/grsec not found)"
         fi
         # Check Linux kernel configuration
         if [ ! "${LINUXCONFIGFILE}" = "" -a -f "${LINUXCONFIGFILE}" ]; then
             FIND=`${GREPBINARY} ^CONFIG_GRKERNSEC=y ${LINUXCONFIGFILE}`
             if [ ! "${FIND}" = "" ]; then
-                logtext "Result: grsecurity available (in kernel config)"
+                LogText "Result: grsecurity available (in kernel config)"
                 GRSECFOUND=1
               else
-                logtext "Result: no grsecurity found in kernel config"
+                LogText "Result: no grsecurity found in kernel config"
             fi
         fi
         # Found grsecurity?
@@ -171,22 +171,22 @@
         if [ ${MAC_FRAMEWORK_ACTIVE} -eq 1 ]; then
             Display --indent 2 --text "- Checking for implemented MAC framework" --result OK --color GREEN
             AddHP 3 3
-            logtext "Result: found implemented MAC framework"
+            LogText "Result: found implemented MAC framework"
           else
             Display --indent 2 --text "- Checking for implemented MAC framework" --result NONE --color YELLOW
             AddHP 2 3
-            logtext "Result: found no implemented MAC framework"
+            LogText "Result: found no implemented MAC framework"
         fi
      fi
 #
 #################################################################################
 #
 
-report "framework_grsecurity=${GRSECFOUND}"
-report "framework_selinux=${SELINUXFOUND}"
+Report "framework_grsecurity=${GRSECFOUND}"
+Report "framework_selinux=${SELINUXFOUND}"
 
 wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2016, Michael Boelen, CISOfy - https://cisofy.com

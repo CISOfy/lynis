@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
 # Web site: https://cisofy.com
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -34,16 +34,16 @@
     Register --test-no NETW-2704 --weight L --network YES --description "Basic nameserver configuration tests"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking configured nameservers"
-        logtext "Test: Checking /etc/resolv.conf file"
+        LogText "Test: Checking /etc/resolv.conf file"
         if [ -f /etc/resolv.conf ]; then
-            logtext "Result: Found /etc/resolv.conf file"
+            LogText "Result: Found /etc/resolv.conf file"
             FIND=`grep '^nameserver' /etc/resolv.conf | tr -d '\t' | sed 's/nameserver*//g' | uniq`
             if [ ! "${FIND}" = "" ]; then
                 Display --indent 4 --text "- Testing nameservers"
-                logtext "Test: Querying nameservers"
+                LogText "Test: Querying nameservers"
                 for I in ${FIND}; do
-                    logtext "Found nameserver: ${I}"
-                    report "nameserver[]=${I}"
+                    LogText "Found nameserver: ${I}"
+                    Report "nameserver[]=${I}"
                     # Check if a local resolver is available (like DNSMasq)
                     if [ "${I}" = "::1" -o "${I}" = "127.0.0.1" -o "${I}" = "0.0.0.0" ]; then
                          LOCAL_DNSRESOLVER_FOUND=1
@@ -54,18 +54,18 @@
                         DNSRESPONSE=`${DIGBINARY} +noall +time=3 +retry=0 @${I} ${I} > /dev/null ; echo $?`
                         if [ "${DNSRESPONSE}" = "0" ]; then
                             Display --indent 8 --text "Nameserver: ${I}" --result OK --color GREEN
-                            logtext "Nameserver ${I} seems to respond to queries from this host."
+                            LogText "Nameserver ${I} seems to respond to queries from this host."
                             # Count responsive nameservers
                             NUMBERACTIVENS=`expr ${NUMBERACTIVENS} + 1`
                           else
                             Display --indent 8 --text "Nameserver: ${I}" --result "NO RESPONSE" --color RED
-                            logtext "Result: nameserver ${I} does NOT respond"
-                            logtext "Exit-code from dig: ${DNSRESPONSE}"
+                            LogText "Result: nameserver ${I} does NOT respond"
+                            LogText "Exit-code from dig: ${DNSRESPONSE}"
                             ReportSuggestion ${TEST_NO} "Check connection to this nameserver and make sure no outbound DNS queries are blocked (port 53 UDP and TCP)."
                             ReportWarning ${TEST_NO} "L" "Nameserver ${I} does not respond"
                         fi
                       else
-                        logtext "Result: Nameserver test for ${I} skipped, 'dig' not installed"
+                        LogText "Result: Nameserver test for ${I} skipped, 'dig' not installed"
                         Display --indent 6 --text "Nameserver: ${I}" --result SKIPPED --color YELLOW
                     fi
                 done
@@ -83,22 +83,22 @@
         if [ ! "${DIGBINARY}" = "" ]; then
             if [ ${NUMBERACTIVENS} -lt 2 ]; then
                 Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result WARNING --color RED
-                logtext "Result: less than 2 responsive nameservers found"
+                LogText "Result: less than 2 responsive nameservers found"
                 ReportWarning ${TEST_NO} "L" "Couldn't find 2 responsive nameservers"
-                logtext "Note: Non responsive nameservers can give problems for your system(s). Like the lack of recursive lookups, bad connectivity to update servers etc."
+                LogText "Note: Non responsive nameservers can give problems for your system(s). Like the lack of recursive lookups, bad connectivity to update servers etc."
                 ReportSuggestion ${TEST_NO} "Check your resolv.conf file and fill in a backup nameserver if possible"
                 AddHP 1 2
               else
                 Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result OK --color GREEN
-                logtext "Result: found at least 2 responsive nameservers"
+                LogText "Result: found at least 2 responsive nameservers"
                 AddHP 3 3
             fi
           else
             Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result SKIPPED --color YELLOW
-            logtext "Result: dig not installed, test can't be fully performed"
+            LogText "Result: dig not installed, test can't be fully performed"
         fi
       else
-        logtext "Result: Test most likely skipped due having local resolver in /etc/resolv.conf"
+        LogText "Result: Test most likely skipped due having local resolver in /etc/resolv.conf"
     fi
 #
 #################################################################################
@@ -109,16 +109,16 @@
     if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-3001 --preqs-met ${PREQS_MET} --weight L --network NO --description "Find default gateway (route)"
     if [ $SKIPTEST -eq 0 ]; then
-        logtext "Test: Searching default gateway(s)"
+        LogText "Test: Searching default gateway(s)"
         FIND=`${NETSTATBINARY} -rn | egrep "^0.0.0.0|default" | tr -s ' ' | cut -d ' ' -f2`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
-                logtext "Result: Found default gateway ${I}"
-                report "default_gateway[]=${I}"
+                LogText "Result: Found default gateway ${I}"
+                Report "default_gateway[]=${I}"
             done
             Display --indent 2 --text "- Checking default gateway" --result DONE --color GREEN
           else
-            logtext "Result: No default gateway found"
+            LogText "Result: No default gateway found"
             Display --indent 2 --text "- Checking default gateway" --result "NONE FOUND" --color WHITE
         fi
     fi
@@ -156,9 +156,9 @@
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 NETWORK_INTERFACES="${NETWORK_INTERFACES}|${I}"
-                logtext "Found network interface: ${I}"
+                LogText "Found network interface: ${I}"
                 N=`expr ${N} + 1`
-                report "network_interface[]=${I}"
+                Report "network_interface[]=${I}"
             done
           else
             ReportException "${TEST_NO}:1" "No interfaces found on this system (OS=${OS})"
@@ -184,7 +184,7 @@
                     FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "HWaddr" | awk '{ if ($4=="HWaddr") print $5 }' | sort -u`
                   else
                     if [ ! "${IPBINARY}" = "" ]; then
-                        logtext "Test: Using ip binary to gather hardware addresses"
+                        LogText "Test: Using ip binary to gather hardware addresses"
                         FIND=`${IPBINARY} link | ${GREPBINARY} "link/ether" | ${AWKBINARY} '{ print $2 }'`
                       else
                         ReportException "${TEST_NO}:2" "Missing ifconfig or ip command to collect hardware address (MAC)"
@@ -210,9 +210,9 @@
         esac
         N=0
         for I in ${FIND}; do
-            logtext "Found MAC address: ${I}"
+            LogText "Found MAC address: ${I}"
             N=`expr ${N} + 1`
-            report "network_mac_address[]=${I}"
+            Report "network_mac_address[]=${I}"
         done
     fi
 #
@@ -239,7 +239,7 @@
                     FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
                   else
                     if [ ! "${IPBINARY}" = "" ]; then
-                        logtext "Test: Using ip binary to gather IP addresses"
+                        LogText "Test: Using ip binary to gather IP addresses"
                         FIND=`${IPBINARY} addr | ${AWKBINARY} '{ if ($1=="inet") { print $2 }}' | sed 's/\/.*//'`
                         FIND2=`${IPBINARY} addr | ${AWKBINARY} '{ if ($1=="inet6") { print $2 }}' | sed 's/\/.*//'`
                       else
@@ -260,22 +260,22 @@
                 FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
                 ;;
             *)
-                logtext "Result: no support yet for this OS (${OS}) to find IP address information. You can help improving this test by submitting your details."
+                LogText "Result: no support yet for this OS (${OS}) to find IP address information. You can help improving this test by submitting your details."
                 ReportException "${TEST_NO}:1" "IP address information test not implemented for this operating system"
                 ;;
         esac
         N=0
         # IPv4
         for I in ${FIND}; do
-            logtext "Found IPv4 address: ${I}"
+            LogText "Found IPv4 address: ${I}"
             N=`expr ${N} + 1`
-            report "network_ipv4_address[]=${I}"
+            Report "network_ipv4_address[]=${I}"
         done
         # IPv6
         for I in ${FIND2}; do
-            logtext "Found IPv6 address: ${I}"
+            LogText "Found IPv6 address: ${I}"
             N=`expr ${N} + 1`
-            report "network_ipv6_address[]=${I}"
+            Report "network_ipv6_address[]=${I}"
         done
 
     fi
@@ -353,20 +353,20 @@
         esac
 
         # Retrieve information from sockstat, when available
-        logtext "Test: Retrieving sockstat information to find listening ports"
+        LogText "Test: Retrieving sockstat information to find listening ports"
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 N=`expr ${N} + 1`
-                logtext "Found listening info: ${I}"
-                report "network_listen_port[]=${I}"
+                LogText "Found listening info: ${I}"
+                Report "network_listen_port[]=${I}"
             done
         fi
 
         if [ ! "${FIND2}" = "" ]; then
             for I in ${FIND2}; do
                 N=`expr ${N} + 1`
-                logtext "Found listening info: ${I}"
-                report "network_listen_port[]=${I}"
+                LogText "Found listening info: ${I}"
+                Report "network_listen_port[]=${I}"
             done
         fi
         if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
@@ -385,18 +385,18 @@
     if [ "${OS}" = "DragonFly" -o "${OS}" = "FreeBSD" -o "${OS}" = "NetBSD" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-3014 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking promiscuous interfaces (BSD)"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking promiscuous interfaces (FreeBSD)"
+        LogText "Test: Checking promiscuous interfaces (FreeBSD)"
         FIND=`${IFCONFIGBINARY} | grep PROMISC | cut -d ':' -f1`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: Promiscuous interfaces: ${FIND}"
+            LogText "Result: Promiscuous interfaces: ${FIND}"
             for I in ${FIND}; do
                 ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
                 if [ "${ISWHITELISTED}" = "" ]; then
                     FOUNDPROMISC=1
                     ReportWarning ${TEST_NO} "H" "Found promiscuous interface (${I})"
-                    logtext "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
+                    LogText "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
                   else
-                    logtext "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
+                    LogText "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
                 fi
             done
         fi
@@ -404,7 +404,7 @@
         # Show result
         if [ ${FOUNDPROMISC} -eq 0 ]; then
             Display --indent 2 --text "- Checking promiscuous interfaces" --result OK --color GREEN
-            logtext "Result: No promiscuous interfaces found"
+            LogText "Result: No promiscuous interfaces found"
           else
             Display --indent 2 --text "- Checking promiscuous interfaces" --result WARNING --color RED
         fi
@@ -418,20 +418,20 @@
     if [ ! "${IFCONFIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking promiscuous interfaces (Linux)"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking promiscuous interfaces (Linux)"
+        LogText "Test: Checking promiscuous interfaces (Linux)"
         NETWORK=`${IFCONFIGBINARY} | grep Link | tr -s ' ' | cut -d ' ' -f1`
         if [ ! "${NETWORK}" = "" ]; then
             for I in ${NETWORK}; do
                 FIND=`${IFCONFIGBINARY} ${I} | grep PROMISC`
                 if [ ! "${FIND}" = "" ]; then
-                    logtext "Result: Promiscuous interface: ${I}"
+                    LogText "Result: Promiscuous interface: ${I}"
                     ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
                     if [ "${ISWHITELISTED}" = "" ]; then
                         FOUNDPROMISC=1
                         ReportWarning ${TEST_NO} "H" "Found promiscuous interface (${I})"
-                        logtext "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
+                        LogText "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
                       else
-                        logtext "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
+                        LogText "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
                     fi
                 fi
             done
@@ -440,7 +440,7 @@
         # Show result
         if [ ${FOUNDPROMISC} -eq 0 ]; then
             Display --indent 2 --text "- Checking promiscuous interfaces" --result OK --color GREEN
-            logtext "Result: No promiscuous interfaces found"
+            LogText "Result: No promiscuous interfaces found"
           else
             Display --indent 2 --text "- Checking promiscuous interfaces" --result WARNING --color RED
         fi
@@ -456,16 +456,16 @@
     # Test        : NETW-3024
     # Description : Netstat/socktstat compare (FreeBSD)
     #	    echo -n "        - Comparing output sockstat and netstat"
-    #	    logtext "Comparing output of sockstat and netstat"
+    #	    LogText "Comparing output of sockstat and netstat"
     #	    NETSTATOUTPUT=`netstat -an | grep -v 'TIME_WAIT' | grep -v 'ESTABLISHED' | grep -v 'SYN_SENT' | grep -v 'CLOSE_WAIT' | grep -v 'LAST_ACK' | grep -v 'SYN_RECV' | grep -v 'CLOSING' | cut -c 1-44 | grep '*.' | cut -c 24-32 | tr -d ' ' | tr -d '\t' | grep -v '*' | sort -u`
     #
     #	    if [ "${SOCKSTATOUTPUT}" = "${NETSTATOUTPUT}" ]; then
     #	        ShowResult OK
     #	      else
     #	        echo "[ ${BAD}Warning!${NORMAL} ]"
-    #		logtext "WARNING!"
-    #		logtext "Sockstat tested output: ${SOCKSTAT}"
-    #		logtext "Netstat tested output: ${NETSTAT}"
+    #		LogText "WARNING!"
+    #		LogText "Sockstat tested output: ${SOCKSTAT}"
+    #		LogText "Netstat tested output: ${NETSTAT}"
     #	    fi
 #
 #################################################################################
@@ -477,16 +477,16 @@
     if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-3028 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking connections in WAIT state"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Using netstat for check for connections in WAIT state"
+        LogText "Test: Using netstat for check for connections in WAIT state"
         FIND=`${NETSTATBINARY} -an | grep WAIT | wc -l | awk '{ print $1 }'`
         if [ "${OPTIONS_CONN_MAX_WAIT_STATE}" = "" ]; then OPTIONS_CONN_MAX_WAIT_STATE="5000"; fi
-        logtext "Result: currently ${FIND} connections are in a waiting state (max configured: ${OPTIONS_CONN_MAX_WAIT_STATE})."
+        LogText "Result: currently ${FIND} connections are in a waiting state (max configured: ${OPTIONS_CONN_MAX_WAIT_STATE})."
         if [ ${FIND} -gt ${OPTIONS_CONN_MAX_WAIT_STATE} ]; then
             Display --indent 2 --text "- Checking waiting connections" --result WARNING --color YELLOW
             ReportSuggestion "${TEST_NO}" "Determine why system has many connections in WAIT state (${FIND})"
           else
             Display --indent 2 --text "- Checking waiting connections" --result OK --color GREEN
-            logtext "Result: ${FIND} connections are in WAIT state"
+            LogText "Result: ${FIND} connections are in WAIT state"
         fi
     fi
 #
@@ -508,9 +508,9 @@
 #################################################################################
 #
 
-report "dhcp_client_running=${DHCP_CLIENT_RUNNING}"
+Report "dhcp_client_running=${DHCP_CLIENT_RUNNING}"
 wait_for_keypress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2016, Michael Boelen, CISOfy - https://cisofy.com

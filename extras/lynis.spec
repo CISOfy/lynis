@@ -14,7 +14,7 @@
 #
 #################################################################################
 #
-# Copyright 2015 CISOfy
+# Copyright 2007-2016, CISOfy
 #
 # Documentation: https://cisofy.com/documentation/lynis/upgrading/
 #
@@ -27,9 +27,9 @@
 %define _dbdir          /usr/share/lynis/db
 %define _bindir         /usr/bin
 
-Summary:                Security and system auditing tool.
+Summary:                Security auditing tool for Linux, Mac OS X, and UNIX systems.
 Name:                   lynis
-Version:                2.1.1
+Version:                2.2.0
 Release:                1
 License:                GPL
 Group:                  Applications/System
@@ -41,7 +41,7 @@ Packager:               Michael Boelen <michael.boelen@cisofy.com>
 BuildArch:              noarch
 
 %description
-Lynis is an security auditing and hardening tool for Unix derivatives like Linux, BSD
+Lynis is an security auditing and hardening tool for UNIX derivatives like Linux, BSD
 and Solaris. It performs an in-depth security scan on the system to detect software
 and security issues. Besides information related to security, it will also scan for
 general system information, installed packages, and possible
@@ -49,10 +49,10 @@ configuration issues.
 
 This software is aimed at assisting with automated auditing, configuration management,
 software patch management, penetration testing, vulnerability management, and malware
-scanning of Unix-based systems.
+scanning of UNIX-based systems.
 
 Lynis is released as a GPLv3 licensed project and free for everyone to use.
-Commercial support and extensions are available.
+Commercial support and plugins are available via CISOfy.
 
 See https://cisofy.com for a full description and documentation.
 
@@ -110,6 +110,9 @@ install db/* ${RPM_BUILD_ROOT}%{_dbdir}
 #%attr(644, root, root) %{_plugindir}/*
 
 %changelog
+* Mon Dec 21 2015 Michael Boelen - 2.2.0-1
+- Version bump for new release
+
 * Wed May 13 2015 Michael Boelen - 1.1.9-1
 - Changed website address, version bump
 

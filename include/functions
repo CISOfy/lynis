@@ -5,7 +5,7 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen - CISOfy (michael.boelen@cisofy.com)
+# Copyright 2007-2016, Michael Boelen - CISOfy (michael.boelen@cisofy.com)
 # Website: https://cisofy.com
 #
 # This software is licensed under GPL, version 3. See LICENSE file for
@@ -43,8 +43,11 @@
 #    IsWorldExecutable          Check if a file is world executable
 #    IsWorldReadable            Check if a file is world readable
 #    IsWorldWritable            Check if a file is world writable
+#    LogText                    Log text strings to logfile, prefixed with date/time
 #    ParseNginx                 Parse nginx configuration lines
 #    Progress                   Show progress on screen
+#    RandomString               Show a random string
+#    Report                     Add string of data to report file
 #    ReportException            Add an exception to the report file (for debugging purposes)
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
@@ -54,8 +57,7 @@
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
 #    ViewCategories             Display tests categories
-#    logtext                    Log text strings to logfile, prefixed with date/time
-#    report                     Add string of data to report file
+#    WaitForKeypress            Wait for user to press a key to continue
 #
 #################################################################################
 
@@ -65,7 +67,7 @@
         HPADD=$1; HPADDMAX=$2
         HPPOINTS=`expr ${HPPOINTS} + ${HPADD}`
         HPTOTAL=`expr ${HPTOTAL} + ${HPADDMAX}`
-        logtext "Hardening: assigned ${HPADD} hardening points (max for this item: ${HPADDMAX}), current: ${HPPOINTS}, total: ${HPTOTAL}"
+        LogText "Hardening: assigned ${HPADD} hardening points (max for this item: ${HPADDMAX}), current: ${HPPOINTS}, total: ${HPTOTAL}"
       }
 
 
@@ -77,7 +79,7 @@
 
     AddSystemGroup()
       {
-        report "system_group[]=$1"
+        Report "system_group[]=$1"
       }
 
 
@@ -116,16 +118,16 @@
             # Don't search in /dev/null, it's too empty there
             if [ ! "${REPORTFILE}" = "/dev/null" ]; then
                 # Check if we can find the main type (with or without brackets)
-                logtext "Test: search string $2 in earlier discovered results"
+                LogText "Test: search string $2 in earlier discovered results"
                 FIND=`egrep "^$1(\[\])?=" ${REPORTFILE} | egrep "$2"`
                 if [ ! "${FIND}" = "" ]; then
                     ITEM_FOUND=1
-                    logtext "Result: found search string (result: $FIND)"
+                    LogText "Result: found search string (result: $FIND)"
                  else
-                    logtext "Result: search string NOT found"
+                    LogText "Result: search string NOT found"
                 fi
               else
-                logtext "Skipping search, as /dev/null is being used"
+                LogText "Skipping search, as /dev/null is being used"
             fi
           else
             ReportException ${TEST_NO} "Error in function call to CheckItem"
@@ -151,7 +153,7 @@
                     PROGRAM_LV=`drill txt ${LYNIS_LV_RECORD} | awk '{ if ($1=="lynis-latest-version.cisofy.com." && $4=="TXT") { print $5 }}' | tr -d '"' | grep "^[1-9][0-9][0-9]$"`
                     if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
                   else
-                    logtext "Result: dig, drill or host not installed, update check skipped"
+                    LogText "Result: dig, drill or host not installed, update check skipped"
                     UPDATE_CHECK_SKIPPED=1
                 fi
             fi
@@ -168,12 +170,12 @@
     DirectoryExists()
       {
         DIRECTORY_FOUND=0
-        logtext "Test: checking if directory $1 exists"
+        LogText "Test: checking if directory $1 exists"
         if [ -d $1 ]; then
-            logtext "Result: directory $1 exists"
+            LogText "Result: directory $1 exists"
             DIRECTORY_FOUND=1
           else
-            logtext "Result: directory $1 NOT found"
+            LogText "Result: directory $1 NOT found"
         fi
       }
 
@@ -198,11 +200,11 @@
     DigitsOnly()
       {
         VALUE=$1
-        logtext "Value is now: ${VALUE}"
+        LogText "Value is now: ${VALUE}"
         if [ ! "${AWKBINARY}" = "" ]; then
             VALUE=`echo ${VALUE} | grep -Eo '[0-9]{1,}'`
         fi
-        logtext "Returning value: ${VALUE}"
+        LogText "Returning value: ${VALUE}"
       }
 
 
@@ -319,12 +321,12 @@
     FileExists()
       {
         FILE_FOUND=0
-        logtext "Test: checking if file $1 exists"
+        LogText "Test: checking if file $1 exists"
         if [ -f $1 ]; then
-            logtext "Result: file $1 exists"
+            LogText "Result: file $1 exists"
             FILE_FOUND=1
           else
-            logtext "Result: file $1 NOT found"
+            LogText "Result: file $1 NOT found"
         fi
       }
 
@@ -337,36 +339,38 @@
     FileIsEmpty()
       {
         EMPTY=0
-        logtext "Test: checking if file $1 is empty"
+        LogText "Test: checking if file $1 is empty"
         if [ -z $1 ]; then
-            logtext "Result: file $1 is empty"
+            LogText "Result: file $1 is empty"
             EMPTY=1
           else
-            logtext "Result: file $1 is NOT empty"
+            LogText "Result: file $1 is NOT empty"
         fi
       }
 
     ################################################################################
     # Name        : FileIsReadable
     # Description : Check if a file readable or directory is accessible
-    # Returns     : CANREAD (0 or 1)
+    # Returns     : Return code (0 = readable, 1 = not readable)
+    # Usage       : if FileIsReadable /etc/shadow; then echo "File is readable"; fi
     ################################################################################
 
     FileIsReadable()
       {
         sFILE=$1
         CANREAD=0
-        logtext "Test: testing if we can access ${sFILE}"
+        LogText "Test: testing if we can access ${sFILE}"
 
         # Check for symlink
         if [ -L ${sFILE} ]; then
             ShowSymlinkPath ${sFILE}
             if [ ! "${SYMLINK}" = "" ]; then sFILE="${SYMLINK}"; fi
         fi
+
         # Only check the file if it isn't a symlink (after previous check)
         if [ -L ${sFILE} ]; then
             OTHERPERMS="-"
-            logtext "Result: unclear if we can read this file, as this is a symlink"
+            LogText "Result: unclear if we can read this file, as this is a symlink"
             ReportException "FileIsReadable" "Can not determine symlink ${sFILE}"
           elif [ -d ${sFILE} ]; then
             OTHERPERMS=`ls -d -l ${sFILE} | cut -c 8`
@@ -379,22 +383,24 @@
         # Also check if we are the actual owner of the file
         FILEOWNER=`ls -ln ${sFILE} | awk -F" " '{ print $3 }'`
         if [ "${FILEOWNER}" = "${MYID}" ]; then
-            logtext "Result: file is owned by our current user ID (${MYID}), checking if it is readable"
+            LogText "Result: file is owned by our current user ID (${MYID}), checking if it is readable"
             if [ -d ${sFILE} ]; then
                 OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
               elif [ -f ${sFILE} ]; then
                 OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
             fi
           else
-            logtext "Result: file is not owned by current user ID (${MYID}), but UID ${FILEOWNER}"
+            LogText "Result: file is not owned by current user ID (${MYID}), but UID ${FILEOWNER}"
         fi
 
         # Check if we have the read bit
         if [ "${OTHERPERMS}" = "r" ]; then
             CANREAD=1
-            logtext "Result: file ${sFILE} is readable (or directory accessible)."
+            return 0
+            LogText "Result: file ${sFILE} is readable (or directory accessible)."
           else
-            logtext "Result: file ${sFILE} is NOT readable (or directory accessible), symlink, or does not exist. (OTHERPERMS: ${OTHERPERMS})"
+            LogText "Result: file ${sFILE} is NOT readable (or directory accessible), symlink, or does not exist. (OTHERPERMS: ${OTHERPERMS})"
+            return 1
         fi
       }
 
@@ -465,7 +471,7 @@
                                         if [ "${FIND}" = "" ]; then
                                             ReportException "GetHostID" "No eth0 found (and no ether was found with ifconfig)"
                                           else
-                                            logtext "Result: No eth0 found (ether found), using first network interface to determine hostid (with ifconfig)"
+                                            LogText "Result: No eth0 found (ether found), using first network interface to determine hostid (with ifconfig)"
                                         fi
                                     fi
                                   else
@@ -493,7 +499,7 @@
                         # Check if we found a HostID
                         if [ ! "${FIND}" = "" ]; then
                             HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
-                            logtext "Result: Found HostID: ${HOSTID}"
+                            LogText "Result: Found HostID: ${HOSTID}"
                           else
                             ReportException "GetHostID" "Can't create HOSTID, command ip not found"
                         fi
@@ -532,7 +538,7 @@
                     for I in ${INTERFACES_TO_TEST}; do
                          FIND=`${IFCONFIGBINARY} -a | grep "^${I}"`
                          if [ ! "${FIND}" = "" ]; then
-                             FOUND=1; logtext "Found interface ${I} on Solaris"
+                             FOUND=1; LogText "Found interface ${I} on Solaris"
                          fi
                     done
                     if [ ${FOUND} -eq 1 ]; then
@@ -560,7 +566,7 @@
             if [ ! "${HOSTID}" = "" ]; then
                 for CHECKHASH in ${BLACKLISTED_HASHES}; do
                     if [ "${CHECKHASH}" = "${HOSTID}" ]; then
-                        logtext "Result: hostid is a blacklisted value"
+                        LogText "Result: hostid is a blacklisted value"
                         HOSTID=""
                     fi
                 done
@@ -581,17 +587,17 @@
         fi
 
         if [ "${HOSTID}" = "" ]; then
-            logtext "Result: no HOSTID available, trying to use SSH key as unique source"
+            LogText "Result: no HOSTID available, trying to use SSH key as unique source"
             # Create host ID when a MAC address was not found
             SSH_KEY_FILES="ssh_host_ed25519_key ssh_host_ed25519_key.pub ssh_host_ecdsa_key ssh_host_ecdsa_key.pub ssh_host_dsa_key ssh_host_dsa_key.pub ssh_host_rsa_key ssh_host_rsa_key.pub"
             if [ -d /etc/ssh ]; then
                 for I in ${SSH_KEY_FILES}; do
                     if [ "${HOSTID}" = "" ]; then
                         if [ -f /etc/ssh/${I} ]; then
-                            logtext "Result: found ${I} in /etc/ssh"
+                            LogText "Result: found ${I} in /etc/ssh"
                             if [ ! "${SHA1SUMBINARY}" = "" ]; then
                                 HOSTID=`cat /etc/ssh/${I} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
-                                logtext "result: Created HostID with SSH key ($I): ${HOSTID}"
+                                LogText "result: Created HostID with SSH key ($I): ${HOSTID}"
                               else
                                 ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
                             fi
@@ -599,7 +605,7 @@
                     fi
                 done
               else
-                logtext "Result: no /etc/ssh directory found, skipping"
+                LogText "Result: no /etc/ssh directory found, skipping"
             fi
         fi
 
@@ -618,7 +624,7 @@
             echo "------------------------------------"
         fi
         logtextbreak
-        logtext "Action: Performing tests from category: $1"
+        LogText "Action: Performing tests from category: $1"
       }
 
     # Insert section block for plugins
@@ -629,7 +635,7 @@
             echo "[+] ${MAGENTA}$1${NORMAL}"
             echo "------------------------------------"
         fi
-        logtext "Action: Performing plugin tests"
+        LogText "Action: Performing plugin tests"
       }
 
     # Is a process running?
@@ -642,9 +648,9 @@
         FIND=`${PSBINARY} ${PSOPTIONS} | egrep "( |/)$1" | grep -v "grep"`
         if [ ! "${FIND}" = "" ]; then
             RUNNING=1
-            logtext "IsRunning: process '$1' found (${FIND})"
+            LogText "IsRunning: process '$1' found (${FIND})"
           else
-            logtext "IsRunning: process '$1' not found"
+            LogText "IsRunning: process '$1' not found"
         fi
       }
 
@@ -658,7 +664,7 @@
 
     IsVirtualMachine()
       {
-        logtext "Test: Determine if this system is a virtual machine"
+        LogText "Test: Determine if this system is a virtual machine"
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
         SHORT=""
@@ -669,87 +675,87 @@
                 case "`facter is_virtual`" in
                 "true")
                     SHORT=`facter virtual`
-                    logtext "Result: found ${SHORT}"
+                    LogText "Result: found ${SHORT}"
                 ;;
                 "false")
-                    logtext "Result: facter says this machine is not a virtual"
+                    LogText "Result: facter says this machine is not a virtual"
                 ;;
                 esac
               else
-                logtext "Result: facter utility not found"
+                LogText "Result: facter utility not found"
             fi
           else
-            logtext "Result: skipped facter test, as we already found machine type"
+            LogText "Result: skipped facter test, as we already found machine type"
         fi
 
         # systemd
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/systemd-detect-virt ]; then
-                logtext "Test: trying to guess virtualization technology with systemd-detect-virt"
+                LogText "Test: trying to guess virtualization technology with systemd-detect-virt"
                 FIND=`/usr/bin/systemd-detect-virt`
                 if [ ! "${FIND}" = "" ]; then
-                    logtext "Result: found ${FIND}"
+                    LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 fi
               else
-                logtext "Result: systemd-detect-virt not found"
+                LogText "Result: systemd-detect-virt not found"
             fi
           else
-            logtext "Result: skipped systemd test, as we already found machine type"
+            LogText "Result: skipped systemd test, as we already found machine type"
         fi
 
         # lscpu
         # Values: VMware
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/lscpu ]; then
-                logtext "Test: trying to guess virtualization with lscpu"
+                LogText "Test: trying to guess virtualization with lscpu"
                 FIND=`lscpu | grep "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g'`
                 if [ ! "${FIND}" = "" ]; then
-                    logtext "Result: found ${FIND}"
+                    LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                   else
-                    logtext "Result: can't find hypervisor vendor with lscpu"
+                    LogText "Result: can't find hypervisor vendor with lscpu"
                 fi
               else
-                logtext "Result: lscpu not found"
+                LogText "Result: lscpu not found"
             fi
           else
-            logtext "Result: skipped lscpu test, as we already found machine type"
+            LogText "Result: skipped lscpu test, as we already found machine type"
         fi
 
         # dmidecode
         # Values: VMware Virtual Platform / VirtualBox
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/sbin/dmidecode ]; then
-                logtext "Test: trying to guess virtualization with dmidecode"
+                LogText "Test: trying to guess virtualization with dmidecode"
                 FIND=`dmidecode -s system-product-name | awk '{ print $1 }'`
                 if [ ! "${FIND}" = "" ]; then
-                    logtext "Result: found ${FIND}"
+                    LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                   else
-                    logtext "Result: can't find product name with dmidecode"
+                    LogText "Result: can't find product name with dmidecode"
                 fi
               else
-                logtext "Result: dmidecode not found"
+                LogText "Result: dmidecode not found"
             fi
           else
-            logtext "Result: skipped dmidecode test, as we already found machine type"
+            LogText "Result: skipped dmidecode test, as we already found machine type"
         fi
 
         # lshw
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/lshw ]; then
-                logtext "Test: trying to guess virtualization with lshw"
+                LogText "Test: trying to guess virtualization with lshw"
                 FIND=`lshw -quiet -class system | awk '{ if ($1=="product:") { print $2 }}'`
                 if [ ! "${FIND}" = "" ]; then
-                    logtext "Result: found ${FIND}"
+                    LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 fi
               else
-                logtext "Result: lshw not found"
+                LogText "Result: lshw not found"
             fi
           else
-            logtext "Result: skipped lshw test, as we already found machine type"
+            LogText "Result: skipped lshw test, as we already found machine type"
         fi
 
         # Other options
@@ -758,7 +764,7 @@
 
         # Try common guest processes
         if [ "${SHORT}" = "" ]; then
-            logtext "Test: trying to guess virtual machine type by running processes"
+            LogText "Test: trying to guess virtual machine type by running processes"
 
             # VMware
                 IsRunning vmware-guestd
@@ -772,24 +778,24 @@
                 IsRunning VBoxClient
                 if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
           else
-            logtext "Result: skipped processes test, as we already found platform"
+            LogText "Result: skipped processes test, as we already found platform"
         fi
 
         # Amazon EC2
         if [ "${SHORT}" = "" ]; then
-            logtext "Test: checking specific files for Amazon"
+            LogText "Test: checking specific files for Amazon"
             if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then
                 SHORT="amazon-ec2"
               else
-                logtext "Result: system not hosted on Amazon"
+                LogText "Result: system not hosted on Amazon"
             fi
           else
-            logtext "Result: skipped Amazon EC2 test, as we already found platform"
+            LogText "Result: skipped Amazon EC2 test, as we already found platform"
         fi
 
         # sysctl values
         if [ "${SHORT}" = "" ]; then
-            logtext "Test: trying to guess virtual machine type by sysctl keys"
+            LogText "Test: trying to guess virtual machine type by sysctl keys"
 
             # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
             # NetBSD: machdep.dmi.system-product
@@ -799,7 +805,7 @@
                 SHORT="${FIND}"
             fi
           else
-            logtext "Result: skipped sysctl test, as we already found platform"
+            LogText "Result: skipped sysctl test, as we already found platform"
         fi
 
         # Check if we catched some string along all tests
@@ -823,20 +829,20 @@
                     vmware)             ISVIRTUALMACHINE=1; VMTYPE="vmware";          VMFULLTYPE="VMware product"                          ;;
                     xen)                ISVIRTUALMACHINE=1; VMTYPE="xen";             VMFULLTYPE="XEN"                                     ;;
                     zvm)                ISVIRTUALMACHINE=1; VMTYPE="zvm";             VMFULLTYPE="IBM z/VM"                                ;;
-                    *)                  logtext "Result: Unknown virtualization type, so most likely system is physical"                   ;;
+                    *)                  LogText "Result: Unknown virtualization type, so most likely system is physical"                   ;;
                 esac
         fi
 
         # Check final status
         if [ ${ISVIRTUALMACHINE} -eq 1 ]; then
-            logtext "Result: found virtual machine (type: ${VMTYPE}, ${VMFULLTYPE})"
-            report "vm=1"
-            report "vmtype=${VMTYPE}"
+            LogText "Result: found virtual machine (type: ${VMTYPE}, ${VMFULLTYPE})"
+            Report "vm=1"
+            Report "vmtype=${VMTYPE}"
         elif [ ${ISVIRTUALMACHINE} -eq 2 ]; then
-            logtext "Result: unknown if this system is a virtual machine"
-            report "vm=2"
+            LogText "Result: unknown if this system is a virtual machine"
+            Report "vm=2"
           else
-            logtext "Result: system seems to be non-virtual"
+            LogText "Result: system seems to be non-virtual"
         fi
       }
 
@@ -854,7 +860,7 @@
         # Only check the file if it isn't a symlink (after previous check)
         if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
             FINDVAL=`ls -l ${sFILE} | cut -c 8`
-            if [ "${FINDVAL}" = "r" ]; then return 1; else return 0; fi
+            if [ "${FINDVAL}" = "r" ]; then return 0; else return 1; fi
           else
             return 255
         fi
@@ -876,13 +882,19 @@
         # Only check the file if it isn't a symlink (after previous check)
         if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
             FINDVAL=`ls -l ${sFILE} | cut -c 10`
-            if [ "${FINDVAL}" = "x" ]; then return 1; else return 0; fi
+            if [ "${FINDVAL}" = "x" ]; then return 0; else return 1; fi
           else
             return 255
         fi
       }
 
-    # Function IsWorldWritable
+    ################################################################################
+    # Name        : IsWorldWritable()
+    # Description : Determines if a file is writable for all users
+    # Returns     : exit code (0 = writable, 1 = not writable, 255 = error)
+    # Usage       : if IsWorldWritable /etc/motd; then echo "File is writable"; fi
+    ################################################################################
+
     IsWorldWritable()
       {
         sFILE=$1
@@ -891,14 +903,20 @@
         # Only check the file if it isn't a symlink (after previous check)
         if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
             FINDVAL=`ls -l ${sFILE} | cut -c 9`
-            if [ "${FINDVAL}" = "w" ]; then return 1; else return 0; fi
+            if [ "${FINDVAL}" = "w" ]; then return 0; else return 1; fi
           else
             return 255
         fi
       }
 
-    # Function logtext (redirect data ($1) to log file)
-    logtext()
+    ################################################################################
+    # Name        : LogText()
+    # Description : Function logtext (redirect data ($1) to log file)
+    # Returns     : Nothing
+    # Usage       : LogText "This goes into the log file"
+    ################################################################################
+
+    LogText()
       {
         if [ ! "${LOGFILE}" = "" ]; then
             CDATE=`date "+[%H:%M:%S]"`
@@ -906,6 +924,11 @@
         fi
       }
 
+    # Alias for older tests (do no longer use this as it will be deprecated)
+    logtext()
+      {
+          LogText "$1"
+      }
 
     ################################################################################
     # Name        : logtextbreak()
@@ -948,18 +971,18 @@
             I=`echo ${I} | sed 's/:space:/ /g' | sed 's/;$//'`
             OPTION=`echo ${I} | awk '{ print $1 }'`
             VALUE=`echo ${I}| cut -d' ' -f2-`
-            logtext "Result: found option ${OPTION} with parameters ${VALUE}"
+            LogText "Result: found option ${OPTION} with parameters ${VALUE}"
             case ${OPTION} in
                 access_log)
                     if [ "${VALUE}" = "off" ]; then
-                        logtext "Result: found logging disabled for one virtual host"
+                        LogText "Result: found logging disabled for one virtual host"
                         NGINX_ACCESS_LOG_DISABLED=1
                       else
                         if [ ! "${VALUE}" = "" ]; then
                             # If multiple values follow, select first one
                             VALUE=`echo ${VALUE} | awk '{ print $1 }'`
                             if [ ! -f ${VALUE} ]; then
-                                logtext "Result: could not find referenced log file ${VALUE} in nginx configuration"
+                                LogText "Result: could not find referenced log file ${VALUE} in nginx configuration"
                                 NGINX_ACCESS_LOG_MISSING=1
                             fi
                         fi
@@ -969,8 +992,8 @@
                 add_header)
                     HEADER=`echo ${VALUE} | awk '{ print $1 }'`
                     HEADER_VALUE=`echo ${VALUE} | cut -d' ' -f2-`
-                    logtext "Result: found header ${HEADER} with value ${HEADER_VALUE}"
-                    #report "nginx_header[]=${HEADER}|${HEADER_VALUE}|"
+                    LogText "Result: found header ${HEADER} with value ${HEADER_VALUE}"
+                    #Report "nginx_header[]=${HEADER}|${HEADER_VALUE}|"
                 ;;
                 alias)
                     NGINX_ALIAS_FOUND=1
@@ -999,7 +1022,7 @@
                           NGINX_ERROR_LOG_MISSING=1
                         fi
                       else
-                        logtext "Warning: did not find a filename after error_log in nginx configuration"
+                        LogText "Warning: did not find a filename after error_log in nginx configuration"
                     fi
                 ;;
                 error_page)
@@ -1041,7 +1064,7 @@
                     if [ "${VALUE}" = "on" ]; then NGINX_SSL_ON=1; fi
                 ;;
                 ssl_certificate)
-                    logtext "Found SSL certificate in nginx configuration"
+                    LogText "Found SSL certificate in nginx configuration"
                 ;;
                 ssl_certificate_key)
                 ;;
@@ -1053,7 +1076,7 @@
                 ;;
                 ssl_protocols)
                     NGINX_SSL_PROTOCOLS=1
-                    #report "nginx_ssl_protocols=${VALUE}"
+                    #Report "nginx_ssl_protocols=${VALUE}"
                 ;;
                 ssl_session_cache)
                 ;;
@@ -1062,7 +1085,7 @@
                 types)
                 ;;
                 *)
-                    logtext "Found unknown option ${OPTION} in nginx configuration"
+                    LogText "Found unknown option ${OPTION} in nginx configuration"
                 ;;
             esac
         done
@@ -1074,6 +1097,8 @@
     # Input       : finish or text
     # Returns     : nothing
     # Tip         : Use this function from Register with the --progress parameter
+    ################################################################################
+
     Progress()
       {
         if [ ${CRONJOB} -eq 0 ]; then
@@ -1089,6 +1114,26 @@
             fi
         fi
       }
+
+    ################################################################################
+    # Name        : Progress()
+    # Description : Displays progress on screen with dots
+    # Input       : Amount of characters (optional)
+    # Returns     : RANDOMSTRING
+    # Usage       : RandomString 32
+    ################################################################################
+
+    RandomString() {
+        # Check a (pseudo) random character device
+        if [ -c /dev/urandom ]; then local FILE="/dev/urandom"
+        elif [ -c /dev/random ]; then local FILE="/dev/random"
+        else
+          Display "Can not use RandomString function, as there is no random device to be used"
+        fi
+        if [ $# -eq 0 ]; then local SIZE=16; else local SIZE=$1; fi
+        local CSIZE=`expr ${SIZE} / 2`
+        RANDOMSTRING=`head -c ${CSIZE} /dev/urandom | od -An -x | tr -d ' ' | cut -c 1-${SIZE}`
+    }
 
     ################################################################################
     # Name        : RealFilename()
@@ -1108,7 +1153,7 @@
     #            # Check if we can find the file now
     #            if [ -f ${tFILE} ]; then
     #                rFILE="${tFILE}"
-    #                logtext "Result: symlink found, pointing to ${sFILE}"
+    #                LogText "Result: symlink found, pointing to ${sFILE}"
     #                SYMLINK=1
     #              else
     #                # Check the full path of the symlink, strip the filename, copy the path and linked filename together
@@ -1116,7 +1161,7 @@
     #                tFILE="${tDIR}/${tFILE}"
     #                if [ -f ${tFILE} ]; then
     #                  rFILE="${tFILE}"
-    #                  logtext "Result: symlink found, seems to be ${rFILE}"
+    #                  LogText "Result: symlink found, seems to be ${rFILE}"
     #                fi
     #            fi
     #        fi
@@ -1235,11 +1280,11 @@
 
             # Increase counter for every registered test which is performed
             counttests
-            if [ ${SKIPLOGTEST} -eq 0 ]; then logtext "Performing test ID ${TEST_NO} ($TEST_DESCRIPTION)"; fi
+            if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Performing test ID ${TEST_NO} ($TEST_DESCRIPTION)"; fi
             TESTS_EXECUTED="${TEST_NO}|${TESTS_EXECUTED}"
           else
-            if [ ${SKIPLOGTEST} -eq 0 ]; then logtext "Skipped test ${TEST_NO} ($TEST_DESCRIPTION)"; fi
-            if [ ${SKIPLOGTEST} -eq 0 ]; then logtext "Reason to skip: ${SKIPREASON}"; fi
+            if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Skipped test ${TEST_NO} ($TEST_DESCRIPTION)"; fi
+            if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Reason to skip: ${SKIPREASON}"; fi
             TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
         fi
 
@@ -1252,27 +1297,32 @@
         if [ ! "${PIDFILE}" = "" ]; then
           if [ -f ${PIDFILE} ]; then
               rm -f $PIDFILE;
-              logtext "PID file removed (${PIDFILE})"
+              LogText "PID file removed (${PIDFILE})"
             else
-              logtext "PID file not found (${PIDFILE})"
+              LogText "PID file not found (${PIDFILE})"
           fi
         fi
       }
 
     # Dump to report file
-    report()
+    Report()
       {
         echo "$1" >> ${REPORTFILE}
       }
 
+    # Old alias for Report function (will be deprecated)
+    report()
+      {
+        Report "$1"
+      }
 
     # Log exceptions
     ReportException()
       {
         # 1 parameters
         # <ID>:<2 char numeric>|text|
-        report "exception_event[]=$1|$2|"
-        logtext "Exception: test has an exceptional event ($1) with text $2"
+        Report "exception_event[]=$1|$2|"
+        LogText "Exception: test has an exceptional event ($1) with text $2"
       }
 
 
@@ -1281,8 +1331,8 @@
       {
         # 1 parameters
         # <ID>:<2 char numeric>
-        report "manual_event[]=$1"
-        logtext "Manual: one or more manual actions are required for further testing of this control/plugin"
+        Report "manual_event[]=$1"
+        LogText "Manual: one or more manual actions are required for further testing of this control/plugin"
       }
 
     # Report data (TESTID STATUS IMPACT MESSAGE)
@@ -1291,7 +1341,7 @@
         if [ $1 = "" ]; then TESTID="UNKNOWN"; fi
         # Status: OK, WARNING, NEUTRAL, SUGGESTION
         # Impact: HIGH, SEVERE, LOW,
-        #report "result[]=TESTID-${TESTID},STATUS-$2,IMPACT-$3,MESSAGE-$4-"
+        #Report "result[]=TESTID-${TESTID},STATUS-$2,IMPACT-$3,MESSAGE-$4-"
         # Reset ID before next test
         TESTID=""
       }
@@ -1313,8 +1363,8 @@
         if [ "$2" = "" ]; then MESSAGE="UNKNOWN"; else MESSAGE="$2"; fi
         if [ "$3" = "" ]; then DETAILS="-"; else DETAILS="$3"; fi
         if [ "$4" = "" ]; then SOLUTION="-"; else SOLUTION="$4"; fi
-        report "suggestion[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
-        logtext "Suggestion: ${MESSAGE} [test:$1] [details:${DETAILS}] [solution:${SOLUTION}]"
+        Report "suggestion[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
+        LogText "Suggestion: ${MESSAGE} [test:$1] [details:${DETAILS}] [solution:${SOLUTION}]"
       }
 
     # Log warning to report file
@@ -1344,20 +1394,20 @@
             if [ "$3" = "" ]; then DETAILS="-"; else DETAILS="$3"; fi
             if [ "$4" = "" ]; then SOLUTION="-"; else SOLUTION="$4"; fi
         fi
-        report "warning[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
-        logtext "Warning: ${MESSAGE} [test:${TEST}] [details:${DETAILS}] [solution:${SOLUTION}]"
+        Report "warning[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
+        LogText "Warning: ${MESSAGE} [test:${TEST}] [details:${DETAILS}] [solution:${SOLUTION}]"
 
       }
 
     SafePerms()
       {
         PERMS_OK=0
-        logtext "Checking permissions of $1"
+        LogText "Checking permissions of $1"
         if [ $# -eq 1 ]; then
             IS_PARAMETERS_FILE=`echo $1 | grep "/parameters"`
             # Check file permissions
               if [ ! -f "$1" ]; then
-                  logtext "Fatal error: file $1 does not exist. Quitting."
+                  LogText "Fatal error: file $1 does not exist. Quitting."
                   echo "Fatal error: file $1 does not exist"
                   ExitFatal
                 else
@@ -1371,7 +1421,7 @@
                           ExitFatal
                       fi
                     else
-                      logtext "Note: Owner permissions of file $1 to be expected similar as the UID executing the process"
+                      LogText "Note: Owner permissions of file $1 to be expected similar as the UID executing the process"
                   fi
                   # Group permissions
                   GROUP=`echo ${PERMS} | awk -F" " '{ print $4 }'`
@@ -1383,7 +1433,7 @@
                           ExitFatal
                       fi
                     else
-                      logtext "Note: Group permissions of file $1 to be expected similar as the UID executing the process"
+                      LogText "Note: Group permissions of file $1 to be expected similar as the UID executing the process"
                   fi
                   # Other permissions
                   OTHER_PERMS=`echo ${PERMS} | cut -c8-10`
@@ -1393,10 +1443,10 @@
                   fi
                   # Set PERMS_OK to 1 if no fatal errors occurred
                   PERMS_OK=1
-                  logtext "File permissions are OK"
+                  LogText "File permissions are OK"
               fi
           else
-            logtext "Fatal error: invalid amount of parameters when calling function SafePerms()"
+            LogText "Fatal error: invalid amount of parameters when calling function SafePerms()"
             echo "Invalid amount of parameters for function SafePerms()"
             ExitFatal
         fi
@@ -1417,17 +1467,17 @@
             # Don't search in /dev/null, it's too empty there
             if [ -f $2 ]; then
                 # Check if we can find the main type (with or without brackets)
-                logtext "Test: search string $1 in file $2"
+                LogText "Test: search string $1 in file $2"
                 FIND=`egrep "$1" $2`
                 if [ ! "${FIND}" = "" ]; then
                     ITEM_FOUND=1
-                    logtext "Result: found string"
-                    logtext "Full string: ${FILE}"
+                    LogText "Result: found string"
+                    LogText "Full string: ${FIND}"
                  else
-                    logtext "Result: search string NOT found"
+                    LogText "Result: search string NOT found"
                 fi
               else
-                logtext "Skipping search, file does not exist"
+                LogText "Skipping search, file does not exist"
                 ReportException ${TEST_NO} "Test is trying to search for a string in nonexistent file"
             fi
           else
@@ -1446,9 +1496,9 @@
         WARNING)
             echo "[ ${WARNING}WARNING${NORMAL} ]"
             # log the warning to our log file
-            #logtext "Warning: $2"
+            #LogText "Warning: $2"
             # add the warning to our report file
-            #report "warning=$2"
+            #Report "warning=$2"
         ;;
         esac
       }
@@ -1561,51 +1611,51 @@
                     # If a Python binary is found, use the one in path
                     if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${PYTHONBINARY}" = "" ]; then
                         FIND=`which python 2> /dev/null`
-                        if [ ! "${FIND}" = "" ]; then logtext "Setting temporary pythonbinary variable"; PYTHONBINARY="${FIND}"; fi
+                        if [ ! "${FIND}" = "" ]; then LogText "Setting temporary pythonbinary variable"; PYTHONBINARY="${FIND}"; fi
                     fi
                     if [ ! "${PYTHONBINARY}" = "" ]; then
                         SYMLINK_USE_PYTHON=1
-                        logtext "Note: using Python to determine symlinks"
+                        LogText "Note: using Python to determine symlinks"
                         tFILE=`python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" $1`
                     fi
                   else
                     if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${READLINKBINARY}" = "" ]; then
                         FIND=`which readlink 2> /dev/null`
-                        if [ ! "${FIND}" = "" ]; then logtext "Setting temporary readlinkbinary variable"; READLINKBINARY="${FIND}"; fi
+                        if [ ! "${FIND}" = "" ]; then LogText "Setting temporary readlinkbinary variable"; READLINKBINARY="${FIND}"; fi
                     fi
 
                     if [ ! "${READLINKBINARY}" = "" ]; then
                         SYMLINK_USE_READLINK=1
-                        logtext "Note: Using real readlink binary to determine symlinks"
+                        LogText "Note: Using real readlink binary to determine symlinks"
                         tFILE=`${READLINKBINARY} -f ${sFILE}`
-                        logtext "Result: readlink shows ${tFILE} as output"
+                        LogText "Result: readlink shows ${tFILE} as output"
                     fi
                 fi
                 # Check if we can find the file now
                 if [ "${tFILE}" = "" ]; then
-                    logtext "Result: command did not return any value"
+                    LogText "Result: command did not return any value"
                 elif [ -f ${tFILE} ]; then
                     sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to file ${sFILE}"
+                    LogText "Result: symlink found, pointing to file ${sFILE}"
                     FOUNDPATH=1
                 elif [ -b ${tFILE} ]; then
                     sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to block device ${sFILE}"
+                    LogText "Result: symlink found, pointing to block device ${sFILE}"
                     FOUNDPATH=1
                 elif [ -c ${tFILE} ]; then
                     sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to character device ${sFILE}"
+                    LogText "Result: symlink found, pointing to character device ${sFILE}"
                     FOUNDPATH=1
                 elif [ -d ${tFILE} ]; then
                     sFILE="${tFILE}"
-                    logtext "Result: symlink found, pointing to directory ${sFILE}"
+                    LogText "Result: symlink found, pointing to directory ${sFILE}"
                     FOUNDPATH=1
                   else
                     # Check the full path of the symlink, strip the filename, copy the path and linked filename together
                     tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
                     tFILE="${tDIR}/${tFILE}"
                     if [ -L ${tFILE} ]; then
-                        logtext "Result: this symlink links to another symlink"
+                        LogText "Result: this symlink links to another symlink"
                         # Ensure that we use a second try with the right tool as well
                         if [ ${SYMLINK_USE_PYTHON} -eq 1 ]; then
                             tFILE=`python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" ${tFILE}`
@@ -1615,33 +1665,33 @@
                         # Check if we now have a normal file
                         if [ -f ${tFILE} ]; then
                             sFILE="${tFILE}"
-                            logtext "Result: symlink finally found, seems to be file ${sFILE}"
+                            LogText "Result: symlink finally found, seems to be file ${sFILE}"
                             FOUNDPATH=1
                         elif [ -d ${tFILE} ]; then
                             sFILE="${tFILE}"
-                            logtext "Result: symlink finally found, seems to be directory ${sFILE}"
+                            LogText "Result: symlink finally found, seems to be directory ${sFILE}"
                             FOUNDPATH=1
                         else
-                           logtext "Result: could not find file ${tFILE}, most likely too complicated symlink or too often linked"
+                           LogText "Result: could not find file ${tFILE}, most likely too complicated symlink or too often linked"
                         fi
                     elif [ -f ${tFILE} ]; then
                         sFILE="${tFILE}"
-                        logtext "Result: symlink found, seems to be file ${sFILE}"
+                        LogText "Result: symlink found, seems to be file ${sFILE}"
                         FOUNDPATH=1
                     elif [ -d ${tFILE} ]; then
                         sFILE="${tFILE}"
-                        logtext "Result: symlink found, seems to be directory ${sFILE}"
+                        LogText "Result: symlink found, seems to be directory ${sFILE}"
                         FOUNDPATH=1
                     else
-                        logtext "Result: file ${tFILE} in ${tDIR} not found"
+                        LogText "Result: file ${tFILE} in ${tDIR} not found"
                     fi
                 fi
           else
-            logtext "Result: file not a symlink"
+            LogText "Result: file not a symlink"
         fi
         # Now check if our new location is actually a file or directory destination
         if [ -L ${sFILE} ]; then
-            logtext "Result: unable to determine symlink, or location ${sFILE} is just another symlink"
+            LogText "Result: unable to determine symlink, or location ${sFILE} is just another symlink"
             FOUNDPATH=0
         fi
         if [ ${FOUNDPATH} -eq 1 ]; then
@@ -1662,6 +1712,7 @@
         echo ""
         exit 0
       }
+
     # Wait for [ENTER] or manually break
     wait_for_keypress()
       {
@@ -1671,8 +1722,16 @@
         fi
       }
 
+    # Wait for [ENTER] or manually break
+    WaitForKeypress()
+      {
+        if [ ! ${QUICKMODE} -eq 1 ]; then
+          echo ""; echo "[ ${WHITE}Press [ENTER] to continue, or [CTRL]+C to stop${NORMAL} ]"
+          read void
+        fi
+      }
 
 
 #================================================================================
 # Lynis is part of Lynis Enterprise and released under GPLv3 license
-# Copyright 2007-2015 - Michael Boelen, CISOfy - https://cisofy.com
+# Copyright 2007-2016 - Michael Boelen, CISOfy - https://cisofy.com

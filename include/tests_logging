@@ -346,13 +346,26 @@
             FIND=`egrep "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | grep -v "^#" | grep -v "[a-zA-Z0-9]@"`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: remote logging enabled"
-                AddHP 5 5
-                Display --indent 2 --text "- Checking remote logging" --result ENABLED --color GREEN
-              else
+                REMOTE_LOGGING_ENABLED=1
+            else
+                # Search for configured destinations with an IP address or hostname, then determine which ones are used as a log destination
+                DESTINATIONS=`grep "^destination" ${SYSLOGD_CONF} | egrep "(udp|tcp)" | grep "port" | awk '{print $2}'`
+                for DESTINATION in ${DESTINATIONS}; do
+                    FIND2=`grep "log" | grep "source" | egrep "destination\(${DESTINATION}\)"`
+                    if [ ! "${FIND2}" = "" ]; then
+                        LogText "Result: found destination ${DESTINATION} configured for remote logging"
+                        REMOTE_LOGGING_ENABLED=1
+                    fi
+                done
+            fi
+            if [ ${REMOTE_LOGGING_ENABLED} -eq 0 ]; then
                 LogText "Result: no remote logging found"
                 ReportSuggestion ${TEST_NO} "Enable logging to an external logging host for archiving purposes and additional protection"
                 AddHP 1 3
                 Display --indent 2 --text "- Checking remote logging" --result "NOT ENABLED" --color YELLOW
+              else
+                AddHP 5 5
+                Display --indent 2 --text "- Checking remote logging" --result ENABLED --color GREEN
             fi
           else
             LogText "Result: test skipped, file ${SYSLOGD_CONF} not found"

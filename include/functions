@@ -56,6 +56,7 @@
 #    SearchItem                 Search a string in a file
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
+#    TestValue                  Evaluate a value in a string or key
 #    ViewCategories             Display tests categories
 #    WaitForKeypress            Wait for user to press a key to continue
 #
@@ -1698,6 +1699,64 @@
             SYMLINK="${sFILE}"
           else
             SYMLINK=""
+        fi
+      }
+
+    ################################################################################
+    # Name        : TestValue
+    # Description : Test if a value is good/bad (e.g. according to best practices)
+    # Returns     : 0 (True) or 1 (False)
+    # Usage       : if TestValue --function contains --value "Full Text" --search "Text"; then echo "Found!"; fi
+    ################################################################################
+
+    TestValue()
+      {
+        local FIND=""
+        local VALUE=""
+        local RESULT=""
+        local SEARCH=""
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --function)
+                    shift
+                    local FUNCTION=$1
+                ;;
+                --value)
+                    shift
+                    VALUE=$1
+                ;;
+                --search)
+                    shift
+                    SEARCH=$1
+                ;;
+                *)
+                    echo "INVALID OPTION USED (TestValue): $1"
+                    exit 1
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+
+        if [ "${VALUE}" = "" ]; then echo "No value provided to function (TestValue)"; fi
+
+        # Apply the related function
+        case ${FUNCTION} in
+              "contains")
+                  FIND=`echo ${VALUE} | egrep "${SEARCH}"`
+                  if [ "${FIND}" = "" ]; then RESULT=1; else RESULT=0; fi
+              ;;
+              #"gt" | "greater-than")   COLOR=$GREEN   ;;
+              #"equals")     COLOR=$RED     ;;
+              #"not-equal")   COLOR=$WHITE   ;;
+              #"lt" | "less-than")  COLOR=$YELLOW  ;;
+              *) echo "INVALID OPTION USED (TestValue, parameter of function: $1)"; exit 1 ;;
+        esac
+
+        if [ ! "${RESULT}" = "" ]; then
+            return ${RESULT}
+          else
+            echo "ERROR: No result returned from function (TestValue). Incorrect usage?"; exit 1
         fi
       }
 

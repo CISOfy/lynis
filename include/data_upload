@@ -143,16 +143,50 @@ output "Settings file: ${SETTINGS_FILE}"
             if [ ${COMPRESSED_UPLOADS} -eq 1 ]; then
                 CURL_OPTIONS="${CURL_OPTIONS} --compressed -H 'Content-Encoding: gzip'"
             fi
+            if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
+                LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
+                if [ ! "${UPLOAD_PROXY_PORT}" = "" ]; then
+                    LogText "Upload: Proxy port number is ${UPLOAD_PROXY_PORT}"
+                    UPLOAD_PROXY_PORT=":${UPLOAD_PROXY_PORT}"
+                fi
+                LogText "Upload: Proxy protocol is ${UPLOAD_PROXY_PROTOCOL}"
+                case ${UPLOAD_PROXY_PROTOCOL} in
+                    "http")
+                        UPLOAD_PROXY="http://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
+                    ;;
+                    "https")
+                        UPLOAD_PROXY="https://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
+                    ;;
+                    "socks5")
+                        UPLOAD_PROXY="${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                        CURL_OPTIONS="${CURL_OPTIONS} --socks5 ${UPLOAD_PROXY}"
+                    ;;
+                    *)
+                        echo "Unknown protocol. Please report to lynis-dev@cisofy.com"
+                        ExitFatal
+                    ;;
+                esac
+            fi
             logtext "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
             UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
             EXITCODE=$?
             if [ ${EXITCODE} -gt 0 ]; then
-                echo "${RED}Error: ${NORMAL}Error occurred, cURL ended during the upload of the report data."
-                echo "Related exit code: ${EXITCODE}"
-                echo "Check the last section of the log file for the exact command used, for further troubleshooting"
-                echo "Debug:"
-                echo ${UPLOAD}
+                echo ""
                 echo "${RED}Upload Error${NORMAL}: cURL could not upload data. See ${LOGFILE} for details."
+                echo "Suggested command: tail -n 20 ${LOGFILE}"
+                echo ""
+                case ${EXITCODE} in
+                    5) echo "${YELLOW}Error (5): ${NORMAL}Could not resolve the hostname of the proxy." ;;
+                    6) echo "${YELLOW}Error (6): ${NORMAL}Could not resolve the hostname of central server." ;;
+                    7) echo "${YELLOW}Error (7): ${NORMAL}Could not connect to central server or proxy server." ;;
+                    59) echo "${YELLOW}Error (59): ${NORMAL}Could not connect because of used SSL cipher." ;;
+                    83) echo "${YELLOW}Error (83): ${NORMAL}Could not check used certificate of server." ;;
+                    *) echo "Related exit code: ${YELLOW}{EXITCODE}${NORMAL}. See man page of cURL for the meaning of this code." ;;
+                esac
+                if [ ! "${UPLOAD}" = "" ]; then echo ""; echo "Debug:"; echo ${UPLOAD}; fi
+                echo ""
                 # Quit
                 ExitClean
             fi

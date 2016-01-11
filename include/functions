@@ -23,6 +23,7 @@
 #    AddSystemGroup             Adds a system to a group
 #    CheckFilePermissions       Check file permissions
 #    CheckUpdates               Determine if a new version of Lynis is available
+#    CreateTempFile             Create a temporary file
 #    counttests                 Count number of performed tests
 #    Debug                      Display additional information on the screen (not suited for cronjob)
 #    DigitsOnly                 Return only the digits from a string
@@ -47,6 +48,8 @@
 #    ParseNginx                 Parse nginx configuration lines
 #    Progress                   Show progress on screen
 #    RandomString               Show a random string
+#    RemovePIDFile              Remove PID file
+#    RemoveTempFiles            Remove temporary files
 #    Report                     Add string of data to report file
 #    ReportException            Add an exception to the report file (for debugging purposes)
 #    ReportSuggestion           Add a suggestion to report file
@@ -167,6 +170,32 @@
         CTESTS_PERFORMED=`expr ${CTESTS_PERFORMED} + 1`
       }
 
+    ################################################################################
+    # Name        : CreateTempFile
+    # Description : Creates a temporary file
+    # Returns     : TEMPFILE
+    ################################################################################
+
+    CreateTempFile()
+      {
+        TEMPFILE=""
+        if [ "${OS}" = "AIX" ]; then
+            RANDOMSTRING1=`echo lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}')`
+            TEMP_FILE="/tmp/${RANDOMSTRING1}"
+            touch ${TEMP_FILE}
+          else
+            TEMP_FILE=`mktemp /tmp/lynis.XXXXXXXXXX` || exit 1
+        fi
+        if [ ! "${TEMP_FILE}" = "" ]; then
+            logtext "Action: created temporary file ${TEMP_FILE}"
+          else
+            Fatal "Could not create a temporary file"
+        fi
+        # Add temporary file to queue for cleanup later
+        TEMP_FILES="${TEMP_FILES} ${TEMP_FILE}"
+      }
+
+
     # Determine if a directory exists
     DirectoryExists()
       {
@@ -179,6 +208,7 @@
             LogText "Result: directory $1 NOT found"
         fi
       }
+
 
     ################################################################################
     # Name        : Debug
@@ -243,7 +273,7 @@
                 ;;
                 *)
                     echo "INVALID OPTION (Display): $1"
-                    exit 1
+                    ExitFatal
                 ;;
             esac
             # Go to next parameter
@@ -296,27 +326,37 @@
     ExitClean()
       {
         RemovePIDFile
+        RemoveTempFiles
+        LogText "${PROGRAM_NAME} ended successfully."
         exit 0
       }
+
 
     # Clean exit with custom code
     ExitCustom()
       {
         RemovePIDFile
+        RemoveTempFiles
         # Exit with the exit code given, otherwise use 1
         if [ $# -eq 1 ]; then
+            LogText "${PROGRAM_NAME} ended with exit code $1."
             exit $1
           else
+            LogText "${PROGRAM_NAME} ended with exit code 1."
             exit 1
         fi
       }
+
 
     # Clean exit (removing temp files, PID files), with error code 1
     ExitFatal()
       {
         RemovePIDFile
+        RemoveTempFiles
+        LogText "${PROGRAM_NAME} ended with exit code 1."
         exit 1
       }
+
 
     # Determine if a file exists
     FileExists()
@@ -953,15 +993,11 @@
         echo ""; echo "Interrupt detected."
         # Remove PID
         RemovePIDFile
-
-        # Clean up temp files
-        if [ ! "${TMPFILE}" = "" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
-        if [ ! "${TMPFILE2}" = "" ]; then if [ -f ${TMPFILE2} ]; then rm -f ${TMPFILE2}; fi; fi
+        RemoveTempFiles
 
         Display --text "Cleaning up..." --result DONE --color GREEN
 
-        # Exit with exit code 1
-        exit 1
+        ExitFatal
       }
 
     # Parse nginx configuration lines
@@ -1304,6 +1340,33 @@
           fi
         fi
       }
+
+
+    # Remove any temporary files
+    RemoveTempFiles()
+      {
+        if [ ! "${TEMP_FILES}" = "" ]; then
+            LogText "Temporary files: ${TEMP_FILES}"
+            # Clean up temp files
+            for FILE in ${TEMP_FILES}; do
+                # Temporary files should be in /tmp
+                TMPFILE=`echo ${FILE} | egrep "^/tmp/lynis" | grep -v "\.\."`
+                if [ ! "${TMPFILE}" = "" ]; then
+                    if [ -f ${TMPFILE} ]; then
+                        LogText "Action: removing temporary file ${TMPFILE}"
+                        rm -f ${TMPFILE}
+                      else
+                        LogText "Info: temporary file ${TMPFILE} was already removed"
+                    fi
+                  else
+                    LogText "Found invalid temporary file (${FILE}), not removed. Check your /tmp directory."
+                fi
+            done
+          else
+            LogText "No temporary files to be deleted"
+        fi
+      }
+
 
     # Dump to report file
     Report()

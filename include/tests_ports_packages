@@ -375,6 +375,44 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7350
+    # Description : Use Dandified YUM
+    # Notes       : Possible replacement for YUM in the long term
+    if [ ! "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no "PKGS-7350" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for DNF utility and its output"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Result: found DNF (Dandified YUM) utility"
+        PACKAGE_AUDIT_TOOL_FOUND=1
+        PACKAGE_AUDIT_TOOL="dnf"
+        SPACKAGES=`${DNFBINARY} -q list installed 2>&1 /dev/null | awk '{ if ($1!="Installed" && $1!="Last") {print $1","$2 }}'`
+        for J in ${SPACKAGES}; do
+            N=`expr ${N} + 1`
+            PACKAGE_NAME=`echo ${J} | cut -d ',' -f2`
+            PACKAGE_VERSION=`echo ${J} | cut -d ',' -f3`
+            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done
+        Report "installed_packages=${N}"
+
+        # Check for security updates
+        LogText "Action: checking updateinfo for security updates"
+        FIND=`${DNFBINARY} -q updateinfo list sec | awk '{ if ($2=="security") {print $3}}'`
+        if [ ! "${FIND}" = "" ]; then
+            VULNERABLE_PACKAGES_FOUND=1
+            for PKG in ${FIND}; do
+                Report "vulnerable_package[]=${I}"
+                LogText "Vulnerable package: ${I}"
+                # Decrease hardening points for every found vulnerable package
+                AddHP 1 2
+            done
+          else
+            LogText "Result: no security updates found"
+            AddHP 5 5
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7366
     # Description : Checking if debsecan is installed and enabled on Debian systems
     if [ ! "${DEBSECANBINARY}" = "" -a "${OS}" = "Linux" -a "${LINUX_VERSION}" = "Debian" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi

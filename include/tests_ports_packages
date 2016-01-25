@@ -382,13 +382,13 @@
     Register --test-no "PKGS-7350" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for installed packages with DNF utility"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 4 --text "- Searching DNF package manager" --result FOUND --color GREEN
-        LogText "Result: found DNF (Dandified YUM) utility (binary: ${BINARY})"
+        LogText "Result: found DNF (Dandified YUM) utility (binary: ${DNFBINARY})"
         Report "package_manager[]=dnf"
         Display --indent 6 --text "- Querying DNF package manager"
 
         PACKAGE_AUDIT_TOOL_FOUND=1
         PACKAGE_AUDIT_TOOL="dnf"
-        SPACKAGES=`${DNFBINARY} -q list installed 2>&1 /dev/null | awk '{ if ($1!="Installed" && $1!="Last") {print $1","$2 }}'`
+        SPACKAGES=`${DNFBINARY} -q list installed 2> /dev/null | awk '{ if ($1!="Installed" && $1!="Last") {print $1","$2 }}'`
         for J in ${SPACKAGES}; do
             N=`expr ${N} + 1`
             PACKAGE_NAME=`echo ${J} | cut -d ',' -f2`
@@ -406,13 +406,13 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check for security updates
         LogText "Action: checking updateinfo for security updates"
-        FIND=`${DNFBINARY} -q updateinfo list sec | awk '{ if ($2=="security") {print $3}}'`
+        FIND=`${DNFBINARY} -q updateinfo list sec 2> /dev/null | awk '{ if ($2=="security") { print $3 }}'`
         if [ ! "${FIND}" = "" ]; then
             VULNERABLE_PACKAGES_FOUND=1
             LogText "Result: found vulnerable packages, upgrade of system needed."
             for PKG in ${FIND}; do
-                Report "vulnerable_package[]=${I}"
-                LogText "Vulnerable package: ${I}"
+                Report "vulnerable_package[]=${PKG}"
+                LogText "Vulnerable package: ${PKG}"
                 # Decrease hardening points for every found vulnerable package
                 AddHP 1 2
             done

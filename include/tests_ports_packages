@@ -376,10 +376,10 @@
 #################################################################################
 #
     # Test        : PKGS-7350
-    # Description : Use Dandified YUM
+    # Description : Use Dandified YUM to gather installed packages
     # Notes       : Possible replacement for YUM in the long term
     if [ ! "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no "PKGS-7350" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for DNF utility and its output"
+    Register --test-no "PKGS-7350" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for installed packages with DNF utility"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Result: found DNF (Dandified YUM) utility"
         PACKAGE_AUDIT_TOOL_FOUND=1
@@ -393,7 +393,13 @@
             INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
         done
         Report "installed_packages=${N}"
+    fi
 
+    # Test        : PKGS-7352
+    # Description : Use Dandified YUM to detect security updates
+    if [ ! "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no "PKGS-7352" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for security updates with DNF utility"
+    if [ ${SKIPTEST} -eq 0 ]; then
         # Check for security updates
         LogText "Action: checking updateinfo for security updates"
         FIND=`${DNFBINARY} -q updateinfo list sec | awk '{ if ($2=="security") {print $3}}'`
@@ -410,6 +416,26 @@
             AddHP 5 5
         fi
     fi
+
+    # Test        : PKGS-7354
+    # Description : Perform integrity tests for package database
+    if [ ! "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no "PKGS-7354" --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking package database integrity"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check for security updates
+        LogText "Action: checking updateinfo for security updates"
+        FIND=`${DNFBINARY} -q repoquery --duplicated`
+        if [ ! "${FIND}" = "" ]; then
+            Logtext "Result: found unexpected result on repoquery --duplicated"
+            ReportSuggestion "${TEST_NO}" "Check output of: dnf repoquery --duplicated"
+        fi
+        FIND=`${DNFBINARY} -q repoquery --unsatisfied`
+        if [ ! "${FIND}" = "" ]; then
+            Logtext "Result: found unexpected result on repoquery --unsatisfied"
+            ReportSuggestion "${TEST_NO}" "Check output of: dnf repoquery --unsatisfied"
+        fi
+    fi
+
 #
 #################################################################################
 #
@@ -607,7 +633,8 @@
 #
     # Test        : PKGS-7383
     # Description : Check for YUM package Update management
-    if [ ! "${YUMBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    # Notes       : Skip if DNF is used as package manager
+    if [ ! "${YUMBINARY}" = "" -a "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --description "Check for YUM package Update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
@@ -627,7 +654,7 @@
 #
     # Test        : PKGS-7384
     # Description : Search for YUM utils package
-    if [ ! "${YUMBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! "${YUMBINARY}" = "" -a "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7384 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --description "Check for YUM utils package"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/bin/package-cleanup ]; then
@@ -672,7 +699,7 @@
     #             : RHEL 7: plugin default installed
     #             : RHEL 6: yum-security-plugin (plugin)
     #             : RHEL 5: yum-security (plugin)
-    if [ -x /usr/bin/yum ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -x /usr/bin/yum -a "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7386 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --description "Check for YUM security package"
     if [ ${SKIPTEST} -eq 0 ]; then
         DO_TEST=0
@@ -746,7 +773,7 @@
 #
     # Test        : PKGS-7387
     # Description : Search for YUM GPG check
-    if [ -x /usr/bin/yum ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -x /usr/bin/yum -a "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7387 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --description "Check for GPG signing in YUM security package"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0

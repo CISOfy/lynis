@@ -18,27 +18,23 @@
 #
 #################################################################################
 #
-#    logtextbreak
+#    LogTextbreak
 PROGRAM_VERSION="101"
-
 
     # Data upload destination
     if [ "${UPLOAD_SERVER}" = "" ]; then
         UPLOAD_SERVER="cisofy.com"
     fi
     UPLOAD_URL="https://${UPLOAD_SERVER}/upload/"
-
-logtext "Upload server: ${UPLOAD_SERVER}"
-logtext "URL to upload to: ${UPLOAD_URL}"
+    LogText "Upload server: ${UPLOAD_SERVER}"
+    LogText "URL to upload to: ${UPLOAD_URL}"
 
     # License server (set to upload server if not configured)
     if [ "${LICENSE_SERVER}" = "" ]; then
         LICENSE_SERVER="${UPLOAD_SERVER}"
     fi
     LICENSE_SERVER_URL="https://${LICENSE_SERVER}/license/"
-
-logtext "License server: ${LICENSE_SERVER}"
-
+    LogText "License server: ${LICENSE_SERVER}"
 
 # Additional options to curl
 if [ "${UPLOAD_OPTIONS}" = "" ]; then
@@ -68,12 +64,14 @@ output "Settings file: ${SETTINGS_FILE}"
     #             Restrict access to this binary to the user who is running this script.
     if [ "${CURLBINARY}" = "" ]; then
         echo "Fatal: can't find curl binary. Please install the related package or put the binary in the PATH. Quitting.."
+        LogText "Error: Could not find cURL binary"
         exit 1
     fi
 
     # Extra the license key from the settings file
     if [ "${LICENSE_KEY}" = "" ]; then
         echo "Fatal: no license key found. Quitting.."
+        LogText "Error: no license key was specified in the profile (${PROFILE})"
         ExitFatal
       else
         output "License key = ${LICENSE_KEY}"
@@ -93,28 +91,31 @@ output "Settings file: ${SETTINGS_FILE}"
         UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
         EXITCODE=$?
         if [ ${EXITCODE} -gt 0 ]; then
+            LogText "Exit code: ${EXITCODE}"
             if [ ${EXITCODE} -eq 7 ]; then
-                logtext "Result: could not contact license server."
-                logtext "Details: used URL ${LICENSE_SERVER_URL}"
-                logtext "Suggestion: check if the upload host is correctly configured."
+                LogText "Result: could not contact license server."
+                LogText "Details: used URL ${LICENSE_SERVER_URL}"
+                LogText "Suggestion: check if the upload host is correctly configured."
                 echo "${RED}Error${NORMAL}: license server not available. See ${LOGFILE} for details."
             elif [ ${EXITCODE} -eq 60 ]; then
                 echo "${RED}Self-signed certificate used on Lynis Enterprise node${NORMAL}"
                 echo "If you want to accept a self-signed certificate, use the -k option in the profile."
                 echo "Example: ${WHITE}config:upload_options:-k:${NORMAL}"
-                logtext "Result: found self-signed certificate, however cURL -k option not used."
+                LogText "Result: found self-signed certificate, however cURL -k option not used."
               else
                 echo "${RED}Upload Error: ${NORMAL}cURL exited with code ${EXITCODE}. See ${LOGFILE} for details."
-                logtext "Result: cURL exited with code ${EXITCODE}."
+                LogText "Result: cURL exited with code ${EXITCODE}."
             fi
-            logtext "Result: quitting, can't check license"
+            LogText "Result: quitting, can't check license"
             ExitFatal
         fi
         UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
         if [ "${UPLOAD_CODE}" = "100" ]; then
             output "${WHITE}License is valid${NORMAL}"
-            logtext "Result: License is valid"
+            LogText "Result: license is valid"
           else
+            LogText "Result: error while checking license"
+            LogText "Output: ${UPLOAD_CODE}"
             echo "${RED}Fatal error: ${WHITE}Error while checking the license.${NORMAL}"
             echo ""
             echo "Possible causes and steps you can take:"
@@ -169,7 +170,7 @@ output "Settings file: ${SETTINGS_FILE}"
                     ;;
                 esac
             fi
-            logtext "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
+            LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
             UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
             EXITCODE=$?
             if [ ${EXITCODE} -gt 0 ]; then

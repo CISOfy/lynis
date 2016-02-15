@@ -87,8 +87,37 @@ output "Settings file: ${SETTINGS_FILE}"
     # Check report file
     if [ -f ${REPORTFILE} ]; then
         output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
+
+            if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
+                LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
+                if [ ! "${UPLOAD_PROXY_PORT}" = "" ]; then
+                    LogText "Upload: Proxy port number is ${UPLOAD_PROXY_PORT}"
+                    UPLOAD_PROXY_PORT=":${UPLOAD_PROXY_PORT}"
+                fi
+                LogText "Upload: Proxy protocol is ${UPLOAD_PROXY_PROTOCOL}"
+                case ${UPLOAD_PROXY_PROTOCOL} in
+                    "http")
+                        UPLOAD_PROXY="http://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
+                    ;;
+                    "https")
+                        UPLOAD_PROXY="https://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
+                    ;;
+                    "socks5")
+                        UPLOAD_PROXY="${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                        CURL_OPTIONS="${CURL_OPTIONS} --socks5 ${UPLOAD_PROXY}"
+                    ;;
+                    *)
+                        echo "Unknown protocol. Please report to lynis-dev@cisofy.com"
+                        ExitFatal
+                    ;;
+                esac
+            fi
+
         # Quit if license is not valid, to reduce load on both client and server.
-        UPLOAD=`${CURLBINARY} ${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
+        LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null"
+        UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
         EXITCODE=$?
         if [ ${EXITCODE} -gt 0 ]; then
             LogText "Exit code: ${EXITCODE}"

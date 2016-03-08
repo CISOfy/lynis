@@ -713,7 +713,7 @@
 #
     # Test        : AUTH-9288
     # Description : Determine which accounts have an expired password
-    # Notes       : This test might not work yet on all platforms
+    # Notes       : This test might not work (yet) on all platforms
     if [ -f /etc/shadow ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9288 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking for expired passwords"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -721,8 +721,8 @@
             DAYS_SINCE_EPOCH=$((`date --utc +%s`/86400))
             logtext "Data: Days since epoch is ${DAYS_SINCE_EPOCH}"
             LogText "Test: collecting accounts which have an expired password (last day changed + maximum change time)"
-            # Skip fields with a !, *, or x (field $3 is last changed, $5 is maximum changed)
-            FIND=`egrep -v ":[\!\*x]:" /etc/shadow | awk -v today=${DAYS_SINCE_EPOCH} -F: '{ if (today>$3+$5) { print $1 }}'`
+            # Skip fields with a !, *, or x, or !* (field $3 is last changed, $5 is maximum changed)
+            FIND=`egrep -v ":[\!\*x](\*)?:" /etc/shadow | awk -v today=${DAYS_SINCE_EPOCH} -F: '{ if (today>$3+$5) { print $1 }}'`
             if [ ! "${FIND}" = "" ]; then
                 for ACCOUNT in ${FIND}; do
                     LogText "Result: password of user ${ACCOUNT} has been expired"

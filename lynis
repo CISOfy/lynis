@@ -27,16 +27,25 @@
 
     # Program information
     PROGRAM_name="Lynis"
-    PROGRAM_version="2.1.8"
-    PROGRAM_releasedate="2016-02-15"
-    PROGRAM_author="CISOfy"
-    PROGRAM_author_contact="lynis-dev@cisofy.com"
-    PROGRAM_website="https://cisofy.com"
-    PROGRAM_copyright="Copyright 2007-2016 - ${PROGRAM_author}, ${PROGRAM_website}"
-    PROGRAM_license="${PROGRAM_NAME} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+    PROGRAM_VERSION="2.2.0"
+    PROGRAM_version="${PROGRAM_VERSION}"
+    PROGRAM_RELEASEDATE="2016-03-16"
+    PROGRAM_releasedate="${PROGRAM_RELEASEDATE}"
+    PROGRAM_RELEASE_TIMESTAMP=1458127389
+    PROGRAM_AUTHOR="CISOfy"
+    PROGRAM_author="${PROGRAM_AUTHOR}"
+    PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
+    PROGRAM_author_contact="${PROGRAM_AUTHOR_CONTACT}"
+    PROGRAM_WEBSITE="https://cisofy.com/lynis/"
+    PROGRAM_website="${PROGRAM_WEBSITE}"
+    PROGRAM_COPYRIGHT="Copyright 2007-2016 - ${PROGRAM_AUTHOR}, ${PROGRAM_WEBSITE}"
+    PROGRAM_copyright="${PROGRAM_COPYRIGHT}"
+    PROGRAM_LICENSE="${PROGRAM_NAME} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
  welcome to redistribute it under the terms of the GNU General Public License.
  See the LICENSE file for details about using this software."
+    PROGRAM_license="${PROGRAM_LICENSE}"
     PROGRAM_extrainfo="Enterprise support and plugins available via CISOfy"
+
     # Release version (beta or final)
     PROGRAM_releasetype="final"
     PROGRAM_NAME="Lynis"
@@ -306,7 +315,6 @@
 #
 #################################################################################
 #
-
     # Decide where to write our PID file. For unprivileged users this will be in their home directory, or /tmp if their
     # home directory isn't set. For root it will be /var/run, or the current workign directory if /var/run doesn't exist.
     MYHOMEDIR=`echo ~ 2> /dev/null`
@@ -352,7 +360,6 @@
         echo "${OURPID}" > ${PIDFILE}
         chmod 600 ${PIDFILE}
     fi
-
 #
 #################################################################################
 #
@@ -464,9 +471,9 @@
         Solaris)
                     HOSTNAME=`uname -n` ;;
         *)
-                    HOSTNAME=`hostname -s 2> /dev/null` ;;
+                    #HOSTNAME=`hostname -s 2> /dev/null` ;;
+                    HOSTNAME=`false`
     esac
-    if [ "${HOSTNAME}" = "" ]; then HOSTNAME="no-hostname"; fi
     FQDN=`hostname 2> /dev/null`
     if [ "${OS}" = "Linux" -a "${HOSTNAME}" = "${FQDN}" ]; then
         FQDN=`hostname -f 2> /dev/null`
@@ -479,7 +486,7 @@
 #################################################################################
 #
     # Clear log file and test if it's writable
-    logtext "### Starting ${PROGRAM_name} ${PROGRAM_version} with PID ${OURPID}, build date ${PROGRAM_releasedate} ###" > ${LOGFILE}
+    echo "### Starting ${PROGRAM_name} ${PROGRAM_version} with PID ${OURPID}, build date ${PROGRAM_releasedate} ###" > ${LOGFILE}
     if [ $? -gt 0 ]; then
         Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result WARNING --color RED
         echo "${WARNING}Fatal error${NORMAL}: problem while writing to log file. Check location and permissions."
@@ -503,6 +510,12 @@
     report "os_version=${OS_VERSION}"
     if [ "${OS}" = "Linux" ]; then report "linux_version=${LINUX_VERSION}"; fi
     report "hostname=${HOSTNAME}"
+
+    if [ "${HOSTNAME}" = "" ]; then
+        HOSTNAME="no-hostname"
+        LogText "Info: could not find a hostname, using 'no-hostname' instead"
+        ReportSuggestion "LYNIS" "Check your hostname configuration" "hostname -s"
+    fi
 #
 #################################################################################
 #
@@ -554,7 +567,6 @@
     logtext "BusyBox used:              ${SHELL_IS_BUSYBOX}"
 
     logtextbreak
-
 #
 #################################################################################
 #
@@ -567,7 +579,7 @@
 #
 #################################################################################
 #
-# Check for program update (people tend to be lazy and don't perform updates =))
+# Check for program update (and friendly force people to upgrade)
 #
 #################################################################################
 #
@@ -595,32 +607,16 @@
             if [ ${PROGRAM_MINVERSION} -gt ${PROGRAM_AC} ]; then
                 Display --indent 2 --text "- Program update status... " --result "WARNING" --color RED
                 logtext "Result: This version is VERY outdated. Newer ${PROGRAM_name} release available!"
-                ReportWarning "NONE" "Version of Lynis is very old and should be updated"
+                ReportWarning "LYNIS" "Version of Lynis is very old and should be updated"
                 report "lynis_update_available=1"
                 UPDATE_AVAILABLE=1
               else
                 Display --indent 2 --text "- Program update status... " --result "UPDATE AVAILABLE" --color YELLOW
                 logtext "Result: newer ${PROGRAM_name} release available!"
-                ReportSuggestion "NONE" "Version of Lynis outdated, consider upgrading to the latest version"
+                ReportSuggestion "LYNIS" "Version of Lynis outdated, consider upgrading to the latest version"
                 report "lynis_update_available=1"
                 UPDATE_AVAILABLE=1
             fi
-            echo ""
-            echo "      ==============================================================================="
-            echo "        ${NOTICE}${PROGRAM_name} update available${NORMAL}"
-            echo "      ==============================================================================="
-            echo ""
-            echo "        Current version : ${YELLOW}${PROGRAM_AC}${NORMAL}   Latest version : ${GREEN}${PROGRAM_LV}${NORMAL}"
-            echo ""
-            echo "        ${WHITE}Please update to the latest version for new features, bug fixes, tests"
-            echo "        and baselines.${NORMAL}"
-            echo ""
-            echo "        https://cisofy.com/downloads/"
-            echo ""
-            echo "      ==============================================================================="
-            echo ""
-            sleep 5
-            #wait_for_keypress
           else
             if [ ${UPDATE_CHECK_SKIPPED} -eq 0 ]; then
                 Display --indent 2 --text "- Program update status... " --result "NO UPDATE" --color GREEN
@@ -632,6 +628,45 @@
                 report "lynis_update_available=-1"
             fi
         fi
+    fi
+
+    # Test for older releases, without testing via update mechanism
+    NOW=`date +%s`
+    OLD_RELEASE=0
+    TIME_DIFFERENCE_CHECK=10368000 # 4 months
+    RELEASE_PLUS_TIMEDIFF=`expr ${PROGRAM_RELEASE_TIMESTAMP} + ${TIME_DIFFERENCE_CHECK}`
+    if [ ${NOW} -gt ${RELEASE_PLUS_TIMEDIFF} ]; then
+        # Show if release is old, only if we didn't show it with normal update check
+        if [ ${UPDATE_AVAILABLE} -eq 0 ]; then
+            ReportSuggestion "LYNIS" "This release is more than 4 months old. Consider upgrading"
+        fi
+        UPDATE_AVAILABLE=1
+        OLD_RELEASE=1
+    fi
+
+    # Show on screen message if release is very outdated
+    if [ ${UPDATE_AVAILABLE} -eq 1 ]; then
+        echo ""
+        echo "      ==============================================================================="
+        echo "        ${CYAN}${PROGRAM_name} update available${NORMAL}"
+        echo "      ==============================================================================="
+        echo ""
+        if [ ${OLD_RELEASE} -eq 1 ]; then
+            echo "        ${YELLOW}Current version is more than 4 months old${NORMAL}"
+          else
+            echo "        Current version : ${YELLOW}${PROGRAM_AC}${NORMAL}   Latest version : ${GREEN}${PROGRAM_LV}${NORMAL}"
+        fi
+        echo ""
+        echo "        ${WHITE}Please update to the latest version.${NORMAL}"
+        echo "        New releases include additional features, bug fixes, tests and baselines.${NORMAL}"
+        echo ""
+        echo "        Download the latest version via our website or GitHub"
+        echo "        Website:  https://cisofy.com/downloads/"
+        echo "        GitHub:   https://github.com/CISOfy/lynis"
+        echo ""
+        echo "      ==============================================================================="
+        echo ""
+        sleep 5
     fi
 
     logtextbreak
@@ -652,7 +687,6 @@
 #
 #################################################################################
 #
-
     if [ ${RUN_PLUGINS} -eq 1 ]; then
 
         N_PLUGIN=0
@@ -836,7 +870,6 @@
             fi
         fi
     fi
-
 #
 #################################################################################
 #

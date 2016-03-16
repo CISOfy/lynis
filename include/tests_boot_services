@@ -70,34 +70,28 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FILE=`awk '/^\// { print $1 }' /proc/1/cmdline`
-                    if [ ! "${FILE}" = "" ]; then
-                        if [ -L ${FILE} ]; then
-                            ShowSymlinkPath ${FILE}
-                            if [ -f ${sFILE} ]; then
-                                 SHORTNAME=`echo ${sFILE} | awk -F/ '{ print $NF }'`
-                                 case ${SHORTNAME} in
-                                     upstart)
-                                           SERVICE_MANAGER="upstart"
-                                     ;;
-                                     systemd)
-                                           SERVICE_MANAGER="systemd"
-                                     ;;
-                                     *)
-                                           LogText "Found ${SHORTNAME} but unclear what service manager this is"
-                                     ;;
-                                 esac
-                               else
-                                 LogText "Result: Could not find linked file ${sFILE}"
-                            fi
-                          else
-                            FIND=`echo ${FILE} | grep "/systemd"`
-                            if [ ! "${FIND}" = "" ]; then
+                    FIND=`awk '/^\// { print $1 }' /proc/1/cmdline`
+                    if [ ! "${FIND}" = "" ]; then
+                        SHORTNAME=`echo ${FIND} | awk -F/ '{ print $NF }'`
+                        LogText "Found: ${SHORTNAME}"
+                        case ${SHORTNAME} in
+                            "init")
+                                SERVICE_MANAGER="SysV Init"
+                            ;;
+                            systemd)
                                 SERVICE_MANAGER="systemd"
-                            fi
-                        fi
+                            ;;
+                            upstart)
+                                SERVICE_MANAGER="upstart"
+                            ;;
+                            *)
+                                LogText "Found ${SHORTNAME}. Unclear what service manager this is"
+                                ReportException "${TEST_NO}:001" "Unknown service manager"
+                            ;;
+                        esac
                       else
-                        LogText "Result: /proc/1/cmdline does not link to a binary on disk"
+                        LogText "Result: /proc/1/cmdline seems to be empty"
+                        ReportException "${TEST_NO}:002" "No data found in /proc/1/cmdline"
                     fi
                 fi
                 # Continue testing if we didn't find it yet
@@ -113,7 +107,8 @@
             *)
                 LogText "Result: unknown service manager"
         esac
-        if [ "${SERVICE_MANAGER}" = "unknown" ]; then
+        LogText "Result: service manager found = ${SERVICE_MANAGER}"
+        if [ "${SERVICE_MANAGER}" = "" -o "${SERVICE_MANAGER}" = "unknown" ]; then
             Display --indent 2 --text "- Service Manager" --result "UNKNOWN" --color YELLOW
           else
             Display --indent 2 --text "- Service Manager" --result "${SERVICE_MANAGER}" --color GREEN

@@ -70,9 +70,21 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FIND=`awk '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
-                    if [ ! "${FIND}" = "" ]; then
-                        SHORTNAME=`echo ${FIND} | awk -F/ '{ print $NF }'`
+                    FILENAME=`awk '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
+                    LogText "Result: cmdline found = ${FILENAME}"
+                    ISFILE=`echo ${FILENAME} | grep "^/"`
+                    if [ ! "${ISFILE}" = "" ]; then
+                        if [ -L ${ISFILE} ]; then
+                            ShowSymlinkPath ${ISFILE}
+                            FILENAME="${SYMLINK}"
+                        elif [ -f ${ISFILE} ]; then
+                            FILENAME="${ISFILE}"
+                        else
+                            LogText "Result: cmdline of PID 1 is not a file"
+                        fi
+                    fi
+                    if [ ! "${FILENAME}" = "" ]; then
+                        SHORTNAME=`echo ${FILENAME} | awk -F/ '{ print $NF }'`
                         LogText "Found: ${SHORTNAME}"
                         case ${SHORTNAME} in
                             "init")

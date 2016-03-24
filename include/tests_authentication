@@ -823,9 +823,12 @@
     Register --test-no AUTH-9308 --os Linux --weight L --network NO --description "Check single user login configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        # Check if file exists
+        TEST_PERFORMED=0
+
+        # Check inittab
         LogText "Test: Searching /etc/inittab"
         if [ -f /etc/inittab ]; then
+            TEST_PERFORMED=1
             LogText "Result: file /etc/inittab exists"
             LogText "Test: checking presence sulogin for single user mode"
             FIND=`egrep "^~~:S:(respawn|wait):/sbin/sulogin" /etc/inittab`
@@ -838,9 +841,10 @@
             LogText "Result: file /etc/inittab does not exist"
         fi
 
-        # Check if file exists
+        # Check init
         LogText "Test: Searching /etc/sysconfig/init"
         if [ -f /etc/sysconfig/init ]; then
+            TEST_PERFORMED=1
             LogText "Result: file /etc/sysconfig/init exists"
             LogText "Test: checking presence sulogin for single user mode"
             FIND=`grep "^SINGLE=/sbin/sulogin" /etc/sysconfig/init`
@@ -851,7 +855,33 @@
           else
             LogText "Result: file /etc/sysconfig/init does not exist"
         fi
-        if [ -f /etc/inittab -o -f /etc/sysconfig/init ]; then
+
+        # Systemd support
+        SYTEMD_DIRECTORY="/lib/systemd/system"
+        if [ -d ${SYSTEMD_DIRECTORY} ]; then
+            FILES="console-shell.service emergency.service rescue.service"
+            LogText "Test: going to check several systemd targets now"
+            for I in ${FILES}; do
+                LogText "Test: checking if target ${I} is available"
+                FILE=${SYSTEMD_DIRECTORY}/${I}
+                if [ -f ${FILE} ]; then
+                    # Mark test as performed only when at least 1 target exists (e.g. Ubuntu 14.04 has limited systemd support)
+                    TEST_PERFORMED=1
+                    LogText "Result: found target ${I}"
+                    FIND=`egrep "^ExecStart=" ${FILE} | grep "/sulogin"`
+                    if [ "${FIND}" = "" ]; then
+                        LogText "Result: did not find sulogin specified, possible risk of getting into single user mode without authentication"
+                      else
+                        LogText "Result: sulogin was found, which is a good measure to protect single user mode"
+                        FOUND=1
+                    fi
+                  else
+                    LogText "Result: target ${I} not found"
+                fi
+            done
+        fi
+
+        if [ ${TEST_PERFORMED} -eq 1 ]; then
             if [ ${FOUND} -eq 0 ]; then
                 LogText "Result: option not set, no password needed at single user mode boot"
                 Display --indent 2 --text "- Checking Linux single user mode authentication" --result WARNING --color RED

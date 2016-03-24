@@ -825,35 +825,37 @@
         FOUND=0
         TEST_PERFORMED=0
 
-        # Check inittab
-        LogText "Test: Searching /etc/inittab"
-        if [ -f /etc/inittab ]; then
-            TEST_PERFORMED=1
-            LogText "Result: file /etc/inittab exists"
-            LogText "Test: checking presence sulogin for single user mode"
-            FIND=`egrep "^~~:S:(respawn|wait):/sbin/sulogin" /etc/inittab`
-            FIND2=`egrep "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab`
-            if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
-                FOUND=1
-                LogText "Result: found sulogin, so single user is protected"
+        if [ ${HAS_SYSTEMD} -eq 0 ]; then
+            # Check inittab
+            LogText "Test: Searching /etc/inittab"
+            if [ -f /etc/inittab ]; then
+                TEST_PERFORMED=1
+                LogText "Result: file /etc/inittab exists"
+                LogText "Test: checking presence sulogin for single user mode"
+                FIND=`egrep "^~~:S:(respawn|wait):/sbin/sulogin" /etc/inittab`
+                FIND2=`egrep "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab`
+                if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
+                    FOUND=1
+                    LogText "Result: found sulogin, so single user is protected"
+                fi
+              else
+                LogText "Result: file /etc/inittab does not exist"
             fi
-          else
-            LogText "Result: file /etc/inittab does not exist"
-        fi
 
-        # Check init
-        LogText "Test: Searching /etc/sysconfig/init"
-        if [ -f /etc/sysconfig/init ]; then
-            TEST_PERFORMED=1
-            LogText "Result: file /etc/sysconfig/init exists"
-            LogText "Test: checking presence sulogin for single user mode"
-            FIND=`grep "^SINGLE=/sbin/sulogin" /etc/sysconfig/init`
-            if [ ! "${FIND}" = "" ]; then
-                FOUND=1
-                LogText "Result: found sulogin, so single user is protected"
+            # Check init
+            LogText "Test: Searching /etc/sysconfig/init"
+            if [ -f /etc/sysconfig/init ]; then
+                TEST_PERFORMED=1
+                LogText "Result: file /etc/sysconfig/init exists"
+                LogText "Test: checking presence sulogin for single user mode"
+                FIND=`grep "^SINGLE=/sbin/sulogin" /etc/sysconfig/init`
+                if [ ! "${FIND}" = "" ]; then
+                    FOUND=1
+                    LogText "Result: found sulogin, so single user is protected"
+                fi
+              else
+                LogText "Result: file /etc/sysconfig/init does not exist"
             fi
-          else
-            LogText "Result: file /etc/sysconfig/init does not exist"
         fi
 
         # Systemd support
@@ -894,7 +896,7 @@
                 AddHP 2 2
             fi
           else
-             LogText "Result: No inittab or init file found, unsure if system is protected"
+             LogText "Result: no tests performed"
         fi
     fi
 #

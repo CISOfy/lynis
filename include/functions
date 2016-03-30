@@ -42,7 +42,6 @@
 #    FileIsEmpty                Check if a file is empty
 #    FileIsReadable             Check if a file is readable or directory accessible
 #    GetHostID                  Retrieve an unique ID for this host
-#    IsPortListening            Check if machine is listening on specified protocol and port
 #    IsRunning                  Check if a process is running
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
@@ -52,6 +51,7 @@
 #    IsWorldWritable            Check if a file is world writable
 #    LogText                    Log text strings to logfile, prefixed with date/time
 #    ParseNginx                 Parse nginx configuration lines
+#    PortIsListening            Check if machine is listening on specified protocol and port
 #    Progress                   Show progress on screen
 #    RandomString               Show a random string
 #    RemovePIDFile              Remove PID file
@@ -118,34 +118,6 @@
         fi
       }
 
-
-    ################################################################################
-    # Name        : IsPortListening()
-    # Description : Check if machine is listening on specified protocol and port
-    # Returns     : exit code 0 (listening) or 1 (not listening)
-    ################################################################################
-
-    IsPortListening()
-      {
-        if [ "${LSOFBINARY}" = "" ]; then
-            return 255
-          else
-            if [ $# -eq 2 ] && [ $1 = "TCP" -o $1 = "UDP" ]; then
-                LogText "Test: find service listening on $1:$2"
-                FIND=`lsof -i${1} -s${1}:LISTEN | grep "${2}" | wc -l`
-                if [ ! "${FIND}" = "" ]; then
-                    LogText "Result: found service listening on $1:$2"
-                    return 0
-                  else
-                    LogText "Result: did not find service listening on $1:$2"
-                    return 1
-                fi
-              else
-                return 255
-                ReportException ${TEST_NO} "Error in function call to IsPortListening"
-            fi
-        fi
-      }
 
     ################################################################################
     # Name        : CheckItem()
@@ -1168,6 +1140,35 @@
                 ;;
             esac
         done
+      }
+
+    ################################################################################
+    # Name        : PortIsListening()
+    # Description : Check if machine is listening on specified protocol and port
+    # Returns     : exit code 0 (listening) or 1 (not listening)
+    # Usage       : if PortIsListening "TCP" 22; then echo "Port is listening"; fi
+    ################################################################################
+
+    PortIsListening()
+      {
+        if [ "${LSOFBINARY}" = "" ]; then
+            return 255
+          else
+            if [ $# -eq 2 ] && [ $1 = "TCP" -o $1 = "UDP" ]; then
+                LogText "Test: find service listening on $1:$2"
+                if [ $1 = "TCP" ]; then FIND=`${LSOFBINARY} -i${1} -s${1}:LISTEN -P -n | grep ":${2} "`; else FIND=`${LSOFBINARY} -i${1} -P -n | grep ":${2} "`; fi
+                if [ ! "${FIND}" = "" ]; then
+                    LogText "Result: found service listening on port $2 ($1)"
+                    return 0
+                  else
+                    LogText "Result: did not find service listening on port $2 ($1)"
+                    return 1
+                fi
+              else
+                return 255
+                ReportException ${TEST_NO} "Error in function call to PortIsListening"
+            fi
+        fi
       }
 
     ################################################################################

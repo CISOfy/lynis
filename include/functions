@@ -42,14 +42,14 @@
 #    FileIsEmpty                Check if a file is empty
 #    FileIsReadable             Check if a file is readable or directory accessible
 #    GetHostID                  Retrieve an unique ID for this host
+#    IsPortListening            Check if machine is listening on specified protocol and port
+#    IsRunning                  Check if a process is running
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
-#    IsRunning                  Check if a process is running
 #    IsVirtualMachine           Check if this system is a virtual machine
 #    IsWorldExecutable          Check if a file is world executable
 #    IsWorldReadable            Check if a file is world readable
 #    IsWorldWritable            Check if a file is world writable
-#    IsTcpUdpListening          Check if machine is listening on specified protocol and port
 #    LogText                    Log text strings to logfile, prefixed with date/time
 #    ParseNginx                 Parse nginx configuration lines
 #    Progress                   Show progress on screen
@@ -120,26 +120,31 @@
 
 
     ################################################################################
-    # Name        : IsTcpUdpListening()
+    # Name        : IsPortListening()
     # Description : Check if machine is listening on specified protocol and port
-    # Returns     : LISTENING (0 or 1)
+    # Returns     : exit code 0 (listening) or 1 (not listening)
     ################################################################################
 
-    IsTcpUdpListening()
+    IsPortListening()
       {
-          LISTENING=0
-          if [ $# -eq 2 ] && [ $1 = "TCP" -o $1 = "UDP" ]; then
-            LogText "Test: find service listening on $1:$2"
-            FIND=`lsof -i${1} -s${1}:LISTEN | grep "${2}" | wc -l`
-            if [ ! "${FIND}" = "" ]; then
-                LogText "Result: found service listening on $1:$2"
-                LISTENING=1
-            else
-                LogText "Result: did not find service listening on $1:$2"
-            fi
+        if [ "${LSOFBINARY}" = "" ]; then
+            return 255
           else
-            ReportException ${TEST_NO} "Error in function call to IsTcpUdpListening"
-         fi
+            if [ $# -eq 2 ] && [ $1 = "TCP" -o $1 = "UDP" ]; then
+                LogText "Test: find service listening on $1:$2"
+                FIND=`lsof -i${1} -s${1}:LISTEN | grep "${2}" | wc -l`
+                if [ ! "${FIND}" = "" ]; then
+                    LogText "Result: found service listening on $1:$2"
+                    return 0
+                  else
+                    LogText "Result: did not find service listening on $1:$2"
+                    return 1
+                fi
+              else
+                return 255
+                ReportException ${TEST_NO} "Error in function call to IsPortListening"
+            fi
+        fi
       }
 
     ################################################################################

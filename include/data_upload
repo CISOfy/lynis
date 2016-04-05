@@ -22,8 +22,7 @@
 #
 #################################################################################
 #
-#    LogTextbreak
-PROGRAM_VERSION="101"
+    PROGRAM_VERSION="104"
 
     # Data upload destination
     if [ "${UPLOAD_SERVER}" = "" ]; then UPLOAD_SERVER="portal.cisofy.com"; fi
@@ -36,13 +35,14 @@ PROGRAM_VERSION="101"
     LICENSE_SERVER_URL="https://${LICENSE_SERVER}/license/"
     LogText "License server: ${LICENSE_SERVER}"
 
-# Additional options to curl
-if [ "${UPLOAD_OPTIONS}" = "" ]; then
-    CURL_OPTIONS=""
-  else
-    CURL_OPTIONS=" ${UPLOAD_OPTIONS}"
-fi
-SETTINGS_FILE="${PROFILE}"
+    # Additional options to curl
+    if [ "${UPLOAD_OPTIONS}" = "" ]; then
+        CURL_OPTIONS=""
+      else
+        CURL_OPTIONS=" ${UPLOAD_OPTIONS}"
+    fi
+
+    SETTINGS_FILE="${PROFILE}"
 
 # Only output text to stdout if DEBUG mode is not used
 output()
@@ -84,24 +84,22 @@ output "Settings file: ${SETTINGS_FILE}"
 #
 #####################################################################################
 
+
     # Check report file
     if [ -f ${REPORTFILE} ]; then
         output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
 
             if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
                 LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
+                # Port is optional
                 if [ ! "${UPLOAD_PROXY_PORT}" = "" ]; then
                     LogText "Upload: Proxy port number is ${UPLOAD_PROXY_PORT}"
                     UPLOAD_PROXY_PORT=":${UPLOAD_PROXY_PORT}"
                 fi
                 LogText "Upload: Proxy protocol is ${UPLOAD_PROXY_PROTOCOL}"
                 case ${UPLOAD_PROXY_PROTOCOL} in
-                    "http")
-                        UPLOAD_PROXY="http://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
-                    ;;
-                    "https")
-                        UPLOAD_PROXY="https://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                    "http"|"https")
+                        UPLOAD_PROXY="${UPLOAD_PROXY_PROTOCOL}://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
                         CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
                     ;;
                     "socks5")
@@ -115,13 +113,22 @@ output "Settings file: ${SETTINGS_FILE}"
                 esac
             fi
 
+            # Currently compressed uploads are not supported yet on central node. Therefore default value is set to 0.
+            if [ ${COMPRESSED_UPLOADS} -eq 1 ]; then
+                CURL_OPTIONS="${CURL_OPTIONS} --compressed -H 'Content-Encoding: gzip'"
+            fi
+
         # Quit if license is not valid, to reduce load on both client and server.
         LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null"
         UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
         EXITCODE=$?
         if [ ${EXITCODE} -gt 0 ]; then
             LogText "Exit code: ${EXITCODE}"
-            if [ ${EXITCODE} -eq 7 ]; then
+            if [ ${EXITCODE} -eq 5 ]; then
+                LogText "Result: could not resolve the defined proxy server (${UPLOAD_PROXY_SERVER})."
+                LogText "Suggestion: check if the proxy is properly defined in the profile."
+                echo "${RED}Error${NORMAL}: could not use the defined proxy (${UPLOAD_PROXY_SERVER}). See ${LOGFILE} for details."
+            elif [ ${EXITCODE} -eq 7 ]; then
                 LogText "Result: could not contact license server."
                 LogText "Details: used URL ${LICENSE_SERVER_URL}"
                 LogText "Suggestion: check if the upload host is correctly configured."
@@ -167,38 +174,6 @@ output "Settings file: ${SETTINGS_FILE}"
             output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
             # Try to connect
             output "Uploading data.."
-            # Add a space
-            CURL_OPTIONS=" ${CURL_OPTIONS}"
-            # Currently compressed uploads are not supported yet on central node. Therefore default value is set to 0.
-            if [ ${COMPRESSED_UPLOADS} -eq 1 ]; then
-                CURL_OPTIONS="${CURL_OPTIONS} --compressed -H 'Content-Encoding: gzip'"
-            fi
-            if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
-                LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
-                if [ ! "${UPLOAD_PROXY_PORT}" = "" ]; then
-                    LogText "Upload: Proxy port number is ${UPLOAD_PROXY_PORT}"
-                    UPLOAD_PROXY_PORT=":${UPLOAD_PROXY_PORT}"
-                fi
-                LogText "Upload: Proxy protocol is ${UPLOAD_PROXY_PROTOCOL}"
-                case ${UPLOAD_PROXY_PROTOCOL} in
-                    "http")
-                        UPLOAD_PROXY="http://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
-                    ;;
-                    "https")
-                        UPLOAD_PROXY="https://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
-                    ;;
-                    "socks5")
-                        UPLOAD_PROXY="${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --socks5 ${UPLOAD_PROXY}"
-                    ;;
-                    *)
-                        echo "Unknown protocol. Please report to lynis-dev@cisofy.com"
-                        ExitFatal
-                    ;;
-                esac
-            fi
             LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
             UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
             EXITCODE=$?

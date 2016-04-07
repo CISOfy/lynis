@@ -22,207 +22,211 @@
 #
 #################################################################################
 #
-    Display --indent 2 --text "- Checking profile file (${PROFILE})..."
-    logtext "Reading profile/configuration ${PROFILE}"
-    FIND=`grep '^config:' ${PROFILE} | sed 's/ /!space!/g'`
-    for I in ${FIND}; do
-        OPTION=`echo ${I} | cut -d ':' -f2`
-        VALUE=`echo ${I} | cut -d ':' -f3 | sed 's/!space!/ /g'`
+    Display --indent 2 --text "- Checking profiles..."
 
-        logtext "Profile option set: ${OPTION} (with value ${VALUE})"
+    for PROFILE in ${PROFILES}; do
+        logtext "Reading profile/configuration ${PROFILE}"
+        FIND=`grep '^config:' ${PROFILE} | sed 's/ /!space!/g'`
+        for I in ${FIND}; do
+            OPTION=`echo ${I} | cut -d ':' -f2`
+            VALUE=`echo ${I} | cut -d ':' -f3 | sed 's/!space!/ /g'`
 
-        case ${OPTION} in
+            logtext "Profile option set: ${OPTION} (with value ${VALUE})"
 
-            # Define which compliance standards are enabled
-            compliance_standards)
-                COMPLIANCE_STANDARDS_ENABLED=`echo ${VALUE} | tr ',' ' '`
-                for I in ${COMPLIANCE_STANDARDS_ENABLED}; do
-                    case $I in
-                        cis)      COMPLIANCE_ENABLE_CIS=1      ; Debug "Compliance scanning for CIS Benchmarks is enabled" ;;
-                        hipaa)    COMPLIANCE_ENABLE_HIPAA=1    ; Debug "Compliance scanning for HIPAA is enabled" ;;
-                        iso27001) COMPLIANCE_ENABLE_ISO27001=1 ; Debug "Compliance scanning for ISO27001 is enabled" ;;
-                        pci-dss)  COMPLIANCE_ENABLE_PCI_DSS=1  ; Debug "Compliance scanning for PCI DSS is enabled" ;;
-                        *) logtext "Result: Unknown compliance standard configured" ;;
-                    esac
-                done
-            ;;
+            case ${OPTION} in
 
-            # Maximum number of WAITing connections
-            connections_max_wait_state)
-                OPTIONS_CONN_MAX_WAIT_STATE="${VALUE}"
-            ;;
+                # Define which compliance standards are enabled
+                compliance_standards)
+                    COMPLIANCE_STANDARDS_ENABLED=`echo ${VALUE} | tr ',' ' '`
+                    for I in ${COMPLIANCE_STANDARDS_ENABLED}; do
+                        case $I in
+                            cis)      COMPLIANCE_ENABLE_CIS=1      ; Debug "Compliance scanning for CIS Benchmarks is enabled" ;;
+                            hipaa)    COMPLIANCE_ENABLE_HIPAA=1    ; Debug "Compliance scanning for HIPAA is enabled" ;;
+                            iso27001) COMPLIANCE_ENABLE_ISO27001=1 ; Debug "Compliance scanning for ISO27001 is enabled" ;;
+                            pci-dss)  COMPLIANCE_ENABLE_PCI_DSS=1  ; Debug "Compliance scanning for PCI DSS is enabled" ;;
+                            *) logtext "Result: Unknown compliance standard configured" ;;
+                        esac
+                    done
+                ;;
 
-            # Append something to URL for control information
-            control_url_append)
-                CONTROL_URL_APPEND="${VALUE}"
-            ;;
+                # Maximum number of WAITing connections
+                connections_max_wait_state)
+                    OPTIONS_CONN_MAX_WAIT_STATE="${VALUE}"
+                ;;
 
-            # Prepend an URL before control information link
-            control_url_prepend)
-                CONTROL_URL_PREPEND="${VALUE}"
-            ;;
+                # Append something to URL for control information
+                control_url_append)
+                    CONTROL_URL_APPEND="${VALUE}"
+                ;;
 
-            # Protocol to use for control information link
-            control_url_protocol)
-                CONTROL_URL_PROTOCOL="${VALUE}"
-            ;;
+                # Prepend an URL before control information link
+                control_url_prepend)
+                    CONTROL_URL_PREPEND="${VALUE}"
+                ;;
 
-            # Append something to URL for control information (only applies to CUST-*)
-            custom_url_append)
-                CUSTOM_URL_APPEND="${VALUE}"
-            ;;
+                # Protocol to use for control information link
+                control_url_protocol)
+                    CONTROL_URL_PROTOCOL="${VALUE}"
+                ;;
 
-            # Prepend an URL before control information link (only applies to CUST-*)
-            custom_url_prepend)
-                CUSTOM_URL_PREPEND="${VALUE}"
-            ;;
+                # Append something to URL for control information (only applies to CUST-*)
+                custom_url_append)
+                    CUSTOM_URL_APPEND="${VALUE}"
+                ;;
 
-            # Protocol to use for control information link
-            custom_url_protocol)
-                CUSTOM_URL_PROTOCOL="${VALUE}"
-            ;;
+                # Prepend an URL before control information link (only applies to CUST-*)
+                custom_url_prepend)
+                    CUSTOM_URL_PREPEND="${VALUE}"
+                ;;
 
-            # Do not check security repository in sources.list (Debian/Ubuntu)
-            debian_skip_security_repository)
-            OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY="${VALUE}"
-            ;;
-            debug)
-                if [ "${VALUE}" = "yes" -o "${VALUE}" = "true" ]; then
-                    DEBUG=1
-                fi
-            ;;
-            # Skip FreeBSD port audit
-            freebsd_skip_portaudit)
-                logtext "Option set: Skip FreeBSD portaudit"
-                OPTION_FREEBSD_SKIP_PORTAUDIT="${VALUE}"
-            ;;
+                # Protocol to use for control information link
+                custom_url_protocol)
+                    CUSTOM_URL_PROTOCOL="${VALUE}"
+                ;;
 
-            # Lynis Enterprise: group name
-            group)
-                GROUP_NAME="${VALUE}"
-            ;;
+                # Do not check security repository in sources.list (Debian/Ubuntu)
+                debian_skip_security_repository)
+                OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY="${VALUE}"
+                ;;
+                debug)
+                    if [ "${VALUE}" = "yes" -o "${VALUE}" = "true" ]; then
+                        DEBUG=1
+                    fi
+                ;;
 
-            # Lynis Enterprise license key
-            license_key)
-                LICENSE_KEY="${VALUE}"
-                report "license_key=${LICENSE_KEY}"
-            ;;
+                # Skip FreeBSD port audit
+                freebsd_skip_portaudit)
+                    logtext "Option set: Skip FreeBSD portaudit"
+                    OPTION_FREEBSD_SKIP_PORTAUDIT="${VALUE}"
+                ;;
 
-            # Do (not) log tests if they have an different operating system
-            log_tests_incorrect_os)
-                logtext "Option set: No logging for incorrect OS"
-                if [ "${VALUE}" = "no" ]; then LOG_INCORRECT_OS=0; else LOG_INCORRECT_OS=1; fi
-            ;;
+                # Lynis Enterprise: group name
+                group)
+                    GROUP_NAME="${VALUE}"
+                ;;
 
-            # What type of machine we are scanning (eg. desktop, server, server with storage)
-            machine_role)
-                MACHINE_ROLE="${VALUE}"
-            ;;
+                # Lynis Enterprise license key
+                license_key)
+                    LICENSE_KEY="${VALUE}"
+                    report "license_key=${LICENSE_KEY}"
+                ;;
 
-            # Define if any found NTP daemon instance is configured as a server or client
-            ntpd_role)
-                NTPD_ROLE="${VALUE}"
-            ;;
+                # Do (not) log tests if they have an different operating system
+                log_tests_incorrect_os)
+                    logtext "Option set: No logging for incorrect OS"
+                    if [ "${VALUE}" = "no" ]; then LOG_INCORRECT_OS=0; else LOG_INCORRECT_OS=1; fi
+                ;;
 
-            # How much seconds to wait between tests
-            pause_between_tests)
-                TEST_PAUSE_TIME="${VALUE}"
-            ;;
+                # What type of machine we are scanning (eg. desktop, server, server with storage)
+                machine_role)
+                    MACHINE_ROLE="${VALUE}"
+                ;;
 
-            # Profile name
-            profile_name)
-                PROFILE_NAME="${VALUE}"
-            ;;
+                # Define if any found NTP daemon instance is configured as a server or client
+                ntpd_role)
+                    NTPD_ROLE="${VALUE}"
+                ;;
 
-            # Inline tips about tool
-            show_tool_tips)
-                SHOW_TOOL_TIPS="${VALUE}"
-            ;;
+                # How much seconds to wait between tests
+                pause_between_tests)
+                    TEST_PAUSE_TIME="${VALUE}"
+                ;;
 
-            # Tests to always skip (useful for false positives or problematic tests)
-            test_skip_always)
-                TEST_SKIP_ALWAYS="${VALUE}"
-                logtext "Tests to be skipped: ${VALUE}"
-            ;;
+                # Profile name
+                profile_name)
+                    PROFILE_NAME="${VALUE}"
+                ;;
 
-            # Do not check the latest version on the internet
-            skip_upgrade_test)
-                if [ "${VALUE}" = "yes" -o "${VALUE}" = "YES" ]; then SKIP_UPGRADE_TEST=1; else SKIP_UPGRADE_TEST=0; fi
-            ;;
+                # Inline tips about tool
+                show_tool_tips)
+                    SHOW_TOOL_TIPS="${VALUE}"
+                ;;
 
-            # Define what kind of scan we are performing
-            test_scan_mode)
-                if [ "${VALUE}" = "light" ]; then   SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="NO";  SCAN_TEST_HEAVY="NO";  fi
-                if [ "${VALUE}" = "normal" ]; then  SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="NO";  fi
-                if [ "${VALUE}" = "full" ]; then    SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="YES"; fi
-            ;;
+                # Tests to always skip (useful for false positives or problematic tests)
+                test_skip_always)
+                    TEST_SKIP_ALWAYS="${VALUE}"
+                    logtext "Tests to be skipped: ${VALUE}"
+                ;;
 
-            # Server IP or hostname
-            update_server_address)
-                UPDATE_SERVER_ADDRESS="${VALUE}"
-            ;;
+                # Do not check the latest version on the internet
+                skip_upgrade_test)
+                    if [ "${VALUE}" = "yes" -o "${VALUE}" = "YES" ]; then SKIP_UPGRADE_TEST=1; else SKIP_UPGRADE_TEST=0; fi
+                ;;
 
-            # Protocol (http, https)
-            update_server_protocol)
-                UPDATE_SERVER_PROTOCOL="${VALUE}"
-            ;;
+                # Define what kind of scan we are performing
+                test_scan_mode)
+                    if [ "${VALUE}" = "light" ]; then   SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="NO";  SCAN_TEST_HEAVY="NO";  fi
+                    if [ "${VALUE}" = "normal" ]; then  SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="NO";  fi
+                    if [ "${VALUE}" = "full" ]; then    SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="YES"; fi
+                ;;
 
-            # File path to tarball on server
-            update_latest_version_download)
-                UPDATE_LATEST_VERSION_DOWNLOAD="${VALUE}"
-            ;;
+                # Server IP or hostname
+                update_server_address)
+                    UPDATE_SERVER_ADDRESS="${VALUE}"
+                ;;
 
-            # File path to information file
-            update_latest_version_info)
-                UPDATE_LATEST_VERSION_INFO="${VALUE}"
-            ;;
+                # Protocol (http, https)
+                update_server_protocol)
+                    UPDATE_SERVER_PROTOCOL="${VALUE}"
+                ;;
 
-            # Local directory where lynis directory will be placed
-            update_local_directory)
-                UPDATE_LOCAL_DIRECTORY="${VALUE}"
-            ;;
+                # File path to tarball on server
+                update_latest_version_download)
+                    UPDATE_LATEST_VERSION_DOWNLOAD="${VALUE}"
+                ;;
 
-            # Local file to maintain current version
-            update_local_version_info)
-                UPDATE_LOCAL_VERSION_INFO="${VALUE}"
-            ;;
+                # File path to information file
+                update_latest_version_info)
+                    UPDATE_LATEST_VERSION_INFO="${VALUE}"
+                ;;
 
-            # Compression of uploads (enabled by default)
-            upload_compressed)
-                if [ "${VALUE}" = "0" ]; then COMPRESSED_UPLOADS=0; fi
-            ;;
+                # Local directory where lynis directory will be placed
+                update_local_directory)
+                    UPDATE_LOCAL_DIRECTORY="${VALUE}"
+                ;;
 
-            # Options during upload of data
-            upload_options)
-                UPLOAD_OPTIONS="${VALUE}"
-            ;;
+                # Local file to maintain current version
+                update_local_version_info)
+                    UPDATE_LOCAL_VERSION_INFO="${VALUE}"
+                ;;
 
-            # Proxy settings
-            upload_proxy_port)
-                UPLOAD_PROXY_PORT="${VALUE}"
-            ;;
-            upload_proxy_protocol)
-                UPLOAD_PROXY_PROTOCOL="${VALUE}"
-            ;;
-            upload_proxy_server)
-                UPLOAD_PROXY_SERVER="${VALUE}"
-            ;;
+                # Compression of uploads (enabled by default)
+                upload_compressed)
+                    if [ "${VALUE}" = "0" ]; then COMPRESSED_UPLOADS=0; fi
+                ;;
 
-            # Receiving system (IP address or hostname)
-            upload_server)
-                UPLOAD_SERVER="${VALUE}"
-            ;;
+                # Options during upload of data
+                upload_options)
+                    UPLOAD_OPTIONS="${VALUE}"
+                ;;
 
-            # Catch all bad options and bail out
-            *)
-                logtext "Unknown option ${OPTION} (with value: ${VALUE})"
-                echo "Fatal error: found errors in profile"
-                echo "Unknown option '${OPTION}' found (with value: ${VALUE})"
-                ExitFatal
-            ;;
+                # Proxy settings
+                upload_proxy_port)
+                    UPLOAD_PROXY_PORT="${VALUE}"
+                ;;
+                upload_proxy_protocol)
+                    UPLOAD_PROXY_PROTOCOL="${VALUE}"
+                ;;
+                upload_proxy_server)
+                    UPLOAD_PROXY_SERVER="${VALUE}"
+                ;;
 
-        esac
+                # Receiving system (IP address or hostname)
+                upload_server)
+                    UPLOAD_SERVER="${VALUE}"
+                ;;
 
+                # Catch all bad options and bail out
+                *)
+                    logtext "Unknown option ${OPTION} (with value: ${VALUE})"
+                    echo "Fatal error: found errors in profile"
+                    echo "Unknown option '${OPTION}' found (with value: ${VALUE})"
+                    ExitFatal
+                ;;
+
+            esac
+
+        done
     done
 #
 #################################################################################

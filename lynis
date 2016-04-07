@@ -32,8 +32,9 @@
     PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
 
     # Version details
-    PROGRAM_RELEASEDATE="2016-04-04"
+    PROGRAM_RELEASE_DATE="2016-04-07"
     PROGRAM_RELEASE_TIMESTAMP=1459768802
+    PROGRAM_RELEASETYPE="dev" # dev or final
     PROGRAM_VERSION="2.2.1"
 
     # Source, documentation and license
@@ -44,9 +45,6 @@
   welcome to redistribute it under the terms of the GNU General Public License.
   See the LICENSE file for details about using this software."
     PROGRAM_EXTRAINFO="Enterprise support and plugins available via CISOfy"
-
-    # Release version (beta or final)
-    PROGRAM_RELEASETYPE="final"
 
     # Version number of report files (when format changes in future)
     REPORT_version_major="1"; REPORT_version_minor="0"
@@ -278,27 +276,35 @@ ${NORMAL}
 #
     InsertSection "Initializing program"
 
-    # Try to find a default profile file, if none is specified
+    # Try to find a default and custom profile, unless one was specified manually
     if [ "${PROFILE}" = "" ]; then
-        tPROFILE_TARGETS="/usr/local/etc/lynis/default.prf /etc/lynis/default.prf /usr/local/lynis/default.prf ./default.prf"
-        for I in ${tPROFILE_TARGETS}; do
-            if [ -f ${I} ]; then PROFILE=${I}; fi
+        tPROFILE_NAMES="default.prf custom.prf"
+        tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
+        for PNAME in ${tPROFILE_NAMES}; do
+            for PLOC in ${tPROFILE_TARGETS}; do
+                FILE="${PLOC}/${PNAME}"
+                if [ -r ${FILE} ]; then
+                    PROFILE=${FILE}
+                    PROFILES="${PROFILES} ${PROFILE}"
+                fi
+            done
         done
     fi
-    if [ "${PROFILE}" = "" ]; then
+    if [ "${PROFILES}" = "" ]; then
         echo "${RED}Fatal error: ${WHITE}No profile defined and could not find default profile${NORMAL}"
         echo "Search paths used --> ${tPROFILE_TARGETS}"
         ExitCustom 66
+      else
+        PROFILES=`echo ${PROFILES} | sed 's/^ //'`
     fi
 
     if [ ${SHOW_SETTINGS_FILE} -eq 1 ]; then
-        echo "Settings file: ${PROFILE}"
+        echo "Settings file(s): ${PROFILES}"
         echo ""; echo ""
         ExitClean
     fi
 
     # Initialize and check profile file, auditor name, log file and report file
-    if [ ! -r ${PROFILE} ];             then echo "Fatal error: Can't open profile file (${PROFILE})"; exit 1; fi
     if [ "${AUDITORNAME}" = "" ];       then AUDITORNAME="[Unknown]"; fi
     if [ "${LOGFILE}" = "" ];           then LOGFILE="/var/log/lynis.log"; fi
     if [ "${REPORTFILE}" = "" ];        then REPORTFILE="/var/log/lynis-report.dat"; fi
@@ -485,7 +491,7 @@ ${NORMAL}
 #################################################################################
 #
     # Clear log file and test if it's writable
-    echo "### Starting ${PROGRAM_NAME} ${PROGRAM_VERSION} with PID ${OURPID}, build date ${PROGRAM_RELEASEDATE} ###" > ${LOGFILE}
+    echo "### Starting ${PROGRAM_NAME} ${PROGRAM_VERSION} with PID ${OURPID}, build date ${PROGRAM_RELEASE_DATE} ###" > ${LOGFILE}
     if [ $? -gt 0 ]; then
         Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result WARNING --color RED
         echo "${WARNING}Fatal error${NORMAL}: problem while writing to log file. Check location and permissions."
@@ -534,7 +540,7 @@ ${NORMAL}
         echo "  Hardware platform:         ${HARDWARE}"
         echo "  Hostname:                  ${HOSTNAME}"
         echo "  Auditor:                   ${AUDITORNAME}"
-        echo "  Profile:                   ${PROFILE}"
+        echo "  Profiles:                  ${PROFILES}"
         echo "  Log file:                  ${LOGFILE}"
         echo "  Report file:               ${REPORTFILE}"
         echo "  Report version:            ${REPORT_version}"
@@ -555,7 +561,7 @@ ${NORMAL}
     logtext "-----------------------------------------------------"
     logtext "Hostname:                  ${HOSTNAME}"
     logtext "Auditor:                   ${AUDITORNAME}"
-    logtext "Profile:                   ${PROFILE}"
+    logtext "Profiles:                  ${PROFILES}"
     logtext "Include directory:         ${INCLUDEDIR}"
     logtext "Plugin directory:          ${PLUGINDIR}"
     logtext "-----------------------------------------------------"
@@ -728,9 +734,18 @@ ${NORMAL}
                     FIND2=`grep "^# PLUGIN_NAME=" ${PLUGIN_FILE} | awk -F= '{ print $2 }'`
                     if [ ! "${FIND2}" = "" -a ! "${FIND2}" = "[plugin_name]" ]; then
                         if [ ${PLUGIN_PHASE} -eq 1 ]; then N_PLUGIN=`expr ${N_PLUGIN} + 1`; fi
-                        FIND3=`grep "^plugin=${FIND2}" ${PROFILE}`
-                        if [ ! "${FIND3}" = "" ]; then
-                            logtext "Plugin ${FIND2} is enabled"
+                        # Check if the plugin is enabled in any of the profiles
+                        PLUGIN_ENABLED_STATE=0
+                        for PROFILE in ${PROFILES}; do
+                            logtext "Action: checking plugin status in profile: ${PROFILE}"
+                            FIND3=`grep "^plugin=${FIND2}" ${PROFILE}`
+                            if [ ! "${FIND3}" = "" ]; then
+                                logtext "Result: plugin enabled in profile (${PROFILE})"
+                                PLUGIN_ENABLED_STATE=1
+                            fi
+                        done
+                        if [ ${PLUGIN_ENABLED_STATE} -eq 1 ]; then
+                            logtext "Result: plugin ${FIND2} is enabled"
                             # Plugins should have at least a _phase1 part, _phase2 is optional at this moment
                             PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase${PLUGIN_PHASE}"
                             if [ -f ${PLUGINFILE} ]; then

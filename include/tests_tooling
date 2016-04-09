@@ -181,16 +181,18 @@
         if [ ${FAIL2BAN_FOUND} -eq 1 ]; then
             LogText "Checking Fail2Ban configuration"
 
-            if [ -f /etc/fail2ban/jail.local]; then
+            if [ -f /etc/fail2ban/jail.local ]; then
                 FAIL2BAN_CONFIG="/etc/fail2ban/jail.local"
               else
                 FAIL2BAN_CONFIG="/etc/fail2ban/jail.conf"
             fi
 
+            # Check email alert configuration
+
             LogText "Checking for email actions within $FAIL2BAN_CONFIG"
 
-            FIND=`egrep -R "action = \%\(action_m.*\)s" $FAIL2BAN_CONFIG`
-            FIND2=`egrep -R "action = \%\(action_\)s" $FAIL2BAN_CONFIG`
+            FIND=`egrep "action = \%\(action_m.*\)s" $FAIL2BAN_CONFIG`
+            FIND2=`egrep "action = \%\(action_\)s" $FAIL2BAN_CONFIG`
             
             if [ ! "${FIND}" = "" ]; then
                 FAIL2BAN_EMAIL=1
@@ -225,9 +227,26 @@
             if [ ${FAIL2BAN_SILENT} -eq 1 ] && [ ${FAIL2BAN_EMAIL} -eq 0 ]; then
                 LogText "None of the actions found in $FAIL2BAN_CONFIG are configured to send email alerts"
                 Display --indent 4 --text "- Checking Fail2Ban actions" --result NONE --color YELLOW
-                ReportSuggestion "${TEST_NO}" "All of the Fail2Ban jails are configured with non-notified actions.  Consider changing these to emailed alerts."
+                ReportSuggestion "${TEST_NO}" "None of the Fail2Ban jails are configured to send email notifications.  Consider changing these to emailed alerts."
                 AddHP 1 3
             fi            
+
+            # Check at least one enabled Jail
+
+            LogText "Checking for enabled Jails within $FAIL2BAN_CONFIG"
+
+            FIND=`egrep "enabled\s*=\s*true" $FAIL2BAN_CONFIG`
+            if [ ! "${FIND}" = "" ]; then
+                LogText "Result: found at least one enabled jail"
+                Display --indent 4 --text "- Checking Fail2Ban jails" --result ENABLED --color GREEN
+                AddHP 3 3
+              else
+                LogText "Result: Fail2Ban installed but completely disabled"
+                Display --indent 4 --text "- Checking Fail2Ban jails" --result DISABLED --color RED
+                AddHP 0 3
+                ReportWarning "${TEST_NO}" "M" "$FAIL2BAN_CONFIG" "There are no jails enabled in Fail2Ban."
+            fi
+
               
         fi
 

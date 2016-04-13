@@ -26,11 +26,16 @@
 
     for PROFILE in ${PROFILES}; do
         logtext "Reading profile/configuration ${PROFILE}"
-        FIND=`grep '^config:' ${PROFILE} | sed 's/ /!space!/g'`
+        FIND=`egrep "^config:|^[a-z].*=" ${PROFILE} | sed 's/ /!space!/g'`
         for I in ${FIND}; do
-            OPTION=`echo ${I} | cut -d ':' -f2`
-            VALUE=`echo ${I} | cut -d ':' -f3 | sed 's/!space!/ /g'`
-
+            if ContainsString ":" "${I}"; then
+                # Old style configuration
+                OPTION=`echo ${I} | cut -d ':' -f2`
+                VALUE=`echo ${I} | cut -d ':' -f3 | sed 's/!space!/ /g'`
+              else
+                OPTION=`echo ${I} | cut -d '=' -f1`
+                VALUE=`echo ${I} | cut -d '=' -f2 | sed 's/!space!/ /g'`
+            fi
             logtext "Profile option set: ${OPTION} (with value ${VALUE})"
 
             case ${OPTION} in
@@ -132,6 +137,16 @@
                     TEST_PAUSE_TIME="${VALUE}"
                 ;;
 
+                # Plugin
+                plugin)
+                    LogText "Plugin ${VALUE} enabled according profile ${PROFILE}"
+                ;;
+
+                # Plugin directory
+                plugindir)
+                    PLUGINDIR="${VALUE}"
+                ;;
+
                 # Profile name
                 profile_name)
                     PROFILE_NAME="${VALUE}"
@@ -219,7 +234,7 @@
                 # Catch all bad options and bail out
                 *)
                     logtext "Unknown option ${OPTION} (with value: ${VALUE})"
-                    echo "Fatal error: found errors in profile"
+                    echo "Fatal error: found errors in profile ${PROFILE}"
                     echo "Unknown option '${OPTION}' found (with value: ${VALUE})"
                     ExitFatal
                 ;;

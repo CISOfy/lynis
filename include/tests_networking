@@ -475,8 +475,17 @@
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: Promiscuous interfaces: ${FIND}"
             for I in ${FIND}; do
-                ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
-                if [ "${ISWHITELISTED}" = "" ]; then
+                WHITELISTED=0
+                for PROFILE in ${PROFILES}; do
+                    Debug "Checking if interface ${I} is whitelisted in profile ${PROFILE}"
+                    ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
+                    if [ ! "${ISWHITELISTED}" = "" ]; then
+                        WHITELISTED=1
+                        LogText "Result: this interface was whitelisted in profile (${PROFILE})"
+                    fi
+                done
+                # Check if this interface was whitelisted
+                if [ ${WHITELISTED} -eq 0 ]; then
                     FOUNDPROMISC=1
                     ReportWarning ${TEST_NO} "H" "Found promiscuous interface (${I})"
                     LogText "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"

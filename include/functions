@@ -58,6 +58,7 @@
 #    RemovePIDFile              Remove PID file
 #    RemoveTempFiles            Remove temporary files
 #    Report                     Add string of data to report file
+#    ReportDetails              Store details of tests which include smaller atomic tests in report
 #    ReportException            Add an exception to the report file (for debugging purposes)
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
@@ -611,13 +612,16 @@
             OTHERPERMS="-"
         fi
 
-        # Also check if we are the actual owner of the file
-        FILEOWNER=`ls -ln ${sFILE} | awk -F" " '{ print $3 }'`
+        # Also check if we are the actual owner of the file (use -d to get directory itself, if its a directory)
+        FILEOWNER=`ls -dln ${sFILE} | awk -F" " '{ print $3 }'`
         if [ "${FILEOWNER}" = "${MYID}" ]; then
             LogText "Result: file is owned by our current user ID (${MYID}), checking if it is readable"
-            if [ -d ${sFILE} ]; then
+            if [ -L ${sFILE} ]; then
+                LogText "Result: unclear if we can read this file, as this is a symlink"
+                ReportException "FileIsReadable" "Can not determine symlink ${sFILE}"
+            elif [ -d ${sFILE} ]; then
                 OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
-              elif [ -f ${sFILE} ]; then
+            elif [ -f ${sFILE} ]; then
                 OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
             fi
           else
@@ -1609,6 +1613,52 @@
       {
         Report "$1"
       }
+
+    ################################################################################
+    # Name        : ReportDetails
+    # Description : Adds specific details to the report, in particular when many
+    #               smaller atomic tests are performed. For example sysctl keys,
+    #               and SSH settings.
+    # Returns     : nothing
+    ################################################################################
+
+    ReportDetails() {
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --description)
+                    shift
+                    TEST_DESCRIPTION=$1
+                ;;
+                --field)
+                    shift
+                    TEST_FIELD=$1
+                ;;
+                --key)
+                    shift
+                    TEST_KEY=$1
+                ;;
+                --preferredvalue|--preferred-value)
+                    shift
+                    TEST_PREFERRED_VALUE=$1
+                ;;
+                --test)
+                    shift
+                    TEST_ID=$1
+                ;;
+                --value)
+                    shift
+                    TEST_VALUE=$1
+                ;;
+
+                *)
+                    echo "INVALID OPTION (ReportDetails): $1"
+                    ExitFatal
+                ;;
+            esac
+            shift # Go to next parameter
+        done
+        Report "details[]=${TEST_ID}|desc=${TEST_DESCRIPTION},field=${TEST_FIELD},key=${TEST_KEY},prefval=${TEST_PREFERRED_VALUE},value=${TEST_VALUE}|"
+    }
 
     # Log exceptions
     ReportException()

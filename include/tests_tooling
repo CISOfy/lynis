@@ -251,20 +251,23 @@
 
             LogText "Checking for fail2ban iptables chains"
 
-            CHECK_CHAINS=`$IPTABLESBINARY -L | grep fail2ban`
-            if [ ! "${CHECK_CHAINS}" = "" ]; then
-                LogText "Result: found at least one iptables chain for fail2ban"
-                Display --indent 4 --text "- Checking for Fail2Ban iptables chain" --result OK --color GREEN
-              else
-                LogText "Result: Fail2Ban installed but iptables chain not present - fail2ban will not work"
+            if [ -f $IPTABLESBINARY ]; then
+
+                CHECK_CHAINS=`$IPTABLESBINARY -L | grep fail2ban` 2>&1
+                if [ ! "${CHECK_CHAINS}" = "" ]; then
+                    LogText "Result: found at least one iptables chain for fail2ban"
+                    Display --indent 4 --text "- Checking for Fail2Ban iptables chain" --result OK --color GREEN
+                  else
+                    LogText "Result: Fail2Ban installed but iptables chain not present - fail2ban will not work"
+                    Display --indent 4 --text "- Checking for Fail2Ban iptables chain" --result WARNING --color RED
+                    AddHP 0 3
+                    ReportWarning "${TEST_NO}" "M" "Check config to see why iptables does not have a fail2ban chain" "$FAIL2BAN_CONFIG"
+                fi
+            else
                 Display --indent 4 --text "- Checking for Fail2Ban iptables chain" --result WARNING --color RED
-                AddHP 0 3
-                ReportWarning "${TEST_NO}" "M" "Check config to see why iptables does not have a fail2ban chain" "$FAIL2BAN_CONFIG"
+                ReportWarning "${TEST_NO}" "H" "iptables doesn't seem to be installed; Fail2Ban will not work" "$FAIL2BAN_CONFIG"
             fi
-
-              
         fi
-
     fi
 
     # Test        : TOOL-5014
@@ -282,11 +285,6 @@
             AddHP 0 2
         fi
     fi
-
-
-
-
-
 
 
 #

@@ -153,47 +153,44 @@
 #
 #################################################################################
 #
-    # Fail2Ban
-    # Denyhosts? (deprecated)
-#
-#################################################################################
-#
-
-    # Test        : TOOL-5004
-    # Description : Check for Fail2Ban
-
-    Register --test-no TOOL-5004 --weight L --network NO --description "Check for presence of Fail2Ban"
+    # Test        : TOOL-5102
+    # Description : Check for Fail2ban
+    Register --test-no TOOL-5102 --weight L --network NO --description "Check for presence of Fail2ban"
     if [ ${SKIPTEST} -eq 0 ]; then
 
-        # Fail2Ban presence
+        # Fail2ban presence
         if [ ! "${FAIL2BANBINARY}" = "" ]; then
-            LogText "Result: Fail2Ban is installed (${FAIL2BANBINARY})"
+            LogText "Result: Fail2ban is installed (${FAIL2BANBINARY})"
             IPS_TOOL_FOUND=1
             FAIL2BAN_FOUND=1
             Report "IPS_tool_running[]=fail2ban-server"
-            Display --indent 2 --text "- Checking presence of Fail2Ban" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking presence of Fail2ban" --result FOUND --color GREEN
           else
-            LogText "Result: Fail2Ban not present (fail2ban-server not found)"
-            Display --indent 2 --text "- Checking presence of Fail2Ban" --result "NOT FOUND" --color WHITE
+            LogText "Result: Fail2ban not present (fail2ban-server not found)"
+            Display --indent 2 --text "- Checking presence of Fail2ban" --result "NOT FOUND" --color WHITE
         fi
 
-        # Fail2Ban configuration
-        if [ ${FAIL2BAN_FOUND} -eq 1 ]; then
-            LogText "Checking Fail2Ban configuration"
+        # Fail2ban configuration
+        LogText "Checking Fail2ban configuration file"
+        if [ -f /etc/fail2ban/jail.local ]; then
+            FAIL2BAN_CONFIG="/etc/fail2ban/jail.local"
+        elif [ -f /etc/fail2ban/jail.conf ]; then
+            FAIL2BAN_CONFIG="/etc/fail2ban/jail.conf"
+        else
+            FAIL2BAN_CONFIG=""
+        fi
 
-            if [ -f /etc/fail2ban/jail.local ]; then
-                FAIL2BAN_CONFIG="/etc/fail2ban/jail.local"
-              else
-                FAIL2BAN_CONFIG="/etc/fail2ban/jail.conf"
-            fi
+        # Continue if tooling is available and configuration file found
+        if [ ${FAIL2BAN_FOUND} -eq 1 -a ! "${FAIL2BAN_CONFIG}" = "" ]; then
+
+            LogText "Result: found configuration file (${FAIL2BAN_CONFIG})"
 
             # Check email alert configuration
+            LogText "Test: checking for email actions within ${FAIL2BAN_CONFIG}"
 
-            LogText "Checking for email actions within $FAIL2BAN_CONFIG"
+            FIND=`egrep "^action = \%\(action_m.*\)s" ${FAIL2BAN_CONFIG}`
+            FIND2=`egrep "^action = \%\(action_\)s" ${FAIL2BAN_CONFIG}`
 
-            FIND=`egrep "^action = \%\(action_m.*\)s" $FAIL2BAN_CONFIG`
-            FIND2=`egrep "^action = \%\(action_\)s" $FAIL2BAN_CONFIG`
-            
             if [ ! "${FIND}" = "" ]; then
                 FAIL2BAN_EMAIL=1
                 LogText "Result: found at least one jail which sends an email alert"
@@ -203,76 +200,75 @@
                 FAIL2BAN_SILENT=1
                 LogText "Result: found at least one jail which does NOT send an email alert"
             fi
-          
+
             if [ ${FAIL2BAN_SILENT} -eq 0 ] && [ ${FAIL2BAN_EMAIL} -eq 0 ]; then
-                LogText "No registered actions found in $FAIL2BAN_CONFIG"
-                Display --indent 4 --text "- Checking Fail2Ban actions" --result NONE --color RED
-                ReportWarning "${TEST_NO}" "M" "$FAIL2BAN_CONFIG" "There are no actions configured for Fail2Ban."
+                LogText "No registered actions found in ${FAIL2BAN_CONFIG}"
+                Display --indent 4 --text "- Checking Fail2ban actions" --result NONE --color RED
+                ReportWarning "${TEST_NO}" "M" "${FAIL2BAN_CONFIG}" "There are no actions configured for Fail2ban."
                 AddHP 0 3
             fi
 
             if [ ${FAIL2BAN_SILENT} -eq 0 ] && [ ${FAIL2BAN_EMAIL} -eq 1 ]; then
-                LogText "All actions in $FAIL2BAN_CONFIG are configured to send email alerts"
-                Display --indent 4 --text "- Checking Fail2Ban actions" --result OK --color GREEN
+                LogText "All actions in ${FAIL2BAN_CONFIG} are configured to send email alerts"
+                Display --indent 4 --text "- Checking Fail2ban actions" --result OK --color GREEN
                 AddHP 3 3
             fi
 
             if [ ${FAIL2BAN_SILENT} -eq 1 ] && [ ${FAIL2BAN_EMAIL} -eq 1 ]; then
-                LogText "Some actions found in $FAIL2BAN_CONFIG are configured to send email alerts"
-                Display --indent 4 --text "- Checking Fail2Ban actions" --result PARTIAL --color YELLOW
-                ReportSuggestion "${TEST_NO}" "Some Fail2Ban jails are configured with non-notified actions.  Consider changing these to emailed alerts."
+                LogText "Some actions found in ${FAIL2BAN_CONFIG} are configured to send email alerts"
+                Display --indent 4 --text "- Checking Fail2ban actions" --result PARTIAL --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Some Fail2ban jails are configured with non-notified actions.  Consider changing these to emailed alerts."
                 AddHP 2 3
             fi
 
             if [ ${FAIL2BAN_SILENT} -eq 1 ] && [ ${FAIL2BAN_EMAIL} -eq 0 ]; then
-                LogText "None of the actions found in $FAIL2BAN_CONFIG are configured to send email alerts"
-                Display --indent 4 --text "- Checking Fail2Ban actions" --result NONE --color YELLOW
-                ReportSuggestion "${TEST_NO}" "None of the Fail2Ban jails are configured to send email notifications.  Consider changing these to emailed alerts."
+                LogText "None of the actions found in ${FAIL2BAN_CONFIG} are configured to send email alerts"
+                Display --indent 4 --text "- Checking Fail2ban actions" --result NONE --color YELLOW
+                ReportSuggestion "${TEST_NO}" "None of the Fail2ban jails are configured to send email notifications.  Consider changing these to emailed alerts."
                 AddHP 1 3
-            fi            
+            fi
 
-            # Check at least one enabled Jail
+            # Check at least one enabled jail
+            LogText "Checking for enabled jails within ${FAIL2BAN_CONFIG}"
 
-            LogText "Checking for enabled Jails within $FAIL2BAN_CONFIG"
-
-            FIND=`egrep "^enabled\s*=\s*true" $FAIL2BAN_CONFIG`
+            FIND=`egrep "^enabled\s*=\s*true" ${FAIL2BAN_CONFIG}`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: found at least one enabled jail"
-                Display --indent 4 --text "- Checking Fail2Ban jails" --result ENABLED --color GREEN
+                Display --indent 4 --text "- Checking Fail2ban jails" --result ENABLED --color GREEN
                 AddHP 3 3
               else
-                LogText "Result: Fail2Ban installed but completely disabled"
-                Display --indent 4 --text "- Checking Fail2Ban jails" --result DISABLED --color RED
+                LogText "Result: Fail2ban installed but completely disabled"
+                Display --indent 4 --text "- Checking Fail2ban jails" --result DISABLED --color RED
                 AddHP 0 3
-                ReportWarning "${TEST_NO}" "M" "All jails in Fail2Ban are disabled" "$FAIL2BAN_CONFIG"
+                ReportWarning "${TEST_NO}" "M" "All jails in Fail2ban are disabled" "${FAIL2BAN_CONFIG}"
             fi
 
             # Confirm at least one iptables chain for fail2ban
 
             LogText "Checking for fail2ban iptables chains"
 
-            if [ -f $IPTABLESBINARY ]; then
-
-                CHECK_CHAINS=`$IPTABLESBINARY -L | grep fail2ban` 2>&1
+            if [ ! "${IPTABLESBINARY}" = "" ]; then
+                CHECK_CHAINS=`${IPTABLESBINARY} -L 2>&1 | grep fail2ban`
                 if [ ! "${CHECK_CHAINS}" = "" ]; then
                     LogText "Result: found at least one iptables chain for fail2ban"
-                    Display --indent 4 --text "- Checking for Fail2Ban iptables chain" --result OK --color GREEN
+                    Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result OK --color GREEN
                   else
-                    LogText "Result: Fail2Ban installed but iptables chain not present - fail2ban will not work"
-                    Display --indent 4 --text "- Checking for Fail2Ban iptables chain" --result WARNING --color RED
+                    LogText "Result: Fail2ban installed but iptables chain not present - fail2ban will not work"
+                    Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result WARNING --color RED
                     AddHP 0 3
-                    ReportWarning "${TEST_NO}" "M" "Check config to see why iptables does not have a fail2ban chain" "$FAIL2BAN_CONFIG"
+                    ReportSuggestion "${TEST_NO}" "M" "Check config to see why iptables does not have a fail2ban chain" "${FAIL2BAN_CONFIG}"
                 fi
             else
-                Display --indent 4 --text "- Checking for Fail2Ban iptables chain" --result WARNING --color RED
-                ReportWarning "${TEST_NO}" "H" "iptables doesn't seem to be installed; Fail2Ban will not work" "$FAIL2BAN_CONFIG"
+                Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result WARNING --color RED
+                ReportSuggestion "${TEST_NO}" "H" "iptables doesn't seem to be installed; Fail2ban will not work. Remove Fail2ban or install iptables" "${FAIL2BAN_CONFIG}"
             fi
         fi
     fi
-
-    # Test        : TOOL-5014
+#
+#################################################################################
+#
+    # Test        : TOOL-5190
     # Description : Check for an IPS tool
-
     Register --test-no TOOL-5014 --weight L --network NO --description "Check presence of IPS tool"
     if [ ${SKIPTEST} -eq 0 ]; then
 
@@ -281,12 +277,10 @@
             AddHP 2 2
           else
             Display --indent 2 --text "- Checking for implemented IPS" --result NONE --color YELLOW
-            ReportSuggestion ${TEST_NO} "Ensure that automatic intrusion prevention tools are installed"
+            #ReportSuggestion ${TEST_NO} "Ensure that automatic intrusion prevention tools are installed"
             AddHP 0 2
         fi
     fi
-
-
 #
 #################################################################################
 #

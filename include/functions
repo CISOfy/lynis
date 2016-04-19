@@ -67,6 +67,7 @@
 #    SearchItem                 Search a string in a file
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
+#    SkipAtomicTest             Test if a subtest needs to be skipped
 #    TestValue                  Evaluate a value in a string or key
 #    ViewCategories             Display tests categories
 #    WaitForKeypress            Wait for user to press a key to continue
@@ -1514,10 +1515,17 @@
             #SkipTest "${TEST_NO}:Test:space:requires:space:root:space:permissions:-:-:"
         fi
 
-        # Skip test if it's configured in profile
+        # Skip test if it's configured in profile (old style)
         if [ ${SKIPTEST} -eq 0 ]; then
             FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}"`
             if [ ! "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration"; fi
+        fi
+
+        # Check if this test is on the list to skip
+        if [ ${SKIPTEST} -eq 0 ]; then
+            for I in ${SKIP_TESTS}; do
+                if [ "${I}" = "${TEST_NO}" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration (skip-test)"; fi
+            done
         fi
 
         # Skip if test is not in the list
@@ -2049,6 +2057,27 @@
             SYMLINK=""
         fi
       }
+
+
+    ################################################################################
+    # Name        : SkipAtomicTest
+    # Description : Test if an atomic test should be skipped
+    # Returns     : 0 (True) or 1 (False)
+    # Usage       : if SkipAtomicTest "SSH-7408:permitrootlogin"; then echo "Skip this atomic test"; fi
+    ################################################################################
+
+    SkipAtomicTest() {
+        RETVAL=255
+        if [ $# -eq 1 ]; then
+            RETVAL=1
+            # Check if this test is on the list to skip
+            for I in ${SKIP_TESTS}; do
+                if [ "${I}" = "$1" ]; then RETVAL=0; LogText "Atomic test skipped by configuration (skip-test)"; fi
+            done
+        fi
+        return $RETVAL
+    }
+
 
     ################################################################################
     # Name        : TestValue

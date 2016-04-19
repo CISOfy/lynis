@@ -86,13 +86,17 @@
 #
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
-
-    #ReportDetails --test "${TEST_NO}" --key "-" --field "${tFINDkey}" --value "${tFINDcurvalue}" --preferredvalue "${tFINDexpvalue}" --description "${tFINDdesc}"
+    # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
 
     if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking specific defined options in ${SSH_DAEMON_CONFIG}"
+
+        CreateTempFile
+        SSH_OPTIONS_FILE="${TEMP_FILE}"
+        ${SSHDBINARY} -T > ${SSH_OPTIONS_FILE}
+
+        LogText "Test: Checking specific defined options in ${SSH_OPTIONS_FILE}"
         ## SSHOPTIONS scheme:
         ##      <OptionName>:<ExpectedValue>,<MediumScoreValue>,<WeakValue>:<TestType>
         ##
@@ -114,7 +118,6 @@
                 LoginGraceTime:120,240,480:<\
                 LogLevel:VERBOSE,INFO,:=\
                 MaxAuthTries:1,3,6:<\
-                MaxStartups:4,8,16:<\
                 MaxSessions:2,4,8:<\
                 PermitRootLogin:NO,WITHOUT-PASSWORD,YES:=\
                 PermitUserEnvironment:NO,,YES:=\
@@ -129,20 +132,24 @@
                 VerifyReverseMapping:YES,,NO:=\
                 X11Forwarding:NO,,YES:="
 
+        # Disabled        MaxStartups:4,8,16:<\ (needs fixing)
+
+        # Go through our list of options
         for I in ${SSHOPS}; do
             OPTIONNAME=`echo ${I} | cut -d ':' -f1`
+            OPTIONNAME_LOWER=`echo ${I} | cut -d ':' -f1 | awk '{ print tolower($1) }'`
             EXPECTEDVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f1`
             MEDIUMSCOREDVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f2`
             WEAKVALUE=`echo ${I} | cut -d ':' -f2 | cut -d',' -f3`
             TESTTYPE=`echo ${I} | cut -d ':' -f3`
             RESULT="NONE"
             # Get value and use the last occurrence
-            FOUNDVALUE=`awk -v OPT="${OPTIONNAME}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_CONFIG} | tail -1`
-            LogText "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_CONFIG}"
+            FOUNDVALUE=`awk -v OPT="${OPTIONNAME_LOWER}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_OPTIONS_FILE} | tail -1`
+            LogText "Test: Checking ${OPTIONNAME} in ${SSH_OPTIONS_FILE}"
 
             if [ ! "${FOUNDVALUE}" = "" ]; then
-                LogText "Result: Option ${OPTIONNAME} found in ${SSH_DAEMON_CONFIG}"
-                LogText "Result: Option ${OPTIONNAME} value is  ${FOUNDVALUE}"
+                LogText "Result: Option ${OPTIONNAME} found"
+                LogText "Result: Option ${OPTIONNAME} value is ${FOUNDVALUE}"
 
                 if [ "${TESTTYPE}" = "=" ]; then
                     if [ "${FOUNDVALUE}" = "${EXPECTEDVALUE}" ]; then
@@ -199,22 +206,21 @@
             elif [ "${RESULT}" = "MIDSCORED" ]; then
                 LogText "Result: SSH option ${OPTIONNAME} is configured reasonably"
                 ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
+                ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "MEDIUM" --color YELLOW
                 AddHP 1 3
             elif [ "${RESULT}" = "WEAK" ]; then
                 LogText "Result: SSH option ${OPTIONNAME} is in a weak configuration state and should be fixed"
-                #ReportWarning ${TEST_NO} "M" "Unsafe configured SSH option: ${OPTIONNAME}"
                 ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
-                ReportDetails --test "${TEST_NO}" --key "sshd_config" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
+                ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result WARNING --color RED
                 AddHP 0 3
             elif [ "${RESULT}" = "UNKNOWN" ]; then
                 LogText "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
-                #ReportException "SSH-7408:01" "Unknown SSH option"
                 Report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
             else
-                LogText "Result: Option ${OPTIONNAME} not found in ${SSH_DAEMON_CONFIG}"
+                LogText "Result: Option ${OPTIONNAME} not found in output"
                 Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "NOT FOUND" --color WHITE
             fi
 

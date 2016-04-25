@@ -1486,8 +1486,7 @@
     # Name        : Register()
     # Description : Register a test and see if it has to be run
     # Returns     : SKIPTEST (0 or 1)
-    Register()
-      {
+    Register() {
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then logtextbreak; fi
         ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
@@ -1555,14 +1554,15 @@
 
         # Skip test if it's configured in profile (old style)
         if [ ${SKIPTEST} -eq 0 ]; then
-            FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}"`
+            FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}" | tr '[:upper:]' '[:lower:]'`
             if [ ! "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration"; fi
         fi
 
         # Check if this test is on the list to skip
         if [ ${SKIPTEST} -eq 0 ]; then
+            VALUE=`echo ${TEST_NO} | tr '[:upper:]' '[:lower:]'`
             for I in ${SKIP_TESTS}; do
-                if [ "${I}" = "${TEST_NO}" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration (skip-test)"; fi
+                if [ "${I}" = "${VALUE}" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration (skip-test)"; fi
             done
         fi
 
@@ -1604,8 +1604,8 @@
             if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Reason to skip: ${SKIPREASON}"; fi
             TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
         fi
+    }
 
-      }
 
     # Remove PID file
     RemovePIDFile()
@@ -2106,10 +2106,12 @@
     SkipAtomicTest() {
         RETVAL=255
         if [ $# -eq 1 ]; then
+            local STRING=""
             RETVAL=1
             # Check if this test is on the list to skip
             for I in ${SKIP_TESTS}; do
-                if [ "${I}" = "$1" ]; then RETVAL=0; LogText "Atomic test ($1) skipped by configuration (skip-test)"; fi
+                STRING=`echo $1 | tr '[:upper:]' '[:lower:]'`
+                if [ "${I}" = "${STRING}" ]; then RETVAL=0; LogText "Atomic test ($1) skipped by configuration (skip-test)"; fi
             done
         fi
         return $RETVAL

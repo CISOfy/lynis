@@ -343,11 +343,22 @@
         if [ -x /usr/bin/apt-cache ]; then
             LogText "Result: found /usr/bin/apt-cache"
             LogText "Test: checking readlink location of /vmlinuz"
-            FINDKERNFILE=`readlink -f /vmlinuz`
-            LogText "Output: readlink reported file ${FINDKERNFILE}"
-            LogText "Test: checking package from dpkg -S"
-            FINDKERNEL=`dpkg -S ${FINDKERNFILE} 2> /dev/null | awk -F : '{print $1}'`
-            LogText "Output: dpkg -S reported package ${FINDKERNEL}"
+            if [ -f /vmlinuz ]; then
+                FINDKERNFILE=`readlink -f /vmlinuz`
+                LogText "Output: readlink reported file ${FINDKERNFILE}"
+                LogText "Test: checking package from dpkg -S"
+                FINDKERNEL=`dpkg -S ${FINDKERNFILE} 2> /dev/null | awk -F : '{print $1}'`
+                LogText "Output: dpkg -S reported package ${FINDKERNEL}"
+            else
+                if [ -e /dev/grsec ]; then
+                    FINDKERNEL=linux-image-`uname -r`
+                    LogText "/vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
+                else
+                    LogText "This system is missing /vmlinuz.  Unable to check whether kernel is up-to-date."
+                    ReportException "${TEST_NO}:00|Missing /vmlinuz"
+                    ReportSuggestion ${TEST_NO} "Discover why /vmlinuz is missing. Consider manually re-linking."
+                fi
+            fi
             LogText "Test: Using apt-cache policy to determine if there is an update available"
             FINDINST=`apt-cache policy ${FINDKERNEL} | egrep 'Installed' | cut -d ':' -f2 | tr -d ' '`
             FINDCAND=`apt-cache policy ${FINDKERNEL} | egrep 'Candidate' | cut -d ':' -f2 | tr -d ' '`

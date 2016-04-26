@@ -41,7 +41,8 @@
           else
             LogText "Result: cron daemon running"
             CROND_RUNNING=1
-            report "crond_running=1"
+            Report "crond_running=1"
+            Report "scheduler[]=crond"
         fi
     fi
 #
@@ -51,10 +52,9 @@
     # Description : Check crontab / cronjobs
     Register --test-no SCHD-7704 --weight L --network NO --description "Check crontab/cronjobs"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FindCronJob()
-          {
+        FindCronJob() {
             sCRONJOBS=`egrep '^([0-9*])' $1 | tr '\t' ' ' | tr -s ' ' | tr ' ' ','`
-          }
+        }
 
         if [ -f /etc/crontab ]; then
             FindCronJob /etc/crontab
@@ -81,6 +81,7 @@
                             FindCronJob ${J}
                             for K in ${sCRONJOBS}; do
                                 LogText "Result: Found cronjob (${I}): ${K}"
+                                Report "cronjob[]=${J}"
                             done
                         done
                         LogText "Result: done with analyzing files in ${I}"
@@ -144,10 +145,13 @@
             if [ -f /etc/anacrontab ]; then
                 LogText "Test: checking anacrontab"
                 sANACRONJOBS=`egrep '^([0-9@])' /etc/anacrontab | tr '\t' ' ' | tr -s ' ' | tr ' ' ','`
-                for J in ${sANACRONJOBS}; do
-                    LogText "Found anacron job (/etc/anacrontab): ${J}"
-                    Report "cronjob[]=${J}"
-                done
+                if [ ! "${sANACRONJOBS}" = "" ]; then
+                    Report "scheduler[]=anacron"
+                    for J in ${sANACRONJOBS}; do
+                        LogText "Found anacron job (/etc/anacrontab): ${J}"
+                        Report "cronjob[]=${J}"
+                    done
+                fi
             fi
         fi
 
@@ -166,9 +170,10 @@
             LogText "Result: at daemon active"
             Display --indent 2 --text "- Checking atd status" --result RUNNING --color GREEN
             ATD_RUNNING=1
+            Report "scheduler[]=atd"
           else
             LogText "Result: at daemon not active"
-            Display --indent 2 --text "- Checking atd status" --result "NOT RUNNING" --color WHITE
+            if IsVerbose; then Display --indent 2 --text "- Checking atd status" --result "NOT RUNNING" --color WHITE; fi
         fi
     fi
 #

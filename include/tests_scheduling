@@ -72,17 +72,20 @@
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: found directory ${I}"
                     LogText "Test: searching files in ${I}"
-                    FIND=`find ${I} -type f -print`
+                    FIND=`find ${I} -type f -print | grep -v ".placeholder"`
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: no files found in ${I}"
                       else
                         LogText "Result: found one or more files in ${I}. Analyzing files.."
                         for J in ${FIND}; do
+                            if IsWorldWritable ${J}; then Report "insecure_fileperms_cronjob=${J}"; fi
                             FindCronJob ${J}
-                            for K in ${sCRONJOBS}; do
-                                LogText "Result: Found cronjob (${I}): ${K}"
-                                Report "cronjob[]=${J}"
-                            done
+                            if [ ! "${sCRONJOBS}" = "" ]; then
+                                for K in ${sCRONJOBS}; do
+                                    LogText "Result: Found cronjob (${J}): ${K}"
+                                    Report "cronjob[]=${J}"
+                                done
+                            fi
                         done
                         LogText "Result: done with analyzing files in ${I}"
                     fi
@@ -106,6 +109,7 @@
                   else
                     LogText "Result: found one or more files in ${I}. Analyzing files.."
                     for J in ${FIND}; do
+                        if IsWorldWritable ${J}; then Report "insecure_fileperms_cronjob=${J}"; fi
                         LogText "Result: Found cronjob (${I}): ${J}"
                         Report "cronjob[]=${J}"
                     done

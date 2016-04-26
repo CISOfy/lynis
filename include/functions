@@ -48,6 +48,7 @@
 #    IsRunning                  Check if a process is running
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
+#    IsOwnedByRoot              Determine if file or directory is owned by root
 #    IsVerbose                  Check if --verbose is used
 #    IsVirtualMachine           Check if this system is a virtual machine
 #    IsWorldExecutable          Check if a file is world executable
@@ -932,6 +933,44 @@
             return 1
         fi
       }
+
+
+    ################################################################################
+    # Name        : IsOwnedByRoot
+    # Description : Check if file or directory is owned by root
+    # Returns     : 0 (true), 1 (false), or 255 (unknown)
+    ################################################################################
+
+    IsOwnedByRoot() {
+        local PERMS=""
+        if [ $# -eq 1 ]; then
+            FILE="$1"
+            case $OS in
+                "AIX")
+                    if [ ! "${ISTATBINARY}" = "" ]; then PERMS=`${ISTATBINARY} ${FILE} | sed "s/Owner: //" | sed "s/[a-zA-Z() ]//g"`; fi
+                ;;
+                "Linux")
+                    if [ ! "${STATBINARY}" = "" ]; then PERMS=`${STATBINARY} -c "%u:%g" ${FILE}`; fi
+                ;;
+                "FreeBSD")
+                    if [ ! "${STATBINARY}" = "" ]; then PERMS=`${STATBINARY} -f "%u:%g" ${FILE}`; fi
+                ;;
+            esac
+            # Fallback with ls (for other platforms, or when a test did not reveal any output)
+            if [ "${PERMS}" = "" ]; then
+                PERMS=`ls -n ${FILE} | ${AWKBINARY} '{ print $3":"$4 }'`
+            fi
+          else
+            ReportException "IsOwnedByRoot" "Functions needs 1 argument"
+            return 255
+        fi
+        if [ "${PERMS}" = "0:0" ]; then
+            if IsDeveloper; then LogText "Debug: found incorrect file permissions on ${FILE}"; fi
+            return 0
+          else
+            return 1
+        fi
+    }
 
 
     ################################################################################

@@ -52,14 +52,19 @@
     # Description : Check crontab / cronjobs
     Register --test-no SCHD-7704 --weight L --network NO --description "Check crontab/cronjobs"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BAD_FILE_PERMISSIONS=0
+        BAD_FILE_OWNERSHIP=0
         FindCronJob() {
             sCRONJOBS=`egrep '^([0-9*])' $1 | tr '\t' ' ' | tr -s ' ' | tr ' ' ','`
         }
 
-        if [ -f /etc/crontab ]; then
-            FindCronJob /etc/crontab
+        CRONTAB_FILE="/etc/crontab"
+        if [ -f ${CRONTAB_FILE} ]; then
+            if IsWorldWritable ${CRONTAB_FILE}; then LogText "Result: insecure file permissions for cronjob file ${CRONTAB_FILE}"; Report "insecure_fileperms_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+            if ! IsOwnedByRoot ${CRONTAB_FILE}; then LogText "Result: incorrect owner found for cronjob file ${CRONTAB_FILES}"; Report "bad_fileowner_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
+            FindCronJob ${CRONTAB_FILE}
             for I in ${sCRONJOBS}; do
-                LogText "Found cronjob (/etc/crontab): ${I}"
+                LogText "Found cronjob (${CRONTAB_FILE}): ${I}"
                 Report "cronjob[]=${I}"
             done
         fi
@@ -78,7 +83,8 @@
                       else
                         LogText "Result: found one or more files in ${I}. Analyzing files.."
                         for J in ${FIND}; do
-                            if IsWorldWritable ${J}; then Report "insecure_fileperms_cronjob=${J}"; fi
+                            if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+                            if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
                             FindCronJob ${J}
                             if [ ! "${sCRONJOBS}" = "" ]; then
                                 for K in ${sCRONJOBS}; do
@@ -109,7 +115,8 @@
                   else
                     LogText "Result: found one or more files in ${I}. Analyzing files.."
                     for J in ${FIND}; do
-                        if IsWorldWritable ${J}; then Report "insecure_fileperms_cronjob=${J}"; fi
+                        if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+                        if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
                         LogText "Result: Found cronjob (${I}): ${J}"
                         Report "cronjob[]=${J}"
                     done
@@ -159,7 +166,17 @@
             fi
         fi
 
-        Display --indent 2 --text "- Checking crontab/cronjob" --result DONE --color GREEN
+        # Show warning when an issue shows up. Even if *both* the permissions and ownership are wrong, just show one (prevent overload of warnings).
+        if [ ${BAD_FILE_PERMISSIONS} -eq 1 ]; then
+            ReportWarning "${TEST_NO}" "Found one or more cronjob files with incorrect file permissions (see log for details)"
+            Display --indent 2 --text "- Checking crontab/cronjob" --result WARNING --color RED
+        elif [ ${BAD_FILE_OWNERSHIP} -eq 1 ]; then
+            ReportWarning "${TEST_NO}" "Found one or more cronjob files with incorrect ownership (see log for details)"
+            Display --indent 2 --text "- Checking crontab/cronjob" --result WARNING --color RED
+        else
+            Display --indent 2 --text "- Checking crontab/cronjob" --result DONE --color GREEN
+        fi
+
     fi
 #
 #################################################################################

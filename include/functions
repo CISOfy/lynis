@@ -1415,6 +1415,12 @@
                     NGINX_SSL_PROTOCOLS=1
                     VALUE=`echo ${VALUE} | sed 's/;$//' | tr '[:upper:]' '[:lower:]'`
                     for ITEM in ${VALUE}; do
+                        LogText "Result: found protocol ${ITEM}"
+                        case ${ITEM} in
+                            "sslv2" | "sslv3")
+                                NGINX_WEAK_SSL_PROTOCOL_FOUND=1
+                            ;;
+                        esac
                         Report "ssl_tls_protocol_enabled[]=${ITEM}"
                         ReportDetails --service nginx --field protocol --value "${ITEM}"
                     done
@@ -1746,24 +1752,24 @@
             case $1 in
                 --description)
                     shift
-                    TEST_DESCRIPTION=$1
+                    TEST_DESCRIPTION="desc:$1;"
                 ;;
                 --field)
                     shift
-                    TEST_FIELD=$1
+                    TEST_FIELD="field:$1;"
                 ;;
                 --preferredvalue|--preferred-value)
                     shift
-                    TEST_PREFERRED_VALUE=$1
+                    TEST_PREFERRED_VALUE="prefval:$1;"
                 ;;
                 # Other details
                 --other)
                     shift
-                    TEST_OTHER=$1
+                    TEST_OTHER="other:$1;"
                 ;;
                 --service)
                     shift
-                    TEST_SERVICE=$1
+                    TEST_SERVICE="service:$1;"
                 ;;
                 --test)
                     shift
@@ -1771,7 +1777,7 @@
                 ;;
                 --value)
                     shift
-                    TEST_VALUE=$1
+                    TEST_VALUE="value:$1;"
                 ;;
 
                 *)
@@ -1781,7 +1787,9 @@
             esac
             shift # Go to next parameter
         done
-        Report "details[]=${TEST_ID}|service:${TEST_SERVICE}|desc:${TEST_DESCRIPTION};field:${TEST_FIELD};prefval:${TEST_PREFERRED_VALUE};value:${TEST_VALUE};other:${TEST_OTHER}|"
+        if [ "${TEST_ID}" = "" ]; then TEST_ID="-"; fi
+        if [ "${TEST_SERVICE}" = "" ]; then TEST_SERVICE="-"; fi
+        Report "details[]=${TEST_ID}|${TEST_SERVICE}|${TEST_DESCRIPTION}${TEST_FIELD}${TEST_PREFERRED_VALUE}${TEST_VALUE}${TEST_OTHER}|"
     }
 
     # Log exceptions

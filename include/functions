@@ -1413,7 +1413,11 @@
                 ;;
                 ssl_protocols)
                     NGINX_SSL_PROTOCOLS=1
-                    #Report "nginx_ssl_protocols=${VALUE}"
+                    VALUE=`echo ${VALUE} | sed 's/;$//' | tr '[:upper:]' '[:lower:]'`
+                    for ITEM in ${VALUE}; do
+                        Report "ssl_tls_protocol_enabled[]=${ITEM}"
+                        ReportDetails --service nginx --field protocol --value "${ITEM}"
+                    done
                 ;;
                 ssl_session_cache)
                 ;;
@@ -1724,11 +1728,21 @@
     # Description : Adds specific details to the report, in particular when many
     #               smaller atomic tests are performed. For example sysctl keys,
     #               and SSH settings.
-    # Returns     : nothing
+    # Returns     : Nothing
+    # Notes       : Need to check for values (strip out semicolons from values)
+    #               Only add fields which are filled in
     ################################################################################
 
     ReportDetails() {
         while [ $# -ge 1 ]; do
+            local TEST_DESCRIPTION=""
+            local TEST_FIELD=""
+            local TEST_ID=""
+            local TEST_OTHER=""
+            local TEST_PREFERRED_VALUE=""
+            local TEST_SERVICE=""
+            local TEST_VALUE=""
+
             case $1 in
                 --description)
                     shift

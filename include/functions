@@ -29,7 +29,7 @@
 #    CheckFilePermissions       Check file permissions
 #    CheckUpdates               Determine if a new version of Lynis is available
 #    CreateTempFile             Create a temporary file
-#    counttests                 Count number of performed tests
+#    CountTests                 Count number of performed tests
 #    ContainsString             Find the needle (string) in the haystack (another string)
 #    Debug                      Display additional information on the screen (not suited for cronjob)
 #    DigitsOnly                 Return only the digits from a string
@@ -55,6 +55,8 @@
 #    IsWorldReadable            Check if a file is world readable
 #    IsWorldWritable            Check if a file is world writable
 #    LogText                    Log text strings to logfile, prefixed with date/time
+#    LogTextBreak               Insert a separator in log file
+#    Maid
 #    ParseNginx                 Parse nginx configuration lines
 #    PortIsListening            Check if machine is listening on specified protocol and port
 #    Progress                   Show progress on screen
@@ -74,8 +76,12 @@
 #    SkipAtomicTest             Test if a subtest needs to be skipped
 #    TestValue                  Evaluate a value in a string or key
 #    ViewCategories             Display tests categories
-#    WaitForKeypress            Wait for user to press a key to continue
-
+#    WaitForKeyPress            Wait for user to press a key to continue
+#
+#################################################################################
+#
+#    Under Development:
+#    ----------------------
 #    TestCase_Equal             Test case for checking if value is equal to something
 #    TestCase_NotEqual          Test case for checking if value is not equal to something
 #    TestCase_GreaterThan       Test case for checking if value is greater than something
@@ -88,8 +94,11 @@
 
     ################################################################################
     # Name        : AddHP()
-    # Description : Add Hardening Points
+    # Description : Add hardening points and count them
+    #
+    # Input       : $1 = points to add, $2 = maximum points for this item
     # Returns     : <nothing>
+    # Usage       : AddHP 1 3
     ################################################################################
 
     AddHP() {
@@ -105,24 +114,31 @@
 
 
     ################################################################################
-    # Name        : AddSystemGroup
+    # Name        : AddSystemGroup()
     # Description : Adds a system to a group, which can be used for categorizing
+    #
+    # Input       : Group name
     # Returns     : <nothing>
+    # Usage       : AddSystemGroup "test"
     ################################################################################
 
-    AddSystemGroup()
-      {
+    AddSystemGroup() {
         Report "system_group[]=$1"
-      }
+    }
 
 
-    # Check file permissions
-    # Parameter 1 is file/dir
-    # Result: FILE_NOT_FOUND | OK | BAD
-    CheckFilePermissions()
-      {
-        CHECKFILE=$1
-        if [ ! -d $CHECKFILE -a ! -f $CHECKFILE ]; then
+    ################################################################################
+    # Name        : CheckFilePermissions()
+    # Description : Adds a system to a group, which can be used for categorizing
+    #
+    # Input       : full path to file or directory
+    # Returns     : PERMS (FILE_NOT_FOUND | OK | BAD)
+    # Notes       : This function might be replaced in future
+    ################################################################################
+
+    CheckFilePermissions() {
+        local CHECKFILE=$1
+        if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
             PERMS="FILE_NOT_FOUND"
           else
             # If 'file' is an directory, use -d
@@ -135,18 +151,21 @@
             fi
             if [ "${FILEVALUE}" = "${PROFILEVALUE}" ]; then PERMS="OK"; else PERMS="BAD"; fi
         fi
-      }
+    }
 
 
     ################################################################################
     # Name        : CheckItem()
     # Description : Check if a specific item exists in the report
-    # Returns     : <nothing>
+    #
+    # Input       : $1 = key, $2 = value
+    # Returns     : ITEM_FOUND
+    # Usage       : CheckItem "key" "value"
     ################################################################################
 
-    CheckItem()
-      {
+    CheckItem() {
          ITEM_FOUND=0
+         local RETVAL=255
          if [ $# -eq 2 ]; then
             # Don't search in /dev/null, it's too empty there
             if [ ! "${REPORTFILE}" = "/dev/null" ]; then
@@ -155,190 +174,32 @@
                 FIND=`egrep "^$1(\[\])?=" ${REPORTFILE} | egrep "$2"`
                 if [ ! "${FIND}" = "" ]; then
                     ITEM_FOUND=1
+                    RETVAL=0
                     LogText "Result: found search string (result: $FIND)"
                  else
                     LogText "Result: search string NOT found"
+                    RETVAL=1
                 fi
               else
                 LogText "Skipping search, as /dev/null is being used"
             fi
+            return ${RETVAL}
           else
             ReportException ${TEST_NO} "Error in function call to CheckItem"
          fi
-      }
-
-    ################################################################################
-    # Name        : ContainsString()
-    # Description : Search a specific string (or regular expression) in another
-    # Returns     : (0 - True, 1 - False)
-    ################################################################################
-
-    ContainsString() {
-        if [ $# -ne 2 ]; then ReportException "ContainsString" "Incorrect number of arguments for ContainsStrings function"; fi
-        RETVAL=1
-        local FIND=`echo "$2" | egrep "$1"`
-        if [ ! "${FIND}" = "" ]; then RETVAL=0; fi
-
-        return $RETVAL
     }
 
 
-    ################################################################################
-    # Name        : TestCase_Equal()
-    # Description : Test case for checking if value whether value is equal to value
-    # Returns     : (0 - SUCCESS; 1 - MEDIUM-VALUED; 2 - FAIL)
-    ################################################################################
-
-    TestCase_Equal()
-    {
-        local RETVAL=2
-
-        if [ "$#" -lt "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-
-            LogText "${FUNCNAME}: check if ${1} is equal to ${2}"
-
-            if [ "$1" == "$2" ]; then
-              LogText "${FUNCNAME}: ${1} is equal to ${2}"
-              RETVAL=0
-            fi
-
-            if ! [ -z ${3+x} ]; then
-                LogText "${FUNCNAME}: ${1} is equal to ${3}"
-                if [ "$2" == "$3" ]; then
-                    LogText "${FUNCNAME}: ${OPTION} is equal to ${3}"
-                    RETVAL=1
-                fi
-            fi
-        fi
-        return ${RETVAL}
-    }
 
     ################################################################################
-    # Name        : TestCase_ValueNotEqual()
-    # Description : Test case for checking if value is not equal to something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
+    # Name        : CheckUpdates()
+    # Description : Determine if there is an update available
+    # Returns     : <nothing>
+    # Usage       : CheckUpdates
+    #               Use PROGRAM_LV (latest version) and compare it with actual version (PROGRAM_AC)
     ################################################################################
-    TestCase_NotEqual()
-    {
-        local RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
 
-            if [ "$1" != "$2" ]; then
-              LogText "${FUNCNAME}: ${1} is not equal to ${2}"
-              RETVAL=0
-            else
-              LogText "${FUNCNAME}: ${1} is equal to ${2}"
-            fi
-        fi
-
-        return ${RETVAL}
-    }
-
-    ################################################################################
-    # Name        : TestCase_GreaterThan()
-    # Description : Test case for checking if value is greater than something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-    TestCase_GreaterThan()
-    {
-        local RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-            LogText "${FUNCNAME}: checking if ${1} is greater than ${2}"
-            if [ "$1" > "$2" ]; then
-              LogText "${FUNCNAME}: ${1} is greater than ${2}"
-              RETVAL=0
-            else
-              LogText "${FUNCNAME}: ${1} is not greater than ${2}"
-            fi
-        fi
-
-        return ${RETVAL}
-    }
-
-    ################################################################################
-    # Name        : TestCase_GreaterOrEqual()
-    # Description : Test case for checking if value is greater than something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-    TestCase_GreaterOrEqual()
-    {
-        local RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-            LogText "${FUNCNAME}: checking if ${1} is greater or equal ${2}"
-            if [ TestCase_Equal "${1}" "${2}"  ] || [ TestCase_GreaterThan "${1}" "${2}" ]; then
-              RETVAL=0
-            fi
-        fi
-        return ${RETVAL}
-    }
-    ################################################################################
-    # Name        : TestCase_LessThan()
-    # Description : Test case for checking if value is greater than something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-    TestCase_LessThan()
-    {
-        local RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to TestCase_GreaterOrEqual"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-            LogText "${FUNCNAME}: checking if ${1} is less than ${2}"
-            if ! [ TestCase_GreaterOrEqual "${1}" "${2}"  ]; then
-              LogText "${FUNCNAME}:  ${1} is less than ${2}"
-              RETVAL=0
-            fi
-        fi
-        return ${RETVAL}
-    }
-
-    ################################################################################
-    # Name        : TestCase_LessOrEqual()
-    # Description : Test case for checking if value is less or equal something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-    TestCase_LessOrEqual()
-    {
-        local RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-            LogText "${FUNCNAME}: checking if ${1} is less or equal ${2}"
-            if [ TestCase_Equal "${1}" "${2}" ] || [ TestCase_LessThan "${1}" "${2}" ]; then
-              LogText "${FUNCNAME}:  ${1} is less than ${2}"
-              RETVAL=0
-            fi
-        fi
-        return ${RETVAL}
-    }
-
-    # Check updates
-    CheckUpdates()
-      {
+    CheckUpdates() {
         PROGRAM_LV="0000000000"; DB_MALWARE_LV="0000000000"; DB_FILEPERMS_LV="0000000000"
         LYNIS_LV_RECORD="lynis-latest-version.cisofy.com."
         FIND=`which dig 2> /dev/null`
@@ -360,22 +221,53 @@
                 fi
             fi
          fi
-      }
+    }
 
-    # Count the number of performed tests
-    counttests()
-      {
+
+    ################################################################################
+    # Name        : ContainsString()
+    # Description : Search a specific string (or regular expression) in another
+    # Returns     : (0 - True, 1 - False)
+    # Usage       : if ContainsString "needle" "there is a needle in the haystack"; echo "Found"; else "Not found"; fi
+    ################################################################################
+
+    ContainsString() {
+        local RETVAL=1
+        if [ $# -ne 2 ]; then ReportException "ContainsString" "Incorrect number of arguments for ContainsStrings function"; fi
+        local FIND=`echo "$2" | egrep "$1"`
+        if [ ! "${FIND}" = "" ]; then RETVAL=0; fi
+        return ${RETVAL}
+    }
+
+
+    ################################################################################
+    # Name        : CountTests()
+    # Description : Count the number of tests performed
+    #
+    # Input       : <nothing>
+    # Returns     : <nothing>
+    # Usage       : CountTests
+    ################################################################################
+
+    CountTests() {
         CTESTS_PERFORMED=`expr ${CTESTS_PERFORMED} + 1`
-      }
+    }
+
 
     ################################################################################
-    # Name        : CreateTempFile
+    # Name        : CreateTempFile()
     # Description : Creates a temporary file
-    # Returns     : TEMP_FILE
+    #
+    # Input       : <nothing>
+    # Returns     : TEMP_FILE (variable)
+    # Usage       : CreateTempFile
+    #               if [ ! "${TEMP_FILE}" = "" ]; then
+    #                   MYTMPFILE="${TEMP_FILE}"
+    #                   echo "My temporary file is ${MYTMPFILE}"
+    #               fi
     ################################################################################
 
-    CreateTempFile()
-      {
+    CreateTempFile() {
         TEMP_FILE=""
         if [ "${OS}" = "AIX" ]; then
             RANDOMSTRING1=`echo lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}')`
@@ -391,56 +283,69 @@
         fi
         # Add temporary file to queue for cleanup later
         TEMP_FILES="${TEMP_FILES} ${TEMP_FILE}"
-      }
+    }
 
+
+    ################################################################################
+    # Name        : DirectoryExists()
+    # Description : Check if a directory exists
+    #
+    # Returns     : 0 (directory exists), 1 (directory does not exist)
+    # Usage       : if DirectoryExists; then echo "it exists"; else echo "It does not exist"; fi
+    ################################################################################
 
     # Determine if a directory exists
-    DirectoryExists()
-      {
+    DirectoryExists() {
         DIRECTORY_FOUND=0
         LogText "Test: checking if directory $1 exists"
         if [ -d $1 ]; then
             LogText "Result: directory $1 exists"
             DIRECTORY_FOUND=1
+            return 0
           else
             LogText "Result: directory $1 NOT found"
+            return 1
         fi
-      }
+    }
 
 
     ################################################################################
-    # Name        : Debug
+    # Name        : Debug()
     # Description : Show additional information on screen
+    #
+    # Input       : $1 = text
     # Returns     : Nothing
+    # Usage       : Debug "More details"
     ################################################################################
 
-    Debug()
-      {
-        if [ ${DEBUG} -eq 1 ]; then echo "${PURPLE}[DEBUG]${NORMAL} $1"; fi
-      }
+    Debug() {
+        if [ ${DEBUG} -eq 1 -a $# -gt 0 ]; then echo "${PURPLE}[DEBUG]${NORMAL} $1"; fi
+    }
 
 
     ################################################################################
-    # Name        : DigitsOnly
+    # Name        : DigitsOnly()
     # Description : Only extract numbers from a string
-    # Returns     : Digits only string
+    #
+    # Returns     : Digits only string (VALUE)
     ################################################################################
 
-    DigitsOnly()
-      {
+    DigitsOnly() {
         VALUE=$1
         LogText "Value is now: ${VALUE}"
         if [ ! "${AWKBINARY}" = "" ]; then
             VALUE=`echo ${VALUE} | grep -Eo '[0-9]{1,}'`
         fi
         LogText "Returning value: ${VALUE}"
-      }
+    }
 
 
     ################################################################################
-    # Name        : Display
+    # Name        : Display()
     # Description : Show text on screen, with markup
-    # Returns     : Nothing
+    #
+    # Input       : <multiple parameters, see test>
+    # Returns     : <nothing>
     ################################################################################
 
     Display() {
@@ -515,32 +420,45 @@
 
 
     ################################################################################
-    # Name        : DisplayManual
+    # Name        : DisplayManual()
     # Description : Show text on screen, without any markup
-    # Returns     : Nothing
+    #
+    # Input       : $1 = text (string)
+    # Returns     : <nothing>
     ################################################################################
 
-    DisplayManual()
-      {
-            if [ ${QUIET} -eq 0 ]; then
-                ${ECHOCMD} "$1"
-            fi
-      }
+    DisplayManual() {
+        if [ ${QUIET} -eq 0 ]; then ${ECHOCMD} "$1"; fi
+    }
 
 
-    # Clean exit (removing temp files, PID files)
-    ExitClean()
-      {
+    ################################################################################
+    # Name        : ExitClean()
+    # Description : Perform a normal exit of the program, and clean up resources
+    #
+    # Input       : <nothing>
+    # Returns     : <nothing>
+    # Usage       : ExitClean
+    ################################################################################
+
+    ExitClean() {
         RemovePIDFile
         RemoveTempFiles
         LogText "${PROGRAM_NAME} ended successfully."
         exit 0
-      }
+    }
 
 
-    # Clean exit with custom code
-    ExitCustom()
-      {
+    ################################################################################
+    # Name        : ExitCustom()
+    # Description : Perform a normal exit of the program, and clean up resources
+    #
+    # Input       : $1 = exit code (optional)
+    # Returns     : Nothing
+    # Usage       : ExitCustom 35
+    ################################################################################
+
+    ExitCustom() {
         RemovePIDFile
         RemoveTempFiles
         # Exit with the exit code given, otherwise use 1
@@ -551,62 +469,82 @@
             LogText "${PROGRAM_NAME} ended with exit code 1."
             exit 1
         fi
-      }
+    }
 
 
-    # Clean exit (removing temp files, PID files), with error code 1
-    ExitFatal()
-      {
+    ################################################################################
+    # Name        : ExitFatal()
+    # Description : Perform exit of the program (with code 1), clean up resources
+    #
+    # Input       : <nothing>
+    # Returns     : <nothing>
+    # Usage       : ExitFatal
+    ################################################################################
+
+    ExitFatal() {
         RemovePIDFile
         RemoveTempFiles
         LogText "${PROGRAM_NAME} ended with exit code 1."
         exit 1
-      }
+    }
 
 
-    # Determine if a file exists
-    FileExists()
-      {
+    ################################################################################
+    # Name        : FileExists()
+    # Description : Determine if a file exists
+    # Returns     : 0 (found), 1 (not found)
+    #               FILE_FOUND (0:found, 1:not found) - deprecated usage
+    ################################################################################
+
+    FileExists() {
         FILE_FOUND=0
         LogText "Test: checking if file $1 exists"
         if [ -f $1 ]; then
             LogText "Result: file $1 exists"
             FILE_FOUND=1
+            return 0
           else
             LogText "Result: file $1 NOT found"
+            return 1
         fi
-      }
+    }
+
 
     ################################################################################
-    # Name        : FileIsEmpty
+    # Name        : FileIsEmpty()
     # Description : Check if a file is empty
-    # Returns     : EMPTY (0 or 1)
+    #
+    # Returns     : 0 (empty), 1 (not empty)
+    #               EMPTY (0 or 1) - deprecated usage
+    # Usage       : xyz
     ################################################################################
 
-    FileIsEmpty()
-      {
+    FileIsEmpty() {
         EMPTY=0
         LogText "Test: checking if file $1 is empty"
         if [ -z $1 ]; then
             LogText "Result: file $1 is empty"
             EMPTY=1
+            return 0
           else
             LogText "Result: file $1 is NOT empty"
+            return 1
         fi
-      }
+    }
+
 
     ################################################################################
-    # Name        : FileIsReadable
+    # Name        : FileIsReadable()
     # Description : Check if a file readable or directory is accessible
+    #
     # Returns     : Return code (0 = readable, 1 = not readable)
     # Usage       : if FileIsReadable /etc/shadow; then echo "File is readable"; fi
     ################################################################################
 
-    FileIsReadable()
-      {
+    FileIsReadable() {
         sFILE=$1
         CANREAD=0
-        LogText "Test: testing if we can access ${sFILE}"
+        LogText "Test: check if we can access ${sFILE}"
 
         # Check for symlink
         if [ -L ${sFILE} ]; then
@@ -652,11 +590,18 @@
             LogText "Result: file ${sFILE} is NOT readable (or directory accessible), symlink, or does not exist. (OTHERPERMS: ${OTHERPERMS})"
             return 1
         fi
-      }
+    }
 
-    # Get Host ID
-    GetHostID()
-      {
+
+    ################################################################################
+    # Name        : GetHostID()
+    # Description : Create an unique id for the system
+    #
+    # Returns     : Nothing
+    # Usage       : GetHostID
+    ################################################################################
+
+    GetHostID() {
         HOSTID="-"
         FIND=""
         # Avoid some hashes (empty, only zeros)
@@ -863,36 +808,50 @@
         if [ "${HOSTID}" = "" ]; then
             ReportException "GetHostID" "No unique host identifier could be created."
         fi
-      }
+    }
 
-    # Insert section block
-    InsertSection()
-      {
+
+    ################################################################################
+    # Name        : InsertSection()
+    # Description : Show a section block on screen
+    #
+    # Returns     : Nothing
+    # Usage       : InsertSection
+    ################################################################################
+
+    InsertSection() {
         if [ ${QUIET} -eq 0 ]; then
             echo ""
             echo "[+] ${SECTION}$1${NORMAL}"
             echo "------------------------------------"
         fi
-        logtextbreak
+        LogTextBreak
         LogText "Action: Performing tests from category: $1"
-      }
+    }
 
-    # Insert section block for plugins
-    InsertPluginSection()
-      {
+
+    ################################################################################
+    # Name        : InsertPlugionSection()
+    # Description : Insert section block for plugins (different color)
+    #
+    # Returns     : Nothing
+    # Usage       : InsertPluginSection
+    ################################################################################
+
+    InsertPluginSection() {
         if [ ${QUIET} -eq 0 ]; then
             echo ""
             echo "[+] ${MAGENTA}$1${NORMAL}"
             echo "------------------------------------"
         fi
         LogText "Action: Performing plugin tests"
-      }
+    }
 
 
     ################################################################################
-    # Name        : IsDebug
+    # Name        : IsDebug()
     # Description : Check if --debug option is used to show more details
-    # Returns     : 0 (true) or 1 (false)
+    # Returns     : 0 (True) or 1 (False)
     ################################################################################
 
     IsDebug() {
@@ -903,7 +862,9 @@
     ################################################################################
     # Name        : IsDeveloperMode()
     # Description : Check if we are in development mode (--developer)
-    # Returns     : (0 - True, 1 - False)
+    #
+    # Returns     : 0 (True) or 1 (False)
+    # Notes       : This is set with command line option or as a profile setting
     ################################################################################
 
     IsDeveloperMode() {
@@ -915,11 +876,10 @@
     # Name        : IsRunning()
     # Description : Check if a process is running
     # Returns     : 0 (process is running), 1 (process not running)
-    #               RUNNING (1 = running, 0 = not running)
+    #               RUNNING (1 = running, 0 = not running) - will be deprecated
     ################################################################################
 
-    IsRunning()
-      {
+    IsRunning() {
         RUNNING=0
         PSOPTIONS=""
         if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" ax"; fi
@@ -932,7 +892,7 @@
             LogText "IsRunning: process '$1' not found"
             return 1
         fi
-      }
+    }
 
 
     ################################################################################
@@ -974,7 +934,7 @@
 
 
     ################################################################################
-    # Name        : IsVerbose
+    # Name        : IsVerbose()
     # Description : Check if --verbose option is used to show more details on screen
     # Returns     : 0 (true) or 1 (false)
     ################################################################################
@@ -992,8 +952,7 @@
     #               VMFULLTYPE
     ################################################################################
 
-    IsVirtualMachine()
-      {
+    IsVirtualMachine() {
         LogText "Test: Determine if this system is a virtual machine"
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
@@ -1178,54 +1137,65 @@
           else
             LogText "Result: system seems to be non-virtual"
         fi
-      }
+    }
 
-    # Function IsWorldReadable
-    IsWorldReadable()
-      {
+
+    ################################################################################
+    # Name        : IsWorldReadable()
+    # Description : Determines if a file is readable for all users (world)
+    #
+    # Input       : path (string)
+    # Returns     : exit code (0 = readable, 1 = not readable, 255 = error)
+    # Usage       : if IsWorldReadable /etc/motd; then echo "File is readable"; fi
+    ################################################################################
+
+    IsWorldReadable() {
         sFILE=$1
         # Check for symlink
         if [ -L ${sFILE} ]; then
             ShowSymlinkPath ${sFILE}
-            if [ ! "${SYMLINK}" = "" ]; then
-                sFILE="${SYMLINK}"
-            fi
+            if [ ! "${SYMLINK}" = "" ]; then sFILE="${SYMLINK}"; fi
         fi
-        # Only check the file if it isn't a symlink (after previous check)
-        if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
-            FINDVAL=`ls -l ${sFILE} | cut -c 8`
+        if [ -f ${sFILE} -o -d ${sFILE} ]; then
+            FINDVAL=`ls -ld ${sFILE} | cut -c 8`
             if [ "${FINDVAL}" = "r" ]; then return 0; else return 1; fi
           else
             return 255
         fi
-      }
+    }
 
+
+    ################################################################################
+    # Name        : IsWorldExecutable()
+    # Description : Determines if a file is executable for all users (world)
+    #
+    # Input       : path (string)
+    # Returns     : exit code (0 = executable, 1 = not executable, 255 = error)
+    # Usage       : if IsWorldExecutable /bin/ps; then echo "File is executable"; fi
+    ################################################################################
 
     # Function IsWorldExecutable
-    IsWorldExecutable()
-      {
+    IsWorldExecutable() {
         sFILE=$1
         # Check for symlink
         if [ -L ${sFILE} ]; then
             ShowSymlinkPath ${sFILE}
-            if [ ! "${SYMLINK}" = "" ]; then
-                sFILE="${SYMLINK}"
-            fi
+            if [ ! "${SYMLINK}" = "" ]; then sFILE="${SYMLINK}"; fi
         fi
-
-        # Only check the file if it isn't a symlink (after previous check)
-        if [ -f ${sFILE} -a ! -L ${sFILE} ]; then
+        if [ -f ${sFILE} -o -d ${sFILE} ]; then
             FINDVAL=`ls -l ${sFILE} | cut -c 10`
             if [ "${FINDVAL}" = "x" ]; then return 0; else return 1; fi
           else
             return 255
         fi
-      }
+    }
 
 
     ################################################################################
     # Name        : IsWorldWritable()
     # Description : Determines if a file is writable for all users
+    #
+    # Input       : path
     # Returns     : exit code (0 = writable, 1 = not writable, 255 = error)
     # Usage       : if IsWorldWritable /etc/motd; then echo "File is writable"; fi
     ################################################################################
@@ -1238,12 +1208,7 @@
         if [ -f ${sFILE} -o -d ${sFILE} ]; then
             FINDVAL=`ls -ld ${sFILE} | cut -c 9`
             if IsDeveloperMode; then Debug "File mode of ${sFILE} is ${FINDVAL}"; fi
-            if [ "${FINDVAL}" = "w" ]; then
-                if IsDeveloperMode; then LogText "IsWorldWritable: file ${sFILE} is world-writable"; fi
-                return 0
-              else
-                return 1
-            fi
+            if [ "${FINDVAL}" = "w" ]; then return 0; else return 1; fi
           else
             return 255
         fi
@@ -1253,56 +1218,53 @@
     ################################################################################
     # Name        : LogText()
     # Description : Function logtext (redirect data ($1) to log file)
+    #
+    # Input       : $1 = text (string)
     # Returns     : Nothing
-    # Usage       : LogText "This goes into the log file"
+    # Usage       : LogText "This line goes into the log file"
     ################################################################################
 
-    LogText()
-      {
-        if [ ! "${LOGFILE}" = "" ]; then
-            CDATE=`date "+[%H:%M:%S]"`
-            echo "${CDATE} $1" >> ${LOGFILE}
-        fi
-      }
+    LogText() {
+        if [ ! "${LOGFILE}" = "" ]; then CDATE=`date "+[%H:%M:%S]"`; echo "${CDATE} $1" >> ${LOGFILE}; fi
+    }
 
-    # Alias for older tests (do no longer use this as it will be deprecated)
-    logtext()
-      {
-          LogText "$1"
-      }
 
     ################################################################################
-    # Name        : logtextbreak()
+    # Name        : LogTextBreak()
     # Description : Add a separator to log file between sections, tests etc
     # Returns     : <nothing>
-    logtextbreak()
-      {
+    ################################################################################
+
+    LogTextBreak() {
         if [ ! "${LOGFILE}" = "" ]; then
             CDATE=`date "+[%H:%M:%S]"`
             echo "${CDATE} ===---------------------------------------------------------------===" >> ${LOGFILE}
         fi
-      }
+    }
 
 
     ################################################################################
     # Name        : Maid()
     # Description : Cleanup service
     # Returns     : <nothing>
-    Maid()
-      {
+    ################################################################################
+
+    Maid() {
         echo ""; echo "Interrupt detected."
-        # Remove PID
         RemovePIDFile
         RemoveTempFiles
-
         Display --text "Cleaning up..." --result DONE --color GREEN
-
         ExitFatal
-      }
+    }
 
-    # Parse nginx configuration lines
-    ParseNginx()
-      {
+
+    ################################################################################
+    # Name        : ParseNginx()
+    # Description : Parse nginx configuration lines
+    # Returns     : <nothing>
+    ################################################################################
+
+    ParseNginx() {
         FIND=`awk -F= '/^nginx_config_option=/ { print $2 }' ${REPORTFILE} | sed 's/ /:space:/g'`
         for I in ${FIND}; do
             I=`echo ${I} | sed 's/:space:/ /g' | sed 's/;$//'`
@@ -1436,7 +1398,8 @@
                 ;;
             esac
         done
-      }
+    }
+
 
     ################################################################################
     # Name        : PortIsListening()
@@ -1445,8 +1408,7 @@
     # Usage       : if PortIsListening "TCP" 22; then echo "Port is listening"; fi
     ################################################################################
 
-    PortIsListening()
-      {
+    PortIsListening() {
         if [ "${LSOFBINARY}" = "" ]; then
             return 255
           else
@@ -1465,14 +1427,15 @@
                 ReportException ${TEST_NO} "Error in function call to PortIsListening"
             fi
         fi
-      }
+    }
 
 
     ################################################################################
     # Name        : Progress()
     # Description : Displays progress on screen with dots
-    # Input       : finish or text
-    # Returns     : nothing
+    #
+    # Input       : --finish or text (string)
+    # Returns     : <nothing>
     # Tip         : Use this function from Register with the --progress parameter
     ################################################################################
 
@@ -1495,7 +1458,7 @@
 
 
     ################################################################################
-    # Name        : Progress()
+    # Name        : RandomString()
     # Description : Displays progress on screen with dots
     # Input       : Amount of characters (optional)
     # Returns     : RANDOMSTRING
@@ -1514,50 +1477,17 @@
         RANDOMSTRING=`head -c ${CSIZE} /dev/urandom | od -An -x | tr -d ' ' | cut -c 1-${SIZE}`
     }
 
-    ################################################################################
-    # Name        : RealFilename()
-    # Description : Return file behind a symlink
-    # Returns     : sFILE
-    # Notes       : This function is unused, use ShowSymlinkPath instead
-    #RealFilename()
-    #  {
-    #    sFILE=$1
-    #    FileIsWorldExecutable=""
-    #    SYMLINK=0
-    #
-    #    # Check for symlink
-    #    if [ -L ${sFILE} ]; then
-    #        if [ ! "${READLINKBINARY}" = "" ]; then
-    #            tFILE=`${READLINKBINARY} -f ${sFILE}`
-    #            # Check if we can find the file now
-    #            if [ -f ${tFILE} ]; then
-    #                rFILE="${tFILE}"
-    #                LogText "Result: symlink found, pointing to ${sFILE}"
-    #                SYMLINK=1
-    #              else
-    #                # Check the full path of the symlink, strip the filename, copy the path and linked filename together
-    #                tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
-    #                tFILE="${tDIR}/${tFILE}"
-    #                if [ -f ${tFILE} ]; then
-    #                  rFILE="${tFILE}"
-    #                  LogText "Result: symlink found, seems to be ${rFILE}"
-    #                fi
-    #            fi
-    #        fi
-    #      else
-    #        # No symlink
-    #        rFILE="${sFILE}"
-    #    fi
-    #  }
 
 
     ################################################################################
     # Name        : Register()
     # Description : Register a test and see if it has to be run
     # Returns     : SKIPTEST (0 or 1)
+    ################################################################################
+
     Register() {
         # Do not insert a log break, if previous test was not logged
-        if [ ${SKIPLOGTEST} -eq 0 ]; then logtextbreak; fi
+        if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
         ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
         TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=`expr ${TOTAL_TESTS} + 1`
@@ -1665,7 +1595,7 @@
             if [ ${TEST_PAUSE_TIME} -gt 0 ]; then sleep ${TEST_PAUSE_TIME}; fi
 
             # Increase counter for every registered test which is performed
-            counttests
+            CountTests
             if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Performing test ID ${TEST_NO} ($TEST_DESCRIPTION)"; fi
             TESTS_EXECUTED="${TEST_NO}|${TESTS_EXECUTED}"
           else
@@ -1676,9 +1606,12 @@
     }
 
 
+    ################################################################################
+    # Name        : RemovePIDFile()
+    ################################################################################
+
     # Remove PID file
-    RemovePIDFile()
-      {
+    RemovePIDFile() {
         # Test if PIDFILE is defined, before checking file presence
         if [ ! "${PIDFILE}" = "" ]; then
           if [ -f ${PIDFILE} ]; then
@@ -1688,12 +1621,15 @@
               LogText "PID file not found (${PIDFILE})"
           fi
         fi
-      }
+    }
 
+
+    ################################################################################
+    # Name        : RemoveTempFiles()
+    ################################################################################
 
     # Remove any temporary files
-    RemoveTempFiles()
-      {
+    RemoveTempFiles() {
         if [ ! "${TEMP_FILES}" = "" ]; then
             LogText "Temporary files: ${TEMP_FILES}"
             # Clean up temp files
@@ -1717,24 +1653,23 @@
       }
 
 
-    # Dump to report file
-    Report()
-      {
-        echo "$1" >> ${REPORTFILE}
-      }
+    ################################################################################
+    # Name        : Report()
+    ################################################################################
 
-    # Old alias for Report function (will be deprecated)
-    report()
-      {
-        Report "$1"
-      }
+    Report() {
+        echo "$1" >> ${REPORTFILE}
+    }
+
 
     ################################################################################
-    # Name        : ReportDetails
+    # Name        : ReportDetails()
     # Description : Adds specific details to the report, in particular when many
     #               smaller atomic tests are performed. For example sysctl keys,
     #               and SSH settings.
-    # Returns     : Nothing
+    #
+    # Input       : <multiple fields, see test>
+    # Returns     : <nothing>
     # Notes       : Need to check for values (strip out semicolons from values)
     #               Only add fields which are filled in
     ################################################################################
@@ -1792,15 +1727,23 @@
         Report "details[]=${TEST_ID}|${TEST_SERVICE}|${TEST_DESCRIPTION}${TEST_FIELD}${TEST_PREFERRED_VALUE}${TEST_VALUE}${TEST_OTHER}|"
     }
 
+
+    ################################################################################
+    # Name        : ReportException()
+    ################################################################################
+
     # Log exceptions
-    ReportException()
-      {
+    ReportException() {
         # 1 parameters
         # <ID>:<2 char numeric>|text|
         Report "exception_event[]=$1|$2|"
         LogText "Exception: test has an exceptional event ($1) with text $2"
-      }
+    }
 
+
+    ################################################################################
+    # Name        : ReportManual()
+    ################################################################################
 
     # Log manual actions to report file
     ReportManual() {
@@ -1810,20 +1753,12 @@
     }
 
 
-    # Report data (TESTID STATUS IMPACT MESSAGE)
-    ReportResult()
-      {
-        if [ $1 = "" ]; then TESTID="UNKNOWN"; fi
-        # Status: OK, WARNING, NEUTRAL, SUGGESTION
-        # Impact: HIGH, SEVERE, LOW,
-        #Report "result[]=TESTID-${TESTID},STATUS-$2,IMPACT-$3,MESSAGE-$4-"
-        # Reset ID before next test
-        TESTID=""
-      }
+    ################################################################################
+    # Name        : ReportSuggestion()
+    ################################################################################
 
     # Log suggestions to report file
-    ReportSuggestion()
-      {
+    ReportSuggestion() {
         TOTAL_SUGGESTIONS=`expr ${TOTAL_SUGGESTIONS} + 1`
         # 4 parameters
         # <ID> <Suggestion> <Details> <Solution>
@@ -1840,11 +1775,15 @@
         if [ "$4" = "" ]; then SOLUTION="-"; else SOLUTION="$4"; fi
         Report "suggestion[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
         LogText "Suggestion: ${MESSAGE} [test:$1] [details:${DETAILS}] [solution:${SOLUTION}]"
-      }
+    }
+
+
+    ################################################################################
+    # Name        : ReportWarning()
+    ################################################################################
 
     # Log warning to report file
-    ReportWarning()
-      {
+    ReportWarning() {
         TOTAL_WARNINGS=`expr ${TOTAL_WARNINGS} + 1`
         # Old style
         # <ID> <priority/impact> <warning text>
@@ -1871,11 +1810,14 @@
         fi
         Report "warning[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
         LogText "Warning: ${MESSAGE} [test:${TEST}] [details:${DETAILS}] [solution:${SOLUTION}]"
+    }
 
-      }
 
-    SafePerms()
-      {
+    ################################################################################
+    # Name        : SafePerms()
+    ################################################################################
+
+    SafePerms() {
         PERMS_OK=0
         LogText "Checking permissions of $1"
         if [ $# -eq 1 ]; then
@@ -1921,22 +1863,20 @@
                   LogText "File permissions are OK"
               fi
           else
-            LogText "Fatal error: invalid amount of parameters when calling function SafePerms()"
-            echo "Invalid amount of parameters for function SafePerms()"
-            ExitFatal
+            ReportException "SafePerms()" "Invalid number of arguments for function"
         fi
-      }
+    }
+
 
     ################################################################################
     # Name        : SearchItem()
     # Description : Search if a specific string exists in in a file
-    # Parameters  : $1 = search string
-    #             : $2 = file
+    #
+    # Input       : $1 = search key (string), $2 = file (string)
     # Returns     : <nothing>
     ################################################################################
 
-    SearchItem()
-      {
+    SearchItem()  {
          ITEM_FOUND=0
          if [ $# -eq 2 ]; then
             # Don't search in /dev/null, it's too empty there
@@ -1958,12 +1898,11 @@
           else
             ReportException ${TEST_NO} "Error in function call to CheckItem"
          fi
-      }
+    }
 
 
-    # Show result code
-    ShowResult()
-      {
+    # Show result code (to be removed)
+    ShowResult() {
         case $1 in
         OK)
             echo "[ ${OK}OK${NORMAL} ]"
@@ -1976,18 +1915,18 @@
             #Report "warning=$2"
         ;;
         esac
-      }
+    }
 
 
     ################################################################################
     # Name        : ShowComplianceFinding()
     # Description : Display a section of a compliance standard which is not fulfilled
-    # Parameters  : <misc>
-    # Returns     : Nothing
+    #
+    # Input       : <several parameters, see test>
+    # Returns     : <nothing>
     ################################################################################
 
-    ShowComplianceFinding()
-      {
+    ShowComplianceFinding() {
         REASON=""
         STANDARD_NAME=""
         STANDARD_VERSION=""
@@ -2062,18 +2001,18 @@
             DisplayManual "  - Configuration:  ${RED}${ACTUAL_VALUE}${NORMAL} / ${EXPECTED_VALUE}"
             DisplayManual ""
         fi
-      }
+    }
 
 
     ################################################################################
     # Name        : ShowSymlinkPath()
     # Description : Check if we can find the path behind a symlink
-    # Parameters  : $1 = file
-    # Returns     : FOUNDPATH (0 not found, 1 found path)
+    #
+    # Input       : $1 = file (string)
+    # Returns     : FOUNDPATH (0 not found, 1 found path), SYMLINK (new path)
     ################################################################################
 
-    ShowSymlinkPath()
-      {
+    ShowSymlinkPath() {
         sFILE=$1
         FOUNDPATH=0
         SYMLINK_USE_PYTHON=0
@@ -2174,18 +2113,20 @@
           else
             SYMLINK=""
         fi
-      }
+    }
 
 
     ################################################################################
-    # Name        : SkipAtomicTest
+    # Name        : SkipAtomicTest()
     # Description : Test if an atomic test should be skipped
-    # Returns     : 0 (True) or 1 (False)
-    # Usage       : if SkipAtomicTest "SSH-7408:permitrootlogin"; then echo "Skip this atomic test"; fi
+    #
+    # Input       : String (particular test)
+    # Returns     : 0 (skip test) or 1 (do not skip test)
+    # Usage       : if SkipAtomicTest "ssh-7408:port"; then echo "Skip this atomic test"; fi
     ################################################################################
 
     SkipAtomicTest() {
-        RETVAL=255
+        local RETVAL=255
         if [ $# -eq 1 ]; then
             local STRING=""
             RETVAL=1
@@ -2194,20 +2135,23 @@
                 STRING=`echo $1 | tr '[:upper:]' '[:lower:]'`
                 if [ "${I}" = "${STRING}" ]; then RETVAL=0; LogText "Atomic test ($1) skipped by configuration (skip-test)"; fi
             done
+          else
+            ReportException "SkipAtomicTest()" "Function called without right number of arguments (1)"
         fi
         return $RETVAL
     }
 
 
     ################################################################################
-    # Name        : TestValue
+    # Name        : TestValue()
     # Description : Test if a value is good/bad (e.g. according to best practices)
+    #
+    # Input       : --function <value> --value <value> --search <value>
     # Returns     : 0 (True) or 1 (False)
     # Usage       : if TestValue --function contains --value "Full Text" --search "Text"; then echo "Found!"; fi
     ################################################################################
 
-    TestValue()
-      {
+    TestValue() {
         local FIND=""
         local VALUE=""
         local RESULT=""
@@ -2255,10 +2199,19 @@
           else
             echo "ERROR: No result returned from function (TestValue). Incorrect usage?"; exit 1
         fi
-      }
+    }
 
-    ViewCategories()
-      {
+
+    ################################################################################
+    # Name        : ViewCategories()
+    # Description : Show all available categories
+    #
+    # Input       : <nothing>
+    # Returns     : <nothing>
+    # Usage       : ViewCategories
+    ################################################################################
+
+    ViewCategories() {
         if [ ! "${INCLUDEDIR}" = "" ]; then
             InsertSection "Available test categories"
             for I in `ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"`; do
@@ -2267,21 +2220,216 @@
         fi
         echo ""
         exit 0
-      }
-
-    # Wait for [ENTER] or manually break (deprecated, will be removed later)
-    wait_for_keypress() {
-        if IsDeveloperMode; then Debug "Warning: old wait_for_keypress function is used"; fi
-        WaitForKeypress
     }
 
-    # Wait for [ENTER] or manually break
-    WaitForKeypress() {
-        if [ ! ${QUICKMODE} -eq 1 ]; then
+
+    ################################################################################
+    # Name        : WaitForKeyPress()
+    # Description : Wait for the user to press [ENTER], unless quickmode is set
+    #
+    # Input       : <nothing>
+    # Returns     : <nothing>
+    # Usage       : WaitForKeyPress
+    ################################################################################
+
+    WaitForKeyPress() {
+        if [ ${QUICKMODE} -eq 0 ]; then
           echo ""; echo "[ Press [ENTER] to continue, or [CTRL]+C to stop ]"
           read void
         fi
     }
+
+
+    ################################################################################
+    # Name        : TestCase_Equal()
+    # Description : Test case for checking if value whether value is equal to value
+    # Returns     : (0 - SUCCESS; 1 - MEDIUM-VALUED; 2 - FAIL)
+    ################################################################################
+
+    TestCase_Equal() {
+        local RETVAL=2
+
+        if [ "$#" -lt "2" ]; then
+            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
+        else
+            LogText "${FUNCNAME}: checking value for application ${APP}"
+            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
+
+
+            LogText "${FUNCNAME}: check if ${1} is equal to ${2}"
+
+            if [ "$1" == "$2" ]; then
+              LogText "${FUNCNAME}: ${1} is equal to ${2}"
+              RETVAL=0
+            fi
+
+            if ! [ -z ${3+x} ]; then
+                LogText "${FUNCNAME}: ${1} is equal to ${3}"
+                if [ "$2" == "$3" ]; then
+                    LogText "${FUNCNAME}: ${OPTION} is equal to ${3}"
+                    RETVAL=1
+                fi
+            fi
+        fi
+        return ${RETVAL}
+    }
+
+    ################################################################################
+    # Name        : TestCase_ValueNotEqual()
+    # Description : Test case for checking if value is not equal to something
+    # Returns     : (0 - SUCCESS;  1 - FAIL)
+    ################################################################################
+    TestCase_NotEqual() {
+        local RETVAL=1
+        if [ "$#" -ne "2" ]; then
+            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
+          else
+            LogText "${FUNCNAME}: checking value for application ${APP}"
+            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
+
+            if [ "$1" != "$2" ]; then
+                LogText "${FUNCNAME}: ${1} is not equal to ${2}"
+                RETVAL=0
+              else
+                LogText "${FUNCNAME}: ${1} is equal to ${2}"
+            fi
+        fi
+        return ${RETVAL}
+    }
+
+
+    ################################################################################
+    # Name        : TestCase_GreaterThan()
+    # Description : Test case for checking if value is greater than something
+    # Returns     : (0 - SUCCESS;  1 - FAIL)
+    ################################################################################
+    TestCase_GreaterThan() {
+        local RETVAL=1
+        if [ "$#" -ne "2" ]; then
+            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
+          else
+            LogText "${FUNCNAME}: checking value for application ${APP}"
+            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
+            LogText "${FUNCNAME}: checking if ${1} is greater than ${2}"
+            if [ "$1" > "$2" ]; then
+                LogText "${FUNCNAME}: ${1} is greater than ${2}"
+                RETVAL=0
+              else
+                LogText "${FUNCNAME}: ${1} is not greater than ${2}"
+            fi
+        fi
+        return ${RETVAL}
+    }
+
+
+    ################################################################################
+    # Name        : TestCase_GreaterOrEqual()
+    # Description : Test case for checking if value is greater than something
+    # Returns     : (0 - SUCCESS;  1 - FAIL)
+    ################################################################################
+
+    TestCase_GreaterOrEqual() {
+        local RETVAL=1
+        if [ "$#" -ne "2" ]; then
+            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
+        else
+            LogText "${FUNCNAME}: checking value for application ${APP}"
+            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
+
+            LogText "${FUNCNAME}: checking if ${1} is greater or equal ${2}"
+            if [ TestCase_Equal "${1}" "${2}"  ] || [ TestCase_GreaterThan "${1}" "${2}" ]; then
+              RETVAL=0
+            fi
+        fi
+        return ${RETVAL}
+    }
+
+
+    ################################################################################
+    # Name        : TestCase_LessThan()
+    # Description : Test case for checking if value is greater than something
+    # Returns     : (0 - SUCCESS;  1 - FAIL)
+    ################################################################################
+
+    TestCase_LessThan() {
+        local RETVAL=1
+        if [ "$#" -ne "2" ]; then
+            ReportException "${TEST_NO}" "Error in function call to TestCase_GreaterOrEqual"
+        else
+            LogText "${FUNCNAME}: checking value for application ${APP}"
+            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
+
+            LogText "${FUNCNAME}: checking if ${1} is less than ${2}"
+            if ! [ TestCase_GreaterOrEqual "${1}" "${2}"  ]; then
+              LogText "${FUNCNAME}:  ${1} is less than ${2}"
+              RETVAL=0
+            fi
+        fi
+        return ${RETVAL}
+    }
+
+
+    ################################################################################
+    # Name        : TestCase_LessOrEqual()
+    # Description : Test case for checking if value is less or equal something
+    # Returns     : (0 - SUCCESS;  1 - FAIL)
+    ################################################################################
+
+    TestCase_LessOrEqual() {
+        local RETVAL=1
+        if [ "$#" -ne "2" ]; then
+            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
+        else
+            LogText "${FUNCNAME}: checking value for application ${APP}"
+            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
+
+            LogText "${FUNCNAME}: checking if ${1} is less or equal ${2}"
+            if [ TestCase_Equal "${1}" "${2}" ] || [ TestCase_LessThan "${1}" "${2}" ]; then
+              LogText "${FUNCNAME}:  ${1} is less than ${2}"
+              RETVAL=0
+            fi
+        fi
+        return ${RETVAL}
+    }
+
+
+
+
+    ################################################################################
+    #
+    # Legacy functions - Do not use!
+    #
+    ################################################################################
+    # For compatibility reasons they are listed here, but will be phased out in
+    # steps. If they still get used, they will trigger an alert when using the
+    # developer mode. In a later phase they will trigger errors on screen.
+    ################################################################################
+
+    counttests() {
+        if IsDeveloperMode; then Debug "Warning: old counttests function is used. Please replace any reference with CountTests."; fi
+        CountTests
+    }
+
+    logtext() {
+        if IsDeveloperMode; then Debug "Warning: old logtext function is used. Please replace any reference with LogText."; fi
+        LogText "$1"
+    }
+
+    logtextbreak() {
+        if IsDeveloperMode; then Debug "Warning: old logtextbreak function is used. Please replace any reference with LogTextBreak."; fi
+        LogTextBreak "$1"
+    }
+
+    report() {
+        if IsDeveloperMode; then Debug "Warning: old report function is used. Please replace any reference with Report."; fi
+        Report "$1"
+    }
+
+    wait_for_keypress() {
+        if IsDeveloperMode; then Debug "Warning: old wait_for_keypress function is used. Please replace any reference with WaitForKeyPress."; fi
+        WaitForKeyPress
+    }
+
 
 
 #================================================================================

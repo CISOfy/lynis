@@ -1,0 +1,305 @@
+#!/bin/sh
+
+#########################################################################
+#
+# This component is part of Lynis Enterprise. No parts may be copied,
+# distributed or used without written permission of CISOfy. Users who
+# have an active license are permitted to use this component as part
+# of the service. This software component may only be used in combination
+# with Lynis and Lynis Enterprise.
+#
+# Copyright 2016, CISOfy - https://cisofy.com
+#
+#########################################################################
+#
+#    * DO NOT REMOVE *
+#-----------------------------------------------------
+# PLUGIN_AUTHOR=Michael Boelen <michael.boelen@cisofy.com>
+# PLUGIN_CATEGORY=essentials
+# PLUGIN_DATE=2016-04-28
+# PLUGIN_DESC=Tests related to systemd tooling
+# PLUGIN_NAME=systemd
+# PLUGIN_PACKAGE=community
+# PLUGIN_REQUIRED_TESTS=
+# PLUGIN_VERSION=1.0.1
+#-----------------------------------------------------
+#
+#########################################################################
+#
+    SYSTEMD_COREDUMP_USED=0
+    SYSTEMD_FSS_FILE=""
+    SYSTEMD_MACHINEID=""
+    SYSTEMD_RUNNING=0
+    SYSTEMD_VERSION=0
+#
+#########################################################################
+#
+    # Test        : PLGN-3800
+    # Description : Gather systemctl exit code
+    if [ ! "${SYSTEMCTLBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3800 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather systemctl exit code" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${SYSTEMCTLBINARY} > /dev/null`
+        if [ $? -gt 0 ]; then
+            Report "systemctl_error_message=${FIND}"
+          else
+            SYSTEMD_RUNNING=1
+        fi
+        Report "systemctl_exit_code=$?"
+    fi
+#
+#########################################################################
+#
+    # Test        : PLGN-3802
+    # Description : Query systemd version and options
+    # Notes       : version can also be gathered with systemctl show | grep ^Version=
+    #               features with systemctl show | grep ^Features=
+    if [ ! "${SYSTEMCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3802 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query systemd version and options" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${SYSTEMCTLBINARY} --version 2> /dev/null | ${AWKBINARY} '{ if ($1=="systemd") { print $2 } }' | grep "^[1-9][0-9][0-9]$" | head -1`
+        if [ ! "${FIND}" = "" ]; then
+            SYSTEMD_VERSION=${FIND}
+            Report "systemd_version=${FIND}"
+            LogText "Result: found systemd version ${FIND}"
+        fi
+        FIND=`${SYSTEMCTLBINARY} --version 2> /dev/null | grep "^[-+]" | sed 's/[[:space:]]/,/g' | head -1`
+        if [ ! "${FIND}" = "" ]; then
+            Report "systemd_builtin_components=${FIND}"
+            LogText "Result: found builtin components list"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3804
+    # Description : Gather all systemd unit files
+    if [ ! "${SYSTEMCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3804 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather systemd unit files and their status" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${SYSTEMCTLBINARY} --no-legend list-unit-files 2> /dev/null | ${AWKBINARY} '{ print $1"|"$2"|" }'`
+        if [ ! "${FIND}" = "" ]; then
+            LogText "Result: found systemd unit files via systemctl list-unit-files"
+            for I in ${FIND}; do
+                LogText "Output: ${I}"
+                Report "systemd_unit_file[]=${I}"
+            done
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3806
+    # Description : Gather all failed systemd units
+    if [ ! "${SYSTEMCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3806 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather failed systemd units" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${SYSTEMCTLBINARY} --no-legend --state=failed 2> /dev/null | ${AWKBINARY} '{ if ($4=="failed" && $5=="failed") { print $2 } }'`
+        if [ ! "${FIND}" = "" ]; then
+            LogText "Result: found systemd unit files via systemctl list-unit-files"
+            for I in ${FIND}; do
+                LogText "Output: ${I}"
+                Report "systemd_unit_file[]=${I}"
+            done
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3808
+    # Description : Gather machine ID
+    if [ -f /etc/machine-id -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3808 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather systemd machine ID" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`cat /etc/machine-id | head -1`
+        if [ ! "${FIND}" = "" ]; then
+            SYSTEMD_MACHINEID="${FIND}"
+            LogText "Result: found machine ID: ${SYSTEMD_MACHINEID}"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3810
+    # Description : Query main systemd binaries
+    if [ ! "${FINDBINARY}" = "" -a -d /usr/lib/systemd -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3810 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query main systemd binaries" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`find /usr/lib/systemd -maxdepth 1 -type f -name "systemd-*" -printf "%f|"`
+        if [ ! "${FIND}" = "" ]; then
+            Report "systemd_binaries=${FIND}"
+            LogText "Result: found systemd binaries in /usr/lib/systemd"
+          else
+            LogText "Result: no binaries found in /usr/lib/systemd"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3812
+    # Description : Query journal for boot related information
+    if [ ! "${JOURNALCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 -a ${SYSTEMD_VERSION} -ge 209 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3812 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query journal for boot related information" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${JOURNALCTLBINARY} --list-boots | wc -l`
+        LogText "Output: number of boots listed in journal is ${FIND}"
+        if [ ! "${FIND}" = "" ]; then Report "journal_bootlogs=${FIND}"; fi
+        FIND=`${JOURNALCTLBINARY} --list-boots | head -1 | awk '{ print $4 }'`
+        LogText "Output: oldest boot date in journal is ${FIND}"
+        if [ ! "${FIND}" = "" ]; then Report "journal_oldest_bootdate=${FIND}"; fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3814
+    # Description : Journal integrity
+    if [ ! "${JOURNALCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3814 --preqs-met ${PREQS_MET} --weight L --network NO --description "Verify journal integrity" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${JOURNALCTLBINARY} --verify 2>&1 | grep FAIL | sed 's/[[:space:]]/:space:/g'`
+        if [ ! "${FIND}" = "" ]; then
+            Report "journal_contains_errors=1"
+            for I in ${FIND}; do
+                LINE=`echo ${I} | sed 's/:space:/ /g'`
+                LogText "Output (fails): ${LINE}"
+            done
+          else
+            Report "journal_contains_errors=0"
+            LogText "Result: systemd journal has no errors"
+       fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3816
+    # Description : Journal sizing
+    if [ ! "${JOURNALCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3816 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query journal for boot related information" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${JOURNALCTLBINARY} --disk-usage | awk '{ if ($1=="Journals") { print $4 }}'`
+        Report "journal_disk_size=${FIND}"
+        LogText "Result: journals are ${FIND} in size"
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3818
+    # Description : Journal meta data
+    if [ ! "${JOURNALCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3818 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query journal meta data" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${JOURNALCTLBINARY} --header | sed 's/^$/|/g' | tr '\n' ',' | sed 's/[[:space:]]//g'`
+        Report "journal_meta_data=${FIND}"
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3820
+    # Description : Journal FSS (Forward Secure Sealing) configuration
+    if [ ! "${JOURNALCTLBINARY}" = "" -a ! "${SYSTEMD_MACHINEID}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3820 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for journal FSS configuration" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FILE="/var/log/journal/${SYSTEMD_MACHINEID}/fss"
+        if [ -f ${FILE} ]; then
+            SYSTEMD_FSS_FILE="${FILE}"
+            Report "journal_fss=1"
+            Report "journal_fss_file=${SYSTEMD_FSS_FILE}"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3830
+    # Description : Query systemd status
+    if [ ! "${SYSTEMCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 -a ${SYSTEMD_VERSION} -ge 215 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3830 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query systemd status" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${SYSTEMCTLBINARY} is-system-running 2> /dev/null | head -1`
+        if [ ! "${FIND}" = "" ]; then
+            Report "systemd_status=${FIND}"
+            LogText "Result: found systemd status = ${FIND}"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3832
+    # Description : Query processes which can not be found
+    if [ ! "${SYSTEMCTLBINARY}" = "" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3832 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query systemd status for processes which can not be found" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${SYSTEMCTLBINARY} --no-legend --all --state=not-found 2> /dev/null | awk '{ print $1 }'`
+        if [ ! "${FIND}" = "" ]; then
+            for I in ${FIND}; do
+                Report "systemd_unit_not_found[]=${I}"
+            done
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3834
+    # Description : Gather units from systemd which can not be found
+    if [ ! "${SYSTEMCTLBINARY}" = "" -a ! "${AWKBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3834 --preqs-met ${PREQS_MET} --weight L --network NO --description "Collect service units which can not be found in systemd" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${SYSTEMCTLBINARY} list-units -t service --all | ${AWKBINARY} '{ if ($3=="not-found") { print $2 }}'`
+        if [ ! "${FIND}" = "" ]; then
+            LogText "Result: found one or more services with faulty state"
+            for I in ${FIND}; do
+                LogText "Result: service seems to be faulty (not-found) ${I}"
+                Report "systemd_service_not_found[]=$I"
+            done
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3856
+    # Description : Check if systemd-coredump is used
+    if [ -f /proc/sys/kernel/core_pattern -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3856 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query coredumps from journals since Yesterday" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        SYSTEMD_COREDUMP_USED=1
+        FIND=`cat /proc/sys/kernel/core_pattern | grep systemd-coredump`
+        if [ ! "${FIND}" = "" ]; then
+            LogText "Result: systemd uses systemd-coredump to handle coredumps"
+            Report "systemd_coredump_used=1"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PLGN-3858
+    # Description : Check if coredumps are placed on disk or in the journal
+    # Notes       : systemd 215+
+#
+#################################################################################
+#
+    # Test        : PLGN-3860
+    # Description : Query coredumps from journalctl since Yesterday
+    if [ ! "${JOURNALCTLBINARY}" = "" -a ${SYSTEMD_COREDUMP_USED} -eq 1 -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PLGN-3860 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query coredumps from journals since Yesterday" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=`${JOURNALCTLBINARY} SYSLOG_IDENTIFIER=systemd-coredump --since=yesterday -o cat 2> /dev/null`
+        if [ ! "${FIND}" = "" ]; then
+            Report "journal_coredumps_lastday=1"
+            LogText "Result: found recent coredumps"
+          else
+            Report "journal_coredumps_lastday=0"
+            LogText "Result: found no coredumps"
+        fi
+    fi
+#
+#################################################################################
+#
+
+# coredumpctl info (systemd 215+)
+# coredumpctl -1 (systemd 215+)
+# systemd-timesyncd (systemd 213+)
+# systemctl list-machines (systemd 212+)
+# systemd-journal-remote (systemd 212+)
+# systemctl list-timers (systemd 209+)
+# systemctl cat (systemd 209+)
+
+#EOF

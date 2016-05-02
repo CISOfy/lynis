@@ -862,23 +862,20 @@ ${NORMAL}
 
         # Include available tests
         for INCLUDE_TEST in ${INCLUDE_TESTS}; do
-
-            # Test if file exists, then if permissions are correct
-            if [ -f ${INCLUDEDIR}/tests_${INCLUDE_TEST} ]; then
-                    FIND=`ls -l ${INCLUDEDIR}/tests_${INCLUDE_TEST} | cut -c 2-10`
-                    if [ "${FIND}" = "rw-r--r--" -o "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-------" -o "${FIND}" = "r--------" ]; then
-                        . ${INCLUDEDIR}/tests_${INCLUDE_TEST}
-                      else
-                        LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDEDIR}/tests_${INCLUDE_TEST} has bad permissions (should be 640, 600 or 400)"
-                        ReportWarning "NONE" "H" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
-                        # Insert a section and warn user also on screen
-                        InsertSection "General"
-                        Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "SKIPPED" --color RED
-                    fi
+            INCLUDE_FILE="${INCLUDEDIR}/tests_${INCLUDE_TEST}"
+            if [ -f ${INCLUDE_FILE} ]; then
+                if SafePerms ${INCLUDE_FILE}; then
+                    . ${INCLUDE_FILE}
                   else
-                    echo "Error: Can't find file (category: ${INCLUDE_TEST})"
+                    LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 640, 600 or 400)"
+                    ReportWarning "NONE" "H" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
+                    # Insert a section and warn user also on screen
+                    InsertSection "General"
+                    Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "SKIPPED" --color RED
+                fi
+              else
+                echo "Error: Can't find file (category: ${INCLUDE_TEST})"
             fi
-
         done
     fi
 #

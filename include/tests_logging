@@ -475,13 +475,17 @@
     Register --test-no LOGG-2190 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking deleted files in file table"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking deleted files that are still in use"
-
-        if [ -e /dev/grsec ]; then
+        
+	LSOF_GREP="WARNING|Output information"
+        if [ "${GRSECFOUND}" -ne 0 ]; then
             # grsecurity causes Fail2Ban to hold onto deleted in-use files in /var/tmp
-            FIND=`${LSOFBINARY} -n +L 1 2>&1 | egrep -v "WARNING|Output information|fail2ban" | awk '{ if ($5=="REG") { print $10 } }' | grep -v "^$" | sort -u`
-        else
-            FIND=`${LSOFBINARY} -n +L 1 2>&1 | egrep -v "WARNING|Output information" | awk '{ if ($5=="REG") { print $10 } }' | grep -v "^$" | sort -u`
+	    LSOF_GREP="${LSOF_GREP}|fail2ban"
         fi
+        if [ "${OS_NAME}" = "CentOS" -o "${OS_NAME}" = "Red Hat Enterprise Linux"  ]; then
+            # If lynis is run from /etc/cron.daily some deleted in-use files are kept in /tmp
+	    LSOF_GREP="${LSOF_GREP}|anacron|awk|run-parts"
+        fi
+	FIND=`${LSOFBINARY} -n +L 1 2>&1 | egrep -vw "${LSOF_GREP}" | awk '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | grep -v "^$" | sort -u`
 
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found one or more files which are deleted, but still in use"
@@ -503,7 +507,7 @@
 Report "log_rotation_config_found=${LOGROTATE_CONFIG_FOUND}"
 Report "log_rotation_tool=${LOGROTATE_TOOL}"
 
-WaitForKeyPress
+WaitForKeypress
 
 #
 #================================================================================

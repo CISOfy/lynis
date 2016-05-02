@@ -26,6 +26,7 @@
     SSH_DAEMON_CONFIG=""
     SSH_DAEMON_PORT=""
     SSH_DAEMON_RUNNING=0
+    SSH_DAEMON_OPTIONS_FILE=""
 #
 #################################################################################
 #
@@ -42,6 +43,10 @@
         if [ ${RUNNING} -eq 1 ] || PortIsListening "TCP" 22; then
             SSH_DAEMON_RUNNING=1
             Display --indent 2 --text "- Checking running SSH daemon" --result FOUND --color GREEN
+            # Store settings in a temporary file
+            CreateTempFile
+            SSH_DAEMON_OPTIONS_FILE="${TEMP_FILE}"
+            ${SSHDBINARY} -T 2> /dev/null > ${SSH_DAEMON_OPTIONS_FILE}
           else
             Display --indent 2 --text "- Checking running SSH daemon" --result "NOT FOUND" --color WHITE
         fi
@@ -87,16 +92,10 @@
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
     # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
-
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
-
-        CreateTempFile
-        SSH_OPTIONS_FILE="${TEMP_FILE}"
-        ${SSHDBINARY} -T > ${SSH_OPTIONS_FILE}
-
-        LogText "Test: Checking specific defined options in ${SSH_OPTIONS_FILE}"
+        LogText "Test: Checking specific defined options in ${SSH_DAEMON_OPTIONS_FILE}"
         ## SSHOPTIONS scheme:
         ##      <OptionName>:<ExpectedValue>,<MediumScoreValue>,<WeakValue>:<TestType>
         ##
@@ -147,8 +146,8 @@
             if ! SkipAtomicTest "${TEST_NO}:${OPTIONNAME_LOWER}"; then
 
                 # Get value and use the last occurrence
-                FOUNDVALUE=`awk -v OPT="${OPTIONNAME_LOWER}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_OPTIONS_FILE} | tail -1`
-                LogText "Test: Checking ${OPTIONNAME} in ${SSH_OPTIONS_FILE}"
+                FOUNDVALUE=`awk -v OPT="${OPTIONNAME_LOWER}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_OPTIONS_FILE} | tail -1`
+                LogText "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_OPTIONS_FILE}"
 
                 if [ ! "${FOUNDVALUE}" = "" ]; then
                     LogText "Result: Option ${OPTIONNAME} found"
@@ -236,12 +235,12 @@
     # Test        : SSH-7440
     # Description : AllowUsers / AllowGroups
     # Goal        : Check if only a specific amount of users/groups can log in to the system
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: AllowUsers and AllowGroups"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # AllowUsers
-        FIND=`egrep "^AllowUsers" ${SSH_DAEMON_CONFIG} | awk '{ print $2 }'`
+        FIND=`egrep -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | awk '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: AllowUsers set, with value ${FIND}"
             Display --indent 4 --text "- SSH option: AllowUsers" --result FOUND --color GREEN
@@ -252,7 +251,7 @@
         fi
 
         # AllowGroups
-        FIND=`egrep "^AllowGroups" ${SSH_DAEMON_CONFIG} | awk '{ print $2 }'`
+        FIND=`egrep -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | awk '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: AllowUsers set ${FIND}"
             Display --indent 4 --text "- SSH option: AllowGroups" --result FOUND --color GREEN

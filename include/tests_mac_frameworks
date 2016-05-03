@@ -19,7 +19,6 @@
 #################################################################################
 #
     APPARMORFOUND=0                     # Set default for test MACF-6208
-    GRSECFOUND=0                        # grsecurity
     MAC_FRAMEWORK_ACTIVE=0              # Default no MAC framework active
     RBAC_FRAMEWORK_ACTIVE=0             # Default no RBAC framework active
     SELINUXFOUND=0
@@ -137,28 +136,20 @@
 #
     # Test        : RBAC-6272
     # Description : Check if grsecurity is installed
-    # Notes       : Solaris doesn't support test -e
-    if [ ! "${OS}" = "Solaris" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no RBAC-6272 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check grsecurity presence"
+    # Notes       : We already checked grsecurity in osdetection
+    Register --test-no RBAC-6272 --weight L --network NO --description "Check grsecurity presence"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -e /dev/grsec ]; then
-            GRSECFOUND=1
-            LogText "Result: grsecurity available (/dev/grsec found)"
-           else
-            LogText "Result: grsecurity not present (/dev/grsec not found)"
-        fi
         # Check Linux kernel configuration
         if [ ! "${LINUXCONFIGFILE}" = "" -a -f "${LINUXCONFIGFILE}" ]; then
             FIND=`${GREPBINARY} ^CONFIG_GRKERNSEC=y ${LINUXCONFIGFILE}`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: grsecurity available (in kernel config)"
-                GRSECFOUND=1
+                GRSEC_FOUND=1
               else
                 LogText "Result: no grsecurity found in kernel config"
             fi
         fi
-        # Found grsecurity?
-        if [ ${GRSECFOUND} -eq 1 ]; then
+        if [ ${GRSEC_FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking presence grsecurity" --result FOUND --color GREEN
             AddHP 3 3
           else
@@ -186,7 +177,7 @@
 #################################################################################
 #
 
-Report "framework_grsecurity=${GRSECFOUND}"
+Report "framework_grsecurity=${GRSEC_FOUND}"
 Report "framework_selinux=${SELINUXFOUND}"
 
 WaitForKeyPress

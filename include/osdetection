@@ -22,18 +22,17 @@
 #
 #################################################################################
 #
-
     # Check operating system
-    case `uname` in
+    case $(uname) in
 
         # IBM AIX
         AIX)
           OS="AIX"
           OS_NAME="AIX"
-          OS_VERSION=`oslevel`
+          OS_VERSION=$(oslevel)
           OS_FULLNAME="AIX ${OS_VERSION}"
-          CPU=`uname -p`
-          HARDWARE=`uname -M`
+          CPU=$(uname -p)
+          HARDWARE=$(uname -M)
           FIND_BINARIES="whereis -b"
           SYSCTL_READKEY=""
         ;;
@@ -42,19 +41,19 @@
         Darwin)
           OS="MacOS"
           if [ -x /usr/bin/sw_vers ]; then
-              OS_NAME=`/usr/bin/sw_vers -productName`
-              OS_VERSION=`/usr/bin/sw_vers -productVersion`
+              OS_NAME=$(/usr/bin/sw_vers -productName)
+              OS_VERSION=$(/usr/bin/sw_vers -productVersion)
               OS_FULLNAME="${OS_NAME} ${OS_VERSION}"
             else
               # Fall back to pretty safe name
               OS_NAME="Mac OS X"
-              OS_FULLNAME=`uname -s -r`
-              OS_VERSION=`uname -r`
+              OS_FULLNAME=$(uname -s -r)
+              OS_VERSION=$(uname -r)
           fi
-          HARDWARE=`uname -m`
+          HARDWARE=$(uname -m)
           HOMEDIRS="/Users"
           FIND_BINARIES="whereis"
-          OS_KERNELVERSION=`uname -r`
+          OS_KERNELVERSION=$(uname -r)
           SYSCTL_READKEY=""
         ;;
 
@@ -62,12 +61,12 @@
         DragonFly)
           OS="DragonFly"
           OS_NAME="DragonFly BSD"
-          OS_FULLNAME=`uname -s -r`
-          OS_VERSION=`uname -r`
-          HARDWARE=`uname -m`
+          OS_FULLNAME=$(uname -s -r)
+          OS_VERSION=$(uname -r)
+          HARDWARE=$(uname -m)
           HOMEDIRS="/home /root"
           FIND_BINARIES="whereis -q -a -b"
-          OS_KERNELVERSION=`uname -i`
+          OS_KERNELVERSION=$(uname -i)
           SYSCTL_READKEY="sysctl -n"
         ;;
 
@@ -75,12 +74,12 @@
         FreeBSD)
           OS="FreeBSD"
           OS_NAME="FreeBSD"
-          OS_FULLNAME=`uname -s -r`
-          OS_VERSION=`uname -r`
-          HARDWARE=`uname -m`
+          OS_FULLNAME=$(uname -s -r)
+          OS_VERSION=$(uname -r)
+          HARDWARE=$(uname -m)
           HOMEDIRS="/home /root"
           FIND_BINARIES="whereis -q -a -b"
-          OS_KERNELVERSION=`uname -i`
+          OS_KERNELVERSION=$(uname -i)
           SYSCTL_READKEY="sysctl -n"
 
           # TrueOS
@@ -94,9 +93,9 @@
         HP-UX)
           OS="HP-UX"
           OS_NAME="HP-UX"
-          OS_FULLNAME=`uname -s -r`
-          OS_VERSION=`uname -r`
-          HARDWARE=`uname -m`
+          OS_FULLNAME=$(uname -s -r)
+          OS_VERSION=$(uname -r)
+          HARDWARE=$(uname -m)
           FIND_BINARIES="whereis -b"
           SYSCTL_READKEY=""
         ;;
@@ -106,22 +105,22 @@
           OS="Linux"
           OS_NAME="Linux"
           OS_FULLNAME=""
-          OS_VERSION=`uname -r`
+          OS_VERSION=$(uname -r)
           LINUX_VERSION=""
-          HARDWARE=`uname -m`
+          HARDWARE=$(uname -m)
           HOMEDIRS="/home"
           FIND_BINARIES="whereis -b"
-          OS_KERNELVERSION_FULL=`uname -r`
-          OS_KERNELVERSION=`echo ${OS_KERNELVERSION_FULL} | sed 's/-.*//'`
+          OS_KERNELVERSION_FULL=$(uname -r)
+          OS_KERNELVERSION=$(echo ${OS_KERNELVERSION_FULL} | sed 's/-.*//')
           if [ -e /dev/grsec ]; then GRSEC_FOUND=1; fi
 
           # Amazon
           if [ -e "/etc/system-release" ]; then
-              FIND=`grep "Amazon" /etc/system-release`
+              FIND=$(grep "Amazon" /etc/system-release)
               if [ ! "${FIND}" = "" ]; then
                   OS_REDHAT_OR_CLONE=1
-                  OS_FULLNAME=`grep "^Amazon" /etc/system-release`
-                  OS_VERSION=`grep "^Amazon" /etc/system-release | awk '{ if ($4=="release") { print $5 } }'`
+                  OS_FULLNAME=$(grep "^Amazon" /etc/system-release)
+                  OS_VERSION=$(grep "^Amazon" /etc/system-release | awk '{ if ($4=="release") { print $5 } }')
                   LINUX_VERSION="Amazon"
               fi
           fi
@@ -135,123 +134,123 @@
 
           # Chakra Linux
           if [ -e "/etc/chakra-release" ]; then
-            OS_FULLNAME=`grep "^Chakra" /etc/chakra-release`
-            OS_VERSION=`awk '/^Chakra/ { if ($3=="release") { print $4 }}' /etc/chakra-release`
+            OS_FULLNAME=$(grep "^Chakra" /etc/chakra-release)
+            OS_VERSION=$(awk '/^Chakra/ { if ($3=="release") { print $4 }}' /etc/chakra-release)
             LINUX_VERSION="Chakra Linux"
           fi
 
           # Cobalt
-          if [ -e "/etc/cobalt-release" ]; then OS_FULLNAME=`cat /etc/cobalt-release`; fi
+          if [ -e "/etc/cobalt-release" ]; then OS_FULLNAME=$(cat /etc/cobalt-release); fi
           # CPUBuilders Linux
-          if [ -e "/etc/cpub-release" ]; then OS_FULLNAME=`cat /etc/cpub-release`; fi
+          if [ -e "/etc/cpub-release" ]; then OS_FULLNAME=$(cat /etc/cpub-release); fi
 
           # Debian/Ubuntu (***) - Set first to Debian
           if [ -e "/etc/debian_version" ]; then
-              OS_VERSION=`cat /etc/debian_version`
+              OS_VERSION=$(cat /etc/debian_version)
               OS_FULLNAME="Debian ${OS_VERSION}"
               LINUX_VERSION="Debian"
           fi
           # /etc/lsb-release does not exist on Debian
           if [ -e "/etc/debian_version" -a -e /etc/lsb-release ]; then
-                OS_VERSION=`cat /etc/debian_version`
-                FIND=`grep "^DISTRIB_ID=" /etc/lsb-release | cut -d '=' -f2 | sed 's/"//g'`
+                OS_VERSION=$(cat /etc/debian_version)
+                FIND=$(grep "^DISTRIB_ID=" /etc/lsb-release | cut -d '=' -f2 | sed 's/"//g')
                 if [ "${FIND}" = "Ubuntu" ]; then
-                    OS_VERSION=`grep "^DISTRIB_RELEASE=" /etc/lsb-release | cut -d '=' -f2`
+                    OS_VERSION=$(grep "^DISTRIB_RELEASE=" /etc/lsb-release | cut -d '=' -f2)
                     OS_FULLNAME="Ubuntu ${OS_VERSION}"
                     LINUX_VERSION="Ubuntu"
                   elif [ "${FIND}" = "elementary OS" ]; then
                     LINUX_VERSION="elementary OS"
-                    OS_VERSION=`grep "^DISTRIB_RELEASE=" /etc/lsb-release | cut -d '=' -f2`
-                    OS_FULLNAME=`grep "^DISTRIB_DESCRIPTION=" /etc/lsb-release | cut -d '=' -f2 | sed 's/"//g'`
+                    OS_VERSION=$(grep "^DISTRIB_RELEASE=" /etc/lsb-release | cut -d '=' -f2)
+                    OS_FULLNAME=$(grep "^DISTRIB_DESCRIPTION=" /etc/lsb-release | cut -d '=' -f2 | sed 's/"//g')
                   else
                     # Catch all, in case it's unclear what specific release this is.
                     OS_FULLNAME="Debian ${OS_VERSION}"
                     LINUX_VERSION="Debian"
                 fi
-                # Ubuntu test (optional) `grep "[Uu]buntu" /proc/version`
+                # Ubuntu test (optional) $(grep "[Uu]buntu" /proc/version)
           fi
           # E-smith
-          if [ -e "/etc/e-smith-release" ]; then OS_FULLNAME=`cat /etc/e-smith-release`; fi
+          if [ -e "/etc/e-smith-release" ]; then OS_FULLNAME=$(cat /etc/e-smith-release); fi
           # Gentoo
-          if [ -e "/etc/gentoo-release" ]; then LINUX_VERSION="Gentoo"; OS_FULLNAME=`cat /etc/gentoo-release`; fi
+          if [ -e "/etc/gentoo-release" ]; then LINUX_VERSION="Gentoo"; OS_FULLNAME=$(cat /etc/gentoo-release); fi
 
           # Red Hat and others
           if [ -e "/etc/redhat-release" ]; then
                 OS_REDHAT_OR_CLONE=1
 
                 # CentOS
-                FIND=`grep "CentOS" /etc/redhat-release`
+                FIND=$(grep "CentOS" /etc/redhat-release)
                 if [ ! "${FIND}" = "" ]; then
-                    OS_FULLNAME=`grep "CentOS" /etc/redhat-release`
+                    OS_FULLNAME=$(grep "CentOS" /etc/redhat-release)
                     LINUX_VERSION="CentOS"
                     OS_VERSION="${OS_FULLNAME}"
                 fi
 
                 # ClearOS
-                FIND=`grep "ClearOS" /etc/redhat-release`
+                FIND=$(grep "ClearOS" /etc/redhat-release)
                 if [ ! "${FIND}" = "" ]; then
-                    OS_FULLNAME=`grep "ClearOS" /etc/redhat-release`
+                    OS_FULLNAME=$(grep "ClearOS" /etc/redhat-release)
                     LINUX_VERSION="ClearOS"
                     OS_VERSION="${OS_FULLNAME}"
                 fi
 
                 # Fedora
-                FIND=`grep "Fedora" /etc/redhat-release`
+                FIND=$(grep "Fedora" /etc/redhat-release)
                 if [ ! "${FIND}" = "" ]; then
-                    OS_FULLNAME=`grep "Fedora" /etc/redhat-release`
+                    OS_FULLNAME=$(grep "Fedora" /etc/redhat-release)
                     OS_VERSION="${OS_FULLNAME}"
                     LINUX_VERSION="Fedora"
                 fi
 
                 # Mageia (has also /etc/megaia-release)
-                FIND=`grep "Mageia" /etc/redhat-release`
+                FIND=$(grep "Mageia" /etc/redhat-release)
                 if [ ! "${FIND}" = "" ]; then
-                    OS_FULLNAME=`grep "^Mageia" /etc/redhat-release`
-                    OS_VERSION=`grep "^Mageia" /etc/redhat-release | awk '{ if ($2=="release") { print $3 } }'`
+                    OS_FULLNAME=$(grep "^Mageia" /etc/redhat-release)
+                    OS_VERSION=$(grep "^Mageia" /etc/redhat-release | awk '{ if ($2=="release") { print $3 } }')
                     LINUX_VERSION="Mageia"
                 fi
 
                 # Oracle Enterprise Linux
-                FIND=`grep "Enterprise Linux Enterprise Linux Server" /etc/redhat-release`
+                FIND=$(grep "Enterprise Linux Enterprise Linux Server" /etc/redhat-release)
                 if [ ! "${FIND}" = "" ]; then
                     LINUX_VERSION="Oracle Enterprise Linux";
-                    OS_FULLNAME=`grep "Enterprise Linux" /etc/redhat-release`;
+                    OS_FULLNAME=$(grep "Enterprise Linux" /etc/redhat-release);
                     OS_VERSION="${OS_FULLNAME}";
                 fi
 
                 # Oracle Enterprise Linux
                 if [ -e /etc/oracle-release ]; then
-                    FIND=`grep "Oracle Linux Server" /etc/oracle-release`
+                    FIND=$(grep "Oracle Linux Server" /etc/oracle-release)
                     if [ ! "${FIND}" = "" ]; then
                         LINUX_VERSION="Oracle Enterprise Linux";
-                        OS_FULLNAME=`grep "Oracle Linux" /etc/oracle-release`;
+                        OS_FULLNAME=$(grep "Oracle Linux" /etc/oracle-release);
                         OS_VERSION="${OS_FULLNAME}";
                     fi
                 fi
 
                 # Oracle VM Server
                 if [ -e /etc/ovs-release ]; then
-                    FIND=`grep "Oracle VM" /etc/ovs-release`
+                    FIND=$(grep "Oracle VM" /etc/ovs-release)
                     if [ ! "${FIND}" = "" ]; then
                         LINUX_VERSION="Oracle VM Server";
-                        OS_FULLNAME=`grep "Oracle VM" /etc/ovs-release`;
+                        OS_FULLNAME=$(grep "Oracle VM" /etc/ovs-release);
                         OS_VERSION="${OS_FULLNAME}";
                     fi
                 fi
 
                 # Red Hat
-                FIND=`grep "Red Hat" /etc/redhat-release`
+                FIND=$(grep "Red Hat" /etc/redhat-release)
                 if [ ! "${FIND}" = "" ]; then
-                    OS_FULLNAME=`grep "Red Hat" /etc/redhat-release`
+                    OS_FULLNAME=$(grep "Red Hat" /etc/redhat-release)
                     OS_VERSION="${OS_FULLNAME}"
                     LINUX_VERSION="Red Hat"
                 fi
 
                 # Scientific
-                FIND=`grep "Scientific" /etc/redhat-release`
+                FIND=$(grep "Scientific" /etc/redhat-release)
                 if [ ! "${FIND}" = "" ]; then
-                    OS_FULLNAME=`grep "^Scientific"  /etc/redhat-release`
-                    OS_VERSION=`grep "^Scientific" /etc/redhat-release | awk '{ if ($3=="release") { print $4 } }'`
+                    OS_FULLNAME=$(grep "^Scientific"  /etc/redhat-release)
+                    OS_VERSION=$(grep "^Scientific" /etc/redhat-release | awk '{ if ($3=="release") { print $4 } }')
                     LINUX_VERSION="Scientific"
                 fi
 
@@ -259,53 +258,53 @@
 
           # PCLinuxOS
           if [ -f /etc/pclinuxos-release ]; then
-            FIND=`grep "^PCLinuxOS" /etc/pclinuxos-release`
+            FIND=$(grep "^PCLinuxOS" /etc/pclinuxos-release)
               if [ ! "${FIND}" = "" ]; then
                 OS_FULLNAME="PCLinuxOS Linux"
                 LINUX_VERSION="PCLinuxOS"
-                OS_VERSION=`grep "^PCLinuxOS" /etc/pclinuxos-release | awk '{ if ($2=="release") { print $3 } }'`
+                OS_VERSION=$(grep "^PCLinuxOS" /etc/pclinuxos-release | awk '{ if ($2=="release") { print $3 } }')
               fi
           fi
 
           # Sabayon Linux
           if [ -f /etc/sabayon-edition ]; then
-            FIND=`grep "Sabayon Linux" /etc/sabayon-edition`
+            FIND=$(grep "Sabayon Linux" /etc/sabayon-edition)
               if [ ! "${FIND}" = "" ]; then
                 OS_FULLNAME="Sabayon Linux"
                 LINUX_VERSION="Sabayon"
-                OS_VERSION=`cat /etc/sabayon-edition | awk '{ print $3 }'`
+                OS_VERSION=$(awk '{ print $3 }' /etc/sabayon-edition)
               fi
           fi
 
           if [ -f /etc/SLOX-release ]; then
-            OS_FULLNAME=`grep "SuSE Linux" /etc/SLOX-release`
+            OS_FULLNAME=$(grep "SuSE Linux" /etc/SLOX-release)
             LINUX_VERSION="SuSE"
           fi
 
           # Slackware
           if [ -f /etc/slackware-version ]; then
               LINUX_VERSION="Slackware"
-              OS_VERSION=`grep "^Slackware" /etc/slackware-version | awk '{ if ($1=="Slackware") { print $2 } }'`
+              OS_VERSION=$(grep "^Slackware" /etc/slackware-version | awk '{ if ($1=="Slackware") { print $2 } }')
               OS_FULLNAME="Slackware Linux ${OS_VERSION}"
           fi
 
           # SuSE
           if [ -e "/etc/SuSE-release" ]; then
-              OS_VERSION=`cat /etc/SuSE-release | head -n 1`;
+              OS_VERSION=$(head -n 1 /etc/SuSE-release);
               LINUX_VERSION="SuSE";
           fi
 
           # Turbo Linux
-          if [ -e "/etc/turbolinux-release" ]; then	OS_FULLNAME=`cat /etc/turbolinux-release`; fi
+          if [ -e "/etc/turbolinux-release" ]; then OS_FULLNAME=$(cat /etc/turbolinux-release); fi
 
           # YellowDog
-          if [ -e "/etc/yellowdog-release" ]; then	OS_FULLNAME=`cat /etc/yellowdog-release`; fi
+          if [ -e "/etc/yellowdog-release" ]; then OS_FULLNAME=$(cat /etc/yellowdog-release); fi
 
           # VMware
           if [ -e "/etc/vmware-release" ]; then
-              OS_FULLNAME=`cat /etc/vmware-release`
-              OS_VERSION=`uname -r`
-              IS_VMWARE_ESXI=`vmware -vl | grep VMware ESXi`
+              OS_FULLNAME=$(cat /etc/vmware-release)
+              OS_VERSION=$(uname -r)
+              IS_VMWARE_ESXI=$(vmware -vl | grep VMware ESXi)
               if [ ! "${IS_VMWARE_ESXI}" = "" ]; then
                   OS_FULLNAME="VMware ESXi ${OS_VERSION}"
               fi
@@ -317,7 +316,7 @@
               OS_NAME="${LINUX_VERSION}"
           fi
           # If Linux version (full name) is unknown, use uname value
-          if [ "${OS_FULLNAME}" = "" ]; then OS_FULLNAME=`uname -s -r`; fi
+          if [ "${OS_FULLNAME}" = "" ]; then OS_FULLNAME=$(uname -s -r); fi
           SYSCTL_READKEY="sysctl -n"
 
         ;;
@@ -326,10 +325,10 @@
         NetBSD)
           OS="NetBSD"
           OS_NAME="NetBSD"
-          OS_FULLNAME=`uname -s -r`
-          OS_KERNELVERSION=`uname -v`
-          OS_VERSION=`uname -r`
-          HARDWARE=`uname -m`
+          OS_FULLNAME=$(uname -s -r)
+          OS_KERNELVERSION=$(uname -v)
+          OS_VERSION=$(uname -r)
+          HARDWARE=$(uname -m)
           FIND_BINARIES="whereis"
           SYSCTL_READKEY=""
         ;;
@@ -338,10 +337,10 @@
         OpenBSD)
           OS="OpenBSD"
           OS_NAME="OpenBSD"
-          OS_FULLNAME=`uname -s -r`
-          OS_KERNELVERSION=`uname -v`
-          OS_VERSION=`uname -r`
-          HARDWARE=`uname -m`
+          OS_FULLNAME=$(uname -s -r)
+          OS_KERNELVERSION=$(uname -v)
+          OS_VERSION=$(uname -r)
+          HARDWARE=$(uname -m)
           FIND_BINARIES="whereis"
           SYSCTL_READKEY=""
         ;;
@@ -350,12 +349,12 @@
         SunOS)
           OS="Solaris"
           OS_NAME="Sun Solaris"
-          OS_FULLNAME=`uname -s -r`
-          OS_VERSION=`uname -r`
-          HARDWARE=`uname -m`
+          OS_FULLNAME=$(uname -s -r)
+          OS_VERSION=$(uname -r)
+          HARDWARE=$(uname -m)
           if [ -x /usr/bin/isainfo ]; then
               # Returns 32, 64
-              OS_MODE=`/usr/bin/isainfo -b`
+              OS_MODE=$(/usr/bin/isainfo -b)
           fi
           SYSCTL_READKEY=""
         ;;
@@ -365,14 +364,14 @@
             OS="VMware"
             OS_FULLNAME=""
             OS_VERSION=""
-            HARDWARE=`uname -m`
+            HARDWARE=$(uname -m)
             if [ -e "/etc/vmware-release" ]; then
-                OS_FULLNAME=`cat /etc/vmware-release`
-                OS_VERSION=`uname -r`
+                OS_FULLNAME=$(cat /etc/vmware-release)
+                OS_VERSION=$(uname -r)
             fi
-            HAS_VMWARE_UTIL=`which vmware 2> /dev/null`
+            HAS_VMWARE_UTIL=$(which vmware 2> /dev/null)
             if [ ! "${HAS_VMWARE_UTIL}" = "" ]; then
-                IS_VMWARE_ESXI=`vmware -vl | grep VMware ESXi`
+                IS_VMWARE_ESXI=$(vmware -vl | grep VMware ESXi)
                 if [ ! "${IS_VMWARE_ESXI}" = "" ]; then
                     OS_NAME="VMware ESXi"
                     OS_FULLNAME="VMware ESXi ${OS_VERSION}"
@@ -401,7 +400,7 @@
            "Solaris")                       ECHOCMD="echo" ;;
            "Linux")
               # Check if dash is used (Debian/Ubuntu)
-              DEFAULT_SHELL=`ls -l /bin/sh | awk -F'>' '{print $2}'`
+              DEFAULT_SHELL=$(ls -l /bin/sh | awk -F'>' '{print $2}')
               case ${DEFAULT_SHELL} in
                 " dash")                    ECHOCMD="/bin/echo -e" ;;
                 *)                          ECHOCMD="echo -e" ;;
@@ -420,6 +419,5 @@
         fi
     fi
 
-
 #================================================================================
-# Lynis - Copyright 2007-2016 Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

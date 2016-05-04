@@ -58,6 +58,7 @@
 #    LogTextBreak               Insert a separator in log file
 #    Maid
 #    ParseNginx                 Parse nginx configuration lines
+#    ParseTestValues            Parse a set of values
 #    PortIsListening            Check if machine is listening on specified protocol and port
 #    Progress                   Show progress on screen
 #    RandomString               Show a random string
@@ -1258,6 +1259,61 @@
 
 
     ################################################################################
+    # Name        : ParseTestValues()
+    # Description : Parse nginx configuration lines
+    # Inputs      : service (e.g. ssh)
+    # Returns     : CHECK_VALUES_ARRAY
+    ################################################################################
+
+    ParseTestValues() {
+        local RETVAL=1
+        FOUND=0
+        CHECK_VALUES_ARRAY=""
+        if [ $# -gt 0 -a ! "${CHECK_OPTION_ARRAY}" = "" ]; then
+            for I in ${CHECK_OPTION_ARRAY}; do
+                Debug "Array value: ${I}"
+                SPLIT=$(echo ${I} | sed 's/,/\n/g')
+                for ITEM in ${SPLIT}; do
+                    FUNCTION=""
+                    VALUE=""
+                    SEARCH=""
+                    SERVICE=""
+                    ITEM_KEY=$(echo ${ITEM} | awk -F: '{print $1}')
+                    ITEM_VALUE=$(echo ${ITEM} | awk -F: '{print $2}')
+                    Debug "Array item: ${ITEM_KEY} with value ${ITEM_VALUE}"
+                    case ${ITEM_KEY} in
+                        "function")
+                            case ${ITEM_VALUE} in
+                                "equals")
+                                    FUNCTION="eq"
+                                ;;
+                            esac
+                        ;;
+                        "service")
+                            if [ "${ITEM_VALUE}" = "$1" ]; then
+                                FOUND=1
+                            fi
+                        ;;
+                        "value")
+                            VALUE="${ITEM_VALUE}"
+                        ;;
+                        *)
+                            echo "Incorrect call to function ParseTestValues"; ExitFatal
+                        ;;
+                    esac
+                    if [ ${FOUND} -eq 1 ]; then
+                        CHECK_VALUES_ARRAY="${CHECK_VALUES_ARRAY} ${SEARCH}:${VALUE}:${FUNCTION}:"
+                        FOUND=0
+                    fi
+                done
+            done
+            RETVAL=1
+        fi
+        return ${RETVAL}
+    }
+
+
+    ################################################################################
     # Name        : ParseNginx()
     # Description : Parse nginx configuration lines
     # Returns     : <nothing>
@@ -2173,10 +2229,12 @@
     ################################################################################
 
     TestValue() {
+        local RETVAL=255
         local FIND=""
         local VALUE=""
         local RESULT=""
         local SEARCH=""
+        local CMP1=""; local CMP2=""
         while [ $# -ge 1 ]; do
             case $1 in
                 --function)
@@ -2206,19 +2264,24 @@
         case ${FUNCTION} in
               "contains")
                   FIND=`echo ${VALUE} | egrep "${SEARCH}"`
-                  if [ "${FIND}" = "" ]; then RESULT=1; else RESULT=0; fi
+                  if [ "${FIND}" = "" ]; then RETVAL=1; else RETVAL=0; fi
               ;;
               #"gt" | "greater-than")   COLOR=$GREEN   ;;
-              #"equals")     COLOR=$RED     ;;
+              "equals")
+                  CMP1=`echo ${SEARCH} | tr '[:upper:]' '[:lower:']`
+                  CMP2=`echo ${VALUE} | tr '[:upper:]' '[:lower:']`
+                  if [ "${CMP1}" = "${CMP2}" ]; then RETVAL=0; else RETVAL=1; fi
+              ;;
               #"not-equal")   COLOR=$WHITE   ;;
               #"lt" | "less-than")  COLOR=$YELLOW  ;;
               *) echo "INVALID OPTION USED (TestValue, parameter of function: $1)"; exit 1 ;;
         esac
 
-        if [ ! "${RESULT}" = "" ]; then
+        if [ "${RETVAL}" -lt 2 ]; then
             return ${RESULT}
           else
-            echo "ERROR: No result returned from function (TestValue). Incorrect usage?"; exit 1
+            Fatal "ERROR: No result returned from function (TestValue). Incorrect usage?"
+            #ExitFatal
         fi
     }
 

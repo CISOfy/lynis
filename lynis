@@ -736,8 +736,7 @@ ${NORMAL}
         N_PLUGIN_ENABLED=0
 
         # Plugins function
-        RunPlugins()
-        {
+        RunPlugins() {
             if [ $# -eq 0 ]; then echo "RunPlugins should be started with phase number"; ExitFatal; fi
             PLUGIN_PHASE=$1
             if [ ${PLUGIN_PHASE} -eq 0 -o ${PLUGIN_PHASE} -gt 2 ]; then echo "Incorrect phase number when calling RunPlugins"; ExitFatal; fi
@@ -750,7 +749,7 @@ ${NORMAL}
             fi
 
             # Search plugins
-            FIND_PLUGINS=`find ${PLUGINDIR} -type f -name "plugin_[a-z]*" -exec echo \{\} \; | sort`
+            FIND_PLUGINS=$(find ${PLUGINDIR} -type f -name "plugin_[a-z]*_phase${PLUGIN_PHASE}" | sort)
             for PLUGIN_FILE in ${FIND_PLUGINS}; do
                 LogText "Found plugin file: ${PLUGIN_FILE}"
                 # Double check if output is a valid file name
@@ -770,13 +769,11 @@ ${NORMAL}
                         done
                         if [ ${PLUGIN_ENABLED_STATE} -eq 1 ]; then
                             LogText "Result: plugin ${FIND2} is enabled"
-                            # Plugins should have at least a _phase1 part, _phase2 is optional at this moment
                             PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase${PLUGIN_PHASE}"
                             if [ -f ${PLUGINFILE} ]; then
                                 PLUGIN_VERSION=`grep "^# PLUGIN_VERSION=" ${PLUGIN_FILE} | awk -F= '{ print $2 }'`
                                 PLUGIN_VERSION_NODOTS=`echo ${PLUGIN_VERSION} | sed 's/.//g'`
-                                FIND4=`ls -l ${PLUGINFILE} | cut -c 2-10`
-                                if [ "${FIND4}" = "rw-r--r--" -o "${FIND4}" = "rw-r-----" -o "${FIND4}" = "rw-------" -o "${FIND4}" = "r--------" ]; then
+                                if SafePerms ${PLUGINFILE}; then
                                     LogText "Including plugin file: ${PLUGINFILE} (version: ${PLUGIN_VERSION})"
                                     Report "plugin_enabled_phase${PLUGIN_PHASE}[]=${FIND2}|${PLUGIN_VERSION}|"
                                     if [ ${PLUGIN_PHASE} -eq 1 ]; then N_PLUGIN_ENABLED=$((${N_PLUGIN_ENABLED} + 1)); fi
@@ -787,10 +784,10 @@ ${NORMAL}
                                     LogTextBreak
                                     LogText "Result: ${FIND2} plugin (phase ${PLUGIN_PHASE}) finished"
                                   else
-                                    LogText "Plugin ${FIND2}: Skipped (bad file permissions, should be 640, 600 or 400)"
+                                    LogText "Plugin ${FIND2}: Skipped (bad file permissions, should be 644, 640, 600 or 400)"
                                 fi
                               else
-                                LogText "Plugin ${FIND2}: Skipped (can't find file ${PLUGINFILE})"
+                                LogText "Plugin ${FIND2}: Skipped for phase ${PLUGIN_PHASE} (no file found: ${PLUGINFILE})"
                             fi
                           else
                             LogText "Plugin ${FIND2}: Skipped (not enabled)"
@@ -802,7 +799,7 @@ ${NORMAL}
                 LogText "--"
             done
             LogText "Result: Found ${N_PLUGIN} plugins of which ${N_PLUGIN_ENABLED} are enabled"
-            LogText "Result: Plugins ${PLUGIN_PHASE} finished"
+            LogText "Result: Plugins phase ${PLUGIN_PHASE} finished"
         }
         RunPlugins 1
 
@@ -925,6 +922,9 @@ ${NORMAL}
 #
     if [ ${RUN_PLUGINS} -eq 1 ]; then
         RunPlugins 2
+        if [ ${N_PLUGIN_ENABLED} -gt 1 ]; then
+            Display --indent 2 --text "- Plugins (phase 2)" --result "DONE" --color GREEN
+        fi
     fi
 #
 #################################################################################

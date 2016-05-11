@@ -483,14 +483,16 @@
     #            ---------------------------------------------------------
     #               Mount point              nodev  noexec  nosuid
     #               /boot                      v      v       v
+    #               /dev/shm                   v      v       v
     #               /home                      v              v
     #               /tmp                       v      v       v
     #               /var                                      v
     #               /var/log                   v      v       v
     #               /var/log/audit             v      v       v
+    #               /var/tmp                   v      v       v
     #            ---------------------------------------------------------
 
-    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /home:nodev,nosuid /var:nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /tmp:nodev,noexec,nosuid /dev/shm:nosuid,nodev,noexec"
+    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /dev/shm:nosuid,nodev,noexec /home:nodev,nosuid /tmp:nodev,noexec,nosuid /var:nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /var/tmp:nodev,noexec,nosuid"
     Register --test-no FILE-6374 --os Linux --weight L --network NO --description "Checking /boot mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/fstab ]; then
@@ -543,29 +545,28 @@
 #
 #################################################################################
 #
-    # Test        : FILE-xyzz
+    # Test        : FILE-6376
     # Description : Bind mount the /var/tmp directory to /tmp
 #
 #################################################################################
 #
-    Register --test-no FILE-xyzz --os Linux --weight L --network NO --description "Checking /var/tmp is bind to /tmp"
+    Register --test-no FILE-6376 --os Linux --weight L --network NO --description "Determine if /var/tmp is bound to /tmp"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/fstab ]; then
-            FIND=`cat /etc/fstab | awk '{ if ($2=="/var/tmp") { print $4 } }'`
+            FIND=`awk '{ if ($2=="/var/tmp") { print $4 } }' /etc/fstab`
             BIND=`echo ${FIND} | awk '{ if ($1 ~ "bind") { print "YES" } else { print "NO" } }'`
-
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: mount system /var/tmp is configured with options: ${FIND}"
                 if [ "${BIND}" = "YES" ]; then
-                    Display --indent 2 --text "- /var/tmp is bind to /tmp" --result OK --color GREEN
+                    Display --indent 2 --text "- /var/tmp is bound to /tmp" --result OK --color GREEN
                     LogText "Result : /var/tmp is bind to /tmp"
                   else
-                    Display --indent 2 --text "- /var/tmp is not bind to /tmp" --result "NON DEFAULT" --color RED
+                    Display --indent 2 --text "- /var/tmp is not bound to /tmp" --result "NON DEFAULT" --color YELLOW
                     LogText "Result: /var/tmp is not bind to /tmp"
                 fi
               else
                 LogText "Result: no mount point /var/tmp or expected options found"
-                Display --indent 2 --text "- /var/tmp is not bind to /tmp" --result "NON DEFAULT" --color RED
+                if IsVerbose; then Display --indent 2 --text "- /var/tmp is not bound to /tmp" --result "INFO" --color WHITE; fi
             fi
         fi
     fi

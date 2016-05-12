@@ -1,7 +1,8 @@
+[![Build Status](https://travis-ci.org/CISOfy/lynis.svg?branch=master)](https://travis-ci.org/CISOfy/lynis)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
+
 lynis
 =====
-
-[![Build Status](https://travis-ci.org/CISOfy/lynis.svg?branch=master)](https://travis-ci.org/CISOfy/lynis)
 
 Lynis - Security auditing and hardening tool, for Unix based systems
 
@@ -43,11 +44,10 @@ If you want to run the software as root, we suggest changing the ownership of th
 Full documentation: https://cisofy.com/documentation/lynis/
 
 ## Flexibility
-If you want to create your own tests, have a look at the [![Lynis SDK](https://github.com/CISOfy/lynis-sdk)](Lynis software development kit)
+If you want to create your own tests, have a look at the [Lynis software development kit](https://github.com/CISOfy/lynis-sdk).
 
 ## Security
 We participate in the badge program of the Linux Foundation.
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
 
 ## Enterprise version
 This software is also available as part of an enterprise solution. It includes additional functionality (plugins, centralized system, reporting, dashboard), and support.

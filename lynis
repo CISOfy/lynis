@@ -193,7 +193,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     if [ ${MYID} -eq 0 ]; then
         PRIVILEGED=1
       else
-        echo "Starting Lynis non-privileged"
+        Debug "Starting Lynis non-privileged"
         # Implied pentesting mode if not performed by root user
         PENTESTINGMODE=1
     fi
@@ -256,13 +256,26 @@ ${NORMAL}
 
     # Try to find a default and custom profile, unless one was specified manually
     if [ "${PROFILE}" = "" ]; then
+        CUSTOM_PROFILE=""
+        DEFAULT_PROFILE=""
         tPROFILE_NAMES="default.prf custom.prf"
         tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
         for PNAME in ${tPROFILE_NAMES}; do
             for PLOC in ${tPROFILE_TARGETS}; do
-                FILE="${PLOC}/${PNAME}"
-                if [ -r ${FILE} ]; then
-                    PROFILES="${PROFILES} ${FILE}"
+                # Only use one default.prf
+                if [ "${PNAME}" = "default.prf" -a ! "${DEFAULT_PROFILE}" = "" ]; then
+                  Debug "Already discovered default.prf - skipping this file (${PLOC}/${PNAME})"
+                elif [ "${PNAME}" = "custom.prf" -a ! "${CUSTOM_PROFILE}" = "" ]; then
+                  Debug "Already discovered custom.prf - skipping this file (${PLOC}/${PNAME})"
+                  else
+                    FILE="${PLOC}/${PNAME}"
+                    if [ -r ${FILE} ]; then
+                        PROFILES="${PROFILES} ${FILE}"
+                        case ${PNAME} in
+                            "custom.prf") CUSTOM_PROFILE="${FILE}" ;;
+                            "default.prf") DEFAULT_PROFILE="${FILE}" ;;
+                        esac
+                    fi
                 fi
             done
         done

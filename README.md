@@ -1,6 +1,8 @@
 lynis
 =====
 
+[![Build Status](https://travis-ci.org/CISOfy/lynis.svg?branch=master)](https://travis-ci.org/CISOfy/lynis)
+
 Lynis - Security auditing and hardening tool, for Unix based systems
 
 Lynis is a security auditing for UNIX derivatives like Linux, Mac OS X, BSD, and Solaris. It performs an in-depth security scan on the system itself, with the goal to detect issues and provide tips for further system hardening. It will also scan for general system information, vulnerable software packages, and possible configuration issues. Lynis is commonly used by people in the "blue team" to assess the security defenses of their systems.

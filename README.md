@@ -43,7 +43,11 @@ If you want to run the software as root, we suggest changing the ownership of th
 Full documentation: https://cisofy.com/documentation/lynis/
 
 ## Flexibility
-If you want to create your own tests, use the 'tests_custom' file (template available in 'include' directory).
+If you want to create your own tests, have a look at the [![Lynis SDK](https://github.com/CISOfy/lynis-sdk)](Lynis software development kit)
+
+## Security
+We participate in the badge program of the Linux Foundation.
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
 
 ## Enterprise version
 This software is also available as part of an enterprise solution. It includes additional functionality (plugins, centralized system, reporting, dashboard), and support.

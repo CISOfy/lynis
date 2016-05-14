@@ -165,60 +165,55 @@ and therefore placed at the bottom.
 Program Options
 ---------------
 
-== Added
---developer                 Enable developer mode
---verbose                   Show more details on screen, reduce in normal mode
---show-warnings-only        Only show warnings on screen
---skip-plugins              Disable running any plugins (alias: --no-plugins)
-
-== Changed
---quiet                       Become really quiet
-
-== Removed
---config                    Use 'lynis show profiles' instead
+* --developer           - Enable developer mode
+* --verbose             - Show more details on screen, reduce in normal mode
+* --show-warnings-only  - Only show warnings on screen
+* --skip-plugins        - Disable running any plugins (alias: --no-plugins)
+* --quiet               - Changed: become really quiet
+* --config              - Removed: use 'lynis show profiles' instead
 
 
 Functions
 ---------
-* ContainsString          New function to search for a string in another one
-* Display                 Added --debug, showing details on screen in debug mode
-* IsDebug                 Check for usage of --debug
-* IsDeveloperMode         Status for development and debugging (--developer)
-* IsRunning               Added return state
-* IsVerbose               Check for usage of --verbose
-* IsOwnedByRoot           Check ownership of files and directories
-* IsWorldWritable         Improved test with additional details
-* PortIsListening         Check if a service it listening to a specified port
-* SkipAtomicTest          Allow smaller tests to be skipped (e.g. SSH-7408)
+* ContainsString    - New function to search for a string in another one
+* Display           - Added --debug, showing details on screen in debug mode
+* IsDebug           - Check for usage of --debug
+* IsDeveloperMode   - Status for development and debugging (--developer)
+* IsRunning         - Added return state
+* IsVerbose         - Check for usage of --verbose
+* IsOwnedByRoot     - Check ownership of files and directories
+* IsWorldWritable   - Improved test with additional details
+* PortIsListening   - Check if a service it listening to a specified port
+* SkipAtomicTest    - Allow smaller tests to be skipped (e.g. SSH-7408)
 
 
 Tests
 -----
-* AUTH-9262     Restructure of test, support for pwquality PAM
-* AUTH-9308     Check for systemd targets
-* BANN-7119     /etc/motd test disabled
-* BANN-7122     /motd content test disabled
-* BOOT-5184     Improve file permissions check for CentOS 7 machines
-* DBS-1860      Check for status of DB2
-* CRYP-7902     Support for multiple profiles, improved logging
-* FILE-6372     Properly checking for /etc/fstab now, ignore comments
-* FILE-6374     Added /dev/shm and /var/tmp
-* FILE-6374     New test for /var/tmp
-* FILE-7524     Support for multiple profiles
-* HTTP-6710     Trigger suggestion when weak protocols SSLv2/SSLv3 are used
-* KRNL-5788     Support for kernel with grsecurity patches (linux-image-grsec)
-* KRNL-5820     Improved logging for test
-* KRNL-6000     Allow multiple profiles to be used, store more details
-* LOGG-2190     Improvements for Fail2Ban and cron-related files
-* NETW-3014     Support for multiple profiles
-* PKGS-7303     Added Brew package manager
-* PKGS-7354     Test for DNF repoquery plugin before using it
-* PKGS-7381     Check for vuln.xml file
-* PROC-3612     Removed wchan output to prevent grsecurity issues
-* SCHD-7702     Test for running cron daemon
-* SCHD-7704     Test ownership of cronjob files
-* TOOL-5102     Test for Fail2ban tooling
-* TOOL-5190     Test for intrusion detection or prevention system
+* AUTH-9262 - Restructure of test, support for pwquality PAM
+* AUTH-9308 - Check for systemd targets
+* BANN-7119 - /etc/motd test disabled
+* BANN-7122 - /motd content test disabled
+* BOOT-5184 - Improve file permissions check for CentOS 7 machines
+* DBS-1860  - Check for status of DB2
+* CRYP-7902 - Support for multiple profiles, improved logging
+* FILE-6372 - Properly checking for /etc/fstab now, ignore comments
+* FILE-6374 - Added /dev/shm and /var/tmp
+* FILE-6374 - New test for /var/tmp
+* FILE-7524 - Support for multiple profiles
+* HTTP-6710 - Trigger suggestion when weak protocols SSLv2/SSLv3 are used
+* KRNL-5788 - Support for kernel with grsecurity patches (linux-image-grsec)
+* KRNL-5820 - Improved logging for test
+* KRNL-6000 - Allow multiple profiles to be used, store more details
+* LOGG-2190 - Improvements for Fail2Ban and cron-related files
+* NETW-3014 - Support for multiple profiles
+* PKGS-7303 - Added Brew package manager
+* PKGS-7354 - Test for DNF repoquery plugin before using it
+* PKGS-7381 - Check for vuln.xml file
+* PROC-3612 - Removed wchan output to prevent grsecurity issues
+* SCHD-7702 - Test for running cron daemon
+* SCHD-7704 - Test ownership of cronjob files
+* TOOL-5102 - Test for Fail2ban tooling
+* TOOL-5190 - Test for intrusion detection or prevention system
 
 
 --------------------------------------------------------------

@@ -1,26 +1,11 @@
+Lynis Changelog
+===============
 
-================================================================================
+Lynis 2.2.1 (not released, development version)
+-----------------------------------------------
 
-  Lynis - Changelog
-
-================================================================================
-
-  Author:                   Michael Boelen   (2007-2013)
-                            CISOfy           (2013-2016)
-  Description:              Security and system auditing tool
-  Website:                  https://cisofy.com/lynis/
-  GitHub:                   https://github.com/CISOfy/lynis
-
-  Support policy:           See section 'Support' in README file
-                            Commercial support and plugins available via CISOfy
-
-  Documentation:            See web site, README, FAQ and CHANGELOG file
-
-================================================================================
-
-=  Lynis 2.2.1 (not released, development version)  =
-
-* Upgrade tips
+Upgrade tips
+============
 
 Several changes have been made to core functions of Lynis. These are to simplify
 its usage, but might cause differences after upgrading. See the tips below to
@@ -40,19 +25,23 @@ error-on-warnings=yes (custom.prf) to exit with code 78 warnings.
 Do not define a profile with --profile. Instead, put only your changes in the
 new custom.prf.
 
+---
 
-* Ansible
+Details
+=======
+
+Ansible
 -------
-Ansible examples for deployment are now on https://github.com/CISOfy/lynis-ansible
+New Ansible examples for deployment: https://github.com/CISOfy/lynis-ansible
 
 
-* Databases
------------
+Databases
+---------
 Lynis will check also for DB2 instances and report the status.
 
 
-* Developer Mode
-----------------
+Developer Mode
+--------------
 With this release the developer mode is introduced. It can be activated with the
 --developer option, or developer-mode=yes in profile. In development mode, some
 details are displayed on screen, to help testing of existing or new tests.
@@ -63,9 +52,14 @@ Examples:
 lynis audit system --profile developer.prf
 lynis audit system --developer
 
+A new software development kit (SDK) for Lynis is available on GitHub. This will
+help contributors and developers to test software quality, including linting and
+running unit tests. The devkit also supports building DEB and RPM files for easy
+deployment. The repository can be found on https://github.com/CISOfy/lynis-sdk
 
-* Documentation
----------------
+
+Documentation
+-------------
 Template files have been updated to provide better examples on how to create
 custom tests and plugins.
 
@@ -75,40 +69,40 @@ Some examples include: lynis show options, lynis show commands, lynis show
 version, etc. See lynis show for all available details.
 
 
-* File Systems
---------------
+File Systems
+------------
 The XFS file system detection has been added. Mount points /dev/shm and /var/tmp
 are now checked for their options. Comparison of the mount options has been
 improved. A new test has been added to check if /var/tmp has been bound to /tmp.
 
 
-* Mac OS X improvements
------------------------
+Mac OS X improvements
+---------------------
 Package manager Brew has been added
 
 
-* nginx
--------
+nginx
+-----
 Show suggestion when weak protocol is used, like SSLv2 or SSLv3. The protocols
 are now also parsed and stored as details in the report file.
 
 
-* Performance
--------------
+Performance
+-----------
 Several performance improvements have been implemented. This includes rewriting
 tests to invoke less commands and enhanced hardware detection at the beginning.
 
 
-* Plugins
----------
+Plugins
+-------
 You can set the plugin directory now also via a profile. First match wins.
 Priority: 1) argument, 2) profile, 3) default
 
 --plugindir is now an alias for --plugin-dir
 
 
-* Profiles
-----------
+Profiles
+--------
 Lynis now support multiple profiles. By using a file 'custom.prf', it allows to
 inherit values first from default.prf, then merge it with custom.prf.
 
@@ -120,26 +114,33 @@ New profile options:
   check-value
 
 
-* SSH
------
+Remote scanning
+---------------
+Although Lynis is a aimed on running on local hosts, there is still an ongoing
+demand for running remote scans. With 'lynis audit system remote' tips are now
+provides to perform such a scan via SSH.
+
+
+SSH
+---
 The configuration of SSH is now parsed from the SSH daemon directly. This enables
 handling with new defaults more easily, as OpenSSH sometimes introduces new keys,
 or change their default value between versions.
 
 
-* Systemd
----------
+Systemd
+-------
 Added support for detecting systemd and reporting it as a service manager. The
 systemd plugin has been released as a community plugin.
 
 
-* Uploads
----------
+Uploads
+-------
 Solved a bug which added the proxy configuration twice.
 
 
-* General improvements
-----------------------
+General improvements
+--------------------
 The screen output has been improved, to show more meaningful things when some
 parameters are missing. Several old variables and lines have been cleaned up.
 
@@ -161,8 +162,8 @@ when old functions are still be used. Later on these functions will be deleted,
 and therefore placed at the bottom.
 
 
-* Program options
------------------
+Program options
+---------------
 Added --developer option to enable developer mode
 Added --verbose to show more details on screen and reducing in normal mode
 Added --show-warnings-only to just show any warnings on screen
@@ -171,7 +172,7 @@ Changed --quiet to really quiet
 Remove --config option, use lynis show profiles instead
 
 
-* Functions
+Functions
 -----------
 [ContainsString]          New function to search for a string in another one
 [Display]                 Added --debug, showing details on screen in debug mode
@@ -185,8 +186,8 @@ Remove --config option, use lynis show profiles instead
 [SkipAtomicTest]          Allow smaller tests to be skipped (e.g. SSH-7408)
 
 
-* Tests
--------
+Tests
+-----
 [AUTH-9262] Restructure of test, support for pwquality PAM
 [AUTH-9308] Check for systemd targets
 [BANN-7119] /etc/motd test disabled

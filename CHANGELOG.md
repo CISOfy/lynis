@@ -63,7 +63,7 @@ Documentation
 Template files have been updated to provide better examples on how to create
 custom tests and plugins.
 
-To simplify the usage and options, a new helper utility has been added: show.
+To simplify the usage of Lynis, a new helper utility has been added: show.
 This helper will show help, or values (e.g. version, plugin directories, etc).
 Some examples include: lynis show options, lynis show commands, lynis show
 version, etc. See lynis show for all available details.

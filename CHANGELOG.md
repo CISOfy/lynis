@@ -216,6 +216,12 @@ Tests
 * TOOL-5190 - Test for intrusion detection or prevention system
 
 
+Plugins
+* PLGN-1602 - Marked as root-only
+* PLGN-2612 - Marked as root-only
+* PLGN-2804 - Marked as root-only
+* PLGN-3202 - Marked as root-only
+
 --------------------------------------------------------------
 
 =  Lynis 2.2.0 (2016-03-18)  =

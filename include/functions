@@ -603,10 +603,21 @@
     ################################################################################
 
     GetHostID() {
-        HOSTID="-"
+        HOSTID=""
+        HOSTID2=""
         FIND=""
         # Avoid some hashes (empty, only zeros)
         BLACKLISTED_HASHES="6ef1338f520d075957424741d7ed35ab5966ae97 adc83b19e793491b1c6ea0fd8b46cd9f32e592fc"
+        # Check which utilities we can use (e.g. lynis show hostids). Normally these are detected during binaries collecting.
+        if [ "${SHA1SUMBINARY}" = "" ]; then SHA1SUMBINARY=$(which sha1sum 2> /dev/null); fi
+        if [ "${SHA1SUMBINARY}" = "" ]; then SHA1SUMBINARY=$(which sha1 2> /dev/null); fi
+        if [ "${SHA256SUMBINARY}" = "" ]; then SHA256SUMBINARY=$(which sha256sum 2> /dev/null); fi
+        if [ "${SHA256SUMBINARY}" = "" ]; then SHA256SUMBINARY=$(which sha256 2> /dev/null); fi
+        if [ "${CSUMBINARY}" = "" ]; then CSUMBINARY=$(which csum 2> /dev/null); fi
+        if [ "${OPENSSLBINARY}" = "" ]; then OPENSSLBINARY=$(which openssl 2> /dev/null); fi
+        if [ "${IFCONFIGBINARY}" = "" ]; then IFCONFIGBINARY=$(which ifconfig 2> /dev/null); fi
+        if [ "${IPBINARY}" = "" ]; then IPBINARY=$(which ip 2> /dev/null); fi
+
         if [ ! "${SHA1SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
 
             case "${OS}" in
@@ -631,7 +642,6 @@
                       else
                         ReportException "GetHostID" "No output from entstat on interfaces: en0, ent0"
                     fi
-
                 ;;
 
                 "DragonFly" | "FreeBSD")
@@ -805,7 +815,6 @@
 
         # New style host ID
         if [ "${HOSTID2}" = "" ]; then
-
             LogText "Info: creating a HostID (version 2)"
             FOUND=0
             DATA_SSH=""
@@ -836,7 +845,8 @@
                 fi
                 LogText "Hash (hostname): ${HASH_HOSTNAME}"
                 LogText "Hash (ssh): ${HASH_SSH}"
-                Report "hostid2=${HASH_SSH}"
+                HOSTID2="${HASH_SSH}"
+                Report "hostid2=${HOSTID2}"
              fi
         fi
 

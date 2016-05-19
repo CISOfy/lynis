@@ -24,7 +24,8 @@
 #
     AUDITD_CONF_LOCS="/etc /etc/audit"
     AUDITD_CONF_FILE=""
-    AUDITD_RUNNING=0
+    LINUX_AUDITD_RUNNING=0
+    AUDIT_DAEMON_RUNNING=0
     SOLARIS_AUDITD_RUNNING=0
 #
 #################################################################################
@@ -142,9 +143,10 @@
         if [ ${RUNNING} -eq 1 ]; then
             LogText "Result: auditd running"
             Display --indent 2 --text "- Checking auditd" --result ENABLED --color GREEN
-            AUDITD_RUNNING=1
-            Report "audit_daemon_running=1"
+            LINUX_AUDITD_RUNNING=1
+            AUDIT_DAEMON_RUNNING=1
             Report "audit_trail_tool[]=auditd"
+            Report "linux_auditd_running=1"
             AddHP 4 4
           else
             LogText "Result: auditd not active"
@@ -152,9 +154,8 @@
             if [ ! "${VMTYPE}" = "openvz" ]; then
                 ReportSuggestion ${TEST_NO} "Enable auditd to collect audit information"
             fi
-            AUDITD_RUNNING=0
-            Report "audit_daemon_running=0"
             AddHP 0 1
+            Report "linux_auditd_running=0"
         fi
     fi
 #
@@ -162,7 +163,7 @@
 #
     # Test        : ACCT-9630
     # Description : Check auditd rules
-    if [ ! "${AUDITDBINARY}" = "" -a ! "${AUDITCTLBINARY}" = "" -a ${AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! "${AUDITDBINARY}" = "" -a ! "${AUDITCTLBINARY}" = "" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9630 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --description "Check for auditd rules"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd rules"
@@ -188,7 +189,7 @@
 #
     # Test        : ACCT-9632
     # Description : Check auditd configuration file
-    if [ ! "${AUDITDBINARY}" = "" -a ${AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! "${AUDITDBINARY}" = "" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9632 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for auditd configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd configuration file"
@@ -214,7 +215,7 @@
 #
     # Test        : ACCT-9634
     # Description : Check auditd log file
-    if [ ! "${AUDITDBINARY}" = "" -a ${AUDITD_RUNNING} -eq 1 -a ! "${AUDITD_CONF_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! "${AUDITDBINARY}" = "" -a ${LINUX_AUDITD_RUNNING} -eq 1 -a ! "${AUDITD_CONF_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9634 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for auditd log file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd log file"
@@ -280,6 +281,7 @@
         if [ ${RUNNING} -eq 1 ]; then
             LogText "Result: Solaris audit daemon is running"
             SOLARIS_AUDITD_RUNNING=1
+            AUDIT_DAEMON_RUNNING=1
             Display --indent 2 --text "- Checking Solaris audit daemon status" --result RUNNING --color GREEN
           else
             LogText "Result: Solaris audit daemon is not running"
@@ -400,6 +402,10 @@
             Display --indent 4 --text "- Checking Solaris audit statistics" --result SKIPPED --color YELLOW
         fi
     fi
+#
+#################################################################################
+#
+    Report "audit_daemon_running=${AUDIT_DAEMON_RUNNING}"
 #
 #################################################################################
 #

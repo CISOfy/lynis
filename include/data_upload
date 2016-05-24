@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    PROGRAM_VERSION="104"
+    PROGRAM_VERSION="105"
 
     # Data upload destination
     if [ "${UPLOAD_SERVER}" = "" ]; then UPLOAD_SERVER="portal.cisofy.com"; fi
@@ -44,11 +44,10 @@
 
     SETTINGS_FILE="${PROFILE}"
 
-# Only output text to stdout if DEBUG mode is not used
-output()
-  {
-    if [ ${DEBUG} -eq 1 ]; then echo "$1"; fi
-  }
+    # Only output text to stdout if DEBUG mode is not used
+    Output() {
+        if [ ${DEBUG} -eq 1 ]; then echo "$1"; fi
+    }
 
 #####################################################################################
 #
@@ -56,8 +55,8 @@ output()
 #
 #####################################################################################
 
-output "Lynis Enterprise data uploader starting"
-output "Settings file: ${SETTINGS_FILE}"
+    Output "Lynis Enterprise data uploader starting"
+    Output "Settings file: ${SETTINGS_FILE}"
 
     # Check if we can find curl
     # Suggestion: If you want to keep the system hardened, copying the binary from a trusted source is a good alternative.
@@ -74,7 +73,7 @@ output "Settings file: ${SETTINGS_FILE}"
         LogText "Error: no license key was specified in the profile (${PROFILE})"
         ExitFatal
       else
-        output "License key = ${LICENSE_KEY}"
+        Output "License key = ${LICENSE_KEY}"
     fi
 
 
@@ -87,7 +86,7 @@ output "Settings file: ${SETTINGS_FILE}"
 
     # Check report file
     if [ -f ${REPORTFILE} ]; then
-        output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
+        Output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
 
             if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
                 LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
@@ -120,7 +119,7 @@ output "Settings file: ${SETTINGS_FILE}"
 
         # Quit if license is not valid, to reduce load on both client and server.
         LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null"
-        UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
+        UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null)
         EXITCODE=$?
         LogText "Exit code: ${EXITCODE}"
         if [ ${EXITCODE} -gt 0 ]; then
@@ -164,9 +163,9 @@ output "Settings file: ${SETTINGS_FILE}"
             LogText "Result: quitting, can't check license"
             ExitFatal
         fi
-        UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
+        UPLOAD_CODE=$(echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}')
         if [ "${UPLOAD_CODE}" = "100" ]; then
-            output "${WHITE}License is valid${NORMAL}"
+            Output "${WHITE}License is valid${NORMAL}"
             LogText "Result: license is valid"
           else
             LogText "Result: error while checking license"
@@ -183,18 +182,18 @@ output "Settings file: ${SETTINGS_FILE}"
             echo ""
             echo "URL: ${LICENSE_SERVER_URL}"
             echo "Key: ${LICENSE_KEY}"
-            output "Debug information: ${UPLOAD}"
+            Output "Debug information: ${UPLOAD}"
             # Quit
             ExitFatal
         fi
-        # Extract the hostid from the parse file
-        HOSTID=`awk -F= '/^hostid=/ { print $2 }' ${REPORTFILE}`
-        if [ ! "${HOSTID}" = "" ]; then
-            output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
+
+        # Check for host IDs
+        if [ ! "${HOSTID}" = "" -a ! "${HOSTID2}" = "" ]; then
+            Output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
             # Try to connect
-            output "Uploading data.."
+            Output "Uploading data.."
             LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
-            UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
+            UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}"" --data-urlencode "hostid2=${HOSTID2}" ${UPLOAD_URL} 2> /dev/null)
             EXITCODE=$?
             LogText "Exit code: ${EXITCODE}"
             if [ ${EXITCODE} -gt 0 ]; then
@@ -218,12 +217,12 @@ output "Settings file: ${SETTINGS_FILE}"
                 Display --indent 2 --text "Data upload status" --result OK --color GREEN
             fi
           else
-            echo "${RED}Error${NORMAL}: No hostid found in report file. Can not upload report file."
+            echo "${RED}Error${NORMAL}: No hostid and/or hostid2 found. Can not upload report file."
             # Quit
             ExitFatal
         fi
       else
-         output "${YELLOW}No report file found to upload.${NORMAL}"
+         Output "${YELLOW}No report file found to upload.${NORMAL}"
          ExitFatal
     fi
 

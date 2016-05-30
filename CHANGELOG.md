@@ -121,6 +121,12 @@ demand for running remote scans. With 'lynis audit system remote' tips are now
 provides to perform such a scan via SSH.
 
 
+Software
+--------
+Zypper calls are now marked with a non-interactive flag to prevent it waiting for
+any interactive input.
+
+
 SSH
 ---
 The configuration of SSH is now parsed from the SSH daemon directly. This enables
@@ -196,6 +202,7 @@ Tests
 * BOOT-5184 - Improve file permissions check for CentOS 7 machines
 * DBS-1860  - Check for status of DB2
 * CRYP-7902 - Support for multiple profiles, improved logging
+* FILE-6354 - Restrict searching in /tmp to mount point only
 * FILE-6372 - Properly checking for /etc/fstab now, ignore comments
 * FILE-6374 - Added /dev/shm and /var/tmp
 * FILE-6374 - New test for /var/tmp

@@ -76,6 +76,11 @@ are now checked for their options. Comparison of the mount options has been
 improved. A new test has been added to check if /var/tmp has been bound to /tmp.
 
 
+Language Support
+----------------
+Lynis now supports language translations, with the language profile option.
+
+
 Mac OS X Improvements
 ---------------------
 Package manager Brew has been added
@@ -144,6 +149,8 @@ Uploads
 -------
 Solved a bug which added the proxy configuration twice.
 
+Profile options: upload-tool and upload-tool-arguments
+
 
 General Improvements
 --------------------
@@ -207,6 +214,7 @@ Tests
 * FILE-6374 - Added /dev/shm and /var/tmp
 * FILE-6374 - New test for /var/tmp
 * FILE-7524 - Support for multiple profiles
+* HTTP-6642 - Test disabled
 * HTTP-6710 - Trigger suggestion when weak protocols SSLv2/SSLv3 are used
 * KRNL-5788 - Support for kernel with grsecurity patches (linux-image-grsec)
 * KRNL-5820 - Improved logging for test

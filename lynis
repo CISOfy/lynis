@@ -89,6 +89,14 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
                 DBDIR="${I}"
             fi
         done
+
+    # Import translations. First import English to prefill all texts
+    if [ ! -f ${DBDIR}/languages/en-US ]; then
+        echo "Could not find languages directory (file: ${DBDIR}/languages/en-US)"
+        exit 1
+      else
+        . ${DBDIR}/languages/en-US
+    fi
 #
 #################################################################################
 #
@@ -432,7 +440,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
             echo "  ${RED}Error${NORMAL}: ${WHITE}Invalid option '${WRONGOPTION_value}'${NORMAL}"
           else
             if [ ${VIEWHELP} -eq 0 ]; then
-                echo "  ${RED}No command specified.${WHITE} Exiting..${NORMAL}"
+                echo "  ${RED}No command provided.${WHITE} Exiting..${NORMAL}"
                 echo ""
             fi
         fi
@@ -533,12 +541,22 @@ ${NORMAL}
 #
 #################################################################################
 #
-# Read profile/template/plugins
+# Read profile/language
 #
 #################################################################################
 #
     SafePerms ${INCLUDEDIR}/profiles
     . ${INCLUDEDIR}/profiles
+
+    # Import a different language when configured
+    if [ ! "${LANGUAGE}" = "en-US" ]; then
+        if [ ! -f ${DBDIR}/languages/${LANGUAGE} ]; then
+            Display "Warning: could not find languages directory (file: ${DBDIR}/languages/${LANGUAGE})"
+          else
+            LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
+            . ${DBDIR}/languages/${LANGUAGE}
+        fi
+    fi
 #
 #################################################################################
 #
@@ -767,7 +785,7 @@ ${NORMAL}
             PLUGIN_PHASE=$1
             if [ ${PLUGIN_PHASE} -eq 0 -o ${PLUGIN_PHASE} -gt 2 ]; then echo "Incorrect phase number when calling RunPlugins"; ExitFatal; fi
             LogTextBreak
-            InsertPluginSection "Plugins (phase ${PLUGIN_PHASE})"
+            InsertPluginSection "Plugins (${GEN_PHASE} ${PLUGIN_PHASE})"
             if [ ${PLUGIN_PHASE} -eq 1 ]; then
                 Display --text "Note: plugins have more extensive tests, which may take a few minutes to complete"
                 Display --text " "

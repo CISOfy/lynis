@@ -227,6 +227,7 @@ Tests
 * PROC-3612 - Removed wchan output to prevent grsecurity issues
 * SCHD-7702 - Test for running cron daemon
 * SCHD-7704 - Test ownership of cronjob files
+* SSH-7408  - Show weak configurations of SSH on screen as a suggestion
 * TOOL-5102 - Test for Fail2ban tooling
 * TOOL-5190 - Test for intrusion detection or prevention system
 

@@ -80,6 +80,8 @@ Language Support
 ----------------
 Lynis now supports language translations, with the language profile option.
 
+Initial languages: Dutch (nl), English (en)
+
 
 Mac OS X Improvements
 ---------------------
@@ -188,16 +190,18 @@ Program Options
 
 Functions
 ---------
-* ContainsString    - New function to search for a string in another one
-* Display           - Added --debug, showing details on screen in debug mode
-* IsDebug           - Check for usage of --debug
-* IsDeveloperMode   - Status for development and debugging (--developer)
-* IsRunning         - Added return state
-* IsVerbose         - Check for usage of --verbose
-* IsOwnedByRoot     - Check ownership of files and directories
-* IsWorldWritable   - Improved test with additional details
-* PortIsListening   - Check if a service it listening to a specified port
-* SkipAtomicTest    - Allow smaller tests to be skipped (e.g. SSH-7408)
+* ContainsString        - New function to search for a string in another one
+* Display               - Added --debug, showing details on screen in debug mode
+                        - Reset identation for lines which are too long
+* IsDebug               - Check for usage of --debug
+* IsDeveloperMode       - Status for development and debugging (--developer)
+* IsDeveloperVersion    - Check if release is still under development
+* IsRunning             - Added return state
+* IsVerbose             - Check for usage of --verbose
+* IsOwnedByRoot         - Check ownership of files and directories
+* IsWorldWritable       - Improved test with additional details
+* PortIsListening       - Check if a service it listening to a specified port
+* SkipAtomicTest        - Allow smaller tests to be skipped (e.g. SSH-7408)
 
 
 Tests

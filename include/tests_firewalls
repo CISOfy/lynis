@@ -46,13 +46,13 @@
             FIREWALL_SOFTWARE="iptables"
             IPTABLES_ACTIVE=1
             IPTABLES_MODULE_ACTIVE=1
-            Display --indent 2 --text "- Checking iptables kernel module" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking iptables kernel module" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: Found iptables in loaded kernel modules"
             for I in ${FIND}; do
                 LogText "Found module: ${I}"
             done
           else
-            Display --indent 2 --text "- Checking iptables kernel module" --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking iptables kernel module" --result "${STATUS_NOT_FOUND}" --color WHITE
 
             # If we can't find an active module, try to find the Linux configuration file and check that
             if [ -f /proc/config.gz ]; then
@@ -80,13 +80,13 @@
                                 IPTABLES_INKERNEL_ACTIVE=1
                                 FIREWALL_ACTIVE=1
                                 FIREWALL_SOFTWARE="iptables"
-                                Display --indent 2 --text "- Checking iptables in config file" --result FOUND --color GREEN
+                                Display --indent 2 --text "- Checking iptables in config file" --result "${STATUS_FOUND}" --color GREEN
                           else
                             LogText "Result: no iptables found in Linux kernel config file"
                         fi
                       else
                         LogText "Result: no Linux configuration file found"
-                        Display --indent 2 --text "- Checking iptables in config file" --result "NOT FOUND" --color WHITE
+                        Display --indent 2 --text "- Checking iptables in config file" --result "${STATUS_NOT_FOUND}" --color WHITE
                     fi
                 fi
             fi
@@ -102,7 +102,7 @@
     if [ ! "${IPTABLESBINARY}" = "" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FIRE-4508 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --description "Check used policies of iptables chains"
     if [ ${SKIPTEST} -eq 0 ]; then
-        Display --indent 4 --text "- Checking iptables policies of chains" --result FOUND --color GREEN
+        Display --indent 4 --text "- Checking iptables policies of chains" --result "${STATUS_FOUND}" --color GREEN
         TABLES="filter"
         for TABLE in ${TABLES}; do
             LogText "Test: gathering information from table ${TABLE}"
@@ -155,11 +155,11 @@
                 # Firewall is active, but clearly needs configuration
                 FIREWALL_EMPTY_RULESET=1
                 LogText "Result: iptables ruleset seems to be empty (found ${FIND} rules)"
-                Display --indent 4 --text "- Checking for empty ruleset" --result WARNING --color RED
+                Display --indent 4 --text "- Checking for empty ruleset" --result "${STATUS_WARNING}" --color RED
                 ReportWarning ${TEST_NO} "L" "iptables module(s) loaded, but no rules active"
               else
                 LogText "Result: one or more rules are available (${FIND} rules)"
-                Display --indent 4 --text "- Checking for empty ruleset" --result OK --color GREEN
+                Display --indent 4 --text "- Checking for empty ruleset" --result "${STATUS_OK}" --color GREEN
             fi
         fi
     fi
@@ -173,10 +173,10 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=`${IPTABLESBINARY} --list --numeric --line-numbers --verbose | awk '{ if ($2=="0") print $1 }' | xargs`
         if [ "${FIND}" = "" ]; then
-            Display --indent 4 --text "- Checking for unused rules" --result OK --color GREEN
+            Display --indent 4 --text "- Checking for unused rules" --result "${STATUS_OK}" --color GREEN
             LogText "Result: There are no unused rules present"
           else
-            Display --indent 4 --text "- Checking for unused rules" --result FOUND --color YELLOW
+            Display --indent 4 --text "- Checking for unused rules" --result "${STATUS_FOUND}" --color YELLOW
             LogText "Result: Found one or more possible unused rules"
             LogText "Description: Unused rules can be a sign that the firewall rules aren't optimized or up-to-date"
             LogText "Note: Sometimes rules aren't triggered but still in use. Keep this in mind before cleaning up rules."
@@ -201,17 +201,17 @@
         if [ ! "${PFCTLBINARY}" = "" ]; then
             FIND=`${PFCTLBINARY} -sa 2>&1 | grep "^Status" | head -1 | awk '{ print $2 }'`
             if [ "${FIND}" = "Enabled" ]; then
-                Display --indent 2 --text "- Checking pf status (pfctl)" --result ENABLED --color GREEN
+                Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_ENABLED}" --color GREEN
                 LogText "Result: pf is enabled"
                 PFFOUND=1
                 AddHP 3 3
               else
                 if [ "${FIND}" = "Disabled" ]; then
-                    Display --indent 2 --text "- Checking pf status (pfctl)" --result DISABLED --color RED
+                    Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_DISABLED}" --color RED
                     LogText "Result: pf is disabled"
                     AddHP 0 3
                   else
-                    Display --indent 2 --text "- Checking pf status (pfctl)" --result UNKNOWN --color YELLOW
+                    Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_UNKNOWN}" --color YELLOW
                     ReportException ${TEST_NO} "Unknown status of pf firewall"
                 fi
             fi
@@ -236,7 +236,7 @@
             IsRunning pflogd
             if [ ${RUNNING} -eq 1 ]; then
                 LogText "Result: found pflog daemon in process list"
-                Display --indent 4 --text "- Checking pflogd status" --result ACTIVE --color GREEN
+                Display --indent 4 --text "- Checking pflogd status" --result "ACTIVE" --color GREEN
                 PFFOUND=1
                 PFLOGDFOUND=1
               else
@@ -267,10 +267,10 @@
             # Check results from pfctl
             PFWARNINGS=`pfctl -n -f /etc/pf.conf -vvv 2>&1 | grep -i 'warning'`
             if [ "${PFWARNINGS}" = "" ]; then
-                Display --indent 4 --text "- Checking pf configuration consistency" --result OK --color GREEN
+                Display --indent 4 --text "- Checking pf configuration consistency" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: no pf filter warnings found"
               else
-                Display --indent 4 --text "- Checking pf configuration consistency" --result WARNING --color RED
+                Display --indent 4 --text "- Checking pf configuration consistency" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: found one or more warnings in the pf filter rules"
                 ReportWarning ${TEST_NO} "H" "Found one or more warnings in pf configuration file"
                 ReportSuggestion ${TEST_NO} "Run 'pfctl -n -f /etc/pf.conf -vvv' to see available pf warnings"
@@ -298,7 +298,7 @@
             FIREWALL_ACTIVE=1
             FIREWALL_SOFTWARE="csf"
             Report "firewall_software[]=csf"
-            Display --indent 2 --text "- Checking CSF status (configuration file)" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking CSF status (configuration file)" --result "${STATUS_FOUND}" --color GREEN
           else
             LogText "Result: ${FILE} does NOT exist"
         fi
@@ -313,13 +313,13 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=`${IPFBINARY} -n -V | grep "^Running" | awk '{ print $2 }'`
         if [ "${FIND}" = "yes" ]; then
-            Display --indent 4 --text "- Checking ipf status" --result RUNNING --color GREEN
+            Display --indent 4 --text "- Checking ipf status" --result "${STATUS_RUNNING}" --color GREEN
             LogText "Result: ipf is enabled and running"
             FIREWALL_ACTIVE=1
             FIREWALL_SOFTWARE="ipf"
             Report "firewall_software[]=ipf"
           else
-            Display --indent 4 --text "- Checking ipf status" --result "NOT RUNNING" --color YELLOW
+            Display --indent 4 --text "- Checking ipf status" --result "${STATUS_NOT_RUNNING}" --color YELLOW
             LogText "Result: ipf is not running"
         fi
     fi
@@ -334,25 +334,25 @@
             # For now, only check for IPv4.
             FIND=`${SYSCTLBINARY} net.inet.ip.fw.enable | awk '{ print $2 }'`
             if [ "${FIND}" = "1" ]; then
-                Display --indent 2 --text "- Checking IPFW status" --result RUNNING --color GREEN
+                Display --indent 2 --text "- Checking IPFW status" --result "${STATUS_RUNNING}" --color GREEN
                 LogText "Result: IPFW is running for IPv4"
                 FIREWALL_ACTIVE=1
                 FIREWALL_SOFTWARE="ipfw"
                 Report "firewall_software[]=ipfw"
                 IPFW_ENABLED=`service -e | grep -o ipfw`
                 if [ "${IPFW_ENABLED}" = "ipfw" ]; then
-                    Display --indent 4 --text "- IPFW enabled in /etc/rc.conf" --result YES --color GREEN
+                    Display --indent 4 --text "- IPFW enabled in /etc/rc.conf" --result "${STATUS_YES}" --color GREEN
                     LogText "Result: IPFW is enabled at start-up for IPv4"
                 else
-                    Display --indent 4 --text "- ipfw enabled in /etc/rc.conf" --result NO --color YELLOW
+                    Display --indent 4 --text "- ipfw enabled in /etc/rc.conf" --result "${STATUS_NO}" --color YELLOW
                     LogText "Result: IPFW is disabled at start-up for IPv4"
                 fi
             else
-                Display --indent 2 --text "- Checking IPFW status" --result "NOT RUNNING" --color YELLOW
+                Display --indent 2 --text "- Checking IPFW status" --result "${STATUS_NOT_RUNNING}" --color YELLOW
                 LogText "Result: IPFW is not running for IPv4"
             fi
         else
-            Display --indent 2 --text "- Checking IPFW" --result SKIPPED --color YELLOW
+            Display --indent 2 --text "- Checking IPFW" --result "${STATUS_SKIPPED}" --color YELLOW
             ReportException "${TEST_NO}:1" "No IPFW test available (sysctl missing)"
         fi
     fi
@@ -366,13 +366,13 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=`/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2> /dev/null | grep "Firewall is enabled"`
         if [ ! "${FIND}" = "" ]; then
-            Display --indent 2 --text "- Checking Mac OS X: Application Firewall" --result ENABLED --color GREEN
+            Display --indent 2 --text "- Checking Mac OS X: Application Firewall" --result "${STATUS_ENABLED}" --color GREEN
             AddHP 3 3
             LogText "Result: application firewall of Mac OS X is enabled"
             APPLICATION_FIREWALL_ACTIVE=1
             Report "app_fw[]=macosx-app-fw"
           else
-            Display --indent 2 --text "- Checking IPFW" --result DISABLED --color YELLOW
+            Display --indent 2 --text "- Checking IPFW" --result "${STATUS_DISABLED}" --color YELLOW
             AddHP 1 3
             LogText "Result: application firewall of Mac OS X is disabled"
         fi
@@ -422,7 +422,7 @@
     Register --test-no FIRE-4590 --weight L --network NO --description "Check firewall status"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ${FIREWALL_ACTIVE} -eq 1 ]; then
-            Display --indent 2 --text "- Checking host based firewall" --result ACTIVE --color GREEN
+            Display --indent 2 --text "- Checking host based firewall" --result "ACTIVE" --color GREEN
             LogText "Result: host based firewall or packet filter is active"
             Report "manual[]=Verify if there is a formal process for testing and applying firewall rules"
             Report "manual[]=Verify all traffic is filtered the right way between the different security zones"

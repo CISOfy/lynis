@@ -51,11 +51,11 @@
                 FIND=`mount | grep "${I}"`
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found ${I} as a separated mount point"
-                    Display --indent 4 --text "- Checking ${I} mount point" --result OK --color GREEN
+                    Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_OK}" --color GREEN
                     AddHP 10 10
                   else
                     LogText "Result: ${I} not found in mount list. Directory most likely stored on / file system"
-                    Display --indent 4 --text "- Checking ${I} mount point" --result SUGGESTION --color YELLOW
+                    Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_SUGGESTION}" --color YELLOW
                     ReportSuggestion ${TEST_NO} "To decrease the impact of a full ${I} file system, place ${I} on a separated partition"
                     AddHP 9 10
                 fi
@@ -92,10 +92,10 @@
                 Report "lvm_volume_group[]=${I}"
             done
             LVM_VG_USED=1
-            Display --indent 2 --text "- Checking LVM volume groups" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking LVM volume groups" --result "${STATUS_FOUND}" --color GREEN
           else
             LogText "Result: no LVM volume groups found"
-            if IsVerbose; then Display --indent 2 --text "- Checking LVM volume groups" --result NONE --color WHITE; fi
+            if IsVerbose; then Display --indent 2 --text "- Checking LVM volume groups" --result "${STATUS_NONE}" --color WHITE; fi
         fi
     fi
 #
@@ -125,10 +125,10 @@
                 LogText "Found LVM volume: ${I}"
                 Report "lvm_volume[]=${I}"
             done
-            Display --indent 4 --text "- Checking LVM volumes" --result FOUND --color GREEN
+            Display --indent 4 --text "- Checking LVM volumes" --result "${STATUS_FOUND}" --color GREEN
           else
             LogText "Result: no LVM volume groups found"
-            Display --indent 4 --text "- Checking LVM volumes" --result NONE --color WHITE
+            Display --indent 4 --text "- Checking LVM volumes" --result "${STATUS_NONE}" --color WHITE
         fi
     fi
 #
@@ -172,10 +172,10 @@
         LogText "Test: Query /etc/fstab for available FFS/UFS mount points"
         FIND=`awk '{ if ($3 == "ufs" || $3 == "ffs" ) { print $1":"$2":"$3":"$4":" }}' /etc/fstab`
         if [ "${FIND}" = "" ]; then
-            if IsVerbose; then Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result NONE --color WHITE; fi
+            if IsVerbose; then Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result "${STATUS_NONE}" --color WHITE; fi
             LogText "Result: unable to find any single mount point (FFS/UFS)"
           else
-            Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result FOUND --color GREEN
+            Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result "${STATUS_FOUND}" --color GREEN
             Report "filesystem[]=ufs"
             for I in ${FIND}; do
                 LogText "FFS/UFS mount found: ${I}"
@@ -193,10 +193,10 @@
         LogText "Test: Query /etc/fstab for available ZFS mount points"
         FIND=`mount -p | awk '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}'`
         if [ "${FIND}" = "" ]; then
-            Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result NONE --color WHITE
+            Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result "${STATUS_NONE}" --color WHITE
             LogText "Result: unable to find any single mount point (ZFS)"
           else
-            Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result FOUND --color GREEN
+            Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result "${STATUS_FOUND}" --color GREEN
             Report "filesystem[]=zfs"
             for I in ${FIND}; do
                 LogText "ZFS mount found: ${I}"
@@ -257,9 +257,9 @@
             Report "swap_partition[]=${I},${REAL},"
         done
         if [ ${FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Query swap partitions (fstab)" --result OK --color GREEN
+            Display --indent 2 --text "- Query swap partitions (fstab)" --result "${STATUS_OK}" --color GREEN
           else
-            Display --indent 2 --text "- Query swap partitions (fstab)" --result NONE --color YELLOW
+            Display --indent 2 --text "- Query swap partitions (fstab)" --result "${STATUS_NONE}" --color YELLOW
             LogText "Result: no swap partitions found in /etc/fstab"
         fi
     fi
@@ -278,7 +278,7 @@
         #FIND=`awk '{ if ($3=="swap" && ($4!="sw" && $4!="swap" && $4!="defaults")) print $1 }' /etc/fstab`
         FIND=`awk '{ if ($3=="swap" && ($4~/sw/ || $4=="defaults")) { print $1 }}' /etc/fstab`
         if [ ! "${FIND}" = "" ]; then
-            Display --indent 2 --text "- Testing swap partitions" --result OK --color GREEN
+            Display --indent 2 --text "- Testing swap partitions" --result "${STATUS_OK}" --color GREEN
             LogText "Result: all swap partitions have correct options (sw or swap)"
           else
             Display --indent 2 --text "- Testing swap partitions" --result "CHECK NEEDED" --color YELLOW
@@ -300,10 +300,10 @@
         # Search for files only in /tmp, with an access time older than X days
         FIND=`find /tmp -xdev -type f -atime +${TMP_OLD_DAYS} | sed 's/ /!space!/g'`
         if [ "${FIND}" = "" ]; then
-            Display --indent 2 --text "- Checking for old files in /tmp" --result OK --color GREEN
+            Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_OK}" --color GREEN
             LogText "Result: no files found in /tmp which are older than 3 months"
           else
-            Display --indent 2 --text "- Checking for old files in /tmp" --result FOUND --color RED
+            Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_FOUND}" --color RED
             N=0
             for I in ${FIND}; do
                 FILE=`echo ${I} | sed 's/!space!/ /g'`
@@ -329,11 +329,11 @@
         # Depending on OS, number of field with 'tmp' differs
         FIND=`ls -l / | tr -s ' ' | awk -F" " '{ if ( $8 == "tmp" || $9 == "tmp" ) { print $1 } }' | cut -c 10`
         if [ "${FIND}" = "t" -o "${FIND}" = "T" ]; then
-            Display --indent 2 --text "- Checking /tmp sticky bit" --result OK --color GREEN
+            Display --indent 2 --text "- Checking /tmp sticky bit" --result "${STATUS_OK}" --color GREEN
             LogText "Result: Sticky bit (${FIND}) found on /tmp directory"
             AddHP 3 3
           else
-            Display --indent 2 --text "- Checking /tmp sticky bit" --result WARNING --color RED
+            Display --indent 2 --text "- Checking /tmp sticky bit" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "H" "No sticky bit found on /tmp directory, which can be dangerous!"
             ReportSuggestion ${TEST_NO} "Consult documentation and place the sticky bit, to prevent users deleting (by other owned) files in the /tmp directory."
             AddHP 0 3
@@ -402,11 +402,11 @@
             LogText "Result: ACL option NOT enabled on root file system"
             LogText "Additional information: if file access need to be more restricted, ACLs could be used. Install the acl utilities and remount the file system with the acl option"
             LogText "Activate acl support on and active file system with mount -o remount,acl / and add the acl option to the fstab file"
-            Display --indent 2 --text "- ACL support root file system" --result DISABLED --color YELLOW
+            Display --indent 2 --text "- ACL support root file system" --result "${STATUS_DISABLED}" --color YELLOW
             AddHP 0 1
           else
             LogText "Result: ACL option enabled on root file system"
-            Display --indent 2 --text "- ACL support root file system" --result ENABLED --color GREEN
+            Display --indent 2 --text "- ACL support root file system" --result "${STATUS_ENABLED}" --color GREEN
             AddHP 3 3
         fi
     fi
@@ -427,7 +427,7 @@
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: mount system / is configured with options: ${FIND}"
                 if [ "${FIND}" = "defaults" ]; then
-                    Display --indent 2 --text "- Mount options of /" --result OK --color GREEN
+                    Display --indent 2 --text "- Mount options of /" --result "${STATUS_OK}" --color GREEN
                   else
                     Display --indent 2 --text "- Mount options of /" --result "NON DEFAULT" --color YELLOW
                 fi
@@ -522,7 +522,7 @@
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: mount system /var/tmp is configured with options: ${FIND}"
                 if [ "${BIND}" = "YES" ]; then
-                    Display --indent 2 --text "- /var/tmp is bound to /tmp" --result OK --color GREEN
+                    Display --indent 2 --text "- /var/tmp is bound to /tmp" --result "${STATUS_OK}" --color GREEN
                     LogText "Result : /var/tmp is bind to /tmp"
                   else
                     Display --indent 2 --text "- /var/tmp is not bound to /tmp" --result "NON DEFAULT" --color YELLOW
@@ -599,11 +599,11 @@
             fi
         done
         if [ ${FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Checking Locate database" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking Locate database" --result "${STATUS_FOUND}" --color GREEN
             Report "locate_db=${LOCATE_DB}"
           else
             LogText "Result: database not found"
-            Display --indent 2 --text "- Checking Locate database" --result "NOT FOUND" --color YELLOW
+            Display --indent 2 --text "- Checking Locate database" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportSuggestion ${TEST_NO} "The database required for 'locate' could not be found. Run 'updatedb' or 'locate.updatedb' to create this file."
         fi
     fi

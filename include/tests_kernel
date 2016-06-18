@@ -61,7 +61,7 @@
                 fi
               else
                 LogText "Result: No readlink binary, can't determine where symlink is pointing to"
-                Display --indent 2 --text "- Checking default run level" --result UNKNOWN --color YELLOW
+                Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
             fi
           else
             LogText "Result: no systemd found, so trying inittab"
@@ -71,7 +71,7 @@
                 LogText "Test: Checking default Linux run level"
                 FIND=`awk -F: '/^id/ { print $2; }' /etc/inittab | head -n 1`
                 if [ "${FIND}" = "" ]; then
-                    Display --indent 2 --text "- Checking default runlevel" --result UNKNOWN --color YELLOW
+                    Display --indent 2 --text "- Checking default runlevel" --result "${STATUS_UNKNOWN}" --color YELLOW
                     LogText "Result: Can't determine default run level from /etc/inittab"
                   else
                     Display --indent 2 --text "- Checking default run level" --result "${FIND}" --color GREEN
@@ -89,7 +89,7 @@
                         Display --indent 2 --text "- Checking default run level" --result "RUNLEVEL ${FIND}" --color GREEN
                       else
                         LogText "Result: Can't determine default run level from who -r"
-                        Display --indent 2 --text "- Checking default run level" --result UNKNOWN --color YELLOW
+                        Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
                     fi
                 fi
             fi
@@ -140,13 +140,13 @@
                 fi
             fi
             if [ ${FOUND} -eq 1 ]; then
-                Display --indent 4 --text "CPU support: PAE and/or NoeXecute supported" --result FOUND --color GREEN
+                Display --indent 4 --text "CPU support: PAE and/or NoeXecute supported" --result "${STATUS_FOUND}" --color GREEN
               else
-                Display --indent 4 --text "CPU support: No PAE or NoeXecute supported" --result NONE --color YELLOW
+                Display --indent 4 --text "CPU support: No PAE or NoeXecute supported" --result "${STATUS_NONE}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Use a PAE enabled kernel when possible to gain native No eXecute/eXecute Disable support"
             fi
           else
-            Display --indent 4 --text "CPU support: no /proc/cpuinfo" --result SKIPPED --color YELLOW
+            Display --indent 4 --text "CPU support: no /proc/cpuinfo" --result "${STATUS_SKIPPED}" --color YELLOW
             LogText "Result: /proc/cpuinfo not found"
         fi
     fi
@@ -172,7 +172,7 @@
         LINUX_KERNEL_VERSION=`uname -v`
         Report "linux_kernel_version=${LINUX_KERNEL_VERSION}"
         LogText "Result: found kernel version ${LINUX_KERNEL_VERSION}"
-        Display --indent 2 --text "- Checking kernel version and release" --result DONE --color GREEN
+        Display --indent 2 --text "- Checking kernel version and release" --result "${STATUS_DONE}" --color GREEN
     fi
 #
 #################################################################################
@@ -185,7 +185,7 @@
             LogText "Test: checking if kernel is monolithic or modular"
             # Checking if any modules are loaded
             FIND=`${LSMODBINARY} | grep -v "^Module" | wc -l | tr -s ' ' | tr -d ' '`
-            Display --indent 2 --text "- Checking kernel type" --result DONE --color GREEN
+            Display --indent 2 --text "- Checking kernel type" --result "${STATUS_DONE}" --color GREEN
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: Found monolithic kernel"
                 Report "linux_kernel_type=monolithic"
@@ -208,7 +208,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
             FIND=`${LSMODBINARY} | awk '{ if ($1!="Module") print $1 }' | sort`
-            Display --indent 2 --text "- Checking loaded kernel modules" --result DONE --color GREEN
+            Display --indent 2 --text "- Checking loaded kernel modules" --result "${STATUS_DONE}" --color GREEN
             if [ ! "${FIND}" = "" ]; then
                 LogText "Loaded modules according lsmod:"
                 N=0
@@ -237,15 +237,15 @@
         if [ -f ${CHECKFILE} ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LogText "Result: found config (${LINUXCONFIGFILE})"
-            Display --indent 2 --text "- Checking Linux kernel configuration file" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
           elif [ -f /proc/config.gz ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LINUXCONFIGFILE_ZIPPED=1
             LogText "Result: found config: /proc/config.gz (compressed)"
-            Display --indent 2 --text "- Checking Linux kernel configuration file" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
           else
             LogText "Result: no Linux kernel configuration file found in /boot"
-            Display --indent 2 --text "- Checking Linux kernel configuration file" --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
         if [ ! "${LINUXCONFIGFILE}" = "" ]; then
             Report "linux_config_file=${LINUXCONFIGFILE}"
@@ -270,11 +270,11 @@
             LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | awk -F= '{ print $2 }' | sed s/\"//g`
             if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
                 LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
-                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result FOUND --color GREEN
+                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
                 Report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
               else
                 LogText "Result: no default i/o kernel scheduler found"
-                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "NOT FOUND" --color WHITE
+                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_NOT_FOUND}" --color WHITE
             fi
           else
             ReportException "${TEST_NO}" "No valid grep tool found to search kernel settings"
@@ -301,9 +301,9 @@
                     Report "loaded_kernel_module[]=${I}"
                     N=$((N + 1))
                 done
-                Display --indent 4 --text "Found ${N} kernel modules" --result DONE --color GREEN
+                Display --indent 4 --text "Found ${N} kernel modules" --result "${STATUS_DONE}" --color GREEN
               else
-                Display --indent 4 --text "Test failed" --result WARNING --color RED
+                Display --indent 4 --text "Test failed" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Problem with executing kldstat"
             fi
           else
@@ -325,10 +325,10 @@
                 LogText "Found module: ${I}"
                 Report "loaded_kernel_module[]=${I}"
             done
-            Display --indent 2 --text "- Checking Solaris active kernel modules" --result DONE --color GREEN
+            Display --indent 2 --text "- Checking Solaris active kernel modules" --result "${STATUS_DONE}" --color GREEN
           else
             LogText "Result: no output"
-            Display --indent 2 --text "- Checking Solaris active kernel modules" --result UNKNOWN --color YELLOW
+            Display --indent 2 --text "- Checking Solaris active kernel modules" --result "${STATUS_UNKNOWN}" --color YELLOW
         fi
     fi
 #
@@ -363,7 +363,7 @@
             LogText "Kernel installed: ${FINDINST}"
             LogText "Kernel candidate: ${FINDCAND}"
             if [ "${FINDINST}" = "" ]; then
-                Display --indent 2 --text "- Checking for available kernel update" --result UNKNOWN --color YELLOW
+                Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
                 LogText "Result: Exception occured, no output from apt-cache policy"
                 ReportException "${TEST_NO}:01"
                 LogText "Exception: apt-cache policy did not return an installed kernel version"
@@ -375,7 +375,7 @@
                         LogText "Result: Grsecurity is installed; unable to determine if there's a newer kernel available"
                         ReportManual "Manually check to confirm you're using a recent kernel and grsecurity patch"
                     else
-                        Display --indent 2 --text "- Checking for available kernel update" --result OK --color GREEN
+                        Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_OK}" --color GREEN
                         LogText "Result: no kernel update available"
                     fi
                 else
@@ -403,12 +403,12 @@
             FIND2=`grep -v "^#" /etc/security/limits.conf | grep -v "^$" | awk '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="1") { print "hard core enabled" } }'`
             if [ "${FIND1}" = "soft core enabled" -o "${FIND2}" = "hard core enabled" ]; then
                 LogText "Result: core dumps (soft or hard) are enabled"
-                Display --indent 2 --text "- Checking core dumps configuration" --result ENABLED --color YELLOW
+                Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_ENABLED}" --color YELLOW
                 AddSuggestion "${TEST_NO}" "Check if core dumps need to be enabled on this system"
                 AddHP 1 2
               else
                 LogText "Result: core dumps (soft and hard) are both disabled"
-                Display --indent 2 --text "- Checking core dumps configuration" --result DISABLED --color GREEN
+                Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_DISABLED}" --color GREEN
                 CORE_DUMPS_DISABLED=1
                 AddHP 3 3
             fi
@@ -583,14 +583,14 @@
 
         # Display discovered status
         if [ ${REBOOT_NEEDED} -eq 0 ]; then
-             Display --indent 2 --text "- Check if reboot is needed" --result NO --color GREEN
+             Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_NO}" --color GREEN
              AddHP 5 5
           elif [ ${REBOOT_NEEDED} -eq 1 ]; then
-             Display --indent 2 --text "- Check if reboot is needed" --result YES --color RED
+             Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_YES}" --color RED
              ReportWarning ${TEST_NO} "H" "Reboot of system is most likely needed"
              AddHP 0 5
           else
-             Display --indent 2 --text "- Check if reboot is needed" --result UNKNOWN --color YELLOW
+             Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_UNKNOWN}" --color YELLOW
         fi
     fi
 #

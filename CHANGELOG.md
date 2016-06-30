@@ -206,6 +206,7 @@ Functions
 
 Tests
 -----
+* AUTH-9234 - Test for minimal UID in /etc/login.defs when available
 * AUTH-9262 - Restructure of test, support for pwquality PAM
 * AUTH-9308 - Check for systemd targets
 * BANN-7119 - /etc/motd test disabled

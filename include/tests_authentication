@@ -295,8 +295,14 @@
             ;;
 
             "Linux")
-                LogText "Linux real users output (ID = 0, or 1000+, but not 65534):"
-                FIND=`awk -F: '($3 >= 1000 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                UID_MIN=""
+                if [ -f /etc/login.defs ]; then
+                    UID_MIN=$(grep "^UID_MIN" /etc/login.defs | awk '{print $2}')
+                    LogText "Result: found minimal user id specified: ${UID_MIN}"
+                fi
+                if [ "${UID_MIN}" = "" ]; then UID_MIN="1000"; fi
+                LogText "Linux real users output (ID = 0, or ${UID_MIN}+, but not 65534):"
+                FIND=`awk -v UID_MIN="${UID_MIN}" -F: '($3 >= UID_MIN && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
             ;;
 
             "OpenBSD")

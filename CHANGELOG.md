@@ -134,6 +134,11 @@ Zypper calls are now marked with a non-interactive flag to prevent it waiting fo
 any interactive input.
 
 
+Solaris
+-------
+Improve execution for Solaris systems.
+
+
 SSH
 ---
 The configuration of SSH is now parsed from the SSH daemon directly. This enables
@@ -207,7 +212,9 @@ Functions
 Tests
 -----
 * AUTH-9234 - Test for minimal UID in /etc/login.defs when available
+* AUTH-9254 - Allow allow root to use this test, due to permissions
 * AUTH-9262 - Restructure of test, support for pwquality PAM
+* AUTH-9288 - Only check for accounts which have a maximum password age set
 * AUTH-9308 - Check for systemd targets
 * BANN-7119 - /etc/motd test disabled
 * BANN-7122 - /motd content test disabled
@@ -229,6 +236,7 @@ Tests
 * PKGS-7303 - Added Brew package manager
 * PKGS-7354 - Test for DNF repoquery plugin before using it
 * PKGS-7381 - Check for vuln.xml file
+* PRNT-2306 - Check if files are readable before parsing them
 * PROC-3612 - Removed wchan output to prevent grsecurity issues
 * SCHD-7702 - Test for running cron daemon
 * SCHD-7704 - Test ownership of cronjob files

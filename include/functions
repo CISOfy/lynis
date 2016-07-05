@@ -25,6 +25,7 @@
 #    Function                   Description
 #    -----------------------    -------------------------------------------------
 #    AddHP                      Add Hardening points to plot a graph later
+#    AddSetting                 Addition of setting
 #    AddSystemGroup             Adds a system to a group
 #    CheckFilePermissions       Check file permissions
 #    CheckUpdates               Determine if a new version of Lynis is available
@@ -35,6 +36,7 @@
 #    Debug                      Display additional information on the screen (not suited for cronjob)
 #    DigitsOnly                 Return only the digits from a string
 #    DirectoryExists            Check if a directory exists on the disk
+#    DiscoverProfiles           Determine available profiles on system
 #    Display                    Output text to screen with colors and identation
 #    DisplayManual              Output text to screen without any layout
 #    ExitClean                  Stop the program (cleanly), with exit code 0
@@ -59,6 +61,7 @@
 #    LogText                    Log text strings to logfile, prefixed with date/time
 #    LogTextBreak               Insert a separator in log file
 #    ParseNginx                 Parse nginx configuration lines
+#    ParseProfiles              Parse all available profiles
 #    ParseTestValues            Parse a set of values
 #    PortIsListening            Check if machine is listening on specified protocol and port
 #    Progress                   Show progress on screen
@@ -111,6 +114,34 @@
             LogText "Hardening: assigned maximum number of hardening points for this item (${HPADDMAX}). Currently having ${HPPOINTS} points (out of ${HPTOTAL})"
           else
             LogText "Hardening: assigned partial number of hardening points (${HPADD} of ${HPADDMAX}). Currently having ${HPPOINTS} points (out of ${HPTOTAL})"
+        fi
+    }
+
+
+    ################################################################################
+    # Name        : AddSetting()
+    # Description : Addition of a setting for display with 'lynis show settings'
+    #
+    # Input       : $1 = setting, $2 = value, $3 description
+    # Returns     : <nothing>
+    # Usage       : AddSetting debug 1 'Debug mode'
+    ################################################################################
+
+    AddSetting() {
+        if [ $# -eq 3 ]; then
+            if [ -z "${SETTINGS_FILE}" ]; then
+                CreateTempFile
+                SETTINGS_FILE="${TEMP_FILE}"
+            fi
+            FIND=$(egrep "^$1;" ${SETTINGS_FILE})
+            if [ -z "${FIND}" ]; then
+                echo "$1;$2;$3;" >> ${SETTINGS_FILE}
+              else
+                Debug "Option $1 was already configured, overwriting previous value in ${SETTINGS_FILE}"
+                sed -i -e "s/$1;.*$/$1;$2;$3;/" ${SETTINGS_FILE}
+            fi
+        else
+            echo "Error: incorrect call to AddSetting. Needs 3 arguments."
         fi
     }
 
@@ -354,6 +385,61 @@
             VALUE=`echo ${VALUE} | grep -Eo '[0-9]{1,}'`
         fi
         LogText "Returning value: ${VALUE}"
+    }
+
+
+    ################################################################################
+    # Name        : DiscoverProfiles()
+    # Description : Determine which profiles we have available
+    #
+    # Returns     : Nothing
+    # Usage       : DiscoverProfiles
+    ################################################################################
+
+    DiscoverProfiles() {
+        # Try to find a default and custom profile, unless one was specified manually
+        if [ "${PROFILE}" = "" ]; then
+            CUSTOM_PROFILE=""
+            DEFAULT_PROFILE=""
+            PROFILEDIR=""
+            tPROFILE_NAMES="default.prf custom.prf"
+            tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
+            for PNAME in ${tPROFILE_NAMES}; do
+                for PLOC in ${tPROFILE_TARGETS}; do
+                    # Only use one default.prf
+                    if [ "${PNAME}" = "default.prf" -a ! "${DEFAULT_PROFILE}" = "" ]; then
+                      Debug "Already discovered default.prf - skipping this file (${PLOC}/${PNAME})"
+                    elif [ "${PNAME}" = "custom.prf" -a ! "${CUSTOM_PROFILE}" = "" ]; then
+                      Debug "Already discovered custom.prf - skipping this file (${PLOC}/${PNAME})"
+                      else
+                        if [ "${PLOC}" = "." ]; then FILE="${WORKDIR}/${PNAME}"; else FILE="${PLOC}/${PNAME}"; fi
+                        if [ -r ${FILE} ]; then
+                            PROFILES="${PROFILES} ${FILE}"
+                            case ${PNAME} in
+                                "custom.prf") CUSTOM_PROFILE="${FILE}" ;;
+                                "default.prf") DEFAULT_PROFILE="${FILE}" ;;
+                            esac
+                            # Set profile directory to last match (Lynis could be both installed, and run as a separate download)
+                            if [ "${PLOC}" = "." ]; then PROFILEDIR="${WORKDIR}"; else PROFILEDIR="${PLOC}"; fi
+                        fi
+                    fi
+                done
+            done
+            # Search any profiles defined with --profile
+            for FILE in ${SEARCH_PROFILES}; do
+                if [ -r ${FILE} ]; then
+                    Debug "Found profile defined with --profile"
+                    PROFILES="${PROFILES} ${FILE}"
+                fi
+            done
+        fi
+        if [ "${PROFILES}" = "" ]; then
+            echo "${RED}Fatal error: ${WHITE}No profile defined and could not find default profile${NORMAL}"
+            echo "Search paths used --> ${tPROFILE_TARGETS}"
+            ExitCustom 66
+          else
+            PROFILES=`echo ${PROFILES} | sed 's/^ //'`
+        fi
     }
 
 
@@ -1315,6 +1401,14 @@
             echo "${CDATE} ===---------------------------------------------------------------===" >> ${LOGFILE}
         fi
     }
+
+
+
+    ParseProfiles() {
+        SafePerms ${INCLUDEDIR}/profiles
+        . ${INCLUDEDIR}/profiles
+    }
+
 
 
     ################################################################################

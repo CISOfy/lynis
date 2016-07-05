@@ -195,6 +195,7 @@ Program Options
 
 Functions
 ---------
+* AddSetting            - New function to store settings (lynis show settings)
 * ContainsString        - New function to search for a string in another one
 * Display               - Added --debug, showing details on screen in debug mode
                         - Reset identation for lines which are too long
@@ -220,7 +221,7 @@ Tests
 * BANN-7122 - /motd content test disabled
 * BOOT-5184 - Improve file permissions check for CentOS 7 machines
 * DBS-1860  - Check for status of DB2
-* CRYP-7902 - Support for multiple profiles, improved logging
+* CRYP-7902 - Improved logging
 * FILE-6354 - Restrict searching in /tmp to mount point only
 * FILE-6372 - Properly checking for /etc/fstab now, ignore comments
 * FILE-6374 - Added /dev/shm and /var/tmp

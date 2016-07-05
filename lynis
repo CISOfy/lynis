@@ -277,49 +277,8 @@ ${NORMAL}
 #
     InsertSection "${GEN_INITIALIZE_PROGRAM}"
 
-    # Try to find a default and custom profile, unless one was specified manually
-    if [ "${PROFILE}" = "" ]; then
-        CUSTOM_PROFILE=""
-        DEFAULT_PROFILE=""
-        PROFILEDIR=""
-        tPROFILE_NAMES="default.prf custom.prf"
-        tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
-        for PNAME in ${tPROFILE_NAMES}; do
-            for PLOC in ${tPROFILE_TARGETS}; do
-                # Only use one default.prf
-                if [ "${PNAME}" = "default.prf" -a ! "${DEFAULT_PROFILE}" = "" ]; then
-                  Debug "Already discovered default.prf - skipping this file (${PLOC}/${PNAME})"
-                elif [ "${PNAME}" = "custom.prf" -a ! "${CUSTOM_PROFILE}" = "" ]; then
-                  Debug "Already discovered custom.prf - skipping this file (${PLOC}/${PNAME})"
-                  else
-                    if [ "${PLOC}" = "." ]; then FILE="${WORKDIR}/${PNAME}"; else FILE="${PLOC}/${PNAME}"; fi
-                    if [ -r ${FILE} ]; then
-                        PROFILES="${PROFILES} ${FILE}"
-                        case ${PNAME} in
-                            "custom.prf") CUSTOM_PROFILE="${FILE}" ;;
-                            "default.prf") DEFAULT_PROFILE="${FILE}" ;;
-                        esac
-                        # Set profile directory to last match (Lynis could be both installed, and run as a separate download)
-                        if [ "${PLOC}" = "." ]; then PROFILEDIR="${WORKDIR}"; else PROFILEDIR="${PLOC}"; fi
-                    fi
-                fi
-            done
-        done
-        # Search any profiles defined with --profile
-        for FILE in ${SEARCH_PROFILES}; do
-            if [ -r ${FILE} ]; then
-                Debug "Found profile defined with --profile"
-                PROFILES="${PROFILES} ${FILE}"
-            fi
-        done
-    fi
-    if [ "${PROFILES}" = "" ]; then
-        echo "${RED}Fatal error: ${WHITE}No profile defined and could not find default profile${NORMAL}"
-        echo "Search paths used --> ${tPROFILE_TARGETS}"
-        ExitCustom 66
-      else
-        PROFILES=`echo ${PROFILES} | sed 's/^ //'`
-    fi
+    # Discover any profiles
+    DiscoverProfiles
 
     # Initialize and check profile file, auditor name, log file and report file
     if [ "${AUDITORNAME}" = "" ];       then AUDITORNAME="[Not Specified]"; fi
@@ -551,8 +510,7 @@ ${NORMAL}
 #
 #################################################################################
 #
-    SafePerms ${INCLUDEDIR}/profiles
-    . ${INCLUDEDIR}/profiles
+    ParseProfiles
 
     # Import a different language when configured
     if [ ! "${LANGUAGE}" = "en" ]; then

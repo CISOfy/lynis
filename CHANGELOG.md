@@ -199,6 +199,7 @@ Functions
 * ContainsString        - New function to search for a string in another one
 * Display               - Added --debug, showing details on screen in debug mode
                         - Reset identation for lines which are too long
+* DisplayToolTip        - New function to display tooltips
 * IsDebug               - Check for usage of --debug
 * IsDeveloperMode       - Status for development and debugging (--developer)
 * IsDeveloperVersion    - Check if release is still under development

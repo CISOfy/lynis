@@ -32,7 +32,7 @@ COMMANDS="audit show update"
 HELPERS="audit configure show update"
 OPTIONS="--auditor\n--check-all (-c)\n--config\n--cronjob (--cron)\n--debug\n--developer\n--help (-h)\n--info\n--license-key --log-file\n--manpage_(--man)\n--no-colors --no-log\n--pentest\n--profile\n--plugins-dir\n--quiet (-q)\n--quick (-Q)\n--report-file\n--reverse-colors\n--tests\n--tests-category\n--upload\n--verbose\n--version (-V)\n--view-categories"
 
-SHOW_ARGS="commands dbdir help hostids includedir license man options pidfile plugindir profiles release releasedate tests version workdir"
+SHOW_ARGS="commands dbdir help hostids includedir license man options pidfile plugindir profiles release releasedate settings tests version workdir"
 SHOW_HELP="lynis show ${BROWN}commands${NORMAL}          (all available commands)
 lynis show ${BROWN}dbdir${NORMAL}             (database directory)
 lynis show ${BROWN}help${NORMAL}              (detailed information about arguments)
@@ -46,6 +46,7 @@ lynis show ${BROWN}plugindir${NORMAL}         (directory with plugins)
 lynis show ${BROWN}profiles${NORMAL}          (discovered profiles)
 lynis show ${BROWN}release${NORMAL}           (version)
 lynis show ${BROWN}releasedate${NORMAL}       (date of release)
+lynis show ${BROWN}settings${NORMAL}          (configured settings)
 lynis show ${BROWN}tests skipped${NORMAL}     (which tests to skip according profile)
 lynis show ${BROWN}version${NORMAL}           (${PROGRAM_NAME} version)
 lynis show ${BROWN}workdir${NORMAL}           (work directory)"
@@ -95,6 +96,7 @@ UPDATE_HELP="
 
 "
 
+SHOW_SETTINGS_ARGS="--brief --nocolors"
 SHOW_TESTS_ARGS="skipped"
 
 COMMANDS_AUDIT_SYSTEM_USAGE="Usage: lynis audit system"
@@ -177,15 +179,47 @@ if [ $# -gt 0 ]; then
         "plugindir")            ${ECHOCMD} "${PLUGINDIR}" ;;
         "release")              ${ECHOCMD} "${PROGRAM_VERSION}-${PROGRAM_RELEASE_TYPE}" ;;
         "releasedate")          ${ECHOCMD} "${PROGRAM_RELEASE_DATE}" ;;
+        "settings")
+            BRIEF_OUTPUT=0
+            while [ $# -gt 1 ]; do
+                shift
+                case $1 in
+                   "--brief") BRIEF_OUTPUT=1 ;;
+                   "--nocolors") GRAY=""; WHITE=""; CYAN="" ;;
+                   *)
+                       ${ECHOCMD} "${RED}Error${NORMAL}: Invalid argument provided to 'lynis show settings'\n\n"
+                       ${ECHOCMD} "Suggestions:"
+                       for I in ${SHOW_SETTINGS_ARGS}; do ${ECHOCMD} "lynis show settings ${I}"; done
+                       ExitFatal
+                   ;;
+                esac
+            done
+            # Sort all settings and display them
+            SETTINGS=$(sort ${SETTINGS_FILE} | sed 's/ /:space:/g')
+            for LINE in ${SETTINGS}; do
+                SETTING=$(echo ${LINE} | awk -F';' '{print $1}')
+                VALUE=$(echo ${LINE} | awk -F';' '{print $2}')
+                DESCRIPTION=$(echo ${LINE} | awk -F';' '{print $3}' | sed 's/:space:/ /g')
+                LINESIZE=$(echo "${SETTING}=${VALUE}" | wc -m | tr -d ' ')
+                SPACES=$((60 - ${LINESIZE}))
+                # Only show configured settings
+                if [ ! -z "${VALUE}" ]; then
+                    if [ ${BRIEF_OUTPUT} -eq 0 ]; then ${ECHOCMD} "${GRAY}# ${DESCRIPTION}${NORMAL}"; fi
+                    ${ECHOCMD} "${WHITE}${SETTING}${NORMAL}=${CYAN}${VALUE}${NORMAL}"
+                    if [ ${BRIEF_OUTPUT} -eq 0 ]; then ${ECHOCMD} ""; fi
+                fi
+            done
+            ;;
         "tests")
             if [ $# -gt 0 ]; then
                 shift
                 case $1 in
                    "skipped") ${ECHOCMD} "${SKIP_TESTS}" ;;
                    *)
-                       ${ECHOCMD} "Invalid argument provided to lynis show tests\n\n"
-                       ${ECHOCMD} "Suggestions:\n"
+                       ${ECHOCMD} "Error: Invalid argument provided to 'lynis show tests'\n\n"
+                       ${ECHOCMD} "Suggestions:"
                        for I in ${SHOW_TESTS_ARGS}; do ${ECHOCMD} "lynis show tests ${I}"; done
+                       ExitFatal
                    ;;
                 esac
               else

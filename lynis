@@ -277,49 +277,8 @@ ${NORMAL}
 #
     InsertSection "${GEN_INITIALIZE_PROGRAM}"
 
-    # Try to find a default and custom profile, unless one was specified manually
-    if [ "${PROFILE}" = "" ]; then
-        CUSTOM_PROFILE=""
-        DEFAULT_PROFILE=""
-        PROFILEDIR=""
-        tPROFILE_NAMES="default.prf custom.prf"
-        tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
-        for PNAME in ${tPROFILE_NAMES}; do
-            for PLOC in ${tPROFILE_TARGETS}; do
-                # Only use one default.prf
-                if [ "${PNAME}" = "default.prf" -a ! "${DEFAULT_PROFILE}" = "" ]; then
-                  Debug "Already discovered default.prf - skipping this file (${PLOC}/${PNAME})"
-                elif [ "${PNAME}" = "custom.prf" -a ! "${CUSTOM_PROFILE}" = "" ]; then
-                  Debug "Already discovered custom.prf - skipping this file (${PLOC}/${PNAME})"
-                  else
-                    if [ "${PLOC}" = "." ]; then FILE="${WORKDIR}/${PNAME}"; else FILE="${PLOC}/${PNAME}"; fi
-                    if [ -r ${FILE} ]; then
-                        PROFILES="${PROFILES} ${FILE}"
-                        case ${PNAME} in
-                            "custom.prf") CUSTOM_PROFILE="${FILE}" ;;
-                            "default.prf") DEFAULT_PROFILE="${FILE}" ;;
-                        esac
-                        # Set profile directory to last match (Lynis could be both installed, and run as a separate download)
-                        if [ "${PLOC}" = "." ]; then PROFILEDIR="${WORKDIR}"; else PROFILEDIR="${PLOC}"; fi
-                    fi
-                fi
-            done
-        done
-        # Search any profiles defined with --profile
-        for FILE in ${SEARCH_PROFILES}; do
-            if [ -r ${FILE} ]; then
-                Debug "Found profile defined with --profile"
-                PROFILES="${PROFILES} ${FILE}"
-            fi
-        done
-    fi
-    if [ "${PROFILES}" = "" ]; then
-        echo "${RED}Fatal error: ${WHITE}No profile defined and could not find default profile${NORMAL}"
-        echo "Search paths used --> ${tPROFILE_TARGETS}"
-        ExitCustom 66
-      else
-        PROFILES=`echo ${PROFILES} | sed 's/^ //'`
-    fi
+    # Discover any profiles
+    DiscoverProfiles
 
     # Initialize and check profile file, auditor name, log file and report file
     if [ "${AUDITORNAME}" = "" ];       then AUDITORNAME="[Not Specified]"; fi
@@ -551,8 +510,7 @@ ${NORMAL}
 #
 #################################################################################
 #
-    SafePerms ${INCLUDEDIR}/profiles
-    . ${INCLUDEDIR}/profiles
+    ParseProfiles
 
     # Import a different language when configured
     if [ ! "${LANGUAGE}" = "en" ]; then
@@ -785,7 +743,7 @@ ${NORMAL}
 #################################################################################
 #
     # Plugins
-    if [ ${RUN_PLUGINS} -eq 1 ]; then
+    if [ ${SKIP_PLUGINS} -eq 0 ]; then
 
         N_PLUGIN=0
         N_PLUGIN_ENABLED=0
@@ -975,7 +933,7 @@ ${NORMAL}
 #
 #################################################################################
 #
-    if [ ${RUN_PLUGINS} -eq 1 ]; then
+    if [ ${SKIP_PLUGINS} -eq 0 ]; then
         RunPlugins 2
         if [ ${N_PLUGIN_ENABLED} -gt 1 ]; then
             Display --indent 2 --text "- Plugins (phase 2)" --result "DONE" --color GREEN
@@ -1024,6 +982,8 @@ ${NORMAL}
     LogText "${PROGRAM_EXTRAINFO}"
     LogText "Program ended successfully"
     LogText "================================================================================"
+
+    if [ -z "${CUSTOM_PROFILE}" ]; then DisplayToolTip "Enhance ${PROGRAM_NAME} audits by adding your settings to custom.prf (see ${DEFAULT_PROFILE} for all settings)"; fi
 
     # Clean exit (Delete PID file)
     if [ ${TOTAL_WARNINGS} -gt 0 ]; then

@@ -291,6 +291,32 @@
 #
 #################################################################################
 #
+    # Test        : FILE-6337
+    # Description : Check proc mount options  (Linux >=3.3 only)
+    # Examples    : proc /proc proc defaults,hidepid=2 0 0
+    # Goal        : Users should not be able to see processes of other users
+
+    if [ -f /proc/version ] && [ "$(cat /proc/version | cut -d" " -f3)" \> "3.2" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FILE-6337 --preqs-met ${PREQS_MET}  --os Linux --weight L --network NO --description "Checking proc mount options"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Proc should be mounted with 'hidepid=2' or 'hidepid=1' at least
+        LogText "Test: check proc mount with incorrect mount options"
+        FIND=`mount | grep proc | egrep -o "hidepid=[0-9]"`
+        if [ "${FIND}" = "hidepid=2" ]; then
+            Display --indent 2 --text "- Testing proc mount" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: proc mount mounted with hidepid=2"
+          else
+            if [ "${FIND}" = "" ]; then
+                HIDEPID1_SUGGESTION=" (or at least hidepid=1)"
+            fi
+            Display --indent 2 --text "- Testing proc mount" --result "${STATUS_SUGGESTION}" --color YELLOW
+            LogText "Result: proc file system not mounted with option hidepid=2$HIDEPID1_SUGGESTION"
+            ReportSuggestion ${TEST_NO} "Consider mounting /proc via /etc/fstab with mount option hidepid=2$HIDEPID1_SUGGESTION"
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : FILE-6354
     # Description : Search files within /tmp which are older than 3 months
     if [ -d /tmp ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi

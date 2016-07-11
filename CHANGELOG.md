@@ -228,6 +228,7 @@ Tests
 * FILE-6374 - Added /dev/shm and /var/tmp
 * FILE-6374 - New test for /var/tmp
 * FILE-7524 - Support for multiple profiles
+* HTTP-6632 - Fix for proper detection of Apache modules
 * HTTP-6642 - Test disabled
 * HTTP-6710 - Trigger suggestion when weak protocols SSLv2/SSLv3 are used
 * KRNL-5788 - Support for kernel with grsecurity patches (linux-image-grsec)

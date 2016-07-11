@@ -220,6 +220,7 @@ Tests
 * AUTH-9308 - Check for systemd targets
 * BANN-7119 - /etc/motd test disabled
 * BANN-7122 - /motd content test disabled
+* BOOT-5122 - Extended GRUB password check
 * BOOT-5184 - Improve file permissions check for CentOS 7 machines
 * DBS-1860  - Check for status of DB2
 * CRYP-7902 - Improved logging
@@ -227,6 +228,7 @@ Tests
 * FILE-6372 - Properly checking for /etc/fstab now, ignore comments
 * FILE-6374 - Added /dev/shm and /var/tmp
 * FILE-6374 - New test for /var/tmp
+* FILE-6430 - New test for detecting specific filesystems
 * FILE-7524 - Support for multiple profiles
 * HTTP-6632 - Fix for proper detection of Apache modules
 * HTTP-6642 - Test disabled

@@ -645,39 +645,44 @@
 #################################################################################
 #
     # Test        : FILE-6430
-    # Description : Disable Mounting of some Filesystems : cramfs hfs hfsplus squashfs udf freevxfs jffs2
-
-    Register --test-no FILE-6430 --weight L --network NO --description "Disable Mounting of some filesystems"
+    # Description : Disable mounting of some filesystems
+    # Rationale   : Unless there is a specific reason to use a particular file system, disable it.
+    # Data        : cramfs freevxfs hfs hfsplus jffs2 squashfs udf 
+    Register --test-no FILE-6430 --weight L --network NO --description "Disable mounting of some filesystems"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
-            Display --indent 2 --text "- Disable Mounting of some filesystems"
-            LIST_FS_NOT_SUPPORTED="cramfs hfs hfsplus squashfs udf freevxfs jffs2"
+            Display --indent 2 --text "- Disable mounting of some filesystems"
+            LIST_FS_NOT_SUPPORTED="cramfs freevxfs hfs hfsplus jffs2 squashfs udf"
             for FS in ${LIST_FS_NOT_SUPPORTED}; do
-                Display --indent 4 --text "- Disable Mounting of $FS Filesystems"
-                LogText "Test: Checking if $FS is not present in loaded modules"
+                Display --indent 4 --text "- Disable mounting of ${FS} filesystem"
+                LogText "Test: Checking if ${FS} is not present in loaded modules"
                 # Check if FS is present in lsmod output
-                FIND=`${LSMODBINARY} | grep $FS | wc -l`
-                if [ "${FIND}" = "0" ]; then
-                    LogText "Module $FS not loaded in the kernel"
-                    Display --indent 6 --text "- Module $FS not loaded in the kernel" --result OK --color GREEN
+                FIND=`${LSMODBINARY} | ${EGREPBINARY} "^${FS}"`
+                if [ -z "${FIND}" ]; then
+                    LogText "Result: module ${FS} not loaded in the kernel"
+                    Display --indent 6 --text "- Module ${FS} not loaded in the kernel" --result OK --color GREEN
+                    AddHP 2 2
                 else
-                    LogText "Module $FS loaded in the kernel"
-                    Display --indent 6 --text "- Module $FS loaded in the kernel" --result "REMOVE NEEDED" --color YELLOW
+                    LogText "Result: module ${FS} loaded in the kernel"
+                    Display --indent 6 --text "- Module $FS loaded in the kernel" --result "FOUND" --color YELLOW
+                    AddHP 2 5
                 fi
                 # Check if FS is present in modprobe output
-                FIND=`${MODPROBEBINARY} -v -n $FS 2>/dev/null | tail -1`
-                if echo $FIND | ${EGREPBINARY} -q "insmod .*${FS}.ko"; then
-                    Display --indent 6 --text "- Module $FS present in the kernel" --result "REMOVE NEEDED" --color YELLOW
+                FIND=`${MODPROBEBINARY} -v -n $FS 2>/dev/null | ${EGREPBINARY} "/${FS}.ko" | tail -1`
+                if [ ! -z "${FIND}" ]; then
+                    LogText "Result: found module support in kernel: ${FIND}"
+                    Display --indent 6 --text "- Module ${FS} present in the kernel" --result "FOUND" --color YELLOW
+                    AddHP 2 3
                 else
-                    Display --indent 6 --text "- Module $FS not present in the kernel" --result OK --color GREEN
-                    ReportSuggestion ${TEST_NO} "The modprobe.d should contains a file with the entry 'install $FS /bin/true'"
+                    AddHP 2 2
+                    Display --indent 6 --text "- Module ${FS} not present in the kernel" --result OK --color GREEN
+                    #ReportSuggestion ${TEST_NO} "The modprobe.d directory should contain a file with the entry 'install ${FS} /bin/true'"
                 fi
             done
         else
             LogText "Test skipped lsmod binary not found or /proc/modules can not be opened"
         fi
     fi
-
 #
 #################################################################################
 #

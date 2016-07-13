@@ -32,14 +32,16 @@ COMMANDS="audit show update"
 HELPERS="audit configure show update"
 OPTIONS="--auditor\n--check-all (-c)\n--config\n--cronjob (--cron)\n--debug\n--developer\n--help (-h)\n--info\n--license-key --log-file\n--manpage (--man)\n--no-colors --no-log\n--pentest\n--profile\n--plugins-dir\n--quiet (-q)\n--quick (-Q)\n--report-file\n--reverse-colors\n--tests\n--tests-category\n--upload\n--verbose\n--version (-V)\n--view-categories"
 
-SHOW_ARGS="commands dbdir help hostids includedir license man options pidfile plugindir profiles release releasedate settings tests version workdir"
-SHOW_HELP="lynis show ${BROWN}commands${NORMAL}          (all available commands)
+SHOW_ARGS="categories commands dbdir help hostids includedir language license logfile man options pidfile plugindir profiles release releasedate report settings tests version workdir"
+SHOW_HELP="lynis show ${BROWN}categories${NORMAL}        (display test categories)
+lynis show ${BROWN}commands${NORMAL}          (all available commands)
 lynis show ${BROWN}dbdir${NORMAL}             (database directory)
 lynis show ${BROWN}help${NORMAL}              (detailed information about arguments)
 lynis show ${BROWN}hostids${NORMAL}           (unique IDs for this system)
 lynis show ${BROWN}includedir${NORMAL}        (include directory for tests and functions)
 lynis show ${BROWN}language${NORMAL}          (configured or detected language)
 lynis show ${BROWN}license${NORMAL}           (license details)
+lynis show ${BROWN}logfile${NORMAL}           (location of logfile)
 lynis show ${BROWN}man${NORMAL}               (show help)
 lynis show ${BROWN}options${NORMAL}           (available flags and options)
 lynis show ${BROWN}pidfile${NORMAL}           (active file to stored process ID)
@@ -47,7 +49,9 @@ lynis show ${BROWN}plugindir${NORMAL}         (directory with plugins)
 lynis show ${BROWN}profiles${NORMAL}          (discovered profiles)
 lynis show ${BROWN}release${NORMAL}           (version)
 lynis show ${BROWN}releasedate${NORMAL}       (date of release)
-lynis show ${BROWN}settings${NORMAL}          (configured settings)
+lynis show ${BROWN}report${NORMAL}            (location of report data)
+lynis show ${BROWN}settings${NORMAL}          (display configured settings, ${WHITE}options:${NORMAL} ${CYAN}--brief --nocolors${NORMAL})
+lynis show ${BROWN}tests${NORMAL} ${GRAY}[test]${NORMAL}      (display information about one or more tests)
 lynis show ${BROWN}tests skipped${NORMAL}     (which tests to skip according profile)
 lynis show ${BROWN}version${NORMAL}           (${PROGRAM_NAME} version)
 lynis show ${BROWN}workdir${NORMAL}           (work directory)"
@@ -105,6 +109,9 @@ COMMANDS_AUDIT_SYSTEM_FUNCTION="Function: performs a security audit of the syste
 
 if [ $# -gt 0 ]; then
     case $1 in
+        "categories")
+            ViewCategories
+            ;;
         "commands")
             if [ $# -eq 1 ]; then
                 ${ECHOCMD} "\n${WHITE}Commands:${NORMAL}"
@@ -118,6 +125,7 @@ if [ $# -gt 0 ]; then
                     case $1 in
                         "audit") ${ECHOCMD} "${AUDIT_HELP}" ;;
                         "show") ${ECHOCMD} "${SHOW_HELP}" ;;
+                        "update") ${ECHOCMD} "No help available yet" ;;
                         *) ${ECHOCMD} "Unknown argument for 'commands'"
                     esac
                   else
@@ -130,7 +138,7 @@ if [ $# -gt 0 ]; then
                             ${ECHOCMD} "${COMMANDS_AUDIT_SYSTEM_USAGE}\n${COMMANDS_AUDIT_SYSTEM_FUNCTION}\n"
                         ;;
                         *)
-                            ${ECHOCMD} "Unknown argument for 'commands'"
+                            ${ECHOCMD} "Unknown argument '$1' for commands"
                         ;;
                     esac
                 fi
@@ -139,7 +147,7 @@ if [ $# -gt 0 ]; then
         "dbdir")
             ${ECHOCMD} "${DBDIR}"
             ;;
-        "help")
+        "help" | "--help" | "-h")
             if [ $# -eq 1 ]; then
                 ${ECHOCMD} "${PROGRAM_NAME} ${PROGRAM_VERSION} - Help"
                 ${ECHOCMD} "=========================="
@@ -173,6 +181,7 @@ if [ $# -gt 0 ]; then
             ;;
         "language")             ${ECHOCMD} "${LANGUAGE}" ;;
         "license")              ${ECHOCMD} "${PROGRAM_LICENSE}" ;;
+        "logfile")              ${ECHOCMD} "${LOGFILE}" ;;
         "man")                  ${ECHOCMD} "Use ./lynis --man or man lynis" ;;
         "options")              ${ECHOCMD} "${OPTIONS}" ;;
         "pidfile")              ${ECHOCMD} "${PIDFILE}" ;;
@@ -181,6 +190,7 @@ if [ $# -gt 0 ]; then
         "plugindir")            ${ECHOCMD} "${PLUGINDIR}" ;;
         "release")              ${ECHOCMD} "${PROGRAM_VERSION}-${PROGRAM_RELEASE_TYPE}" ;;
         "releasedate")          ${ECHOCMD} "${PROGRAM_RELEASE_DATE}" ;;
+        "report")               ${ECHOCMD} "${REPORTFILE}" ;;
         "settings")
             BRIEF_OUTPUT=0
             COLORED_OUTPUT=1
@@ -217,33 +227,95 @@ if [ $# -gt 0 ]; then
             done
             if [ ${BRIEF_OUTPUT} -eq 0 -a ${CONFIGURED_ONLY_OUTPUT} -eq 0 -a ${COLORED_OUTPUT} -eq 1 ]; then
                 if [ ${COLORS} -eq 1 ]; then
-                    DisplayToolTip "Add --brief to hide descriptions, --configured-only to show configured items only, or --nocolors to remove colors"
+                    ${ECHOCMD} "# Add --brief to hide descriptions, --configured-only to show configured items only, or --nocolors to remove colors"
                 else
-                    DisplayToolTip "Add --brief to hide descriptions, --configured-only to show configured items only"
+                    ${ECHOCMD} "# Add --brief to hide descriptions, --configured-only to show configured items only"
                 fi
             fi
 
             ;;
         "tests")
-            if [ $# -gt 0 ]; then
+            if [ $# -gt 1 ]; then
                 shift
                 case $1 in
-                   "skipped") ${ECHOCMD} "${SKIP_TESTS}" ;;
-                   *)
-                       ${ECHOCMD} "Error: Invalid argument provided to 'lynis show tests'\n\n"
-                       ${ECHOCMD} "Suggestions:"
-                       for I in ${SHOW_TESTS_ARGS}; do ${ECHOCMD} "lynis show tests ${I}"; done
-                       ExitFatal
-                   ;;
+                    "skipped")
+                        if [ -z "${SKIP_TESTS}" ]; then
+                            ${ECHOCMD} "# ${CYAN}No tests are skipped (according profile)${NORMAL}"
+                        else
+                            ${ECHOCMD} "# Skipped tests (according profile)"
+                            ${ECHOCMD} "${SKIP_TESTS}"
+                        fi
+                    ;;
+                    *)
+                        if [ -f ${DBDIR}/tests.db ]; then
+                            SEARCH="$1"
+                            FIND=$(grep "^${SEARCH}" ${DBDIR}/tests.db | sed "s/ /:space:/g")
+                            if [ -z "${FIND}" ]; then
+                                ${ECHOCMD} "Error: Invalid argument provided to 'lynis show tests'\n\n"
+                                ${ECHOCMD} "Suggestions:"
+                                for I in ${SHOW_TESTS_ARGS}; do ${ECHOCMD} "lynis show tests ${I}"; done
+                                ExitFatal
+                            else
+                                for ITEM in ${FIND}; do
+                                    TEST_DESCRIPTION=$(echo ${ITEM} | sed "s/:space:/ /g" | awk -F: '{print $5}')
+                                    TEST=$(echo ${ITEM} | awk -F: '{print $1}')
+                                    TEST_TYPE=$(echo ${ITEM} | awk -F: '{print $2}')
+                                    TEST_OS=$(echo ${ITEM} | awk -F: '{print $4}')
+                                    TEST_SKIPPED=0
+                                    ${ECHOCMD} "${CYAN}${TEST}${NORMAL} [type=${TEST_TYPE}]"
+                                    ${ECHOCMD} "==================================="
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "Description:"
+                                    ${ECHOCMD} "${WHITE}${TEST_DESCRIPTION}${NORMAL}"
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "Perform test:"
+                                    if [ "${TEST_OS}" = "" ]; then
+                                        ${ECHOCMD} "  Operating System:    ${GREEN}Yes${NORMAL} (all systems)"
+                                    elif [ "${TEST_OS}" = "${OS}" ]; then
+                                        ${ECHOCMD} "  Operating System:    ${GREEN}Yes${NORMAL} (${TEST_OS} only)"
+                                    else
+                                        ${ECHOCMD} "  Operating System:    ${RED}No${NORMAL} (${TEST_OS} only)"
+                                        TEST_SKIPPED=1
+                                    fi
+                                    if [ -z "${SKIP_TESTS}" ]; then
+                                        ${ECHOCMD} "  Profile:             ${GREEN}Yes${NORMAL} (not configured)"
+                                    else
+                                        FIND=$(echo ${SKIP_TESTS} | egrep "${TEST}")
+                                        if [ -z "${FIND}" ]; then
+                                            ${ECHOCMD} "  Profile:             ${GREEN}Yes${NORMAL} (test not marked to be skipped)"
+                                        else
+                                            ${ECHOCMD} "  Profile:             ${RED}No${NORMAL} (marked test as to be skipped)"
+                                            TEST_SKIPPED=1
+                                        fi
+                                    fi
+                                    if [ ${TEST_SKIPPED} -eq 1 ]; then ${ECHOCMD} ""; ${ECHOCMD} "  This test will NOT be performed on this system"; fi
+
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} ""
+
+                                done
+                            fi
+                        else
+                            ${ECHOCMD} "${RED}ERROR:${NORMAL} Can not find tests database"
+                            ExitFatal
+                        fi
+                    ;;
                 esac
-              else
-                ${ECHOCMD} "Need more arguments"
+            else
+                if [ -f ${DBDIR}/tests.db ]; then
+                    ${ECHOCMD} "# Test       OS         Description"
+                    ${ECHOCMD} "# ======================================================================================"
+                    awk -F: '{ if ($1 !~ /^#/) printf("%-12s %-10s %s\n",$1,$4,$5)}' ${DBDIR}/tests.db
+                else
+                    ${ECHOCMD} "${RED}ERROR:${NORMAL} Can not find tests database"
+                    ExitFatal
+                fi
             fi
             ;;
         "version")              ${ECHOCMD} "${PROGRAM_VERSION}" ;;
         "workdir")              ${ECHOCMD} "${WORKDIR}" ;;
         "?")                    ${ECHOCMD} "${SHOW_ARGS}" ;;
-        *)                      ${ECHOCMD} "Unknown argument '$1'" ;;
+        *)                      ${ECHOCMD} "Unknown argument '${RED}$1${NORMAL}' for lynis show" ;;
     esac
   else
     ${ECHOCMD} "\n  ${WHITE}Provide an additional argument${NORMAL}\n\n"
@@ -251,6 +323,8 @@ if [ $# -gt 0 ]; then
         ${ECHOCMD} "    lynis show ${BROWN}${I}${NORMAL}"
     done
     ${ECHOCMD} "\n"
+
+    ${ECHOCMD} "Use '$0 show commands show' for extended help about the show command"
 fi
 
 

@@ -1,31 +1,34 @@
 Lynis Changelog
 ===============
 
-Lynis 2.2.1 (not released, development version)
+Lynis 2.3.0 (2016-07-13)
 -----------------------------------------------
+
+We are excited to announce this major release of auditing tool Lynis. Several big
+changes have been made to core functions of Lynis. These changes are the next of
+simplification improvements we made. There is a risk of breaking your existing
+configuration. See the tips below to upgrade.
+
+This release will soon also be available in our software repository. For more
+details see https://packages.cisofy.com to install and upgrade Lynis.
+
 
 Upgrade tips
 ============
 
-Several changes have been made to core functions of Lynis. These are to simplify
-its usage, but might cause differences after upgrading. See the tips below to
-make.
-
-Custom profiles:
-Instead of making changes to default.prf, copy your changes to custom.prf. Only
-include the changes, as the values in default.prf are considered to be defaults.
+Default profile and custom profiles:
+Settings of multiple profiles can now be merged. Instead of making changes to
+default.prf, copy your changes to custom.prf. Use 'lynis show profiles' to show
+any detected profiles. Only include your changes in custom.prf, to keep the
+configuration clean and tidy. They will then overwrite the defaults. Use
+'lynis show settings' to see if they are applied.
 
 Check your cron jobs:
-When using --quiet, the output will be really quiet now.
-Use --show-warnings-only if you still want to see warnings.
+When using --quiet, the output will be really quiet now. Use --show-warnings-only
+if you still want to see the warnings. Lynis will now exit with error 0, even
+when warnings have been found. Use option error-on-warnings=yes (custom.prf) to
+exit with code 78 when it has any warnings.
 
-Lynis will exit with error 0, even when warnings have been found. Use option
-error-on-warnings=yes (custom.prf) to exit with code 78 warnings.
-
-Do not define a profile with --profile. Instead, put only your changes in the
-new custom.prf.
-
----
 
 Details
 =======
@@ -79,8 +82,9 @@ improved. A new test has been added to check if /var/tmp has been bound to /tmp.
 Language Support
 ----------------
 Lynis now supports language translations, with the language profile option.
+Initial languages: Dutch (nl), English (en), French (fr).
 
-Initial languages: Dutch (nl), English (en)
+You can help by translating the language files in the db directory.
 
 
 Mac OS X Improvements
@@ -93,6 +97,11 @@ nginx
 Show suggestion when weak protocol is used, like SSLv2 or SSLv3. The protocols
 are now also parsed and stored as details in the report file.
 
+
+Packages
+--------
+Systems running CentOS, Debian, openSUSE, RHEL, Ubuntu and others, may now use
+our own software repository: https://packages.cisofy.com
 
 Performance
 -----------
@@ -184,7 +193,6 @@ and therefore placed at the bottom.
 
 Program Options
 ---------------
-
 * --developer           - Enable developer mode
 * --verbose             - Show more details on screen, reduce in normal mode
 * --show-warnings-only  - Only show warnings on screen
@@ -251,10 +259,12 @@ Tests
 
 
 Plugins
+-------
 * PLGN-1602 - Marked as root-only
 * PLGN-2612 - Marked as root-only
 * PLGN-2804 - Marked as root-only
 * PLGN-3202 - Marked as root-only
+
 
 --------------------------------------------------------------
 

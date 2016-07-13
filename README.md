@@ -33,12 +33,18 @@ Typical users of the software:
 - Security professionals
 
 
-## First run
+## Installation
+
+### Git
 
 1. Clone or download the project files. No compilation or installation is required.
 2. Execute: `./lynis audit system`
 
 If you want to run the software as root, we suggest changing the ownership of the files. Use chown -R and chgrp -R to recursively alter the owner and group.
+
+### Package
+
+Stable releases of Lynis are packaged and made available as RPM or DEB file. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running CentOS, Debian, Fedora, OEL, openSUSE, RHEL, Ubuntu, and others.
 
 ## Documentation
 Full documentation: https://cisofy.com/documentation/lynis/
@@ -47,12 +53,13 @@ Full documentation: https://cisofy.com/documentation/lynis/
 If you want to create your own tests, have a look at the [Lynis software development kit](https://github.com/CISOfy/lynis-sdk).
 
 ## Security
-We participate in the badge program of the Linux Foundation.
+We participate in the badge program of the Linux Foundation. By clicking on the badge you will see the related details.
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
 
 ## Enterprise version
 This software is also available as part of an enterprise solution. It includes additional functionality (plugins, centralized system, reporting, dashboard), and support.
 
 ## Contribute
-Do you have an improvement? Create an issue in the tracker on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
+We love contributors. Do you have something to share? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
 More details can be found at [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).
 

@@ -4,7 +4,13 @@ Lynis Changelog
 Lynis 2.3.1 (not released, development version)
 -----------------------------------------------
 
-Updated French translations
+Changes:
+Convert all skipped tests to uppercase
+Only add license key when it is defined
+
+Translations
+------------
+Updated French translation
 
 
 --------------------------------------------------------------

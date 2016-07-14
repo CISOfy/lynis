@@ -1,16 +1,16 @@
 Lynis Changelog
 ===============
 
-Lynis 2.3.1 (not released, development version)
+Lynis 2.3.1 (2016-07-14)
 -----------------------------------------------
 
-Changes:
-Convert all skipped tests to uppercase
-Only add license key when it is defined
+This is a minor patch to improve upon findings in version 2.3.0.
 
-Translations
-------------
-Updated French translation
+Changes:
+- Convert all skipped tests to uppercase
+- Only add license key when it is defined
+- Updated French translation
+- Exclude custom.prf from tarball (download via website)
 
 
 --------------------------------------------------------------

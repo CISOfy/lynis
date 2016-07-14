@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.org/CISOfy/lynis.svg?branch=master)](https://travis-ci.org/CISOfy/lynis)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
 
 lynis
 =====
@@ -58,6 +57,13 @@ We participate in the badge program of the Linux Foundation. By clicking on the 
 
 ## Enterprise version
 This software is also available as part of an enterprise solution. It includes additional functionality (plugins, centralized system, reporting, dashboard), and support.
+
+## Awards
+Last years we reached multiple times the top 10 of the yearly ToolsWatch vote for security tool of the year.
+
+[![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2013.svg)](https://www.toolswatch.org/2013/12/2013-top-security-tools-as-voted-by-toolswatch-org-readers/)
+[![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2014.svg)](https://www.toolswatch.org/2015/01/2014-top-security-tools-as-voted-by-toolswatch-org-readers/)
+[![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
 ## Contribute
 We love contributors. Do you have something to share? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.

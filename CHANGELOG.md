@@ -1,6 +1,14 @@
 Lynis Changelog
 ===============
 
+Lynis 2.3.2 (not released, development version)
+
+
+Tests:
+------
+* PHP-2376 - Log result to log file instead of report
+
+
 Lynis 2.3.1 (2016-07-14)
 -----------------------------------------------
 

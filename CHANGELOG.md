@@ -9,10 +9,22 @@ With 'lynis update check' you can now check for updates. This is the preferred
 new method.
 
 
-
-Tests:
+Tests
 ------
 * PHP-2376 - Log result to log file instead of report
+
+
+Languages
+---------
+Translation of Spanish (es) added
+
+
+Functions
+---------
+* RemoveColors - New test to clear colors
+
+
+--------------------------------------------------------------
 
 
 Lynis 2.3.1 (2016-07-14)

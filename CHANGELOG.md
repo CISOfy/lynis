@@ -3,6 +3,12 @@ Lynis Changelog
 
 Lynis 2.3.2 (not released, development version)
 
+Helpers
+-------
+With 'lynis update check' you can now check for updates. This is the preferred
+new method.
+
+
 
 Tests:
 ------

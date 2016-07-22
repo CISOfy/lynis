@@ -11,6 +11,7 @@ new method.
 
 Tests
 ------
+* PHP-2374 - Changed text and cleanups
 * PHP-2376 - Log result to log file instead of report
 
 
@@ -23,6 +24,15 @@ Functions
 ---------
 * RemoveColors - New test to clear colors
 
+
+Website
+-------
+Several controls on the website are added or updated, including:
+* HTTP-6714
+* MACF-6234
+* TIME-3106
+* PHP-2374
+* PROC-3612
 
 --------------------------------------------------------------
 

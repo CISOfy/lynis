@@ -1,7 +1,7 @@
 Lynis Changelog
 ===============
 
-Lynis 2.3.2 (not released, development version)
+Lynis 2.3.2 (not released yet, under development)
 
 Helpers
 -------

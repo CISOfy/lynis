@@ -41,7 +41,7 @@ Several controls on the website are added or updated, including:
 * PHP-2374
 * PROC-3612
 
---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 
 
 Lynis 2.3.1 (2016-07-14)
@@ -326,7 +326,7 @@ Plugins
 
 --------------------------------------------------------------
 
-=  Lynis 2.2.0 (2016-03-18)  =
+Lynis 2.2.0 (2016-03-18)
 
 We are proud to present this new release of Lynis. It is a major upgrade, and the
 result of many months of work. This version includes new features and tests, and
@@ -578,256 +578,255 @@ permissions for Docker files, like the socket file [CONT-8108].
 
 --------------------------------------------------------------
 
-    =  Lynis 2.1.1 (2015-07-22)  =
+Lynis 2.1.1 (2015-07-22)
 
-    This release adds a lot of improvements, with focus on performance, and
-    additional support for common Linux distributions and external utilities.
-    We recommend to use this latest version.
+This release adds a lot of improvements, with focus on performance, and
+additional support for common Linux distributions and external utilities.
+We recommend to use this latest version.
 
-    * Operating system enhancements
-    -------------------------------
-    Support for systems like CentOS, openSUSE, Slackware is improved.
+* Operating system enhancements
+-------------------------------
+Support for systems like CentOS, openSUSE, Slackware is improved.
 
-    * Performance
-    -------------
-    Performance tuning has been applied, to speed up execution of the audit on
-    systems with many files. This also includes code cleanups.
+* Performance
+-------------
+Performance tuning has been applied, to speed up execution of the audit on
+systems with many files. This also includes code cleanups.
 
-    * Automatic updates
-    -------------------
-    Initial work on an automatic updater has been implemented. This way Lynis
-    can be scheduled for automatic updating from a trusted source.
+* Automatic updates
+-------------------
+Initial work on an automatic updater has been implemented. This way Lynis
+can be scheduled for automatic updating from a trusted source.
 
-    * Internal functions
-    --------------------
-    Not all systems have readlink, or the -f option of readlink. The
-    ShowSymlinkPath function has been extended with a Python based check, which
-    is often available.
+* Internal functions
+--------------------
+Not all systems have readlink, or the -f option of readlink. The
+ShowSymlinkPath function has been extended with a Python based check, which
+is often available.
 
-    * Software support
-    ------------------
-    Apache module directory /usr/lib64/apache has been added, which is used on
-    openSUSE.
+* Software support
+------------------
+Apache module directory /usr/lib64/apache has been added, which is used on
+openSUSE.
 
-    Support for Chef has been added.
+Support for Chef has been added.
 
-    Added tests for CSF's lfd utility for integrity monitoring on directories and
-    files. Related tests are FINT-4334 and FINT-4336.
+Added tests for CSF's lfd utility for integrity monitoring on directories and
+files. Related tests are FINT-4334 and FINT-4336.
 
-    Added support for Chrony time daemon and timesync daemon. Additionally NTP
-    sychronization status is checked when it is enabled.
+Added support for Chrony time daemon and timesync daemon. Additionally NTP
+sychronization status is checked when it is enabled.
 
-    Improved single user mode protection on the rescue.service file.
+Improved single user mode protection on the rescue.service file.
 
-    * Other
-    -------
-    Check for user permissions has been extended.
-    Python binary is now detected, to help with symlink detection.
-    Several new legal terms have been added, which are used for usage in banners.
-    In several files old tests have been removed, to further clean up the code.
+* Other
+-------
+Check for user permissions has been extended.
+Python binary is now detected, to help with symlink detection.
+Several new legal terms have been added, which are used for usage in banners.
+In several files old tests have been removed, to further clean up the code.
 
-    * Bug fixes
-    ---------
-    Nginx test showed error when access_log had multiple parameters.
-    Tests using locate won't be performed if not present.
-    Fix false positive match on Squid unsafe ports [SQD-3624].
-    The hardening index is now also inserted into the report if it is not displayed
-    on screen.
+* Bug fixes
+---------
+Nginx test showed error when access_log had multiple parameters.
+Tests using locate won't be performed if not present.
+Fix false positive match on Squid unsafe ports [SQD-3624].
+The hardening index is now also inserted into the report if it is not displayed
+on screen.
 
-    * Functions
-    ---------
-    Added AddSystemGroup function
+* Functions
+---------
+Added AddSystemGroup function
 
-    * New tests
-    ---------
-    Several new tests have been added:
+* New tests
+---------
+Several new tests have been added:
+* [PKGS-7366] Scan for debsecan utility on Debian systems
+* [PKGS-7410] Determine amount of installed kernel packages
+* [TIME-3106] Check synchronization status of NTP on systemd based systems
+* [CONT-8102] Docker daemon status and gather basic details
+* [CONT-8104] Check docker info for any Docker warnings
+* [CONT-8106] Check total, running and unused Docker containers
 
-    [PKGS-7366] Scan for debsecan utility on Debian systems
-    [PKGS-7410] Determine amount of installed kernel packages
-    [TIME-3106] Check synchronization status of NTP on systemd based systems
-    [CONT-8102] Docker daemon status and gather basic details
-    [CONT-8104] Check docker info for any Docker warnings
-    [CONT-8106] Check total, running and unused Docker containers
+* Plugins
+---------
+* [PLGN-2602] Disabled by default, as it may be too slow for some machines
+* [PLGN-3002] Extended with /sbin/nologin
 
-    * Plugins
-    ---------
-    [PLGN-2602] Disabled by default, as it may be too slow for some machines
-    [PLGN-3002] Extended with /sbin/nologin
+* Documentation
+---------------
+A new document has been created to help with the process of upgrading Lynis.
+It is available at https://cisofy.com/documentation/lynis/upgrading/
 
-    * Documentation
-    ---------------
-    A new document has been created to help with the process of upgrading Lynis.
-    It is available at https://cisofy.com/documentation/lynis/upgrading/
-
-  --------------------------------------------------------------
-
-
-    =  Lynis 2.1.0 (2015-04-16)  =
-
-    * General
-    ---------
-    Screen output has been improved to provide additional information.
-
-    * OS support
-    ------------
-    CUPS detection on Mac OS has been improved. AIX systems will now use csum
-    utility to create host ID. Group check have been altered on AIX, to include
-    the -n ALL. Core dump check on Linux is extended to check for actual values
-    as well.
-
-    * Software
-    ----------
-    McAfee detection has been extended by detecting a running cma binary.
-    Improved detection of pf firewall on BSD and Mac OS. Security patch checking
-    with zypper extended.
-
-    * Session timeout
-    -----------------
-    Tests to determine shell time out setting have been extended to account for
-    AIX, HP-UX and other platforms. It will now determine also if variable is
-    exported as a readonly variable. Related compliance section PCI DSS 8.1.8
-    has been extended.
-
-    * Documentation
-    ---------------
-    - New document: Getting started with Lynis
-      https://cisofy.com/documentation/lynis/get-started/
-
-    * Plugins (Enterprise)
-    ----------------------
-    - Update to file integrity plugin
-      Changes to PLGN-2606 (capabilities check)
-
-    - New configuration plugins:
-      PLGN-4802 (SSH settings)
-      PLGN-4804 (login.defs)
-
-    Download link: https://cisofy.com/download/lynis/
-
-  --------------------------------------------------------------
+--------------------------------------------------------------
 
 
-  =  Lynis 2.0.0 (2015-02-25)  =
+Lynis 2.1.0 (2015-04-16)
+
+* General
+---------
+Screen output has been improved to provide additional information.
+
+* OS support
+------------
+CUPS detection on Mac OS has been improved. AIX systems will now use csum
+utility to create host ID. Group check have been altered on AIX, to include
+the -n ALL. Core dump check on Linux is extended to check for actual values
+as well.
+
+* Software
+----------
+McAfee detection has been extended by detecting a running cma binary.
+Improved detection of pf firewall on BSD and Mac OS. Security patch checking
+with zypper extended.
+
+* Session timeout
+-----------------
+Tests to determine shell time out setting have been extended to account for
+AIX, HP-UX and other platforms. It will now determine also if variable is
+exported as a readonly variable. Related compliance section PCI DSS 8.1.8
+has been extended.
+
+* Documentation
+---------------
+- New document: Getting started with Lynis
+  https://cisofy.com/documentation/lynis/get-started/
+
+* Plugins (Enterprise)
+----------------------
+- Update to file integrity plugin
+  Changes to PLGN-2606 (capabilities check)
+
+New configuration plugins:
+* PLGN-4802 (SSH settings)
+* PLGN-4804 (login.defs)
+
+Download link: https://cisofy.com/download/lynis/
+
+--------------------------------------------------------------
 
 
-  The first release within the 2.x branch! It includes several new features, to
-  simplify or improve auditing on Unix based systems, including BSD, Linux,
-  Mac OS and more traditional systems like AIX, HPUX and Solaris.
+Lynis 2.0.0 (2015-02-25)
 
-  New features and many improvements are the reason for the bump to a major
-  release, also a beginning of a new era. Many tools to audit or harden systems
-  have being released, yet none have been maintained over a long period of time.
+
+The first release within the 2.x branch! It includes several new features, to
+simplify or improve auditing on Unix based systems, including BSD, Linux,
+Mac OS and more traditional systems like AIX, HPUX and Solaris.
+
+New features and many improvements are the reason for the bump to a major
+release, also a beginning of a new era. Many tools to audit or harden systems
+have being released, yet none have been maintained over a long period of time.
 
 Lynis Support and Feedback
-
-  This software is supported and under development by CISOfy. By providing a
-  dual license, this software is kept up-to-date and enhanced. Both customers
-  and the community, benefit from this licensing. This release is available
-  thanks to your input and feedback.
+--------------------------
+This software is supported and under development by CISOfy. By providing a
+dual license, this software is kept up-to-date and enhanced. Both customers
+and the community, benefit from this licensing. This release is available
+thanks to your input and feedback.
 
 Lynis Helpers
-
-  New in this release is the support for helpers. Small utilities which enhance
-  Lynis by providing a single goal. The first helper available is to audit
-  Docker build files.
+-------------
+New in this release is the support for helpers. Small utilities which enhance
+Lynis by providing a single goal. The first helper available is to audit
+Docker build files.
 
 Lynis Improved OS support
-
-  Many changes have been implemented to better support Linux, FreeBSD, NetBSD
-  DragonBSD and OpenBSD in particular. Upcoming releases will include smaller
-  "improvement rounds" for other systems as well.
+-------------------------
+Many changes have been implemented to better support Linux, FreeBSD, NetBSD
+DragonBSD and OpenBSD in particular. Upcoming releases will include smaller
+"improvement rounds" for other systems as well.
 
 Lynis New technologies
-
-  More utilities and technologies are supported now. Technologies and tools
-  like systemd, Docker, nftables.
+----------------------
+More utilities and technologies are supported now. Technologies and tools
+like systemd, Docker, nftables.
 
 Lynis Lynis Enterprise
-
-  As this code is shared, customers have an additional option to define to
-  what server they want to upload the audit results. Also, commercial plugins
-  have been bundled.
+----------------------
+As this code is shared, customers have an additional option to define to
+what server they want to upload the audit results. Also, commercial plugins
+have been bundled.
 
 Lynis New parameters
-
-  Several new options have been added:
-  --dump-options (see all options)
-  --report-file (define a different location for the report file)
+--------------------
+Several new options have been added:
+* --dump-options (see all options)
+* --report-file (define a different location for the report file)
 
 Lynis General
+-------------
+Documentation on the website has been extended: https://cisofy.com/support/
+The man page, Lynis binary and several tests have improved texts.
 
-  Documentation on the website has been extended: https://cisofy.com/support/
-  The man page, Lynis binary and several tests have improved texts.
-
-  This release is exceptional in that it includes many changes. We have done
-  a lot of testing on different platforms. You could expect this software to be
-  stable. Still, an assumption is no guarantee and especially no substitution
-  for testing in your own environment. If you encounter issues, please report
-  them via one of the links above in this changelog.
+This release is exceptional in that it includes many changes. We have done
+a lot of testing on different platforms. You could expect this software to be
+stable. Still, an assumption is no guarantee and especially no substitution
+for testing in your own environment. If you encounter issues, please report
+them via one of the links above in this changelog.
 
 
-  Enjoy this new release!
+Enjoy this new release!
 
 
 ================================================================================
 
 Lynis 1.6.4 (2014-11-04)
 
- New:
- - Boot loader detection for AIX [BOOT-5102]
- - Detection of getcap and lsvg binary
- - Added filesystem_ext to report
- - Detect rootsh
+New:
+- Boot loader detection for AIX [BOOT-5102]
+- Detection of getcap and lsvg binary
+- Added filesystem_ext to report
+- Detect rootsh
 
- Changes:
- - Hide errors when RPM database is faulty and show suggestion instead [PKGS-7308]
- - Allow OpenBSD to gather information on listening network ports [NETW-3012]
- - Don't trigger warning for Shellshock when doing segfault test [SHLL-6290]
- - Do not run Apache test on OpenBSD and strip control chars [HTTP-6624]
- - Extended AIDE test with configuration validation test [FIND-4314]
- - Improved Shellshock test regarding non-Linux support [SHLL-6290]
- - Added support for gathering volume groups on AIX [FILE-6311]
- - Properly parse PAM lines and add them to report [AUTH-9264]
- - Support for boot loader detection on OpenBSD [BOOT-5159]
- - Added uptime detection for OpenBSD systems [BOOT-5202]
- - Support for volume groups on AIX [FILE-6312]
- - Redirect errors when searching for readlink binary
+Changes:
+- Hide errors when RPM database is faulty and show suggestion instead [PKGS-7308]
+- Allow OpenBSD to gather information on listening network ports [NETW-3012]
+- Don't trigger warning for Shellshock when doing segfault test [SHLL-6290]
+- Do not run Apache test on OpenBSD and strip control chars [HTTP-6624]
+- Extended AIDE test with configuration validation test [FIND-4314]
+- Improved Shellshock test regarding non-Linux support [SHLL-6290]
+- Added support for gathering volume groups on AIX [FILE-6311]
+- Properly parse PAM lines and add them to report [AUTH-9264]
+- Support for boot loader detection on OpenBSD [BOOT-5159]
+- Added uptime detection for OpenBSD systems [BOOT-5202]
+- Support for volume groups on AIX [FILE-6312]
+- Redirect errors when searching for readlink binary
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.6.3 (2014-10-14)
 
- New:
- - Added tests for Shellshock bash vulnerability [SHLL-6290]
- - Added test to determine if Snoopy is used [ACCT-9636]
- - New test for qdaemon configuration file [PRNT-2416]
- - Test for GRUB boot loader password [BOOT-5122]
- - New test for qdaemon printer jobs [PRNT-2420]
- - Added ClamXav test for Mac OS X [MALW-3288]
- - Gentoo vulnerable packages test [PKGS-7393]
- - New test for qdaemon status [PRNT-2418]
- - Gentoo package listing [PKGS-7304]
- - Running Lynis without root permissions will start non-privileged scan
- - Systemd service and timer example file added
- - Added grub2-install to binaries
+New:
+- Added tests for Shellshock bash vulnerability [SHLL-6290]
+- Added test to determine if Snoopy is used [ACCT-9636]
+- New test for qdaemon configuration file [PRNT-2416]
+- Test for GRUB boot loader password [BOOT-5122]
+- New test for qdaemon printer jobs [PRNT-2420]
+- Added ClamXav test for Mac OS X [MALW-3288]
+- Gentoo vulnerable packages test [PKGS-7393]
+- New test for qdaemon status [PRNT-2418]
+- Gentoo package listing [PKGS-7304]
+- Running Lynis without root permissions will start non-privileged scan
+- Systemd service and timer example file added
+- Added grub2-install to binaries
 
- Changes:
- - Adjustments so insecure SSL protocols are detected in nginx config [HTTP-6710]
- - Directories will be skipped when searching for nginx log files [HTTP-6720]
- - Only gather unique name servers from /etc/resolv.conf [NAME-2704]
- - Properly detect mod_evasive on Gentoo and others [HTTP-6640]
- - Improved swap partition detection in /etc/fstab [FILE-6336]
- - Improvements to kernel detection (e.g. Gentoo) [KRNL-5830]
- - Test for built-in security options in YUM [PKGS-7386]
- - Improved boot loader detection for GRUB2 [BOOT-5121]
- - Split GRUB test into two tests [BOOT-5122]
- - Added Mac OS uptime check [BOOT-5202]
- - Improved GetHostID function for systems having only ip binary
- - Improved testing for symlinked binary directories
- - Minor adjustments to log output
- - Renamed dev directory to extras
+Changes:
+- Adjustments so insecure SSL protocols are detected in nginx config [HTTP-6710]
+- Directories will be skipped when searching for nginx log files [HTTP-6720]
+- Only gather unique name servers from /etc/resolv.conf [NAME-2704]
+- Properly detect mod_evasive on Gentoo and others [HTTP-6640]
+- Improved swap partition detection in /etc/fstab [FILE-6336]
+- Improvements to kernel detection (e.g. Gentoo) [KRNL-5830]
+- Test for built-in security options in YUM [PKGS-7386]
+- Improved boot loader detection for GRUB2 [BOOT-5121]
+- Split GRUB test into two tests [BOOT-5122]
+- Added Mac OS uptime check [BOOT-5202]
+- Improved GetHostID function for systems having only ip binary
+- Improved testing for symlinked binary directories
+- Minor adjustments to log output
+- Renamed dev directory to extras
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.6.2 (2014-09-22)
 
@@ -864,7 +863,7 @@ Lynis 1.6.2 (2014-09-22)
  - Removed individual warnings [BOOT-5184]
  - Several improvements for Arch Linux
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.6.1 (2014-09-09)
 
@@ -886,7 +885,7 @@ Lynis 1.6.1 (2014-09-09)
  - Several tests will have root-only bit set now
  - Improved netstat tests on Arch Linux
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.6.0 (2014-08-27)
 
@@ -901,7 +900,7 @@ Lynis 1.6.0 (2014-08-27)
  - Set default values for update check, to avoid error message on screen
  - Cleanup for mail section, adding IMAP and POP3 protocols
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.9 (2014-07-31)
 
@@ -942,7 +941,7 @@ Lynis 1.5.9 (2014-07-31)
  - Added printing_daemon and mail_daemon to report
  - Binaries extended with tools like kstat, puppet
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.8 (2014-07-24)
 
@@ -958,7 +957,7 @@ Lynis 1.5.8 (2014-07-24)
  - Squid configuration file permissions test adjusted and control added to website [SQD-3613]
  - Logging has been extended and exceptional event text adjusted
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.7 (2014-07-09)
 
@@ -969,7 +968,7 @@ Lynis 1.5.7 (2014-07-09)
  Changes:
  - Fix for error_log handling in nginx
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.6 (2014-06-12)
 
@@ -987,7 +986,7 @@ Lynis 1.5.6 (2014-06-12)
  - New report value for plugins: plugins_enabled
  - Fixed test to determine active TCP sessions on Linux [NETW-3012]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.5 (2014-06-08)
 
@@ -1009,7 +1008,7 @@ Lynis 1.5.5 (2014-06-08)
  to this version as soon as possible. For more information see the
  our blog post: http://linux-audit.com/lynis-security-notice-154-and-older/
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.4 (2014-06-04)
 
@@ -1022,7 +1021,7 @@ Lynis 1.5.4 (2014-06-04)
  - Altered SMBD version check for Mac OS
  - Small adjustments to report for readability
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.3 (2014-05-19)
 
@@ -1037,7 +1036,7 @@ Lynis 1.5.3 (2014-05-19)
  - Adjusted check kernel test for non-Linux systems [KRNL-5730]
  - Improved screen output on AIX systems with echo command
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.2 (2014-05-05)
 
@@ -1056,7 +1055,7 @@ Lynis 1.5.2 (2014-05-05)
  - Removed warning from NTP falsetickers test, added data to report [TIME-3132]
  - Removed warning from NTP selected time source test [TIME-3124]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.1 (2014-04-22)
 
@@ -1067,7 +1066,7 @@ Lynis 1.5.1 (2014-04-22)
  - Redirect rpcinfo errors to /dev/null
  - Adjusted color scheme
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.5.0 (2014-04-10)
 
@@ -1082,7 +1081,7 @@ Lynis 1.5.0 (2014-04-10)
  - Extended detection for Oracle Linux
  - Updated the FAQ and README files
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.9 (2014-04-03)
 
@@ -1094,7 +1093,7 @@ Lynis 1.4.9 (2014-04-03)
  - Check for non-unique accounts on several platforms [AUTH-9208]
  - Set initial discover value for PAM modules to zero [AUTH-9268]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.8 (2014-03-27)
 
@@ -1106,7 +1105,7 @@ Lynis 1.4.8 (2014-03-27)
  - Extend LILO password test [BOOT-5139]
  - Set default value for pf firewall
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.7 (2014-03-21)
 
@@ -1121,7 +1120,7 @@ Lynis 1.4.7 (2014-03-21)
  - Clean-up of unneeded plugin section
  - Small typo fix
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.6 (2014-03-14)
 
@@ -1132,7 +1131,7 @@ Lynis 1.4.6 (2014-03-14)
  Changes:
  - Screen cleanup
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.5 (2014-03-08)
 
@@ -1151,7 +1150,7 @@ Lynis 1.4.5 (2014-03-08)
  - Improved color scheme
  - Extended logging
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.4 (2014-03-03)
 
@@ -1174,7 +1173,7 @@ Lynis 1.4.4 (2014-03-03)
  - Improved IsRunning() function
  - Extended color scheme
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.3 (2014-02-23)
 
@@ -1191,7 +1190,7 @@ Lynis 1.4.3 (2014-02-23)
  - Inserted sleep time when update is found
  - Extended report output
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.2 (2014-02-19)
 
@@ -1200,7 +1199,7 @@ Lynis 1.4.2 (2014-02-19)
  - Extended umask tests with pam_umask entries [AUTH-9328]
  - Check for supressed version on Squid [SQD-3680]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.1 (2014-02-15)
 
@@ -1217,7 +1216,7 @@ Lynis 1.4.1 (2014-02-15)
  - Small adjustments for upcoming plugin support
  - Extended man page
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.4.0 (2014-01-29)
 
@@ -1233,7 +1232,7 @@ Lynis 1.4.0 (2014-01-29)
  - Ignore LANG global setting
  - Improved logging
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.9 (2014-01-09)
 
@@ -1247,7 +1246,7 @@ Lynis 1.3.9 (2014-01-09)
  - Extended vulnerable packages test [PKGS-7392]
  - Hide possible sysctl errors [KRNL-5820]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.8 (2013-12-25)
 
@@ -1282,7 +1281,7 @@ Lynis 1.3.8 (2013-12-25)
  - Extended binaries with showmount and yum
  - Updated man page
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.7 (2013-12-10)
 
@@ -1294,7 +1293,7 @@ Lynis 1.3.7 (2013-12-10)
  - Improved check for iptables binary check
  - Extended report with the tests executed and skipped
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.6 (2013-12-03)
 
@@ -1350,7 +1349,7 @@ Lynis 1.3.6 (2013-12-03)
  - Report about log rotation tool and status
  - Updated man page
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.5 (2013-11-19)
 
@@ -1383,7 +1382,7 @@ Lynis 1.3.5 (2013-11-19)
  - Extended update check functions and output
  - Cleaned up reporting and extended it with exceptions
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.4 (2013-11-08)
 
@@ -1400,7 +1399,7 @@ Lynis 1.3.4 (2013-11-08)
  - Extended testing for PHP files in other directories [PHP-2211]
  - Improved screen output for several tests and extended logging
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.3 (2013-10-24)
 
@@ -1412,7 +1411,7 @@ Lynis 1.3.3 (2013-10-24)
  - Extended checks for presence NTP client or daemon [TIME-3104]
  - Extended logging
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.2 (2013-10-09)
 
@@ -1430,7 +1429,7 @@ Lynis 1.3.2 (2013-10-09)
  - Corrected listing of purgable packages [PKGS-7346]
  - Adjusted yum-plugin-security check due to package changes [PKGS-7386]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.1 (2013-10-02)
 
@@ -1444,7 +1443,7 @@ Lynis 1.3.1 (2013-10-02)
  - Adjusted variable checking for Solaris [HOME-9310]
  - Adjusted search in modprobe directory [STRG-1840] [STRG-1846]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.3.0 (2011-12-25)
 
@@ -1469,7 +1468,7 @@ Lynis 1.3.0 (2011-12-25)
  - Improved binary check for compilers
  - Added configuration option in scan profile (show_tool_tips, default true)
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.9 (2009-12-15)
 
@@ -1489,7 +1488,7 @@ Lynis 1.2.9 (2009-12-15)
  - Corrected /etc/security/limits.conf path in test [KRNL-5820]
  - Updated man page, limited lines to 80 chars
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.8 (2009-12-08)
 
@@ -1526,7 +1525,7 @@ Lynis 1.2.8 (2009-12-08)
  - Changed syslog daemon detection and state
  - Extended report file
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.7 (2009-11-01)
 
@@ -1583,7 +1582,7 @@ Lynis 1.2.7 (2009-11-01)
  - Fixed CUPS daemon test [PRNT-2304]
  - Also check for uppercase chars in issue file [BANN-7126]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.6 (2009-04-05)
 
@@ -1611,7 +1610,7 @@ Lynis 1.2.6 (2009-04-05)
  - Corrected Syslog-NG status [LOGG-2132]
  - Moved TODO to dev directory
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.5 (2009-03-27)
 
@@ -1684,7 +1683,7 @@ Lynis 1.2.5 (2009-03-27)
  - Adjusted hardening points of several tests
  - Log and display improvements for several tests
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.4 (2009-03-17)
 
@@ -1745,7 +1744,7 @@ Lynis 1.2.4 (2009-03-17)
  - Changed text if everything is ok (no warnings)
  - Log improvements
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.3 (2009-03-02)
 
@@ -1792,7 +1791,7 @@ Lynis 1.2.3 (2009-03-02)
  - Correct display of files with spaces [FILE-6354]
  - Changed several tests so they work correctly with Solaris
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.2 (2009-02-15)
 
@@ -1820,7 +1819,7 @@ Lynis 1.2.2 (2009-02-15)
  - Custom profiles should be compared to the default profile, due small changes
    in the structure.
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.1 (2008-09-05)
 
@@ -1850,7 +1849,7 @@ Lynis 1.2.1 (2008-09-05)
  - Improved portsclean test (FreeBSD) [PKGS-7348]
  - Added --quiet and --tests options to help and man page
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.2.0 (2008-08-26)
 
@@ -1875,7 +1874,7 @@ Lynis 1.2.0 (2008-08-26)
  - Added file available check when using --view-manpage
  - Most program variables are initialized now for future additions
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.9 (2008-08-09)
 
@@ -1904,7 +1903,7 @@ Lynis 1.1.9 (2008-08-09)
  - Renamed tests_auditing to tests_mac_frameworks
  - Several tests improved with extended logging
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.8 (2008-07-16)
 
@@ -1929,7 +1928,7 @@ Lynis 1.1.8 (2008-07-16)
  - Improved LDAP test so it skips correctly on Mac OS AUTH-9238]
  - Bugfix: MySQL status check gave incorrect output [DBS-1804]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.7 (2008-06-28)
 
@@ -1961,7 +1960,7 @@ Lynis 1.1.7 (2008-06-28)
  - Improved syslog-ng detection
  - Adjusted README with link to online (extended) documentation
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.6 (2008-06-19)
 
@@ -2003,7 +2002,7 @@ Lynis 1.1.6 (2008-06-19)
  - Assigned ID to FreeBSD promiscuous port test [NETW-3014]
  - Assigned ID to file permissions check [FILE-7524]
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.5 (2008-06-10)
 
@@ -2031,7 +2030,7 @@ Lynis 1.1.5 (2008-06-10)
  - Fixed yellow color when being used at text display
  - Several logging improvements and cleanups
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.4 (2008-05-31)
 
@@ -2052,7 +2051,7 @@ Lynis 1.1.4 (2008-05-31)
  - Debian/Ubuntu file tests improved
  - Extended man page
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.3 (2008-05-21)
 
@@ -2080,7 +2079,7 @@ Lynis 1.1.3 (2008-05-21)
  - Changed Debian/Ubuntu kernel update test, so it won't be tested on others
  - Exim test failed, due to using an incorrect variable name
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.2 (2008-05-11)
 
@@ -2106,7 +2105,7 @@ Lynis 1.1.2 (2008-05-11)
    before setting default.prf (in current work directory) as profile to use.
  - New directory added to be installed for future versions: plugins
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.1 (2008-04-13)
 
@@ -2130,7 +2129,7 @@ Lynis 1.1.1 (2008-04-13)
  - Fixed sticky bit checking on /tmp, so it won't give incorrect results on
    SuSE/Debian systems
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.1.0 (2008-04-09)
 
@@ -2145,7 +2144,7 @@ Lynis 1.1.0 (2008-04-09)
  - Changed display of operating system version (Linux)
  - Fixed PHP check
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.9 (2008-03-24)
 
@@ -2161,7 +2160,7 @@ Lynis 1.0.9 (2008-03-24)
  - Fixed option in main help window for --man option
  - Code improvement, splitting up sections to seperated files
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.8 (2008-02-10)
 
@@ -2181,7 +2180,7 @@ Lynis 1.0.8 (2008-02-10)
  - Changed indentation for many tests
  - Changed some typos in notice/warning messages
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.7 (2008-01-28)
 
@@ -2223,7 +2222,7 @@ Lynis 1.0.7 (2008-01-28)
  - Created file tests_ports_packages for Ports and Packages
  - Deleted lynis.spec file, since it was not working and will be rewritten later
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.6 (2007-12-26)
 
@@ -2238,7 +2237,7 @@ Lynis 1.0.6 (2007-12-26)
  - Added sorting to rpm/dpkg listings
  - FAQ extended
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.5 (2007-12-02)
 
@@ -2271,7 +2270,7 @@ Lynis 1.0.5 (2007-12-02)
  - Moved OS detection to file (include/osdetection)
  - Added NEVERBREAK to avoid user input (cronjob support)
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.4 (2007-11-27)
 
@@ -2288,7 +2287,7 @@ Lynis 1.0.4 (2007-11-27)
  - Logging extended and improved
  - Screen output slightly changed
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.3 (2007-11-19)
 
@@ -2310,7 +2309,7 @@ Lynis 1.0.3 (2007-11-19)
  - [Bugfix] Fixed sticky bit test at Debian
  - Extended documentation and changelog file
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.2 (2007-11-15)
 
@@ -2328,7 +2327,7 @@ Lynis 1.0.2 (2007-11-15)
  - Added version numbers to logfile for used binaries/tools
  - Updated list of parameters within Lynis help
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.1 (2007-11-12)
 
@@ -2349,7 +2348,7 @@ Lynis 1.0.1 (2007-11-12)
  - [bug] Changed skel directory check
  - Fixed display Apache configuration file
 
- --
+---------------------------------------------------------------------------------
 
 Lynis 1.0.0 (2007-11-08)
 

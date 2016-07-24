@@ -8,6 +8,9 @@ Helpers
 With 'lynis update check' you can now check for updates. This is the preferred
 new method.
 
+The command 'lynis show changelog' allows reviewing the changes. Optionally a
+release can be specified as additional argument.
+
 
 Tests
 ------
@@ -22,7 +25,7 @@ Translation of Spanish (es) added
 
 General
 -------
-* Added bold as new color
+* Added bold and header as new colors
 * Extended tests database with category (lynis show tests)
 
 

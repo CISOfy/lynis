@@ -3,6 +3,19 @@ Lynis Changelog
 
 Lynis 2.3.2 (not released yet, under development)
 
+
+Categories and Groups
+---------------------
+Tests are now grouped by their focus and named 'groups' accordingly. Besides
+groups, each test will belong to a category (performance, privacy, or security).
+
+Commands: lynis show categories, lynis show groups
+Options: --tests-from-category, --tests-from-group
+
+Note: You might need to change your scripts if you previously defined the group
+of tests to scan.
+
+
 Helpers
 -------
 With 'lynis update check' you can now check for updates. This is the preferred

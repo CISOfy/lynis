@@ -20,9 +20,16 @@ Languages
 Translation of Spanish (es) added
 
 
+General
+-------
+* Added bold as new color
+* Extended tests database with category (lynis show tests)
+
+
 Functions
 ---------
 * RemoveColors - New test to clear colors
+* DisplayError - Display error on screen in uniform format and colors
 
 
 Website
@@ -34,7 +41,7 @@ Several controls on the website are added or updated, including:
 * PHP-2374
 * PROC-3612
 
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 
 Lynis 2.3.1 (2016-07-14)
@@ -711,43 +718,43 @@ permissions for Docker files, like the socket file [CONT-8108].
   release, also a beginning of a new era. Many tools to audit or harden systems
   have being released, yet none have been maintained over a long period of time.
 
-  * Support and Feedback
+Lynis Support and Feedback
 
   This software is supported and under development by CISOfy. By providing a
   dual license, this software is kept up-to-date and enhanced. Both customers
   and the community, benefit from this licensing. This release is available
   thanks to your input and feedback.
 
-  * Helpers
+Lynis Helpers
 
   New in this release is the support for helpers. Small utilities which enhance
   Lynis by providing a single goal. The first helper available is to audit
   Docker build files.
 
-  * Improved OS support
+Lynis Improved OS support
 
   Many changes have been implemented to better support Linux, FreeBSD, NetBSD
   DragonBSD and OpenBSD in particular. Upcoming releases will include smaller
   "improvement rounds" for other systems as well.
 
-  * New technologies
+Lynis New technologies
 
   More utilities and technologies are supported now. Technologies and tools
   like systemd, Docker, nftables.
 
-  * Lynis Enterprise
+Lynis Lynis Enterprise
 
   As this code is shared, customers have an additional option to define to
   what server they want to upload the audit results. Also, commercial plugins
   have been bundled.
 
-  * New parameters
+Lynis New parameters
 
   Several new options have been added:
   --dump-options (see all options)
   --report-file (define a different location for the report file)
 
-  * General
+Lynis General
 
   Documentation on the website has been extended: https://cisofy.com/support/
   The man page, Lynis binary and several tests have improved texts.
@@ -764,7 +771,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
 ================================================================================
 
- * 1.6.4 (2014-11-04)
+Lynis 1.6.4 (2014-11-04)
 
  New:
  - Boot loader detection for AIX [BOOT-5102]
@@ -788,7 +795,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.6.3 (2014-10-14)
+Lynis 1.6.3 (2014-10-14)
 
  New:
  - Added tests for Shellshock bash vulnerability [SHLL-6290]
@@ -822,7 +829,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.6.2 (2014-09-22)
+Lynis 1.6.2 (2014-09-22)
 
  New:
  - IsVirtualMachine function to check if system is running in VM
@@ -859,7 +866,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.6.1 (2014-09-09)
+Lynis 1.6.1 (2014-09-09)
 
  New:
  - Added --pentest parameter to run a non-privileged scans (e.g. for pentesting)
@@ -881,7 +888,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.6.0 (2014-08-27)
+Lynis 1.6.0 (2014-08-27)
 
  New:
  - Added several new plugins to default profile
@@ -896,7 +903,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.9 (2014-07-31)
+Lynis 1.5.9 (2014-07-31)
 
  New:
  - New NetBSD test for vulnerable software packages [PKGS-7380]
@@ -937,7 +944,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.8 (2014-07-24)
+Lynis 1.5.8 (2014-07-24)
 
  New:
  - Testing for commercial anti-virus solutions like McAfee and Sophos [MALW-3280]
@@ -953,7 +960,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.7 (2014-07-09)
+Lynis 1.5.7 (2014-07-09)
 
  New:
  - Implementation of SafePerms function
@@ -964,7 +971,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.6 (2014-06-12)
+Lynis 1.5.6 (2014-06-12)
 
  New:
  - Test for PHP binary and PHP version
@@ -982,7 +989,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.5 (2014-06-08)
+Lynis 1.5.5 (2014-06-08)
 
  New:
  - Check for nginx access logging [HTTP-6712]
@@ -1004,7 +1011,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.4 (2014-06-04)
+Lynis 1.5.4 (2014-06-04)
 
  New:
  - Check additional configuration files for nginx [HTTP-6706]
@@ -1017,7 +1024,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.3 (2014-05-19)
+Lynis 1.5.3 (2014-05-19)
 
  New:
  - Support for zypper package manager
@@ -1032,7 +1039,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.2 (2014-05-05)
+Lynis 1.5.2 (2014-05-05)
 
  New:
  - Support for runlevel in binaries test
@@ -1051,7 +1058,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.1 (2014-04-22)
+Lynis 1.5.1 (2014-04-22)
 
  Changes:
  - Extended reporting with running databases and frameworks
@@ -1062,7 +1069,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.5.0 (2014-04-10)
+Lynis 1.5.0 (2014-04-10)
 
  New:
  - Support for Amazon Linux
@@ -1077,7 +1084,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.9 (2014-04-03)
+Lynis 1.4.9 (2014-04-03)
 
  New:
  - Added links in report to related control documentation on website
@@ -1089,7 +1096,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.8 (2014-03-27)
+Lynis 1.4.8 (2014-03-27)
 
  Changes:
  - Adjusted resolv.conf domain setting in report [NAME-4016]
@@ -1101,7 +1108,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.7 (2014-03-21)
+Lynis 1.4.7 (2014-03-21)
 
  New:
  - New configuration item to set group name
@@ -1116,7 +1123,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.6 (2014-03-14)
+Lynis 1.4.6 (2014-03-14)
 
  New:
  - Check for GPG signing in yum.conf [PKGS-7387]
@@ -1127,7 +1134,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.5 (2014-03-08)
+Lynis 1.4.5 (2014-03-08)
 
  New:
  - Support for Chakra Linux
@@ -1146,7 +1153,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.4 (2014-03-03)
+Lynis 1.4.4 (2014-03-03)
 
  New:
  - Detect tune2fs binary
@@ -1169,7 +1176,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.3 (2014-02-23)
+Lynis 1.4.3 (2014-02-23)
 
  New:
  - Support for ClearOS
@@ -1186,7 +1193,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.2 (2014-02-19)
+Lynis 1.4.2 (2014-02-19)
 
  Changes:
  - Ignore interfaces aliases for HostID
@@ -1195,7 +1202,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.1 (2014-02-15)
+Lynis 1.4.1 (2014-02-15)
 
  New:
  --plugin-dir parameter
@@ -1212,7 +1219,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.4.0 (2014-01-29)
+Lynis 1.4.0 (2014-01-29)
 
  Changes:
  - Removed some warnings, to prevent double messages
@@ -1228,7 +1235,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.9 (2014-01-09)
+Lynis 1.3.9 (2014-01-09)
 
  Changes:
  - Additional support for Mac OS
@@ -1242,7 +1249,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.8 (2013-12-25)
+Lynis 1.3.8 (2013-12-25)
 
  New:
  - New parameter --view-categories to display available test categories
@@ -1277,7 +1284,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.7 (2013-12-10)
+Lynis 1.3.7 (2013-12-10)
 
  New:
  - Function FileExists() and SearchItem()
@@ -1289,7 +1296,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.6 (2013-12-03)
+Lynis 1.3.6 (2013-12-03)
 
  New:
  - Support for the dntpd time daemon
@@ -1345,7 +1352,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.5 (2013-11-19)
+Lynis 1.3.5 (2013-11-19)
 
  New:
  - OS detection for Mageia Linux, PCLinuxOS, Sabayon Linux and Scientific Linux
@@ -1378,7 +1385,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.4 (2013-11-08)
+Lynis 1.3.4 (2013-11-08)
 
  New:
  - OS detection support for Arch Linux
@@ -1395,7 +1402,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.3 (2013-10-24)
+Lynis 1.3.3 (2013-10-24)
 
  New:
  - Added NTP configuration type to report [TIME-3104]
@@ -1407,7 +1414,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.2 (2013-10-09)
+Lynis 1.3.2 (2013-10-09)
 
  New:
  - Test for PowerDNS authoritive servers (master/slave status) [NAME-4238]
@@ -1425,7 +1432,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.1 (2013-10-02)
+Lynis 1.3.1 (2013-10-02)
 
  Changes:
  - Updated generic references in files
@@ -1439,7 +1446,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.3.0 (2011-12-25)
+Lynis 1.3.0 (2011-12-25)
 
  New:
  - Profile option: ignore_home_dir
@@ -1464,7 +1471,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.9 (2009-12-15)
+Lynis 1.2.9 (2009-12-15)
 
  New:
  - Support for Squid3
@@ -1484,7 +1491,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.8 (2009-12-08)
+Lynis 1.2.8 (2009-12-08)
 
  New:
  - Squid support added
@@ -1521,7 +1528,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.7 (2009-11-01)
+Lynis 1.2.7 (2009-11-01)
 
  New:
  - Added Kernel Hardening section
@@ -1578,7 +1585,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.6 (2009-04-05)
+Lynis 1.2.6 (2009-04-05)
 
  New:
  - Sudoers file permissions check [AUTH-9252]
@@ -1606,7 +1613,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.5 (2009-03-27)
+Lynis 1.2.5 (2009-03-27)
 
  New:
  - slapd.conf check [LDAP-2224]
@@ -1679,7 +1686,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.4 (2009-03-17)
+Lynis 1.2.4 (2009-03-17)
 
  New:
  - NTP daemon process test [TIME-3108]
@@ -1740,7 +1747,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.3 (2009-03-02)
+Lynis 1.2.3 (2009-03-02)
 
  New:
  - Added syslog-NG daemon check [LOGG-2132]
@@ -1787,7 +1794,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.2 (2009-02-15)
+Lynis 1.2.2 (2009-02-15)
 
  New:
  - Support for MySQL client
@@ -1815,7 +1822,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.1 (2008-09-05)
+Lynis 1.2.1 (2008-09-05)
 
  New:
  - Added support for Samba
@@ -1845,7 +1852,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.2.0 (2008-08-26)
+Lynis 1.2.0 (2008-08-26)
 
  New:
  - New test: Passwordless Solaris accounts test [AUTH-9254]
@@ -1870,7 +1877,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.9 (2008-08-09)
+Lynis 1.1.9 (2008-08-09)
 
  New:
  - New test: AppArmor framework check [MACF-6204]
@@ -1899,7 +1906,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.8 (2008-07-16)
+Lynis 1.1.8 (2008-07-16)
 
  New:
  - Mac OS X support extended and new options added
@@ -1924,7 +1931,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.7 (2008-06-28)
+Lynis 1.1.7 (2008-06-28)
 
  New:
  - New test: check for unused iptables rules [FIRE-4513]
@@ -1956,7 +1963,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.6 (2008-06-19)
+Lynis 1.1.6 (2008-06-19)
 
  New:
  - New test: Check writable startup scripts [BOOT-5184]
@@ -1998,7 +2005,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.5 (2008-06-10)
+Lynis 1.1.5 (2008-06-10)
 
  New:
  - Assigned ID to Apache configuration file test [HTTP-6624]
@@ -2026,7 +2033,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.4 (2008-05-31)
+Lynis 1.1.4 (2008-05-31)
 
  New:
  - Added option to disable Lynis upgrade availability test (profile option)
@@ -2047,7 +2054,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.3 (2008-05-21)
+Lynis 1.1.3 (2008-05-21)
 
  New:
  - Added security updates check for Fedora, RHEL 5.x, CentOS 5.x
@@ -2075,7 +2082,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.2 (2008-05-11)
+Lynis 1.1.2 (2008-05-11)
 
  New:
  - Added memory test for Solaris (tested on OpenSolaris)
@@ -2101,7 +2108,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.1 (2008-04-13)
+Lynis 1.1.1 (2008-04-13)
 
  New:
  - Added Solaris package manager (pkginfo) to obtain installed packages
@@ -2125,7 +2132,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.1.0 (2008-04-09)
+Lynis 1.1.0 (2008-04-09)
 
  New:
  - Added test: default gateway (Linux/BSD)
@@ -2140,7 +2147,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.0.9 (2008-03-24)
+Lynis 1.0.9 (2008-03-24)
 
  New:
  - Added --quiet option (currently not 100% quiet yet)
@@ -2156,7 +2163,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.0.8 (2008-02-10)
+Lynis 1.0.8 (2008-02-10)
 
  New:
  - Added pf filter rule test
@@ -2176,7 +2183,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.0.7 (2008-01-28)
+Lynis 1.0.7 (2008-01-28)
 
  New:
  - Test: UFS mount point check (FreeBSD)
@@ -2218,7 +2225,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
- * 1.0.6 (2007-12-26)
+Lynis 1.0.6 (2007-12-26)
 
  New:
  - Added Solaris real users test
@@ -2233,7 +2240,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
-  * 1.0.5 (2007-12-02)
+Lynis 1.0.5 (2007-12-02)
 
  New:
  - Test: unique group names
@@ -2266,7 +2273,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
-  * 1.0.4 (2007-11-27)
+Lynis 1.0.4 (2007-11-27)
 
  New:
  - Test: query real system users (FreeBSD/Linux)
@@ -2283,7 +2290,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
-  * 1.0.3 (2007-11-19)
+Lynis 1.0.3 (2007-11-19)
 
  New:
  - Added check for sockstat
@@ -2305,7 +2312,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
-  * 1.0.2 (2007-11-15)
+Lynis 1.0.2 (2007-11-15)
 
  New:
  - Test: Added check for NTP daemon or client
@@ -2323,7 +2330,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
-  * 1.0.1 (2007-11-12)
+Lynis 1.0.1 (2007-11-12)
 
  New:
  - Test: check Exim configuration file location
@@ -2344,7 +2351,7 @@ permissions for Docker files, like the socket file [CONT-8108].
 
  --
 
-  * 1.0.0 (2007-11-08)
+Lynis 1.0.0 (2007-11-08)
 
  New:
  - Support for CentOS (Tested: 5 Final)

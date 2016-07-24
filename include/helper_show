@@ -32,29 +32,30 @@ COMMANDS="audit show update"
 HELPERS="audit configure show update"
 OPTIONS="--auditor\n--check-all (-c)\n--config\n--cronjob (--cron)\n--debug\n--developer\n--help (-h)\n--info\n--license-key --log-file\n--manpage (--man)\n--no-colors --no-log\n--pentest\n--profile\n--plugins-dir\n--quiet (-q)\n--quick (-Q)\n--report-file\n--reverse-colors\n--tests\n--tests-category\n--upload\n--verbose\n--version (-V)\n--view-categories"
 
-SHOW_ARGS="categories commands dbdir help hostids includedir language license logfile man options pidfile plugindir profiles release releasedate report settings tests version workdir"
-SHOW_HELP="lynis show ${BROWN}categories${NORMAL}        (display test categories)
-lynis show ${BROWN}commands${NORMAL}          (all available commands)
-lynis show ${BROWN}dbdir${NORMAL}             (database directory)
-lynis show ${BROWN}help${NORMAL}              (detailed information about arguments)
-lynis show ${BROWN}hostids${NORMAL}           (unique IDs for this system)
-lynis show ${BROWN}includedir${NORMAL}        (include directory for tests and functions)
-lynis show ${BROWN}language${NORMAL}          (configured or detected language)
-lynis show ${BROWN}license${NORMAL}           (license details)
-lynis show ${BROWN}logfile${NORMAL}           (location of logfile)
-lynis show ${BROWN}man${NORMAL}               (show help)
-lynis show ${BROWN}options${NORMAL}           (available flags and options)
-lynis show ${BROWN}pidfile${NORMAL}           (active file to stored process ID)
-lynis show ${BROWN}plugindir${NORMAL}         (directory with plugins)
-lynis show ${BROWN}profiles${NORMAL}          (discovered profiles)
-lynis show ${BROWN}release${NORMAL}           (version)
-lynis show ${BROWN}releasedate${NORMAL}       (date of release)
-lynis show ${BROWN}report${NORMAL}            (location of report data)
-lynis show ${BROWN}settings${NORMAL}          (display configured settings, ${WHITE}options:${NORMAL} ${CYAN}--brief --nocolors${NORMAL})
-lynis show ${BROWN}tests${NORMAL} ${GRAY}[test]${NORMAL}      (display information about one or more tests)
-lynis show ${BROWN}tests skipped${NORMAL}     (which tests to skip according profile)
-lynis show ${BROWN}version${NORMAL}           (${PROGRAM_NAME} version)
-lynis show ${BROWN}workdir${NORMAL}           (work directory)"
+SHOW_ARGS="categories changelog commands dbdir help hostids includedir language license logfile man options pidfile plugindir profiles release releasedate report settings tests version workdir"
+SHOW_HELP="lynis show ${BROWN}categories${NORMAL}              (display test categories)
+lynis show ${BROWN}changelog${NORMAL} ${GRAY}[version]${NORMAL}     (release details)
+lynis show ${BROWN}commands${NORMAL}                (all available commands)
+lynis show ${BROWN}dbdir${NORMAL}                   (database directory)
+lynis show ${BROWN}help${NORMAL}                    (detailed information about arguments)
+lynis show ${BROWN}hostids${NORMAL}                 (unique IDs for this system)
+lynis show ${BROWN}includedir${NORMAL}              (include directory for tests and functions)
+lynis show ${BROWN}language${NORMAL}                (configured or detected language)
+lynis show ${BROWN}license${NORMAL}                 (license details)
+lynis show ${BROWN}logfile${NORMAL}                 (location of logfile)
+lynis show ${BROWN}man${NORMAL}                     (show help)
+lynis show ${BROWN}options${NORMAL}                 (available flags and options)
+lynis show ${BROWN}pidfile${NORMAL}                 (active file to stored process ID)
+lynis show ${BROWN}plugindir${NORMAL}               (directory with plugins)
+lynis show ${BROWN}profiles${NORMAL}                (discovered profiles)
+lynis show ${BROWN}release${NORMAL}                 (version)
+lynis show ${BROWN}releasedate${NORMAL}             (date of release)
+lynis show ${BROWN}report${NORMAL}                  (location of report data)
+lynis show ${BROWN}settings${NORMAL}                (display configured settings, ${WHITE}options:${NORMAL} ${CYAN}--brief --nocolors${NORMAL})
+lynis show ${BROWN}tests${NORMAL} ${GRAY}[test]${NORMAL}            (display information about one or more tests)
+lynis show ${BROWN}tests skipped${NORMAL}           (which tests to skip according profile)
+lynis show ${BROWN}version${NORMAL}                 (${PROGRAM_NAME} version)
+lynis show ${BROWN}workdir${NORMAL}                 (work directory)"
 
 AUDIT_ARGS="( dockerfile | system )"
 AUDIT_HELP="
@@ -112,6 +113,62 @@ if [ $# -gt 0 ]; then
         "categories")
             ViewCategories
             ;;
+        "changelog")
+            # Allow providing a version
+            if [ $# -gt 1 ]; then
+                shift; SEARCH_VERSION="$1"
+            fi
+            CHANGELOG_PATHS="/usr/share/doc/${PROGRAM_NAME} /usr/share/doc/${PROGRAM_NAME}-${PROGRAM_VERSION} ."
+            CHANGELOG=""
+            if [ -z "${SEARCH_VERSION}" ]; then SEARCH_VERSION="${PROGRAM_VERSION}"; fi
+            STARTED=0
+            for FILE in ${CHANGELOG_PATHS}; do
+                if [ -f ${FILE}/CHANGELOG.md ]; then CHANGELOG="${FILE}/CHANGELOG.md"; fi
+                # We might come accross a gzipped changelog
+                if [ -f ${FILE}/changelog.gz ]; then
+                    ZCAT=$(which zcat 2> /dev/null)
+                    if [ ! -z "${HAS_ZCAT}" ]; then
+                        CreateTempFile
+                        CHANGELOG="${TEMP_FILE}"
+                        ${ZCAT} ${FILE}/changelog.gz > ${CHANGELOG}
+                        DisplayError "Could not find zcat utility to use on gzipped changelog"
+                    fi
+                fi
+                if [ ! -z "${CHANGELOG}" ]; then LogText "Result: found changelog file: ${CHANGELOG}"; break; fi
+            done
+            if [ ! -z "${CHANGELOG}" ]; then
+                SEARCH=$(egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}" ${CHANGELOG})
+                if [ $? -eq 0 ]; then
+                    cat ${CHANGELOG} | while read -r LINE; do
+                        if [ ${STARTED} -eq 0 ]; then
+                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}")
+                            if [ $? -eq 0 ]; then STARTED=1; ${ECHOCMD} "${BOLD}${LINE}${NORMAL}"; fi
+                        else
+                            # Stop if we find the next Lynis version
+                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} [0-9]\.[0-9]\.[0-9]")
+                            if [ $? -eq 0 ]; then
+                                break
+                            else
+                                ${ECHOCMD} "${LINE}"
+                            fi
+                        fi
+                    done < ${CHANGELOG}
+                else
+                    DisplayError "Could not find this version in the changelog"
+                    ${ECHOCMD} ""
+                    ${ECHOCMD} "${HEADER}Usage:${NORMAL}"
+                    ${ECHOCMD} "$0 lynis show changelog [version]"
+                    ${ECHOCMD} ""
+                    ${ECHOCMD} "${HEADER}${PROGRAM_NAME} versions:${NORMAL}"
+                    SEARCH=$(egrep "^Lynis [0-9]\.[0-9]\.[0-9] " ${CHANGELOG} | awk '{print $2}' | sort -n)
+                    ${ECHOCMD} ${SEARCH}
+                    ExitFatal
+                fi
+            else
+                DisplayError "Could not find the changelog file (searched in ${CHANGELOG_PATHS})"
+                ExitFatal
+            fi
+            ;;
         "commands")
             if [ $# -eq 1 ]; then
                 ${ECHOCMD} "\n${WHITE}Commands:${NORMAL}"
@@ -126,7 +183,7 @@ if [ $# -gt 0 ]; then
                         "audit") ${ECHOCMD} "${AUDIT_HELP}" ;;
                         "show") ${ECHOCMD} "${SHOW_HELP}" ;;
                         "update") ${ECHOCMD} "No help available yet" ;;
-                        *) ${ECHOCMD} "Unknown argument for 'commands'"
+                        *) DisplayError "Unknown argument for 'commands'"
                     esac
                   else
                     shift
@@ -138,7 +195,7 @@ if [ $# -gt 0 ]; then
                             ${ECHOCMD} "${COMMANDS_AUDIT_SYSTEM_USAGE}\n${COMMANDS_AUDIT_SYSTEM_FUNCTION}\n"
                         ;;
                         *)
-                            ${ECHOCMD} "Unknown argument '$1' for commands"
+                            DisplayError "Unknown argument '$1' for commands"
                         ;;
                     esac
                 fi
@@ -300,7 +357,8 @@ if [ $# -gt 0 ]; then
                                 done
                             fi
                         else
-                            ${ECHOCMD} "${RED}ERROR:${NORMAL} Can not find tests database"
+                            ShowError "Can not find tests database"
+                            ${ECHOCMD} "The changelog might not be installed on your system. Details can be found at ${PROGRAM_SOURCE}."
                             ExitFatal
                         fi
                     ;;
@@ -311,7 +369,8 @@ if [ $# -gt 0 ]; then
                     ${ECHOCMD} "# ======================================================================================"
                     awk -F: '{ if ($1 !~ /^#/) printf("%-10s %-10s %s (%s)\n",$1,$5,$6,$3)}' ${DBDIR}/tests.db
                 else
-                    ${ECHOCMD} "${RED}ERROR:${NORMAL} Can not find tests database"
+                    ShowError "Can not find tests database"
+                    ${ECHOCMD} "The changelog might not be installed on your system. Details can be found at ${PROGRAM_SOURCE}."
                     ExitFatal
                 fi
             fi

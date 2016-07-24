@@ -27,6 +27,7 @@ release can be specified as additional argument.
 
 Tests
 ------
+* DBS-1880 - Initial support for Redis server
 * PHP-2374 - Changed text and cleanups
 * PHP-2376 - Log result to log file instead of report
 

@@ -43,6 +43,7 @@
             Display --indent 2 --text "- MySQL process status" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: MySQL is active"
             MYSQL_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
             Report "mysql_running=${MYSQL_RUNNING}"
         fi
     fi
@@ -97,6 +98,7 @@
             Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: PostgreSQL is active"
             POSTGRESQL_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
             Report "postgresql_running=${POSTGRESQL_RUNNING}"
           else
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
@@ -126,6 +128,7 @@
             Display --indent 2 --text "- Oracle processes status" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: Oracle is active"
             ORACLE_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
             Report "oracle_running=${ORACLE_RUNNING}"
         fi
     fi
@@ -151,11 +154,36 @@
             Display --indent 2 --text "- DB2 instance running" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: At least one DB2 instance is running"
             DB2_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
             Report "db2_running=${DB2_RUNNING}"
           else
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- DB2 instance running" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: No DB2 instances are running"
         fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1880
+    # Description : Determine if redis is running
+    Register --test-no DBS-1880 --weight L --network NO --category security --description "Check for active Redis server"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if IsRunning redis-server; then
+            Display --indent 2 --text "- Redis (server) status" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: Redit is running"
+            REDIS_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
+            Report "redis_running=${redis_RUNNING}"
+          else
+            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Redis (server) status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
+            LogText "Result: No Redis processes are running"
+        fi
+    fi
+#
+#################################################################################
+#
+    if [ ${DATABASE_ENGINE_RUNNING} -eq 0 ]; then
+        Display --indent 4 --text "No database engines found"
     fi
 #
 #################################################################################

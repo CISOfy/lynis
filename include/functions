@@ -83,7 +83,8 @@
 #    ShowSymlinkPath            Show a path behind a symlink
 #    SkipAtomicTest             Test if a subtest needs to be skipped
 #    TestValue                  Evaluate a value in a string or key
-#    ViewCategories             Display tests categories
+#    ViewCategories             Show available category of tests
+#    ViewGroups                 Display test groups
 #    WaitForKeyPress            Wait for user to press a key to continue
 #
 #################################################################################
@@ -1743,10 +1744,14 @@
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
         ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
-        TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
+        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         while [ $# -ge 1 ]; do
             case $1 in
+                --category)
+                    shift
+                    TEST_CATEGORY=$1
+                ;;
                 --description)
                     shift
                     TEST_DESCRIPTION=$1
@@ -1835,6 +1840,11 @@
             if [ ${LOG_INCORRECT_OS} -eq 0 ]; then
               SKIPLOGTEST=1
             fi
+        fi
+
+        # Skip test when it belongs to another category (default is 'all')
+        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_CATEGORY_TO_CHECK}" -a ! "${TEST_CATEGORY_TO_CHECK}" = "all" -a ! "${TEST_CATEGORY}" = "${TEST_CATEGORY_TO_CHECK}" ]; then
+            SKIPTEST=1; SKIPREASON="Incorrect category (${TEST_CATEGORY_TO_CHECK} only)"
         fi
 
         # Check for correct hardware platform
@@ -2529,8 +2539,24 @@
     ################################################################################
 
     ViewCategories() {
+        for CATEGORY in ${TEST_AVAILABLE_CATEGORIES}; do echo "${CATEGORY}"; done
+        echo ""
+        ExitClean
+    }
+
+
+    ################################################################################
+    # Name        : ViewGroups()
+    # Description : Show what group of tests are available
+    #
+    # Input       : <nothing>
+    # Returns     : <nothing>
+    # Usage       : ViewGroups
+    ################################################################################
+
+    ViewGroups() {
         if [ ! "${INCLUDEDIR}" = "" ]; then
-            InsertSection "Available test categories"
+            InsertSection "Available test groups"
             for I in `ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"`; do
               echo "${I}"
             done

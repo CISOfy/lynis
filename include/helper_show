@@ -251,24 +251,28 @@ if [ $# -gt 0 ]; then
                             SEARCH="$1"
                             FIND=$(grep "^${SEARCH}" ${DBDIR}/tests.db | sed "s/ /:space:/g")
                             if [ -z "${FIND}" ]; then
-                                ${ECHOCMD} "Error: Invalid argument provided to 'lynis show tests'\n\n"
-                                ${ECHOCMD} "Suggestions:"
-                                for I in ${SHOW_TESTS_ARGS}; do ${ECHOCMD} "lynis show tests ${I}"; done
+                                ${ECHOCMD} "${WARNING}Error${NORMAL}: ${BOLD}Could not find this test in the database${NORMAL}\n\n"
                                 ExitFatal
                             else
                                 for ITEM in ${FIND}; do
-                                    TEST_DESCRIPTION=$(echo ${ITEM} | sed "s/:space:/ /g" | awk -F: '{print $5}')
+                                    TEST_DESCRIPTION=$(echo ${ITEM} | sed "s/:space:/ /g" | awk -F: '{print $6}')
                                     TEST=$(echo ${ITEM} | awk -F: '{print $1}')
                                     TEST_TYPE=$(echo ${ITEM} | awk -F: '{print $2}')
-                                    TEST_OS=$(echo ${ITEM} | awk -F: '{print $4}')
+                                    TEST_CATEGORY=$(echo ${ITEM} | awk -F: '{print $3}')
+                                    TEST_GROUP=$(echo ${ITEM} | awk -F: '{print $4}')
+                                    TEST_OS=$(echo ${ITEM} | awk -F: '{print $5}')
                                     TEST_SKIPPED=0
-                                    ${ECHOCMD} "${CYAN}${TEST}${NORMAL} [type=${TEST_TYPE}]"
+                                    ${ECHOCMD} "${CYAN}${TEST}${NORMAL}"
                                     ${ECHOCMD} "==================================="
                                     ${ECHOCMD} ""
-                                    ${ECHOCMD} "Description:"
-                                    ${ECHOCMD} "${WHITE}${TEST_DESCRIPTION}${NORMAL}"
+                                    ${ECHOCMD} "${WHITE}Type:${NORMAL} ${TEST_TYPE}"
                                     ${ECHOCMD} ""
-                                    ${ECHOCMD} "Perform test:"
+                                    ${ECHOCMD} "${WHITE}Description:${NORMAL}"
+                                    ${ECHOCMD} "${TEST_DESCRIPTION}"
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "${WHITE}Category:${NORMAL} ${TEST_CATEGORY}, ${WHITE}Group:${NORMAL} ${TEST_GROUP}"
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "${WHITE}Test Execution:${NORMAL}"
                                     if [ "${TEST_OS}" = "" ]; then
                                         ${ECHOCMD} "  Operating System:    ${GREEN}Yes${NORMAL} (all systems)"
                                     elif [ "${TEST_OS}" = "${OS}" ]; then
@@ -305,7 +309,7 @@ if [ $# -gt 0 ]; then
                 if [ -f ${DBDIR}/tests.db ]; then
                     ${ECHOCMD} "# Test       OS         Description"
                     ${ECHOCMD} "# ======================================================================================"
-                    awk -F: '{ if ($1 !~ /^#/) printf("%-12s %-10s %s\n",$1,$4,$5)}' ${DBDIR}/tests.db
+                    awk -F: '{ if ($1 !~ /^#/) printf("%-10s %-10s %s (%s)\n",$1,$5,$6,$3)}' ${DBDIR}/tests.db
                 else
                     ${ECHOCMD} "${RED}ERROR:${NORMAL} Can not find tests database"
                     ExitFatal

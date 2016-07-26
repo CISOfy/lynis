@@ -27,9 +27,10 @@ release can be specified as additional argument.
 
 Tests
 ------
-* DBS-1880 - Initial support for Redis server
-* PHP-2374 - Changed text and cleanups
-* PHP-2376 - Log result to log file instead of report
+* DBS-1880  - Initial support for Redis server
+* PHP-2374  - Changed text and cleanups
+* PHP-2376  - Log result to log file instead of report
+* TIME-3106 - Corrected string to test for status
 
 
 Languages
@@ -52,11 +53,13 @@ Functions
 Website
 -------
 Several controls on the website are added or updated, including:
+* FINT-4315
+* FINT-4402
 * HTTP-6714
 * MACF-6234
-* TIME-3106
 * PHP-2374
 * PROC-3612
+* TIME-3106
 
 ---------------------------------------------------------------------------------
 

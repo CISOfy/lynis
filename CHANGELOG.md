@@ -36,11 +36,14 @@ Tests
 Languages
 ---------
 Translation of Spanish (es) added
+Proper display of text strings when accented characters are used
 
 
 General
 -------
 * Added bold and header as new colors
+* Changed header and footer of screen output
+* Allow atomic tests to be skipped (e.g. SSH-7408)
 * Extended tests database with category (lynis show tests)
 
 

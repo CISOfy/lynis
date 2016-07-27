@@ -45,21 +45,27 @@ General
 * Changed header and footer of screen output
 * Allow atomic tests to be skipped (e.g. SSH-7408)
 * Extended tests database with category (lynis show tests)
+* By default Lynis will now run in 'quick mode' and not break after each
+section. You can get this behavior by adding the --wait option.
 
 
 Functions
 ---------
 * RemoveColors - New test to clear colors
 * DisplayError - Display error on screen in uniform format and colors
+* SkipAtomicTest - This function is now properly working with lowercase strings
 
 
 Website
 -------
 Several controls on the website are added or updated, including:
+* FILE-6344
 * FINT-4315
 * FINT-4402
 * HTTP-6714
 * MACF-6234
+* NAME-4018
+* NAME-4402
 * PHP-2374
 * PROC-3612
 * TIME-3106

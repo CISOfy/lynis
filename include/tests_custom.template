@@ -2,21 +2,38 @@
 
 #################################################################################
 #
-# Here you could insert your own custom checks
+# This is the custom tests file and serves as a template.
 #
-# Tips:
-# - Make sure to use each test ID only once in Register function and prefix them with CUST
-# - Use big steps in numbering, so you can easily put tests in between
-# - Want to improve Lynis? Share your checks!
+# The language used in bourne shell (not bash). That means that almost everything
+# you could use in bash, will also work here. Arrays and advanced substitutions
+# will not work.
+#
+# How to use:
+#
+# Copy this file to the 'include' directory and name it tests_custom
+# Find your includedir with: lynis show includedir
 #
 #################################################################################
 #
-    # Test        : CUST-0001
+# Tips:
+#
+# Use each test ID only once in the Register function and prefix them with CUST
+#
+# Use big steps (e.g. 10) in numbering, so you can easily put in tests later.
+#
+# Help the community and share your checks on https://github.com/CISOfy/lynis/
+#
+#################################################################################
+#
+    # Test        : CUST-0010
     # Description : We show some lines on the screen
 
     # Register our first custom test
     # We consider it to be a lightweight test (no heavy IO, or long searches), no network connection needed
-    Register --test-no CUST-0001 --weight L --network NO --category security --description "A test case for colors and text display"
+    # --test-no   unique ID
+    # --weight    L/M/H
+    # --category  category (e.g. performance, privacy, security)
+    Register --test-no CUST-0010 --weight L --network NO --category security --description "A test for displaying things on screen"
     if [ ${SKIPTEST} -eq 0 ]; then
         # The Display function makes it easy to show something on screen, with colors.
         # --indent  defines amount of spaces
@@ -24,32 +41,46 @@
         # --result  text at end of line
         # --color   color of result text
         Display --indent 2 --text "- Checking if everything is OK..." --result "${STATUS_OK}" --color GREEN
-        Display --indent 4 --text "This shows one level deeper " --result "${STATUS_NO}"TICE --color YELLOW
+        Display --indent 4 --text "This shows one level deeper " --result "${STATUS_NO}" --color YELLOW
         Display --indent 6 --text "And even deeper" --result "${STATUS_WARNING}" --color RED
+    fi
+#
+#################################################################################
+#
+    # Test        : CUST-0020
+    # Description : We show some lines on the screen
+    Register --test-no CUST-0020 --weight L --network NO --category security --description "Dealing with files and directories"
+    if [ ${SKIPTEST} -eq 0 ]; then
 
-        # Here we could add specific tests, like testing for a directory
+        # With -d we can test for directories, -f is for files, -L for symlinks.
+
         # Most tests use the "if-then-else". If something is true, take one step, otherwise the other.
-        if [ -d /tmp ]; then
+        if DirectoryExists /tmp; then
             LogText "Result: we have a temporary directory"
-          else
+        else
             LogText "Result: no temporary directory found"
         fi
 
-        # Common examples to use:
+        # Instead of ready-to-use functions, you can use normal shell script tests, like:
         # if [ -f /etc/file ]; then                     =  Test if file exists
         # if [ -d /var/run/mydirectory ]; then          =  Test if directory exists
-        # if [ ${MYVARIABLE} -eq 1 ]; then              =  Test if variable is set to 1
+        # if [ -L /var/run/mydirectory ]; then          =  Test if symlink exists
+        # if [ ${MYVARIABLE} -eq 1 ]; then              =  Test if variable is set to 1 (make sure it was defined at beginning of test)
         # if [ "${MYVARIABLE}" = "Value" ]; then        =  Test if variable is equal to specific value
 
-        if [ -f /etc/file ]; then
-            LogText "Result: Found file /etc/file"
-          elif [ -f /etc/file2 ]; then
+        # Let's test for a file. We like to find at least one file (file1 or file2)
+        if FileExists /etc/file1; then
+            LogText "Result: Found file /etc/file1"
+        elif FileExists /etc/file2; then
             LogText "Result: Found file /etc/file2"
-          else
-            LogText "Result: both /etc/file and /etc/file2 not found"
+        else
+            LogText "Result: both /etc/file1 and /etc/file2 were not found"
+            # Show a warning on screen and in the report. We can specify a detail and how to solve it.
+            ReportWarning "${TEST_NO}" "No file /etc/file1 or /etc/file2 available"
         fi
 
-        # If a single value is stored in a variable, using case is effective.
+        # If a single value is stored in a variable, using 'case' is very effective.
+        # Let's check for a predefined variable OS, which is defined by Lynis
         case ${OS} in
             # Only match one value
             "Linux")
@@ -61,35 +92,37 @@
                 LogText "Found an operating system based on BSD"
                 Display --indent 2 --text "OS: *BSD" --result "${STATUS_OK}" --color GREEN
             ;;
-            # Catch-all for unknown values
+            # Catch-all for other values
             *)
-                LogText "Did find another operating system"
+                LogText "Found another operating system"
+                ReportSuggestion "${TEST_NO}" "Check if this process is running" "apache" "url:https://cisofy.com/support/"
             ;;
         esac
 
-        # Show a warning on screen and in the report. We can specify a detail and how to solve it.
-        ReportWarning "${TEST_NO}" "Something was wrong and should be fixed" "/etc/motd" "text:Change your motd"
-        ReportSuggestion "${TEST_NO}" "Check if this process is running" "apache" "url:https://cisofy.com/support/"
     fi
 #
 #################################################################################
 #
-    # Add a new section to screen output
-    InsertSection "Other Tests"
+    # Add a new section to the screen output
+    InsertSection "Custom tests - Other"
 #
 #################################################################################
 #
+    # Test        : CUST-0040
+    # Description : Our second test, with a prequisite test
+
     # First check if OPENSSLBINARY is known as a prerequisite for this test.
     if [ ! "${OPENSSLBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CUST-0002 --preqs-met ${PREQS_MET} --weight M --network NO --category security --description "Description of custom test"
+    Register --test-no CUST-0040 --preqs-met ${PREQS_MET} --weight M --network NO --category security --description "Description of custom test"
     if [ ${SKIPTEST} -eq 0 ]; then
+        # Set variable to zero, to indicate that we have no problems found (yet)
         FOUNDPROBLEM=0
         DIR="/my/path"
         LogText "Test: we are going to check if we can find a particular directory (${DIR})"
         # Check if a directory exists
-        if [ -d ${DIR} ]; then
+        if DirectoryExists ${DIR}; then
             LogText "Result: log entry for easier debugging or additional information"
-          else
+        else
             FOUNDPROBLEM=1
             LogText "Result: directory ${DIR} was not found!"
             ReportWarning "${TEST_NO}" "This is a test warning line" "${DIR}" "text:Create directory ${DIR}"
@@ -97,7 +130,7 @@
 
         if [ ${FOUNDPROBLEM} -eq 0 ]; then
             Display --indent 2 --text "- Checking if everything is OK..." --result "${STATUS_OK}" --color GREEN
-          else
+        else
             Display --indent 2 --text "- Checking if everything is OK..." --result "${STATUS_WARNING}" --color RED
             ReportSuggestion ${TEST_NO} "This is a suggestion"
         fi

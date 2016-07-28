@@ -50,7 +50,12 @@
     REPORT_version_major="1"; REPORT_version_minor="0"
     REPORT_version="${REPORT_version_major}.${REPORT_version_minor}"
 
-    DISPLAY_LANG=$LANG   # required by function Display to deal with multi-bytes characters.
+    DISPLAY_LANG="${LANG}"  # required by function Display to deal with multi-bytes characters.
+
+    # Code quality:
+    # Set strict checking for development version for first part of code. After
+    # initialization this is checked with strict profile option.
+    if [ ${PROGRAM_RELEASE_TYPE} = "dev" ]; then set -u; fi
 
 #
 #################################################################################
@@ -192,7 +197,6 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     # Now include files if permissions are correct, or user decided to continue
     . ${INCLUDEDIR}/consts
     . ${INCLUDEDIR}/functions
-
 #
 #################################################################################
 #
@@ -204,10 +208,6 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 
     # Use safe umask for the files we create
     umask 027
-
-    # Drop out on unintialised variables / fatal errors
-    #set -u
-#
 #
 #################################################################################
 #
@@ -518,11 +518,18 @@ ${NORMAL}
 #
 #################################################################################
 #
-# Read profile/language
+# Read profile, set code checks, define language
 #
 #################################################################################
 #
     ParseProfiles
+
+    # Define if we keep working in strict mode (development)
+    if [ ${SET_STRICT} -eq 0 ]; then
+        set +u  # Allow uninitialized variables
+    else
+        set -u  # Do not allow unitialized variables
+    fi
 
     # Import a different language when configured
     if [ ! "${LANGUAGE}" = "en" ]; then

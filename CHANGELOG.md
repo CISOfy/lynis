@@ -42,6 +42,7 @@ Tests
 * PHP-2211  - Readability improvement and code style changes
 * PHP-2374  - Changed text and cleanups
 * PHP-2376  - Log result to log file instead of report
+* PKGS-7388 - Style and readability improvements
 * TIME-3106 - Corrected string to test for status
 * TOOL-5102 - Split of fail2ban tests
 * TOOL-5104 - Test for enabled fail2ban jails

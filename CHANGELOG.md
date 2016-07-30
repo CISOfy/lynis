@@ -35,9 +35,11 @@ release can be specified as additional argument.
 Tests
 ------
 * AUTH-9268 - Improve test for readability
+* AUTH-9406 - Readability and code style changes
 * CONT-8102 - Determine if all Docker tests should be performed
 * DBS-1880  - Initial support for Redis server
 * HTTP-6720 - Readability improvement of test
+* PHP-2211  - Readability improvement and code style changes
 * PHP-2374  - Changed text and cleanups
 * PHP-2376  - Log result to log file instead of report
 * TIME-3106 - Corrected string to test for status

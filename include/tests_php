@@ -50,42 +50,43 @@
         LogText "Test: Checking for presence php.ini"
         PHPINIFILE=""
         PHPINI_ALLFILES=""
-        for I in ${PHPINILOCS}; do
-            LogText "Test: checking presence ${I}"
-            if [ -f ${I} ]; then
-                PHPINIFILE=${I}
+        for FILE in ${PHPINILOCS}; do
+            LogText "Test: checking presence ${FILE}"
+            if [ -f ${FILE} ]; then
+                PHPINIFILE="${FILE}"
                 LogText "Result: Found php.ini file (${PHPINIFILE})"
                 LogText "Note: Adding file to php.ini array"
                 PHPINI_ALLFILES="${PHPINI_ALLFILES} ${PHPINIFILE}"
-              else
-                LogText "Result: file ${I} not found"
+            else
+                LogText "Result: file ${FILE} not found"
             fi
         done
 
         # Check all known locations
-        for I in ${PHPINIDIRS}; do
-            tFILES=`ls ${I}/*.ini 2>/dev/null`
-            if [ "${tFILES}" = "" ]; then
-                LogText "Result: no files found for ${I}"
-              else
-                LogText "Result: found files in location ${I}, checking"
-                for I in ${tFILES}; do
-                  if [ -f ${I} ]; then
-                    LogText "Result: file ${I} exists, adding to php.ini array"
-                    PHPINI_ALLFILES="${PHPINI_ALLFILES} ${I}"
-                  fi
+        for DIR in ${PHPINIDIRS}; do
+            FIND=$(ls ${DIR}/*.ini 2> /dev/null)
+            if [ -z "${FIND}" ]; then
+                LogText "Result: no files found for ${DIR}"
+            else
+                LogText "Result: found files in location ${DIR}, checking"
+                for FILE in ${FIND}; do
+                    if [ -f ${FILE} ]; then
+                        LogText "Result: file ${FILE} exists, adding to php.ini array"
+                        PHPINI_ALLFILES="${PHPINI_ALLFILES} ${FILE}"
+                    fi
                 done
             fi
         done
 
-        if [ ! "${PHPINIFILE}" = "" ]; then
+        if [ ! -z "${PHPINIFILE}" ]; then
             Display --indent 2 --text "- Checking PHP" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: using single file ${PHPINIFILE} for main php.ini tests"
             LogText "Result: using php.ini array ${PHPINI_ALLFILES} for further tests"
-          else
+        else
             Display --indent 2 --text "- Checking PHP" --result "${STATUS_NOT_FOUND}" --color WHITE
             LogText "Result: no php.ini file found"
         fi
+        unset DIR; unset FILE; unset FIND
     fi
 #
 #################################################################################

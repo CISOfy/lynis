@@ -27,6 +27,7 @@
 #################################################################################
 #
     DOCKER_FILE_PERMISSIONS_WARNINGS=0
+    RUN_DOCKER_TESTS=0
 #
 #################################################################################
 #
@@ -81,6 +82,7 @@
             LogText "Result: found Docker daemon running"
             Report "docker_daemon_running=1"
             DOCKER_DAEMON_RUNNING=1
+            RUN_DOCKER_TESTS=1
             Display --indent 4 --text "- Docker"
             Display --indent 6 --text "- Docker daemon" --result "${STATUS_RUNNING}" --color GREEN
         fi
@@ -96,6 +98,12 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         LogText "Test: Check for any warnings"
+        FIND=$(${DOCKERBINARY} version 2>&1)
+        if [ $? -gt 0 ]; then
+            Display --indent 8 --text "- Docker status" --result "${STATUS_ERROR}" --color RED
+            LogText "Result: disabling further Docker tests as docker version gave exit code other than zero (0)"
+            RUN_DOCKER_TESTS=0
+        fi
         FIND=`${DOCKERBINARY} info 2>&1 | grep "^WARNING:" | cut -d " " -f 2- | sed 's/ /:space:/g'`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found warning(s) in output"
@@ -104,7 +112,7 @@
                 LogText "Output: ${J}"
                 COUNT=$((COUNT + 1))
             done
-            Display --indent 8 --text "- Docker info output (warnings)" --result "${COUNT}" --color RED
+            Display --indent 8 --text "- Docker info output (warnings)" --result "${COUNT}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Run 'docker info' to see warnings applicable to Docker daemon"
             AddHP 3 4
           else
@@ -119,7 +127,7 @@
     # Test        : CONT-8106
     # Description : Checking Docker containers (basic stats)
     # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
-    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Gather basic stats from Docker"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 6 --text "- Containers"
@@ -172,7 +180,7 @@
     # Test        : CONT-8108
     # Description : Checking Docker file permissions
     # Notes       : /var/run/docker.sock - Usually root as owner, docker as group - should not be world writable
-    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8108 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check file permissions for Docker files"
     if [ ${SKIPTEST} -eq 0 ]; then
         NOT_WORLD_WRITABLE="/var/run/docker.sock"

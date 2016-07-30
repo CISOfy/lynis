@@ -16,6 +16,13 @@ Note: You might need to change your scripts if you previously defined the group
 of tests to scan.
 
 
+Development
+-----------
+A new 'strict' option is available in the profiles and by default enabled for
+the initialization phases of Lynis. It will perform a strict code check for the
+tests, to detect any uninitialized variables, improving code quality.
+
+
 Helpers
 -------
 With 'lynis update check' you can now check for updates. This is the preferred
@@ -31,6 +38,8 @@ Tests
 * PHP-2374  - Changed text and cleanups
 * PHP-2376  - Log result to log file instead of report
 * TIME-3106 - Corrected string to test for status
+* TOOL-5102 - Split of fail2ban tests
+* TOOL-5104 - Test for enabled fail2ban jails
 
 
 Languages

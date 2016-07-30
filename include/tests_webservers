@@ -667,28 +667,29 @@
     Register --test-no HTTP-6720 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Nginx log files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking directories for files with log file definitions"
-        for I in ${NGINX_CONF_LOCS}; do
-            LogText "Test: Checking ${I}"
-            if [ -d ${I} ]; then
-                LogText "Result: Directory ${I} exists, so will be used as search path"
-                FIND=`find ${I} -type f -exec grep access_log \{\} \; | grep -v "#" | awk '{ if($1=="access_log") { print $2 } }' | sed 's/;$//g' | sort -u`
-                if [ "${FIND}" = "" ]; then
+        for DIR in ${NGINX_CONF_LOCS}; do
+            LogText "Test: Checking ${DIR}"
+            if [ -d ${DIR} ]; then
+                LogText "Result: Directory ${DIR} exists, so will be used as search path"
+                FIND=$(find ${DIR} -type f -exec grep access_log \{\} \; | grep -v "#" | awk '{ if($1=="access_log") { print $2 } }' | sed 's/;$//g' | sort -u)
+                if [ -z "${FIND}" ]; then
                     LogText "Result: no log files found"
-                  else
+                else
                     LogText "Result: found one or more log files"
-                    for I in ${FIND}; do
-                      if [ -f ${I} ]; then
-                        LogText "Found log file: ${I}"
-                        Report "log_file=${I}"
-                      else
-                        LogText "Found non existing log file: ${I}"
-                      fi
+                    for FILE in ${FIND}; do
+                        if [ -f ${FILE} ]; then
+                            LogText "Found log file: ${FILE}"
+                            Report "log_file=${FILE}"
+                        else
+                            LogText "Found non existing log file: ${FILE}"
+                        fi
                     done
                 fi
-              else
-                  LogText "Result: directory ${I} not found, skipping search in this directory."
-              fi
+            else
+                LogText "Result: directory ${DIR} not found, skipping search in this directory."
+            fi
         done
+        unset DIR; unset FILE; unset FIND
     fi
 #
 #################################################################################

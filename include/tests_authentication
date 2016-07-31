@@ -116,36 +116,34 @@
 #
     # Test        : AUTH-9216
     # Description : Check /etc/group and shadow group files
+    # Notes       : Run grpck to test group files (most likely /etc/group and shadow group files)
     if [ ! "${GRPCKBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9216 --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Check group and shadow group files"
     if [ ${SKIPTEST} -eq 0 ]; then
-        # Test            : run grpck to test group files (most likely /etc/group and shadow group files)
-        # Expected result : 0 (exit code)
-        LogText "Test: Checking for grpck binary"
+        LogText "Test: Checking for grpck binary output"
 
-        if [ "${OS}" = "Linux" ]; then
-            # Read only mode
-            FIND=`${GRPCKBINARY} -r 2> /dev/null ; echo $?`
-          elif [ "${OS}" = "AIX" ]; then
-            FIND=`${GRPCKBINARY} -n ALL 2> /dev/null ; echo $?`
-          else
-            FIND=`${GRPCKBINARY} 2> /dev/null ; echo $?`
-        fi
-
-        # Overrule for SuSE
-        if [ "${LINUX_VERSION}" = "SuSE" ]; then
-            FIND=`${GRPCKBINARY} -q -r > /dev/null ; echo $?`
-        fi
+        case ${OS} in
+            "AIX")  FIND=$(${GRPCKBINARY} -n ALL 2> /dev/null ; echo $?) ;;
+            "Linux")
+                if [ "${LINUX_VERSION}" = "SuSE" ]; then
+                    FIND=$(${GRPCKBINARY} -q -r > /dev/null ; echo $?)
+                else 
+                    FIND=$(${GRPCKBINARY} -r 2> /dev/null ; echo $?)
+                fi
+                ;;
+            *)      FIND=$(${GRPCKBINARY} 2> /dev/null ; echo $?) ;;
+        esac 
 
         # Check exit-code
         if [ "${FIND}" = "0" ]; then
-            Display --indent 2 --text "- Checking consistency of group files (grpck)" --result "${STATUS_OK}" --color GREEN
+            Display --indent 2 --text "- Consistency of group files (grpck)" --result "${STATUS_OK}" --color GREEN
             LogText "Result: grpck binary didn't find any errors in the group files"
-          else
-            Display --indent 2 --text "- Checking consistency of group files (grpck)" --result "${STATUS_WARNING}" --color RED
+        else
+            Display --indent 2 --text "- Consistency of group files (grpck)" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "M" "grpck binary found errors in one or more group files"
             ReportSuggestion ${TEST_NO} "Run grpck manually and check your group files"
         fi
+        unset FIND
     fi
 #
 #################################################################################

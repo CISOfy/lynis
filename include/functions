@@ -133,16 +133,21 @@
 
     AddSetting() {
         if [ $# -eq 3 ]; then
+            SETTING="$1"
+            VALUE="$2"
+            DESCRIPTION="$3"
             if [ -z "${SETTINGS_FILE}" ]; then
                 CreateTempFile
                 SETTINGS_FILE="${TEMP_FILE}"
             fi
-            FIND=$(egrep "^$1;" ${SETTINGS_FILE})
+            FIND=$(egrep "^${SETTING};" ${SETTINGS_FILE})
             if [ -z "${FIND}" ]; then
-                echo "$1;$2;$3;" >> ${SETTINGS_FILE}
+                echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
               else
-                Debug "Option $1 was already configured, overwriting previous value in ${SETTINGS_FILE}"
-                sed -i -e "s/$1;.*$/$1;$2;$3;/" ${SETTINGS_FILE}
+                Debug "Setting '${SETTING}' was already configured, overwriting previous line '${FIND}' in ${SETTINGS_FILE} with value '${VALUE}'"
+                # Delete line first, then add new value (inline search and replace is messy)
+                sed -i -e '/^'"${SETTING}"';/d' ${SETTINGS_FILE}
+                echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
             fi
         else
             echo "Error: incorrect call to AddSetting. Needs 3 arguments."

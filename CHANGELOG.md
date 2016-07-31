@@ -32,6 +32,11 @@ The command 'lynis show changelog' allows reviewing the changes. Optionally a
 release can be specified as additional argument.
 
 
+Profiles
+--------
+Parsing of the profiles has been improved, which prevented some settings from
+overriding default settings.
+
 Tests
 ------
 * AUTH-9216 - Simplified test and make it more efficient
@@ -43,9 +48,12 @@ Tests
 * CONT-8102 - Determine if all Docker tests should be performed
 * DBS-1880  - Initial support for Redis server
 * HTTP-6720 - Readability improvement of test
+* KRNL-5830 - Readability and style improvements
+* MAIL-8818 - Style and refactoring
 * PHP-2211  - Readability improvement and code style changes
 * PHP-2374  - Changed text and cleanups
 * PHP-2376  - Log result to log file instead of report
+* PKGS-7383 - Simplified test
 * PKGS-7388 - Style and readability improvements
 * TIME-3106 - Corrected string to test for status
 * TOOL-5102 - Split of fail2ban tests

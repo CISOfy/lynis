@@ -48,7 +48,7 @@ Tests
 * CONT-8102 - Determine if all Docker tests should be performed
 * DBS-1880  - Initial support for Redis server
 * HTTP-6720 - Readability improvement of test
-* KRNL-5830 - Readability and style improvements
+* KRNL-5830 - Readability and style improvements, ignore rescue images
 * MAIL-8818 - Style and refactoring
 * PHP-2211  - Readability improvement and code style changes
 * PHP-2374  - Changed text and cleanups

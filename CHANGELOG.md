@@ -34,6 +34,9 @@ release can be specified as additional argument.
 
 Tests
 ------
+* AUTH-9218 - Clean ups and improve readability
+* AUTH-9226 - Style, text, and removed warning
+* AUTH-9228 - Provide just an suggestion instead of warning
 * AUTH-9268 - Improve test for readability
 * AUTH-9406 - Readability and code style changes
 * CONT-8102 - Determine if all Docker tests should be performed
@@ -69,6 +72,7 @@ Functions
 ---------
 * RemoveColors - New test to clear colors
 * DisplayError - Display error on screen in uniform format and colors
+                 Use an optional exit code to quit the program
 * SkipAtomicTest - This function is now properly working with lowercase strings
 
 

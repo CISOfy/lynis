@@ -679,18 +679,17 @@
     # Description : Check for YUM package Update management
     # Notes       : Skip if DNF is used as package manager
     if [ ! "${YUMBINARY}" = "" -a "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package Update management"
+    Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
-        sFIND=`${YUMBINARY} repolist 2>/dev/null | grep repolist | sed 's/ //g' | sed 's/[,.]//g' | awk -F ":" '{print $2}'`
-        if [ "$(echo ${sFIND} | egrep "^[0-9]+$")" -a "${sFIND}" = "0" ]; then
-          LogText "Result: YUM package update management failed"
-          Display --indent 2 --text "- Checking YUM package management consistency" --result "${STATUS_WARNING}" --color RED
-          ReportWarning ${TEST_NO} "M" "YUM is not properly configured or registered for this platform (no repolist found)"
-          #ReportSuggestion ${TEST_NO} "Check YUM registration for repository configuration (repolist)"
+        FIND=$(${YUMBINARY} repolist 2>/dev/null | grep repolist | sed 's/ //g' | sed 's/[,.]//g' | awk -F ":" '{print $2}' | egrep "^[0-9]+$")
+        if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
+            LogText "Result: YUM package update management failed"
+            Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_WARNING}" --color RED
+            ReportWarning ${TEST_NO} "YUM is not properly configured or registered for this platform (no repolist found)"
         else
-          LogText "Result: YUM repository available (${sFIND})"
-          Display --indent 2 --text "- Checking YUM package management consistency" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: YUM repository available (${FIND})"
+            Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_OK}" --color GREEN
         fi
     fi
 #

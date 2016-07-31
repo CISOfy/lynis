@@ -34,6 +34,7 @@ release can be specified as additional argument.
 
 Tests
 ------
+* AUTH-9216 - Simplified test and make it more efficient
 * AUTH-9218 - Clean ups and improve readability
 * AUTH-9226 - Style, text, and removed warning
 * AUTH-9228 - Provide just an suggestion instead of warning

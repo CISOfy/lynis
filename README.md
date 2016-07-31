@@ -3,23 +3,22 @@
 lynis
 =====
 
-Lynis - Security auditing and hardening tool, for Unix based systems
+Lynis - Security auditing and hardening tool, for UNIX-based systems
 
-Lynis is a security auditing for UNIX derivatives like Linux, Mac OS X, BSD, and Solaris. It performs an in-depth security scan on the system itself, with the goal to detect issues and provide tips for further system hardening. It will also scan for general system information, vulnerable software packages, and possible configuration issues. Lynis is commonly used by people in the "blue team" to assess the security defenses of their systems.
+Lynis is a security auditing for UNIX derivatives like Linux, macOS, BSD, and Solaris. It performs an in-depth security scan on the system itself, with the goal to detect issues and provide tips for further system hardening. It will also scan for general system information, vulnerable software packages, and possible configuration issues. Lynis is commonly used by people in the "blue team" to assess the security defenses of their systems.
 
 We believe software should be simple, updated on a regular basis, and open. You should be able to trust, understand, and have the option to change the software. Many agree with us, as the software is being used by thousands every day to protect their systems.
 
 Main goals:
 - Automated security auditing
-- Compliance testing (e.g. PCI-DSS, HIPAA)
-- Vulnerability detection
+- Compliance testing (e.g. ISO27001, PCI-DSS, HIPAA)
+- Detect vulnerabilities
 
 The software aims to also assist with:
 - Configuration management
 - Software patch management
 - System hardening
 - Penetration testing
-- Malware scanning
 - Intrusion detection
 
 License:
@@ -66,6 +65,6 @@ Last years we reached multiple times the top 10 of the yearly ToolsWatch vote fo
 [![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
 ## Contribute
-We love contributors. Do you have something to share? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
+We love contributors. Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
 More details can be found at [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).
 

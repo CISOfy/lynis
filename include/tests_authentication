@@ -153,7 +153,7 @@
     # Test        : AUTH-9218
     # Description : Check login shells for passwordless accounts
     # Notes       : Results should be checked
-    Register --test-no AUTH-9218 --os FreeBSD --weight L --network NO --category security --description "Check harmful login shells"
+    Register --test-no AUTH-9218 --os FreeBSD --weight L --network NO --category security --description "Check login shells for passwordless accounts"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: Checking login shells"
@@ -161,34 +161,35 @@
             # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
             FIND=`grep "[a-z]:\*:" /etc/master.passwd | egrep -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | sed 's/ /!space!/g'`
             if [ "${FIND}" = "" ]; then
-                Display --indent 2 --text "- Checking login shells" --result "${STATUS_OK}" --color GREEN
-              else
-                Display --indent 2 --text "- Checking login shells" --result "${STATUS_WARNING}" --color RED
-                for I in ${FIND}; do
-                    I=`echo ${I} | sed 's/!space!/ /g'`
-                    J=`echo ${I} | awk -F: '{ print $10 }'`
-                    LogText "Output: ${I}"
-                    if [ "${J}" = "" ]; then
+                Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
+            else
+                Display --indent 2 --text "- Login shells" --result "${STATUS_WARNING}" --color RED
+                for LINE in ${FIND}; do
+                    LINE=$(echo ${LINE} | sed 's/!space!/ /g')
+                    SHELL=$(echo ${LINE} | awk -F: '{ print $10 }')
+                    LogText "Output: ${LINE}"
+                    if [ -z "${SHELL}" ]; then
                         LogText "Result: found no shell on line"
-                      else
-                        LogText "Result: found possible harmful shell ${J}"
-                        if [ -f ${J} ]; then
-                            LogText "Result: shell ${J} does exist"
+                    else
+                        LogText "Result: found possible harmful shell ${SHELL}"
+                        if [ -f ${SHELL} ]; then
+                            LogText "Result: shell ${SHELL} does exist"
                             FOUND=1
-                          else
-                            LogText "Result: shell ${J} does not exist"
-                            ReportSuggestion ${TEST_NO} "Determine if account is needed, as shell ${J} does not exist"
+                        else
+                            LogText "Result: shell ${SHELL} does not exist"
+                            ReportSuggestion ${TEST_NO} "Determine if account is needed, as shell ${SHELL} does not exist"
                         fi
                     fi
                 done
                 if [ ${FOUND} -eq 1 ]; then
-                    ReportWarning ${TEST_NO} "H" "Possible harmful shell found (for passwordless account!)"
+                    ReportWarning ${TEST_NO} "Possible harmful shell found (for passwordless account!)"
                 fi
-             fi
+            fi
           else
-            Display --indent 2 --text "- Checking login shells" --result "${STATUS_SKIPPED}" --color WHITE
+            Display --indent 2 --text "- Login shells" --result "${STATUS_SKIPPED}" --color WHITE
             LogText "Result: No /etc/master.passwd file found"
         fi
+        unset LINE SHELL
     fi
 #
 #################################################################################

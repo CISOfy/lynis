@@ -460,25 +460,25 @@
         LogText "Test: Checking presence ${FILE}"
         if [ -f ${FILE} ]; then
             LogText "Result: file ${FILE} exists"
-            FIND=`cat ${FILE}`
-            if [ "${FIND}" = "" ]; then
+            FIND=$(wc -l < ${FILE})
+            if [ "${FIND}" = "0" ]; then
                 LogText "Result: No reboot needed (file empty)"
                 REBOOT_NEEDED=0
-              else
-                PKGSCOUNT=`cat ${FILE} | wc -l`
+            else
+                PKGSCOUNT=$(wc -l < {FILE})
                 LogText "Result: reboot is needed, related to ${PKGSCOUNT} packages"
                 for I in ${FIND}; do
                     LogText "Package: ${I}"
                 done
                 REBOOT_NEEDED=1
             fi
-          else
+        else
             LogText "Result: file ${FILE} not found"
         fi
         # Check if /boot exists
         if [ -d /boot ]; then
             LogText "Result: /boot exists, performing more tests from here"
-            FIND=`ls /boot/* 2> /dev/null`
+            FIND=$(ls /boot/* 2> /dev/null)
             if [ ! "${FIND}" = "" ]; then
                 if [ -f /boot/vmlinuz -a ! -L /boot/vmlinuz ]; then
                     LogText "Result: found /boot/vmlinuz (not symlinked)"
@@ -487,7 +487,7 @@
                     for I in `file /boot/vmlinuz-linux`; do
                         if [ ${NEXTLINE} -eq 1 ]; then
                             FINDVERSION="${I}"
-                          else
+                        else
                             # Searching for the Linux kernel after the keyword 'version'
                             if [ "${I}" = "version" ]; then NEXTLINE=1; fi
                         fi
@@ -498,7 +498,7 @@
                             LogText "Result: reboot needed, as current kernel is different than the one loaded"
                             REBOOT_NEEDED=1
                         fi
-                      else
+                    else
                         ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
                     fi
                 elif [ -f /boot/vmlinuz-linux ]; then
@@ -512,18 +512,18 @@
                         if [ "${VERSION_ON_DISK}" = "${ACTIVE_KERNEL}" ]; then
                             REBOOT_NEEDED=0
                             LogText "Result: no reboot needed, active kernel is the same version as the one on disk"
-                          else
+                        else
                             REBOOT_NEEDED=1
                             LogText "Result: reboot needed, as there is a difference between active kernel and the one on disk"
                         fi
-                      else
+                    else
                         LogText "Result: could not find the version on disk"
                         ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
                     fi
-                  else
+                else
                     if [ -L /boot/vmlinuz ]; then
                         LogText "Result: found symlink of /boot/vmlinuz, skipping file"
-                      else
+                    else
                         LogText "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
                     fi
                     # Extra current kernel version and replace dashes to allow numeric sort later on
@@ -536,14 +536,14 @@
                          # Remove generic. and huge. for Slackware machines
                          KERNELS=`ls /boot/vmlinuz* | sed 's/vmlinuz-//' | sed 's/generic.//' | sed 's/huge.//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
                          LogText "Output: ${KERNELS}"
-                      elif [ ! `ls /boot/kernel* 2> /dev/null` = "" ]; then
+                    elif [ ! `ls /boot/kernel* 2> /dev/null` = "" ]; then
                          LogText "Output: Found a kernel file in /boot"
                          # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
                          # Examples:
                          # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
                          KERNELS=`ls /boot/kernel* | awk -F- '{ if ($2=="genkernel") { print $4 }}' | grep "^[0-9]" | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
                          LogText "Output: ${KERNELS}"
-                      else
+                    else
                         ReportException "${TEST_NO}:2" "Can not find any vmlinuz or kernel files in /boot, which is unexpected"
                     fi
                     if [ ! "${KERNELS}" = "" ]; then
@@ -557,14 +557,14 @@
                              if [ "${MYKERNEL}" = "${I}" ]; then
                                  FOUND_KERNEL=1
                                  LogText "Result: Found ${I} (= our kernel)"
-                               else
+                             else
                                  LogText "Result: Found ${I}"
                              fi
                          done
                          # Check if we at least found the kernel on disk
                          if [ ${FOUND_KERNEL} -eq 0 ]; then
                              ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
-                           else
+                         else
                              # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
                              if [ ${REBOOT_NEEDED} -eq 2 ]; then
                                  LogText "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
@@ -573,24 +573,24 @@
                          fi
                      fi
                 fi
-              # No files in /boot
-              else
+            # No files in /boot
+            else
                  LogText "Result: Skipping this test, as there are no files in /boot"
             fi
-          else
+        else
             LogText "Result: /boot does not exist"
         fi
 
         # Display discovered status
         if [ ${REBOOT_NEEDED} -eq 0 ]; then
-             Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_NO}" --color GREEN
-             AddHP 5 5
-          elif [ ${REBOOT_NEEDED} -eq 1 ]; then
-             Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_YES}" --color RED
-             ReportWarning ${TEST_NO} "H" "Reboot of system is most likely needed"
-             AddHP 0 5
-          else
-             Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_UNKNOWN}" --color YELLOW
+            Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_NO}" --color GREEN
+            AddHP 5 5
+        elif [ ${REBOOT_NEEDED} -eq 1 ]; then
+            Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_YES}" --color RED
+            ReportWarning ${TEST_NO} "H" "Reboot of system is most likely needed"
+            AddHP 0 5
+        else
+            Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_UNKNOWN}" --color YELLOW
         fi
     fi
 #

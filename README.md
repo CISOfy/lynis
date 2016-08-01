@@ -64,6 +64,10 @@ Last years we reached multiple times the top 10 of the yearly ToolsWatch vote fo
 [![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2014.svg)](https://www.toolswatch.org/2015/01/2014-top-security-tools-as-voted-by-toolswatch-org-readers/)
 [![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
+* 2013 - Place 6
+* 2014 - Place 3
+* 2015 - Place 2
+
 ## Contribute
 We love contributors. Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
 More details can be found at [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).

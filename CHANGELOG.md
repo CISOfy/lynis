@@ -34,7 +34,7 @@ release can be specified as additional argument.
 
 Languages
 ---------
-Initial translation for German has been contributed.
+Initial translation for German has been contributed by Kai Raven.
 
 
 Profiles

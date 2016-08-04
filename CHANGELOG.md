@@ -32,6 +32,11 @@ The command 'lynis show changelog' allows reviewing the changes. Optionally a
 release can be specified as additional argument.
 
 
+Languages
+---------
+Initial translation for German has been contributed.
+
+
 Profiles
 --------
 Parsing of the profiles has been improved, which prevented some settings from
@@ -39,6 +44,7 @@ overriding default settings.
 
 Tests
 ------
+* AUTH-9212 - Added prerequisite to log
 * AUTH-9216 - Simplified test and make it more efficient
 * AUTH-9218 - Clean ups and improve readability
 * AUTH-9226 - Style, text, and removed warning

@@ -34,7 +34,8 @@ release can be specified as additional argument.
 
 Languages
 ---------
-Initial translation for German has been contributed by Kai Raven.
+Initial translation for German has been contributed by Kai Raven. The Italian
+translation Stefano Marty (stefanomarty).
 
 
 Profiles

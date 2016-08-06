@@ -915,32 +915,57 @@
     Register --test-no AUTH-9328 --weight L --network NO --category security --description "Default umask values"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Determining default umask"
+        GOOD_UMASK=0
+        WEAK_UMASK=0
 
-        # /etc/profile
+        # /etc/profile.d
+        LogText "Test: Checking /etc/profile.d directory"
+        if [ -d /etc/profile.d ]; then
+            FOUND=0
+            FIND=$(ls /etc/profile.d/* 2> /dev/null)
+            if [ ! -z "${FIND}" ]; then
+                LogText "Result: found /etc/profile.d, with one or more files in it"
+                for FILE in ${FIND}; do
+                    HAS_MASK=$(grep umask ${FILE} | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }')
+                    for MASK in ${HAS_MASK}; do
+                        if [ "${MASK}" = "077" -o "${MASK}" = "027" ]; then
+                            LogText "Result: found a strong umask '${MASK}' set in ${FILE}"
+                            GOOD_UMASK=1
+                        else
+                            LogText "Result: found a weak umask '${MASK}' set in ${FILE}"
+                            WEAK_UMASK=1
+                        fi
+                    done
+                done
+            else
+                LogText "Result: found /etc/profile.d, but it does not contain any files"
+            fi
+        else
+            LogText "Result: /etc/profile.d not found"
+        fi
+
+        # Test /etc/profile (only if we didn't find a good umask in profile.d)
         LogText "Test: Checking /etc/profile"
-        if [ -f /etc/profile ]; then
+        if [ -f /etc/profile -a ${GOOD_UMASK} -eq 0 ]; then
             LogText "Result: file /etc/profile exists"
             LogText "Test: Checking umask value in /etc/profile"
-            FIND=`grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }'`
-            FIND2=`grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }' | wc -l`
-            WEAK_UMASK=0
+            FIND=$(grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }')
+            FIND2=$(grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }' | wc -l)
             FOUND_UMASK=0
             if [ "${FIND2}" = "0" ]; then
                 LogText "Result: did not find umask in /etc/profile"
-                #YYY possibly weak umask
             elif [ "${FIND2}" = "1" ]; then
                 LogText "Result: found umask (prefixed with spaces)"
                 FOUND_UMASK=1
                 if [ ! "${FIND}" = "077" -a ! "${FIND}" = "027" ]; then
                     LogText "Result: found umask ${FIND}, which could be more strict"
                     WEAK_UMASK=1
-                    AddHP 1 2
-                  else
+                else
                     LogText "Result: found umask ${FIND}, which is fine"
-                    AddHP 2 2
+                    GOOD_UMASK=1
                 fi
               # Found more than 1 umask value in profile
-              else
+            else
                 LogText "Result: found multiple umask values configured in /etc/profile"
                 FOUND_UMASK=1
                 for I in ${FIND}; do
@@ -948,7 +973,7 @@
                         LogText "Result: umask ${I} could be more strict"
                         WEAK_UMASK=1
                         AddHP 1 2
-                      else
+                    else
                         LogText "Result: Found umask ${I}, which is fine"
                         AddHP 2 2
                     fi
@@ -957,11 +982,15 @@
 
             if [ ${FOUND_UMASK} -eq 1 ]; then
                 if [ ${WEAK_UMASK} -eq 0 ]; then
-                    Display --indent 4 --text "- umask (/etc/profile)" --result "${STATUS_OK}" --color GREEN
+                    Display --indent 4 --text "- umask (/etc/profile and /etc/profile.d)" --result "${STATUS_OK}" --color GREEN
                     AddHP 2 2
-                  else
-                    Display --indent 4 --text "- umask (/etc/profile)" --result "${STATUS_SUGGESTION}" --color YELLOW
-                    ReportSuggestion ${TEST_NO} "Default umask in /etc/profile could be more strict like 027"
+                elif [ ${GOOD_UMASK} -eq 1 -a ${WEAK_UMASK} -eq 1 ]; then
+                    Display --indent 4 --text "- umask (/etc/profile and /etc/profile.d)" --result "${STATUS_SUGGESTION}" --color YELLOW
+                    ReportSuggestion ${TEST_NO} "Some umasks found could be more strict (e.g. 027)"
+                    AddHP 1 2
+                else
+                    Display --indent 4 --text "- umask (/etc/profile and /etc/profile.d)" --result "${STATUS_SUGGESTION}" --color YELLOW
+                    ReportSuggestion ${TEST_NO} "Default umask in /etc/profile or /etc/profile.d/custom.sh could be more strict (e.g. 027)"
                     AddHP 0 2
                 fi
               else

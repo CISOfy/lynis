@@ -235,7 +235,6 @@ if [ "$1" = "release" ]; then
     ${ECHOCMD} " "
     ${ECHOCMD} "Done"
     ${ECHOCMD} " "
-    ExitClean
 
 # Update check
 elif [ "$1" = "info" ]; then
@@ -272,13 +271,30 @@ elif [ "$1" = "info" ]; then
         echo "${PROGRAM_COPYRIGHT}"
         echo ""
 
-        # Quit program
-        ExitClean
+# Check if there is an update, display status on screen and use exit code to tell status as well
+elif [ "$1" = "check" ]; then
+        # CV - Current Version, LV - Latest Version
+        PROGRAM_CV=$(echo ${PROGRAM_VERSION} | awk '{ print $1 }' | sed 's/[.]//g')
+        PROGRAM_LV=0
+        CheckUpdates
+        if [ "${PROGRAM_CV}" = "" -o "${PROGRAM_LV}" = "" ]; then PROGRAM_AC=0; PROGRAM_LV=0; fi
+        if [ ${PROGRAM_LV} -eq 0 ]; then
+            echo "status=unknown";
+            ExitCustom 1
+        elif [ ${PROGRAM_LV} -gt ${PROGRAM_CV} ]; then
+            echo "status=outdated";
+            ExitCustom 1
+        else
+            echo "status=up-to-date"
+            ExitClean
+        fi
 
 else
-  ${ECHOCMD} "${RED}Error: ${WHITE}Unknown parameter $1.${NORMAL} Aborting.."
-  ExitFatal
+    ${ECHOCMD} "${RED}Error: ${WHITE}Unknown parameter $1.${NORMAL} Aborting.."
+    ExitFatal
 fi
+
+ExitClean
 
 QUIET=1
 

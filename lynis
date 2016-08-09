@@ -32,23 +32,31 @@
     PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2016-05-17"
-    PROGRAM_RELEASE_TIMESTAMP=1463501311
+    PROGRAM_RELEASE_DATE="2016-07-20"
+    PROGRAM_RELEASE_TIMESTAMP=1469004645
     PROGRAM_RELEASE_TYPE="dev" # dev or final
-    PROGRAM_VERSION="2.2.1"
+    PROGRAM_VERSION="2.3.2"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
     PROGRAM_WEBSITE="https://cisofy.com/lynis/"
-    PROGRAM_COPYRIGHT="Copyright 2007-2016 - ${PROGRAM_AUTHOR}, ${PROGRAM_WEBSITE}"
+    PROGRAM_COPYRIGHT="2007-2016, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
     PROGRAM_LICENSE="${PROGRAM_NAME} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
   welcome to redistribute it under the terms of the GNU General Public License.
   See the LICENSE file for details about using this software."
-    PROGRAM_EXTRAINFO="Enterprise support and plugins available via CISOfy"
+    PROGRAM_EXTRAINFO="Enterprise support available (compliance, plugins, interface and tools)"
 
     # Version number of report files (when format changes in future)
     REPORT_version_major="1"; REPORT_version_minor="0"
     REPORT_version="${REPORT_version_major}.${REPORT_version_minor}"
+
+    DISPLAY_LANG="${LANG}"  # required by function Display to deal with multi-bytes characters.
+
+    # Code quality:
+    # Set strict checking for development version for first part of code. After
+    # initialization this is checked with strict profile option.
+    if [ ${PROGRAM_RELEASE_TYPE} = "dev" ]; then set -u; fi
+
 #
 #################################################################################
 #
@@ -98,17 +106,24 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
         . ${DBDIR}/languages/en
     fi
 
-    # Auto detection of language based on locale (first two characters)
-    LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1)
+    # Auto detection of language based on locale (first two characters). Set to English when nothing found.
+    LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
+    if [ -z "${LANGUAGE}" ]; then
+        #Debug "Result: no (valid) language found, setting to default language (en)"
+        LANGUAGE="en"
+    fi
+
 #
 #################################################################################
 #
     MYID=""
     # Check user to determine file permissions later on. If we encounter Solaris, use related id binary instead
     if [ -x /usr/xpg4/bin/id ]; then
-        MYID=`/usr/xpg4/bin/id -u 2> /dev/null`
-      else
-        MYID=`id -u 2> /dev/null`
+        MYID=$(/usr/xpg4/bin/id -u 2> /dev/null)
+    elif [ `uname` = "SunOS" ]; then
+        MYID=$(id | tr '=' ' ' | tr '(' ' ' | awk '{ print $2 }' 2> /dev/null)
+    else
+        MYID=$(id -u 2> /dev/null)
     fi
     if [ "${MYID}" = "" ]; then Display "Could not find user ID with id command. Want to help improving Lynis? Raise a ticket at ${PROGRAM_SOURCE}"; ExitFatal; fi
 #
@@ -183,7 +198,6 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     # Now include files if permissions are correct, or user decided to continue
     . ${INCLUDEDIR}/consts
     . ${INCLUDEDIR}/functions
-
 #
 #################################################################################
 #
@@ -191,14 +205,10 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 #
 #################################################################################
 #
-    trap Maid INT
+    trap CleanUp INT
 
     # Use safe umask for the files we create
     umask 027
-
-    # Drop out on unintialised variables / fatal errors
-    #set -u
-#
 #
 #################################################################################
 #
@@ -249,7 +259,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 #
 
     if [ ${QUIET} -eq 0 ]; then
-        printf "\n${WHITE}[ ${PROGRAM_NAME} ${PROGRAM_VERSION} ]${NORMAL}\n\n################################################################################\n  ${PROGRAM_LICENSE}\n  ${PROGRAM_COPYRIGHT}\n  ${PROGRAM_EXTRAINFO}\n################################################################################\n\n"
+        printf "\n${WHITE}[ ${PROGRAM_NAME} ${PROGRAM_VERSION} ]${NORMAL}\n\n################################################################################\n  ${PROGRAM_LICENSE}\n\n  ${PROGRAM_COPYRIGHT}\n  ${PROGRAM_EXTRAINFO}\n################################################################################\n\n"
     fi
 
     if [ "${PROGRAM_RELEASE_TYPE}" = "beta" ]; then
@@ -272,51 +282,10 @@ ${NORMAL}
 #
 #################################################################################
 #
-    InsertSection "Initializing program"
+    InsertSection "${GEN_INITIALIZE_PROGRAM}"
 
-    # Try to find a default and custom profile, unless one was specified manually
-    if [ "${PROFILE}" = "" ]; then
-        CUSTOM_PROFILE=""
-        DEFAULT_PROFILE=""
-        PROFILEDIR=""
-        tPROFILE_NAMES="default.prf custom.prf"
-        tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
-        for PNAME in ${tPROFILE_NAMES}; do
-            for PLOC in ${tPROFILE_TARGETS}; do
-                # Only use one default.prf
-                if [ "${PNAME}" = "default.prf" -a ! "${DEFAULT_PROFILE}" = "" ]; then
-                  Debug "Already discovered default.prf - skipping this file (${PLOC}/${PNAME})"
-                elif [ "${PNAME}" = "custom.prf" -a ! "${CUSTOM_PROFILE}" = "" ]; then
-                  Debug "Already discovered custom.prf - skipping this file (${PLOC}/${PNAME})"
-                  else
-                    if [ "${PLOC}" = "." ]; then FILE="${WORKDIR}/${PNAME}"; else FILE="${PLOC}/${PNAME}"; fi
-                    if [ -r ${FILE} ]; then
-                        PROFILES="${PROFILES} ${FILE}"
-                        case ${PNAME} in
-                            "custom.prf") CUSTOM_PROFILE="${FILE}" ;;
-                            "default.prf") DEFAULT_PROFILE="${FILE}" ;;
-                        esac
-                        # Set profile directory to last match (Lynis could be both installed, and run as a separate download)
-                        if [ "${PLOC}" = "." ]; then PROFILEDIR="${WORKDIR}"; else PROFILEDIR="${PLOC}"; fi
-                    fi
-                fi
-            done
-        done
-        # Search any profiles defined with --profile
-        for FILE in ${SEARCH_PROFILES}; do
-            if [ -r ${FILE} ]; then
-                Debug "Found profile defined with --profile"
-                PROFILES="${PROFILES} ${FILE}"
-            fi
-        done
-    fi
-    if [ "${PROFILES}" = "" ]; then
-        echo "${RED}Fatal error: ${WHITE}No profile defined and could not find default profile${NORMAL}"
-        echo "Search paths used --> ${tPROFILE_TARGETS}"
-        ExitCustom 66
-      else
-        PROFILES=`echo ${PROFILES} | sed 's/^ //'`
-    fi
+    # Discover any profiles
+    DiscoverProfiles
 
     # Initialize and check profile file, auditor name, log file and report file
     if [ "${AUDITORNAME}" = "" ];       then AUDITORNAME="[Not Specified]"; fi
@@ -404,7 +373,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
         audit dockerfile <file>       : Analyze Dockerfile
 
     ${CYAN}show${NORMAL}
-        show                          : Show all options
+        show                          : Show all commands
         show version                  : Show ${PROGRAM_NAME} version
         show help                     : Show help
 
@@ -511,7 +480,8 @@ ${NORMAL}
 #################################################################################
 #
     # Clear log file and test if it's writable
-    echo "### Starting ${PROGRAM_NAME} ${PROGRAM_VERSION} with PID ${OURPID}, build date ${PROGRAM_RELEASE_DATE} ###" > ${LOGFILE}
+    CDATE=$(date "+%Y-%m-%d %H:%M:%S")
+    echo "${CDATE} Starting ${PROGRAM_NAME} ${PROGRAM_VERSION} with PID ${OURPID}, build date ${PROGRAM_RELEASE_DATE}" > ${LOGFILE}
     if [ $? -gt 0 ]; then
         Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result WARNING --color RED
         echo "${WARNING}Fatal error${NORMAL}: problem while writing to log file. Check location and permissions."
@@ -534,6 +504,9 @@ ${NORMAL}
     Report "os_fullname=${OS_FULLNAME}"
     Report "os_version=${OS_VERSION}"
     if [ "${OS}" = "Linux" ]; then Report "linux_version=${LINUX_VERSION}"; fi
+    if [ ! -z "${OS_KERNELVERSION}" ]; then Report "os_kernel_version=${OS_KERNELVERSION}"; fi
+    if [ ! -z "${OS_KERNELVERSION_FULL}" ]; then Report "os_kernel_version_full=${OS_KERNELVERSION_FULL}"; fi
+
     Report "hostname=${HOSTNAME}"
 
     if [ "${HOSTNAME}" = "" ]; then
@@ -541,27 +514,43 @@ ${NORMAL}
         LogText "Info: could not find a hostname, using 'no-hostname' instead"
         ReportSuggestion "LYNIS" "Check your hostname configuration" "hostname -s"
     fi
+    Report "test_category=${TEST_CATEGORY_TO_CHECK}"
+    Report "test_group=${TEST_GROUP_TO_CHECK}"
 #
 #################################################################################
 #
-# Read profile/language
+# Read profile, set code checks, define language
 #
 #################################################################################
 #
-    SafePerms ${INCLUDEDIR}/profiles
-    . ${INCLUDEDIR}/profiles
+    ParseProfiles
+
+    # Define if we keep working in strict mode (development)
+    if [ ${SET_STRICT} -eq 0 ]; then
+        set +u  # Allow uninitialized variables
+    else
+        set -u  # Do not allow unitialized variables
+    fi
 
     # Import a different language when configured
     if [ ! "${LANGUAGE}" = "en" ]; then
         LogText "Language is set to ${LANGUAGE}"
+        Display --indent 2 --text "- Detecting language and localization" --result "${LANGUAGE}" --color WHITE
         if [ ! -f ${DBDIR}/languages/${LANGUAGE} ]; then
-            Display "Warning: could not find languages directory (file: ${DBDIR}/languages/${LANGUAGE})"
+            Display --indent 4 --text "${YELLOW}Notice:${NORMAL} no language file found for '${LANGUAGE}' (tried: ${DBDIR}/languages/${LANGUAGE})"
+            if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/documentation/10-translations.md for more details to help translating Lynis"; fi
+            sleep 5
           else
             LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
             . ${DBDIR}/languages/${LANGUAGE}
         fi
     fi
     LogTextBreak
+
+    # Pre-execution tests
+    if [ ${UPLOAD_DATA} -eq 1 -a -z "${LICENSE_KEY}" ]; then DisplayError "${ERROR_NO_LICENSE}" 64; fi
+    if [ ${UPLOAD_DATA} -eq 1 -a -z "${UPLOAD_SERVER}" ]; then DisplayError "${ERROR_NO_UPLOAD_SERVER}" 64; fi
+
 #
 #################################################################################
 #
@@ -607,12 +596,16 @@ ${NORMAL}
         echo "  Kernel version:            ${OS_KERNELVERSION}"
         echo "  Hardware platform:         ${HARDWARE}"
         echo "  Hostname:                  ${HOSTNAME}"
-        echo "  Auditor:                   ${AUDITORNAME}"
+        echo "  ---------------------------------------------------"
         echo "  Profiles:                  ${PROFILES}"
         echo "  Log file:                  ${LOGFILE}"
         echo "  Report file:               ${REPORTFILE}"
         echo "  Report version:            ${REPORT_version}"
         echo "  Plugin directory:          ${PLUGINDIR}"
+        echo "  ---------------------------------------------------"
+        echo "  Auditor:                   ${AUDITORNAME}"
+        echo "  Test category:             ${TEST_CATEGORY_TO_CHECK}"
+        echo "  Test group:                ${TEST_GROUP_TO_CHECK}"
         echo "  ---------------------------------------------------"
     fi
 
@@ -638,6 +631,8 @@ ${NORMAL}
     LogText "Report file:               ${REPORTFILE}"
     LogText "Report version:            ${REPORT_version}"
     LogText "-----------------------------------------------------"
+    LogText "Test category:             ${TEST_CATEGORY_TO_CHECK}"
+    LogText "Test group:                ${TEST_GROUP_TO_CHECK}"
     LogText "BusyBox used:              ${SHELL_IS_BUSYBOX}"
 
     Report "plugin_directory=${PLUGINDIR}"
@@ -715,21 +710,24 @@ ${NORMAL}
     if [ ${UPDATE_AVAILABLE} -eq 1 ]; then
         echo ""
         echo "      ==============================================================================="
-        echo "        ${CYAN}${PROGRAM_NAME} update available${NORMAL}"
+        echo "        ${CYAN}${PROGRAM_NAME} ${TEXT_UPDATE_AVAILABLE}${NORMAL}"
         echo "      ==============================================================================="
         echo ""
         if [ ${OLD_RELEASE} -eq 1 ]; then
             echo "        ${YELLOW}Current version is more than 4 months old${NORMAL}"
-          else
-            echo "        Current version : ${YELLOW}${PROGRAM_AC}${NORMAL}   Latest version : ${GREEN}${PROGRAM_LV}${NORMAL}"
+            echo ""
         fi
-        echo ""
+        if [ ${PROGRAM_LV} -gt 0 ]; then
+            echo "        Current version : ${YELLOW}${PROGRAM_AC}${NORMAL}   Latest version : ${GREEN}${PROGRAM_LV}${NORMAL}"
+            echo ""
+        fi
         echo "        ${WHITE}Please update to the latest version.${NORMAL}"
         echo "        New releases include additional features, bug fixes, tests and baselines.${NORMAL}"
         echo ""
-        echo "        Download the latest version via our website or GitHub"
-        echo "        Website:  https://cisofy.com/downloads/"
-        echo "        GitHub:   https://github.com/CISOfy/lynis"
+        echo "        Download the latest version:"
+        echo "        Packages (DEB/RPM) -  https://packages.cisofy.com"
+        echo "        Website            -  https://cisofy.com/downloads/"
+        echo "        GitHub             -  https://github.com/CISOfy/lynis"
         echo ""
         echo "      ==============================================================================="
         echo ""
@@ -768,18 +766,18 @@ ${NORMAL}
 #
     if IsVerbose; then
         InsertSection "Program Details"
-        Display --indent 2 --text "- Verbose mode" --result "YES" --color GREEN
+        Display --indent 2 --text "- ${GEN_VERBOSE_MODE}" --result "YES" --color GREEN
         if IsDebug; then
-            Display --indent 2 --text "- Debug mode" --result "YES" --color GREEN
+            Display --indent 2 --text "- ${GEN_DEBUG_MODE}" --result "YES" --color GREEN
           else
-            Display --indent 2 --text "- Debug mode" --result "NO" --color RED
+            Display --indent 2 --text "- ${GEN_DEBUG_MODE}" --result "NO" --color RED
         fi
     fi
 #
 #################################################################################
 #
     # Plugins
-    if [ ${RUN_PLUGINS} -eq 1 ]; then
+    if [ ${SKIP_PLUGINS} -eq 0 ]; then
 
         N_PLUGIN=0
         N_PLUGIN_ENABLED=0
@@ -792,7 +790,7 @@ ${NORMAL}
             LogTextBreak
             InsertPluginSection "Plugins (${GEN_PHASE} ${PLUGIN_PHASE})"
             if [ ${PLUGIN_PHASE} -eq 1 ]; then
-                Display --text "Note: plugins have more extensive tests, which may take a few minutes to complete"
+                Display --text "${NOTE_PLUGINS_TAKE_TIME}"
                 Display --text " "
                 LogText "Searching plugins..."
             fi
@@ -853,7 +851,7 @@ ${NORMAL}
         RunPlugins 1
 
         if [ ${N_PLUGIN_ENABLED} -eq 0 ]; then
-            Display --indent 2 --text "- Plugins enabled " --result "NONE" --color WHITE
+            Display --indent 2 --text "- ${GEN_PLUGINS_ENABLED}" --result "NONE" --color WHITE
             Report "plugins_enabled=0"
           else
             Report "plugins_enabled=1"
@@ -886,7 +884,7 @@ ${NORMAL}
 
         LogTextBreak
         # Test sections
-        if [ "${TESTS_CATEGORY_TO_PERFORM}" = "" ]; then
+        if [ "${TEST_GROUP_TO_CHECK}" = "all" ]; then
             LogText "Info: perform tests from all categories"
 
             INCLUDE_TESTS="boot_services kernel memory_processes authentication shells \
@@ -896,8 +894,8 @@ ${NORMAL}
                            mac_frameworks file_integrity tooling malware file_permissions homedirs \
                            kernel_hardening hardening"
           else
-            INCLUDE_TESTS="${TESTS_CATEGORY_TO_PERFORM}"
-            LogText "Info: only performing tests from categories: ${TESTS_CATEGORY_TO_PERFORM}"
+            INCLUDE_TESTS="${TEST_GROUP_TO_CHECK}"
+            LogText "Info: only performing tests from groups: ${TEST_GROUP_TO_CHECK}"
         fi
 
         # Include available tests
@@ -924,7 +922,7 @@ ${NORMAL}
 
     if [ ${RUN_TESTS} -eq 1 ]; then
 
-        InsertSection "Custom Tests"
+        InsertSection "${SECTION_CUSTOM_TESTS}"
         LogText "Test: Checking for tests_custom file"
         # Custom tests
         if [ -f ${INCLUDEDIR}/tests_custom ]; then
@@ -969,7 +967,7 @@ ${NORMAL}
 #
 #################################################################################
 #
-    if [ ${RUN_PLUGINS} -eq 1 ]; then
+    if [ ${SKIP_PLUGINS} -eq 0 ]; then
         RunPlugins 2
         if [ ${N_PLUGIN_ENABLED} -gt 1 ]; then
             Display --indent 2 --text "- Plugins (phase 2)" --result "DONE" --color GREEN
@@ -1018,6 +1016,8 @@ ${NORMAL}
     LogText "${PROGRAM_EXTRAINFO}"
     LogText "Program ended successfully"
     LogText "================================================================================"
+
+    if [ -z "${CUSTOM_PROFILE}" ]; then DisplayToolTip "Enhance ${PROGRAM_NAME} audits by adding your settings to custom.prf (see ${DEFAULT_PROFILE} for all settings)"; fi
 
     # Clean exit (Delete PID file)
     if [ ${TOTAL_WARNINGS} -gt 0 ]; then

@@ -36,7 +36,7 @@
 #
     # Test        : NETW-2600
     # Description : Gather IPv6 configuration
-    Register --test-no NETW-2600 --os "Linux" --weight L --network YES --description "Checking IPv6 configuration"
+    Register --test-no NETW-2600 --os "Linux" --weight L --network YES --category security --description "Checking IPv6 configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         IPV6_CONFIGURED=0
         IPV6_ACCEPT_RA=255
@@ -87,20 +87,20 @@
 
         LogText "Result: IPV6 mode is ${IPV6_MODE}"
         if [ ${IPV6_CONFIGURED} -eq 1 ]; then
-            Display --indent 2 --text "- Checking IPv6 configuration" --result "ENABLED" --color WHITE
+            Display --indent 2 --text "- Checking IPv6 configuration" --result "${STATUS_ENABLED}" --color WHITE
             STATUS=`echo ${IPV6_MODE} | tr '[:lower:]' '[:upper:]'`
             Display --indent 6 --text "Configuration method" --result "${STATUS}" --color WHITE
             if [ ${IPV6_ONLY} -eq 1 ]; then STATUS="YES"; else STATUS="NO"; fi
             LogText "Result: IPv6 only configuration: ${STATUS}"
             Display --indent 6 --text "IPv6 only" --result "${STATUS}" --color WHITE
           else
-            Display --indent 2 --text "- Checking IPv6 configuration" --result "DISABLED" --color WHITE
+            Display --indent 2 --text "- Checking IPv6 configuration" --result "${STATUS_DISABLED}" --color WHITE
         fi
         # Configuration errors
         if [ ${IPV6_MISCONFIGURED_MTU} -eq 1 ]; then
             IPV6_MISCONFIGURED=1
             LogText "Result: MTU of IPv6 interfaces should be 1280 or higher"
-            Display --indent 6 --text "Error: MTU is too low" --result "WARNING" --color RED
+            Display --indent 6 --text "Error: MTU is too low" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion "${TEST_NO}" "Check your MTU configuration of IPv6 interfaces"
         fi
 
@@ -116,7 +116,7 @@
 #
     # Test        : NETW-2704
     # Description : Basic nameserver configuration tests (connectivity)
-    Register --test-no NETW-2704 --weight L --network YES --description "Basic nameserver configuration tests"
+    Register --test-no NETW-2704 --weight L --network YES --category security --description "Basic nameserver configuration tests"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking configured nameservers"
         LogText "Test: Checking /etc/resolv.conf file"
@@ -138,7 +138,7 @@
                         # 0=good, other=bad
                         DNSRESPONSE=`${DIGBINARY} +noall +time=3 +retry=0 @${I} ${I} > /dev/null ; echo $?`
                         if [ "${DNSRESPONSE}" = "0" ]; then
-                            Display --indent 8 --text "Nameserver: ${I}" --result OK --color GREEN
+                            Display --indent 8 --text "Nameserver: ${I}" --result "${STATUS_OK}" --color GREEN
                             LogText "Nameserver ${I} seems to respond to queries from this host."
                             # Count responsive nameservers
                             NUMBERACTIVENS=$((NUMBERACTIVENS + 1))
@@ -151,7 +151,7 @@
                         fi
                       else
                         LogText "Result: Nameserver test for ${I} skipped, 'dig' not installed"
-                        Display --indent 6 --text "Nameserver: ${I}" --result SKIPPED --color YELLOW
+                        Display --indent 6 --text "Nameserver: ${I}" --result "${STATUS_SKIPPED}" --color YELLOW
                     fi
                 done
             fi
@@ -163,23 +163,23 @@
     # Test        : NETW-2705
     # Description : Basic nameserver configuration tests (connectivity)
     if [ ${LOCAL_DNSRESOLVER_FOUND} -eq 0  ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-2705 --preqs-met ${PREQS_MET} --weight L --network YES --description "Check availability two nameservers"
+    Register --test-no NETW-2705 --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check availability two nameservers"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! "${DIGBINARY}" = "" ]; then
             if [ ${NUMBERACTIVENS} -lt 2 ]; then
-                Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result WARNING --color RED
+                Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: less than 2 responsive nameservers found"
                 ReportWarning ${TEST_NO} "L" "Couldn't find 2 responsive nameservers"
                 LogText "Note: Non responsive nameservers can give problems for your system(s). Like the lack of recursive lookups, bad connectivity to update servers etc."
                 ReportSuggestion ${TEST_NO} "Check your resolv.conf file and fill in a backup nameserver if possible"
                 AddHP 1 2
               else
-                Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result OK --color GREEN
+                Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: found at least 2 responsive nameservers"
                 AddHP 3 3
             fi
           else
-            Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result SKIPPED --color YELLOW
+            Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result "${STATUS_SKIPPED}" --color YELLOW
             LogText "Result: dig not installed, test can't be fully performed"
         fi
       else
@@ -192,7 +192,7 @@
     # Description : Find default gateway (route)
     # More info   : BSD: ^default   Linux: 0.0.0.0
     if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-3001 --preqs-met ${PREQS_MET} --weight L --network NO --description "Find default gateway (route)"
+    Register --test-no NETW-3001 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Find default gateway (route)"
     if [ $SKIPTEST -eq 0 ]; then
         LogText "Test: Searching default gateway(s)"
         FIND=`${NETSTATBINARY} -rn | egrep "^0.0.0.0|default" | tr -s ' ' | cut -d ' ' -f2`
@@ -201,7 +201,7 @@
                 LogText "Result: Found default gateway ${I}"
                 Report "default_gateway[]=${I}"
             done
-            Display --indent 2 --text "- Checking default gateway" --result DONE --color GREEN
+            Display --indent 2 --text "- Checking default gateway" --result "${STATUS_DONE}" --color GREEN
           else
             LogText "Result: No default gateway found"
             Display --indent 2 --text "- Checking default gateway" --result "NONE FOUND" --color WHITE
@@ -212,7 +212,7 @@
 #
     # Test        : NETW-3004
     # Description : Find available network interfaces on FreeBSD and others
-    Register --test-no NETW-3004 --weight L --network NO --description "Search available network interfaces"
+    Register --test-no NETW-3004 --weight L --network NO --category security --description "Search available network interfaces"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=""
         N=0
@@ -254,7 +254,7 @@
 #
     # Test        : NETW-3006
     # Description : Get network MAC addresses
-    Register --test-no NETW-3006 --weight L --network NO --description "Get network MAC addresses"
+    Register --test-no NETW-3006 --weight L --network NO --category security --description "Get network MAC addresses"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=""
         case ${OS} in
@@ -305,7 +305,7 @@
 #
     # Test        : NETW-3008
     # Description : Get network IPv4/6 addresses
-    Register --test-no NETW-3008 --weight L --network NO --description "Get network IP addresses"
+    Register --test-no NETW-3008 --weight L --network NO --category security --description "Get network IP addresses"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=""; FIND2=""
         case ${OS} in
@@ -369,7 +369,7 @@
 #
     # Test        : NETW-3012
     # Description : Check listening ports
-    Register --test-no NETW-3012 --weight L --network NO --description "Check listening ports"
+    Register --test-no NETW-3012 --weight L --network NO --category security --description "Check listening ports"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=""; FIND2=""
         N=0
@@ -455,9 +455,9 @@
             done
         fi
         if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
-             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result SKIPPED --color YELLOW
+             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result "${STATUS_SKIPPED}" --color YELLOW
            else
-             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result DONE --color GREEN
+             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result "${STATUS_DONE}" --color GREEN
              Display --indent 6 --text "* Found ${N} ports"
         fi
     fi
@@ -468,7 +468,7 @@
     # Description : Checking promiscuous interfaces (BSD)
     # Note        : FreeBSD and others
     if [ "${OS}" = "DragonFly" -o "${OS}" = "FreeBSD" -o "${OS}" = "NetBSD" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-3014 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking promiscuous interfaces (BSD)"
+    Register --test-no NETW-3014 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (BSD)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking promiscuous interfaces (FreeBSD)"
         FIND=`${IFCONFIGBINARY} | grep PROMISC | cut -d ':' -f1`
@@ -497,10 +497,10 @@
 
         # Show result
         if [ ${FOUNDPROMISC} -eq 0 ]; then
-            Display --indent 2 --text "- Checking promiscuous interfaces" --result OK --color GREEN
+            Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_OK}" --color GREEN
             LogText "Result: No promiscuous interfaces found"
           else
-            Display --indent 2 --text "- Checking promiscuous interfaces" --result WARNING --color RED
+            Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_WARNING}" --color RED
         fi
     fi
 #
@@ -510,7 +510,7 @@
     # Description : Checking promiscuous interfaces (Linux)
     # Note        : Need ifconfig binary at this moment (does not work on Arch Linux)
     if [ ! "${IFCONFIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking promiscuous interfaces (Linux)"
+    Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (Linux)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking promiscuous interfaces (Linux)"
         NETWORK=`${IFCONFIGBINARY} | grep Link | tr -s ' ' | cut -d ' ' -f1`
@@ -533,10 +533,10 @@
 
         # Show result
         if [ ${FOUNDPROMISC} -eq 0 ]; then
-            Display --indent 2 --text "- Checking promiscuous interfaces" --result OK --color GREEN
+            Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_OK}" --color GREEN
             LogText "Result: No promiscuous interfaces found"
           else
-            Display --indent 2 --text "- Checking promiscuous interfaces" --result WARNING --color RED
+            Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_WARNING}" --color RED
         fi
     fi
 #
@@ -569,17 +569,17 @@
     # Type        : Performance
     # Notes       : It is common to see a healthy web server seeing to have several thousands of TCP connections in WAIT state
     if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-3028 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking connections in WAIT state"
+    Register --test-no NETW-3028 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking connections in WAIT state"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Using netstat for check for connections in WAIT state"
         FIND=`${NETSTATBINARY} -an | grep WAIT | wc -l | awk '{ print $1 }'`
         if [ "${OPTIONS_CONN_MAX_WAIT_STATE}" = "" ]; then OPTIONS_CONN_MAX_WAIT_STATE="5000"; fi
         LogText "Result: currently ${FIND} connections are in a waiting state (max configured: ${OPTIONS_CONN_MAX_WAIT_STATE})."
         if [ ${FIND} -gt ${OPTIONS_CONN_MAX_WAIT_STATE} ]; then
-            Display --indent 2 --text "- Checking waiting connections" --result WARNING --color YELLOW
+            Display --indent 2 --text "- Checking waiting connections" --result "${STATUS_WARNING}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Determine why system has many connections in WAIT state (${FIND})"
           else
-            Display --indent 2 --text "- Checking waiting connections" --result OK --color GREEN
+            Display --indent 2 --text "- Checking waiting connections" --result "${STATUS_OK}" --color GREEN
             LogText "Result: ${FIND} connections are in WAIT state"
         fi
     fi
@@ -588,11 +588,11 @@
 #
     # Test        : NETW-3030
     # Description : Checking for DHCP client
-    Register --test-no NETW-3030 --weight L --network NO --description "Checking DHCP client status"
+    Register --test-no NETW-3030 --weight L --network NO --category security --description "Checking DHCP client status"
     if [ ${SKIPTEST} -eq 0 ]; then
         IsRunning dhclient
         if [ ${RUNNING} -eq 1 ]; then
-            Display --indent 2 --text "- Checking status DHCP client" --result RUNNING --color WHITE
+            Display --indent 2 --text "- Checking status DHCP client" --result "${STATUS_RUNNING}" --color WHITE
             DHCP_CLIENT_RUNNING=1
           else
             Display --indent 2 --text "- Checking status DHCP client" --result "NOT ACTIVE" --color WHITE
@@ -603,15 +603,15 @@
 #
     # Test        : NETW-3032
     # Description : Checking for ARP spoofing and related monitoring software
-    Register --test-no NETW-3032 --os Linux --weight L --network NO --description "Checking for ARP monitoring software"
+    Register --test-no NETW-3032 --os Linux --weight L --network NO --category security --description "Checking for ARP monitoring software"
     if [ ${SKIPTEST} -eq 0 ]; then
         IsRunning arpwatch
         if [ ${RUNNING} -eq 1 ]; then
             ARPWATCH_RUNNING=1
-            Display --indent 2 --text "- Checking for ARP monitoring software" --result RUNNING --color GREEN
+            Display --indent 2 --text "- Checking for ARP monitoring software" --result "${STATUS_RUNNING}" --color GREEN
           else
-            Display --indent 2 --text "- Checking for ARP monitoring software" --result "NOT FOUND" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Install ARP monitoring software like arpwatch"
+            Display --indent 2 --text "- Checking for ARP monitoring software" --result "${STATUS_NOT_FOUND}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Consider running ARP monitoring software (arpwatch)"
         fi
     fi
 #

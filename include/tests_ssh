@@ -36,19 +36,19 @@
 #
     # Test        : SSH-7402
     # Description : Check for a running SSH daemon
-    Register --test-no SSH-7402 --weight L --network NO --description "Check for running SSH daemon"
+    Register --test-no SSH-7402 --weight L --network NO --category security --description "Check for running SSH daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for a SSH daemon"
         IsRunning sshd
         if [ ${RUNNING} -eq 1 ] || PortIsListening "TCP" 22; then
             SSH_DAEMON_RUNNING=1
-            Display --indent 2 --text "- Checking running SSH daemon" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_FOUND}" --color GREEN
             # Store settings in a temporary file
             CreateTempFile
             SSH_DAEMON_OPTIONS_FILE="${TEMP_FILE}"
             ${SSHDBINARY} -T 2> /dev/null > ${SSH_DAEMON_OPTIONS_FILE}
           else
-            Display --indent 2 --text "- Checking running SSH daemon" --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #
@@ -57,7 +57,7 @@
     # Test        : SSH-7404
     # Description : Determine SSH daemon configuration file location
     if [ ${SSH_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7404 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH daemon file location"
+    Register --test-no SSH-7404 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH daemon file location"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: searching for sshd_config file"
@@ -79,11 +79,11 @@
         done
         if [ "${SSH_DAEMON_CONFIG}" = "" ]; then
             LogText "Result: No sshd configuration found"
-            Display --indent 4 --text "- Searching SSH configuration" --result "NOT FOUND" --color YELLOW
+            Display --indent 4 --text "- Searching SSH configuration" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportException "${TEST_NO}:1" "SSH daemon is running, but no readable configuration file found"
           else
             LogText "Result: using last found configuration file: ${SSH_DAEMON_CONFIG}"
-            Display --indent 4 --text "- Searching SSH configuration" --result FOUND --color GREEN
+            Display --indent 4 --text "- Searching SSH configuration" --result "${STATUS_FOUND}" --color GREEN
         fi
     fi
 #
@@ -93,7 +93,7 @@
     # Description : Check SSH specific defined options
     # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
     if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH specific defined options"
+    Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking specific defined options in ${SSH_DAEMON_OPTIONS_FILE}"
         ## SSHOPTIONS scheme:
@@ -129,7 +129,8 @@
                 UseDNS:NO,,YES:=\
                 UsePrivilegeSeparation:SANDBOX,YES,NO:=\
                 VerifyReverseMapping:YES,,NO:=\
-                X11Forwarding:NO,,YES:="
+                X11Forwarding:NO,,YES:=\
+                AllowAgentForwarding:NO,,YES:="
 
         # Disabled        MaxStartups:4,8,16:<\ (needs fixing)
 
@@ -202,19 +203,19 @@
 
                 if [ "${RESULT}" = "GOOD" ]; then
                     LogText "Result: SSH option ${OPTIONNAME} is configured very well"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result OK --color GREEN
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_OK}" --color GREEN
                     AddHP 3 3
                 elif [ "${RESULT}" = "MIDSCORED" ]; then
                     LogText "Result: SSH option ${OPTIONNAME} is configured reasonably"
                     ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
                     ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "MEDIUM" --color YELLOW
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
                     AddHP 1 3
                 elif [ "${RESULT}" = "WEAK" ]; then
                     LogText "Result: SSH option ${OPTIONNAME} is in a weak configuration state and should be fixed"
                     ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
                     ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result SUGGESTION --color RED
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
                     AddHP 0 3
                 elif [ "${RESULT}" = "UNKNOWN" ]; then
                     LogText "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
@@ -222,7 +223,7 @@
                     Report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
                 else
                     LogText "Result: Option ${OPTIONNAME} not found in output"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "NOT FOUND" --color WHITE
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_NOT_FOUND}" --color WHITE
                 fi
               else
                 if IsVerbose; then Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "SKIPPED (via config)" --color WHITE; fi
@@ -236,29 +237,29 @@
     # Description : AllowUsers / AllowGroups
     # Goal        : Check if only a specific amount of users/groups can log in to the system
     if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: AllowUsers and AllowGroups"
+    Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH option: AllowUsers and AllowGroups"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # AllowUsers
         FIND=`egrep -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | awk '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: AllowUsers set, with value ${FIND}"
-            Display --indent 4 --text "- SSH option: AllowUsers" --result FOUND --color GREEN
+            Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
           else
             LogText "Result: AllowUsers is not set"
-            Display --indent 4 --text "- SSH option: AllowUsers" --result "NOT FOUND" --color WHITE
+            Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
         # AllowGroups
         FIND=`egrep -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | awk '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: AllowUsers set ${FIND}"
-            Display --indent 4 --text "- SSH option: AllowGroups" --result FOUND --color GREEN
+            Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
           else
             LogText "Result: AllowGroups is not set"
-            Display --indent 4 --text "- SSH option: AllowGroups" --result "NOT FOUND" --color WHITE
+            Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
         if [ ${FOUND} -eq 1 ]; then

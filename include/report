@@ -152,13 +152,13 @@
                     echo ""
                 done
             fi
-
+            # Show tip on how to continue (next steps)
             if [ ! "${SWARNINGS}" = "" -o ! "${SSUGGESTIONS}" = "" ]; then
                 echo "  ${CYAN}Follow-up${NORMAL}:"
                 echo "  ${WHITE}----------------------------${NORMAL}"
                 echo "  ${WHITE}-${NORMAL} Check the logfile for more details (less $LOGFILE)"
                 echo "  ${WHITE}-${NORMAL} Read security controls texts (https://cisofy.com)"
-                echo "  ${WHITE}-${NORMAL} Use --upload to upload data (Lynis Enterprise users)"
+                if [ ${UPLOAD_DATA} -eq 0 ]; then echo "  ${WHITE}-${NORMAL} Use --upload to upload data (Lynis Enterprise users)"; fi
                 echo ""
             fi
             echo "================================================================================"
@@ -167,7 +167,7 @@
             echo ""
             echo "  ${CYAN}Hardening index${NORMAL} : ${WHITE}${HPINDEX}${NORMAL} ${HPGRAPH}"
             echo "  ${CYAN}Tests performed${NORMAL} : ${WHITE}${CTESTS_PERFORMED}${NORMAL}"
-            if [ ${RUN_PLUGINS} -eq 1 ]; then echo "  ${CYAN}Plugins enabled${NORMAL} : ${WHITE}${N_PLUGIN_ENABLED}${NORMAL}"; fi
+            if [ ${SKIP_PLUGINS} -eq 0 ]; then echo "  ${CYAN}Plugins enabled${NORMAL} : ${WHITE}${N_PLUGIN_ENABLED}${NORMAL}"; fi
             echo ""
             echo "  ${WHITE}Components${NORMAL}:"
             if [ ${FIREWALL_ACTIVE} -eq 1 ]; then FIREWALL="${GREEN}V"; else FIREWALL="${RED}X"; fi
@@ -175,7 +175,7 @@
             if [ ${IDS_IPS_TOOL_FOUND} -eq 1 ]; then IDSIPS="${GREEN}V"; else IDSIPS="${RED}X"; fi
 
             echo "  - Firewall               [${FIREWALL}${NORMAL}]"
-            #echo "  - Integrity monitoring   [${IDSIPS}${NORMAL}]""
+            #echo "  - Integrity monitoring   [${IDSIPS}${NORMAL}]"
             #echo "  - Intrusion software     [${IDSIPS}${NORMAL}]"
             echo "  - Malware scanner        [${MALWARE}${NORMAL}]"
 
@@ -195,8 +195,8 @@
             echo ""
             echo "================================================================================"
             if [ ${PROGRAM_LV} -gt ${PROGRAM_AC} ]; then
-                echo "  ${NOTICE}Notice: ${WHITE}${PROGRAM_NAME} update available${NORMAL}"
-                echo "  Current version : ${WHITE}${PROGRAM_AC}${NORMAL}    Latest version : ${WHITE}${PROGRAM_LV}${NORMAL}"
+                echo "  ${NOTICE}Notice: ${WHITE}${PROGRAM_NAME} ${GEN_UPDATE_AVAILABLE}${NORMAL}"
+                echo "  ${GEN_CURRENT_VERSION} : ${WHITE}${PROGRAM_AC}${NORMAL}    ${GEN_LATEST_VERSION} : ${WHITE}${PROGRAM_LV}${NORMAL}"
                 echo "================================================================================"
               else
                 ###########################################################################################
@@ -211,11 +211,11 @@
                     FIND=`${GREPBINARY} "^exception" ${REPORTFILE}`
                     if [ ! "${FIND}" = "" ]; then
                         echo ""
-                        echo "  ${RED}Exceptions found${NORMAL}"
-                        echo "  ${WHITE}Some exceptional events or information was found!${NORMAL}"
+                        echo "  ${RED}${NOTE_EXCEPTIONS_FOUND}${NORMAL}"
+                        echo "  ${WHITE}${NOTE_EXCEPTIONS_FOUND_DETAILED}!${NORMAL}"
                         echo ""
-                        echo "  ${CYAN}What to do:${NORMAL}"
-                        echo "  You can help improving Lynis by providing your /var/log/lynis.log file."
+                        echo "  ${CYAN}${GEN_WHAT_TO_DO}:${NORMAL}"
+                        echo "  ${TEXT_YOU_CAN_HELP_LOGFILE} (${LOGFILE})."
                         echo "  Go to https://cisofy.com/contact/ and send your file to the e-mail address listed"
                         echo ""
                         echo "================================================================================"
@@ -226,7 +226,7 @@
             # Display what tests are skipped in non-privileged scan for awareness
             if [ ${PENTESTINGMODE} -eq 1 -a ! "${SKIPPED_TESTS_ROOTONLY}" = "" ]; then
                 echo ""
-                echo "  ${PURPLE}Skipped tests due to non-privileged scan${NORMAL}"
+                echo "  ${PURPLE}${NOTE_SKIPPED_TESTS_NON_PRIVILEGED}${NORMAL}"
 
                 FIND=`echo ${SKIPPED_TESTS_ROOTONLY} | sed 's/ /:space:/g'`
                 # Split entries
@@ -240,7 +240,7 @@
                 echo "================================================================================"
             fi
 
-            echo ""; echo ""
+            echo ""
         fi
 
     fi
@@ -249,8 +249,10 @@
     Report "hardening_index=${HPINDEX}"
 
     if [ ${QUIET} -eq 0 ]; then
-        echo "  ${PROGRAM_NAME} ${PROGRAM_VERSION}"
-        echo "  Auditing, hardening and compliance for Linux, Mac OS and Unix systems"
+        echo "  ${WHITE}${PROGRAM_NAME}${NORMAL} ${PROGRAM_VERSION}"
+        echo ""
+        echo "  Auditing, system hardening, and compliance for UNIX-based systems"
+        echo "  (Linux, macOS, BSD, and others)"
         echo ""
         echo "  ${PROGRAM_COPYRIGHT}"
         echo "  ${WHITE}${PROGRAM_EXTRAINFO}${NORMAL}"

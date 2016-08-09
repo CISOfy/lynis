@@ -45,47 +45,48 @@
 #
     # Test        : PHP-2211
     # Description : Check php.ini presence
-    Register --test-no PHP-2211 --weight L --network NO --description "Check php.ini presence"
+    Register --test-no PHP-2211 --weight L --network NO --category security --description "Check php.ini presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for presence php.ini"
         PHPINIFILE=""
         PHPINI_ALLFILES=""
-        for I in ${PHPINILOCS}; do
-            LogText "Test: checking presence ${I}"
-            if [ -f ${I} ]; then
-                PHPINIFILE=${I}
+        for FILE in ${PHPINILOCS}; do
+            LogText "Test: checking presence ${FILE}"
+            if [ -f ${FILE} ]; then
+                PHPINIFILE="${FILE}"
                 LogText "Result: Found php.ini file (${PHPINIFILE})"
                 LogText "Note: Adding file to php.ini array"
                 PHPINI_ALLFILES="${PHPINI_ALLFILES} ${PHPINIFILE}"
-              else
-                LogText "Result: file ${I} not found"
+            else
+                LogText "Result: file ${FILE} not found"
             fi
         done
 
         # Check all known locations
-        for I in ${PHPINIDIRS}; do
-            tFILES=`ls ${I}/*.ini 2>/dev/null`
-            if [ "${tFILES}" = "" ]; then
-                LogText "Result: no files found for ${I}"
-              else
-                LogText "Result: found files in location ${I}, checking"
-                for I in ${tFILES}; do
-                  if [ -f ${I} ]; then
-                    LogText "Result: file ${I} exists, adding to php.ini array"
-                    PHPINI_ALLFILES="${PHPINI_ALLFILES} ${I}"
-                  fi
+        for DIR in ${PHPINIDIRS}; do
+            FIND=$(ls ${DIR}/*.ini 2> /dev/null)
+            if [ -z "${FIND}" ]; then
+                LogText "Result: no files found for ${DIR}"
+            else
+                LogText "Result: found files in location ${DIR}, checking"
+                for FILE in ${FIND}; do
+                    if [ -f ${FILE} ]; then
+                        LogText "Result: file ${FILE} exists, adding to php.ini array"
+                        PHPINI_ALLFILES="${PHPINI_ALLFILES} ${FILE}"
+                    fi
                 done
             fi
         done
 
-        if [ ! "${PHPINIFILE}" = "" ]; then
-            Display --indent 2 --text "- Checking PHP" --result "FOUND" --color GREEN
+        if [ ! -z "${PHPINIFILE}" ]; then
+            Display --indent 2 --text "- Checking PHP" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: using single file ${PHPINIFILE} for main php.ini tests"
             LogText "Result: using php.ini array ${PHPINI_ALLFILES} for further tests"
-          else
-            Display --indent 2 --text "- Checking PHP" --result "NOT FOUND" --color WHITE
+        else
+            Display --indent 2 --text "- Checking PHP" --result "${STATUS_NOT_FOUND}" --color WHITE
             LogText "Result: no php.ini file found"
         fi
+        unset DIR; unset FILE; unset FIND
     fi
 #
 #################################################################################
@@ -93,7 +94,7 @@
     # Test        : PHP-2320
     # Description : Check php disable functions option
     if [ ! "${PHPINI_ALLFILES}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PHP-2320 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PHP disabled functions"
+    Register --test-no PHP-2320 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP disabled functions"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         for I in ${PHPINI_ALLFILES}; do
@@ -116,13 +117,13 @@
         done
         if [ ${FOUND} -eq 0 ]; then
             LogText "Result: all PHP functions can be executed"
-            Display --indent 4 --text "- Checking PHP disabled functions" --result "NONE" --color YELLOW
+            Display --indent 4 --text "- Checking PHP disabled functions" --result "${STATUS_NONE}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Harden PHP by disabling risky functions"
             LogText "Functions of interest to research/disable: chown, diskfreespace, disk_free_space, disk_total_space, dl, exec, escapeshellarg, escapeshellcmd, fileinode, highlight_file, max_execution_time, passthru, pclose, phpinfo, popen, proc_close, proc_open, proc_get_status, proc_nice, proc_open, proc_terminate, set_time_limit, shell_exec, show_source, system)"
             AddHP 0 1
           else
             LogText "Result: one or more PHP functions are disabled/blacklisted"
-            Display --indent 4 --text "- Checking PHP disabled functions" --result "FOUND" --color GREEN
+            Display --indent 4 --text "- Checking PHP disabled functions" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
         fi
     fi
@@ -149,18 +150,18 @@
       Debug "php.ini: ${PHPINIFILE}"
       Debug "version: ${PHPVERSION}"
     fi
-    Register --test-no PHP-2368 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PHP register_globals option"
+    Register --test-no PHP-2368 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP register_globals option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PHP register_globals option"
         FIND=`egrep -i 'register_globals.*(on|yes|1)' ${PHPINIFILE} | grep -v '^;'`
         if [ ! "${FIND}" = "" ]; then
-            Display --indent 4 --text "- Checking register_globals option" --result WARNING --color RED
+            Display --indent 4 --text "- Checking register_globals option" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "M" "PHP option register_globals option is turned on, which can be a risk for variable value overwriting"
             ReportSuggestion ${TEST_NO} "Change the register_globals line to: register_globals = Off"
             LogText "Result: register_globals option is turned on, which can be a risk for variable value overwriting."
             AddHP 1 2
           else
-            Display --indent 4 --text "- Checking register_globals option" --result OK --color GREEN
+            Display --indent 4 --text "- Checking register_globals option" --result "${STATUS_OK}" --color GREEN
             LogText "Result: No 'register_globals' found. Most likely it is in disabled state (0, no, or off), which is the default nowadays and considered the safe value."
             ReportManual ${TEST_NO}:01
             AddHP 2 2
@@ -173,18 +174,18 @@
     # Description : Check php expose_php option
     # Notes       : Extend test to check all PHP files YYY
     if [ ! "${PHPINIFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PHP-2372 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PHP expose_php option"
+    Register --test-no PHP-2372 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP expose_php option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking expose_php option"
         FIND=`egrep -i 'expose_php.*(off|no|0)' ${PHPINIFILE} | grep -v '^;'`
         if [ "${FIND}" = "" ]; then
-            Display --indent 4 --text "- Checking expose_php option" --result ON --color RED
+            Display --indent 4 --text "- Checking expose_php option" --result "${STATUS_ON}" --color RED
             ReportWarning ${TEST_NO} "M" "PHP option expose_php is possibly turned on, which can reveal useful information for attackers."
             ReportSuggestion ${TEST_NO} "Change the expose_php line to: expose_php = Off"
             Report "Result: expose_php option is turned on, which can expose useful information for an attacker"
             AddHP 1 2
           else
-            Display --indent 4 --text "- Checking expose_php option" --result OFF --color GREEN
+            Display --indent 4 --text "- Checking expose_php option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'expose_php' in disabled state (0, no, or off)"
             AddHP 2 2
         fi
@@ -195,23 +196,22 @@
 #
     # Test        : PHP-2374
     # Description : Check PHP enable_dl option
-    # Notes       : Extend test to check all PHP files YYY
+    # Notes       : Extend test to check all PHP files
     if [ ! "${PHPINIFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PHP-2374 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PHP enable_dl option"
+    Register --test-no PHP-2374 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP enable_dl option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PHP enable_dl option"
-        FIND=`egrep -i 'enable_dl.*(off|no|0)' ${PHPINIFILE} | grep -v '^;'`
-        if [ "${FIND}" = "" ]; then
-            Display --indent 4 --text "- Checking enable_dl option" --result ON --color YELLOW
-            Report "Result: enable_dl option is turned on, which can be used for riskful downloads via PHP"
-            ReportSuggestion ${TEST_NO} "Change the enable_dl line to: enable_dl = Off, to disable downloads via PHP"
+        FIND=$(egrep -i 'enable_dl.*(on|yes|1)' ${PHPINIFILE} | grep -v '^;')
+        if [ ! -z "${FIND}" ]; then
+            Display --indent 4 --text "- Checking enable_dl option" --result "${STATUS_ON}" --color YELLOW
+            Report "Result: enable_dl option is turned on, which can be used to enable more modules dynamically and circumventing security controls"
+            ReportSuggestion ${TEST_NO} "Change the enable_dl line to: enable_dl = Off, to disable dynamically loading new modules"
             AddHP 0 1
           else
-            Display --indent 4 --text "- Checking enable_dl option" --result OFF --color GREEN
-            LogText "Result: Found 'enable_dl' in disabled state (0, no, or off)"
+            Display --indent 4 --text "- Checking enable_dl option" --result "${STATUS_OFF}" --color GREEN
+            LogText "Result: Found 'enable_dl' in disabled state (not present, 0, no, or off)"
             AddHP 2 2
         fi
-        #YYY Check through all files
     fi
 #
 #################################################################################
@@ -220,17 +220,17 @@
     # Description : Check PHP allow_url_fopen option
     # Notes       : Extend test to check all PHP files YYY
     if [ ! "${PHPINIFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PHP-2376 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PHP allow_url_fopen option"
+    Register --test-no PHP-2376 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP allow_url_fopen option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PHP allow_url_fopen option"
         FIND=`egrep -i 'allow_url_fopen.*(off|no|0)' ${PHPINIFILE} | grep -v '^;'`
         if [ "${FIND}" = "" ]; then
-            Display --indent 4 --text "- Checking allow_url_fopen option" --result ON --color YELLOW
-            Report "Result: allow_url_fopen option is turned on, which can be used for riskful downloads via PHP"
+            Display --indent 4 --text "- Checking allow_url_fopen option" --result "${STATUS_ON}" --color YELLOW
+            LogText "Result: allow_url_fopen option is turned on, which can be used for riskful downloads via PHP"
             ReportSuggestion ${TEST_NO} "Change the allow_url_fopen line to: allow_url_fopen = Off, to disable downloads via PHP"
             AddHP 0 1
           else
-            Display --indent 4 --text "- Checking allow_url_fopen option" --result OFF --color GREEN
+            Display --indent 4 --text "- Checking allow_url_fopen option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'allow_url_fopen' in disabled state (0, no, or off)"
             AddHP 2 2
         fi
@@ -243,17 +243,17 @@
     # Description : Check PHP allow_url_include option
     # Notes       : Extend test to check all PHP files YYY
     if [ ! "${PHPINIFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PHP-2378 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PHP allow_url_include option"
+    Register --test-no PHP-2378 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP allow_url_include option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PHP allow_url_include option"
         FIND=`egrep -i 'allow_url_include.*(off|no|0)' ${PHPINIFILE} | grep -v '^;'`
         if [ "${FIND}" = "" ]; then
-            Display --indent 4 --text "- Checking allow_url_include option" --result ON --color YELLOW
+            Display --indent 4 --text "- Checking allow_url_include option" --result "${STATUS_ON}" --color YELLOW
             Report "Result: allow_url_include option is turned on, which can be used for riskful downloads via PHP"
             ReportSuggestion ${TEST_NO} "Change the allow_url_include line to: allow_url_include = Off, to disable downloads via PHP"
             AddHP 0 1
           else
-            Display --indent 4 --text "- Checking allow_url_include option" --result OFF --color GREEN
+            Display --indent 4 --text "- Checking allow_url_include option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'allow_url_include' in disabled state (0, no, or off)"
             AddHP 2 2
         fi

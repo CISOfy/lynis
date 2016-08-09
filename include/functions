@@ -25,17 +25,22 @@
 #    Function                   Description
 #    -----------------------    -------------------------------------------------
 #    AddHP                      Add Hardening points to plot a graph later
+#    AddSetting                 Addition of setting
 #    AddSystemGroup             Adds a system to a group
 #    CheckFilePermissions       Check file permissions
 #    CheckUpdates               Determine if a new version of Lynis is available
-#    CreateTempFile             Create a temporary file
+#    CleanUp                    Clean up files before closing program
 #    CountTests                 Count number of performed tests
 #    ContainsString             Find the needle (string) in the haystack (another string)
+#    CreateTempFile             Create a temporary file
 #    Debug                      Display additional information on the screen (not suited for cronjob)
 #    DigitsOnly                 Return only the digits from a string
 #    DirectoryExists            Check if a directory exists on the disk
+#    DiscoverProfiles           Determine available profiles on system
 #    Display                    Output text to screen with colors and identation
+#    DisplayError               Show an error on screen
 #    DisplayManual              Output text to screen without any layout
+#    DisplayToolTip             Show a tip for improving usage of the tool
 #    ExitClean                  Stop the program (cleanly), with exit code 0
 #    ExitCustom                 Stop the program (cleanly), with custom exit code
 #    ExitFatal                  Stop the program (cleanly), with exit code 1
@@ -43,11 +48,12 @@
 #    FileIsEmpty                Check if a file is empty
 #    FileIsReadable             Check if a file is readable or directory accessible
 #    GetHostID                  Retrieve an unique ID for this host
-#    IsDebug                    Check if --debug is used
-#    IsDeveloperMode            Check if --developer is used
-#    IsRunning                  Check if a process is running
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
+#    IsDebug                    Check if --debug is used
+#    IsDeveloperMode            Check if --developer is used
+#    IsDeveloperVersion         Check if program is a developer release
+#    IsRunning                  Check if a process is running
 #    IsOwnedByRoot              Determine if file or directory is owned by root
 #    IsVerbose                  Check if --verbose is used
 #    IsVirtualMachine           Check if this system is a virtual machine
@@ -56,12 +62,13 @@
 #    IsWorldWritable            Check if a file is world writable
 #    LogText                    Log text strings to logfile, prefixed with date/time
 #    LogTextBreak               Insert a separator in log file
-#    Maid
 #    ParseNginx                 Parse nginx configuration lines
+#    ParseProfiles              Parse all available profiles
 #    ParseTestValues            Parse a set of values
 #    PortIsListening            Check if machine is listening on specified protocol and port
 #    Progress                   Show progress on screen
 #    RandomString               Show a random string
+#    RemoveColors               Reset all colors
 #    RemovePIDFile              Remove PID file
 #    RemoveTempFiles            Remove temporary files
 #    Report                     Add string of data to report file
@@ -76,7 +83,8 @@
 #    ShowSymlinkPath            Show a path behind a symlink
 #    SkipAtomicTest             Test if a subtest needs to be skipped
 #    TestValue                  Evaluate a value in a string or key
-#    ViewCategories             Display tests categories
+#    ViewCategories             Show available category of tests
+#    ViewGroups                 Display test groups
 #    WaitForKeyPress            Wait for user to press a key to continue
 #
 #################################################################################
@@ -115,6 +123,39 @@
 
 
     ################################################################################
+    # Name        : AddSetting()
+    # Description : Addition of a setting for display with 'lynis show settings'
+    #
+    # Input       : $1 = setting, $2 = value, $3 description
+    # Returns     : <nothing>
+    # Usage       : AddSetting debug 1 'Debug mode'
+    ################################################################################
+
+    AddSetting() {
+        if [ $# -eq 3 ]; then
+            SETTING="$1"
+            VALUE="$2"
+            DESCRIPTION="$3"
+            if [ -z "${SETTINGS_FILE}" ]; then
+                CreateTempFile
+                SETTINGS_FILE="${TEMP_FILE}"
+            fi
+            FIND=$(egrep "^${SETTING};" ${SETTINGS_FILE})
+            if [ -z "${FIND}" ]; then
+                echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
+              else
+                Debug "Setting '${SETTING}' was already configured, overwriting previous line '${FIND}' in ${SETTINGS_FILE} with value '${VALUE}'"
+                # Delete line first, then add new value (inline search and replace is messy)
+                sed -i -e '/^'"${SETTING}"';/d' ${SETTINGS_FILE}
+                echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
+            fi
+        else
+            echo "Error: incorrect call to AddSetting. Needs 3 arguments."
+        fi
+    }
+
+
+    ################################################################################
     # Name        : AddSystemGroup()
     # Description : Adds a system to a group, which can be used for categorizing
     #
@@ -130,7 +171,7 @@
 
     ################################################################################
     # Name        : CheckFilePermissions()
-    # Description : Adds a system to a group, which can be used for categorizing
+    # Description : Check file permissions
     #
     # Input       : full path to file or directory
     # Returns     : PERMS (FILE_NOT_FOUND | OK | BAD)
@@ -222,6 +263,21 @@
                 fi
             fi
          fi
+    }
+
+
+    ################################################################################
+    # Name        : CleanUp()
+    # Description : Cleanup service
+    # Returns     : <nothing>
+    ################################################################################
+
+    CleanUp() {
+        echo ""; echo "Interrupt detected."
+        RemovePIDFile
+        RemoveTempFiles
+        Display --text "Cleaning up..." --result DONE --color GREEN
+        ExitFatal
     }
 
 
@@ -342,6 +398,61 @@
 
 
     ################################################################################
+    # Name        : DiscoverProfiles()
+    # Description : Determine which profiles we have available
+    #
+    # Returns     : Nothing
+    # Usage       : DiscoverProfiles
+    ################################################################################
+
+    DiscoverProfiles() {
+        # Try to find a default and custom profile, unless one was specified manually
+        if [ "${PROFILE}" = "" ]; then
+            CUSTOM_PROFILE=""
+            DEFAULT_PROFILE=""
+            PROFILEDIR=""
+            tPROFILE_NAMES="default.prf custom.prf"
+            tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
+            for PNAME in ${tPROFILE_NAMES}; do
+                for PLOC in ${tPROFILE_TARGETS}; do
+                    # Only use one default.prf
+                    if [ "${PNAME}" = "default.prf" -a ! "${DEFAULT_PROFILE}" = "" ]; then
+                      Debug "Already discovered default.prf - skipping this file (${PLOC}/${PNAME})"
+                    elif [ "${PNAME}" = "custom.prf" -a ! "${CUSTOM_PROFILE}" = "" ]; then
+                      Debug "Already discovered custom.prf - skipping this file (${PLOC}/${PNAME})"
+                      else
+                        if [ "${PLOC}" = "." ]; then FILE="${WORKDIR}/${PNAME}"; else FILE="${PLOC}/${PNAME}"; fi
+                        if [ -r ${FILE} ]; then
+                            PROFILES="${PROFILES} ${FILE}"
+                            case ${PNAME} in
+                                "custom.prf") CUSTOM_PROFILE="${FILE}" ;;
+                                "default.prf") DEFAULT_PROFILE="${FILE}" ;;
+                            esac
+                            # Set profile directory to last match (Lynis could be both installed, and run as a separate download)
+                            if [ "${PLOC}" = "." ]; then PROFILEDIR="${WORKDIR}"; else PROFILEDIR="${PLOC}"; fi
+                        fi
+                    fi
+                done
+            done
+            # Search any profiles defined with --profile
+            for FILE in ${SEARCH_PROFILES}; do
+                if [ -r ${FILE} ]; then
+                    Debug "Found profile defined with --profile"
+                    PROFILES="${PROFILES} ${FILE}"
+                fi
+            done
+        fi
+        if [ "${PROFILES}" = "" ]; then
+            echo "${RED}Fatal error: ${WHITE}No profile defined and could not find default profile${NORMAL}"
+            echo "Search paths used --> ${tPROFILE_TARGETS}"
+            ExitCustom 66
+          else
+            PROFILES=`echo ${PROFILES} | sed 's/^ //'`
+        fi
+    }
+
+
+    ################################################################################
     # Name        : Display()
     # Description : Show text on screen, with markup
     #
@@ -404,10 +515,13 @@
             fi
 
             if [ ${SHOW} -eq 1 ]; then
-                # Display (counting with -m instead of -c, to support language locale)
-                LINESIZE=`echo "${TEXT}" | wc -m | tr -d ' '`
+                # Display:
+                # - counting with -m instead of -c, to support language locale
+                # - wc needs LANG to deal with multi-bytes characters but LANG has been unset in include/consts...
+                LINESIZE=`export LC_ALL= ; export LANG="${DISPLAY_LANG}";echo "${TEXT}" | wc -m | tr -d ' '`
                 if [ ${SHOWDEBUG} -eq 1 ]; then DEBUGTEXT=" [${PURPLE}DEBUG${NORMAL}]"; else DEBUGTEXT=""; fi
                 if [ ${INDENT} -gt 0 ]; then SPACES=$((62 - INDENT - LINESIZE)); fi
+                if [ ${SPACES} -lt 0 ]; then SPACES=0; fi
                 if [ ${CRONJOB} -eq 0 ]; then
                     # Check if we already have already discovered a proper echo command tool. It not, set it default to 'echo'.
                     if [ "${ECHOCMD}" = "" ]; then ECHOCMD="echo"; fi
@@ -421,6 +535,24 @@
 
 
     ################################################################################
+    # Name        : DisplayError()
+    # Description : Show error on screen
+    #
+    # Input       : $1 = text (string), $2 = optional exit code (integer)
+    # Returns     : <nothing>
+    ################################################################################
+
+    DisplayError() {
+        EXITCODE=""
+        if [ $# -gt 1 ]; then EXITCODE=$2; fi
+        ${ECHOCMD} ""
+        ${ECHOCMD} "${WARNING}Error${NORMAL}: ${BOLD}$1${NORMAL}"
+        ${ECHOCMD} ""
+        if [ ! -z "${EXITCODE}" ]; then ExitCustom ${EXITCODE}; fi
+    }
+
+
+    ################################################################################
     # Name        : DisplayManual()
     # Description : Show text on screen, without any markup
     #
@@ -430,6 +562,31 @@
 
     DisplayManual() {
         if [ ${QUIET} -eq 0 ]; then ${ECHOCMD} "$1"; fi
+    }
+
+
+    ################################################################################
+    # Name        : DisplayToolTip()
+    # Description : Show tooltip on screen
+    #
+    # Input       : $1 = text
+    # Returns     : <nothing>
+    ################################################################################
+
+    DisplayToolTip() {
+        # Display tooltip when enabled and no tip has been displayed yet
+        if [ ${SHOW_TOOL_TIPS} -eq 1 -a ${TOOLTIP_SHOWED} -eq 0 ]; then
+            if [ ${CRONJOB} -eq 0 ]; then
+                # Check if we already have already discovered a proper echo command tool. It not, set it default to 'echo'.
+                if [ "${ECHOCMD}" = "" ]; then ECHOCMD="echo"; fi
+                printf "\n"
+                ${ECHOCMD} "  ${BG_BLUE}[TIP]${NORMAL}: ${LIGHTBLUE}$1${NORMAL}"
+                printf "\n"
+            else
+                echo "${TEXT}${RESULTPART}"
+            fi
+            TOOLTIP_SHOWED=1
+        fi
     }
 
 
@@ -559,31 +716,31 @@
             LogText "Result: unclear if we can read this file, as this is a symlink"
             ReportException "FileIsReadable" "Can not determine symlink ${sFILE}"
           elif [ -d ${sFILE} ]; then
-            OTHERPERMS=`ls -d -l ${sFILE} | cut -c 8`
+            OTHERPERMS=$(ls -d -l ${sFILE} | cut -c 8)
           elif [ -f ${sFILE} ]; then
-            OTHERPERMS=`ls -d -l ${sFILE} | cut -c 8`
+            OTHERPERMS=$(ls -d -l ${sFILE} | cut -c 8)
           else
             OTHERPERMS="-"
         fi
 
         # Also check if we are the actual owner of the file (use -d to get directory itself, if its a directory)
-        FILEOWNER=`ls -dln ${sFILE} | awk -F" " '{ print $3 }'`
+        FILEOWNER=$(ls -dln ${sFILE} | awk -F" " '{ print $3 }')
         if [ "${FILEOWNER}" = "${MYID}" ]; then
             LogText "Result: file is owned by our current user ID (${MYID}), checking if it is readable"
             if [ -L ${sFILE} ]; then
                 LogText "Result: unclear if we can read this file, as this is a symlink"
                 ReportException "FileIsReadable" "Can not determine symlink ${sFILE}"
             elif [ -d ${sFILE} ]; then
-                OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
+                OTHERPERMS=$(ls -d -l ${sFILE} | cut -c 2)
             elif [ -f ${sFILE} ]; then
-                OTHERPERMS=`ls -d -l ${sFILE} | cut -c 2`
+                OTHERPERMS=$(ls -d -l ${sFILE} | cut -c 2)
             fi
           else
             LogText "Result: file is not owned by current user ID (${MYID}), but UID ${FILEOWNER}"
         fi
 
-        # Check if we have the read bit
-        if [ "${OTHERPERMS}" = "r" ]; then
+        # Check if we are root, or have the read bit
+        if [ "${MYID}" = "0" -o "${OTHERPERMS}" = "r" ]; then
             CANREAD=1
             return 0
             LogText "Result: file ${sFILE} is readable (or directory accessible)."
@@ -919,6 +1076,18 @@
 
 
     ################################################################################
+    # Name        : IsDeveloperVersion()
+    # Description : Check if this version is development or stable release
+    #
+    # Returns     : 0 (True) or 1 (False)
+    ################################################################################
+
+    IsDeveloperVersion() {
+        if [ "${PROGRAM_RELEASE_TYPE}" = "dev" ]; then return 0; else return 1; fi
+    }
+
+
+    ################################################################################
     # Name        : IsRunning()
     # Description : Check if a process is running
     # Returns     : 0 (process is running), 1 (process not running)
@@ -992,7 +1161,7 @@
 
     ################################################################################
     # Name        : IsVirtualMachine()
-    # Description : Check if a specific item exists in the report
+    # Description : Determine whether it is a virtual machine
     # Returns     : ISVIRTUALMACHINE (0-2)
     #               VMTYPE
     #               VMFULLTYPE
@@ -1270,7 +1439,7 @@
     ################################################################################
 
     LogText() {
-        if [ ! "${LOGFILE}" = "" ]; then CDATE=`date "+%Y-%m-%d %H:%M:%S"`; echo "${CDATE} $1" >> ${LOGFILE}; fi
+        if [ ! "${LOGFILE}" = "" ]; then CDATE=$(date "+%Y-%m-%d %H:%M:%S"); echo "${CDATE} $1" >> ${LOGFILE}; fi
     }
 
 
@@ -1282,30 +1451,27 @@
 
     LogTextBreak() {
         if [ ! "${LOGFILE}" = "" ]; then
-            CDATE=`date "+[%H:%M:%S]"`
+            CDATE=$(date "+%Y-%m-%d %H:%M:%S")
             echo "${CDATE} ===---------------------------------------------------------------===" >> ${LOGFILE}
         fi
     }
 
 
     ################################################################################
-    # Name        : Maid()
-    # Description : Cleanup service
+    # Name        : ParseProfiles()
+    # Description : Check file permissions and parse data from profiles
     # Returns     : <nothing>
     ################################################################################
 
-    Maid() {
-        echo ""; echo "Interrupt detected."
-        RemovePIDFile
-        RemoveTempFiles
-        Display --text "Cleaning up..." --result DONE --color GREEN
-        ExitFatal
+    ParseProfiles() {
+        SafePerms ${INCLUDEDIR}/profiles
+        . ${INCLUDEDIR}/profiles
     }
 
 
     ################################################################################
     # Name        : ParseTestValues()
-    # Description : Parse nginx configuration lines
+    # Description : Parse values from a specific test
     # Inputs      : service (e.g. ssh)
     # Returns     : CHECK_VALUES_ARRAY
     ################################################################################
@@ -1589,10 +1755,14 @@
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
         ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
-        TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
+        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         while [ $# -ge 1 ]; do
             case $1 in
+                --category)
+                    shift
+                    TEST_CATEGORY=$1
+                ;;
                 --description)
                     shift
                     TEST_DESCRIPTION=$1
@@ -1653,13 +1823,13 @@
 
         # Skip test if it's configured in profile (old style)
         if [ ${SKIPTEST} -eq 0 ]; then
-            FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}" | tr '[:upper:]' '[:lower:]'`
+            FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}" | tr '[:lower:]' '[:upper:]'`
             if [ ! "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration"; fi
         fi
 
         # Check if this test is on the list to skip
         if [ ${SKIPTEST} -eq 0 ]; then
-            VALUE=`echo ${TEST_NO} | tr '[:upper:]' '[:lower:]'`
+            VALUE=`echo ${TEST_NO} | tr '[:lower:]' '[:upper:]'`
             for I in ${SKIP_TESTS}; do
                 if [ "${I}" = "${VALUE}" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration (skip-test)"; fi
             done
@@ -1681,6 +1851,11 @@
             if [ ${LOG_INCORRECT_OS} -eq 0 ]; then
               SKIPLOGTEST=1
             fi
+        fi
+
+        # Skip test when it belongs to another category (default is 'all')
+        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_CATEGORY_TO_CHECK}" -a ! "${TEST_CATEGORY_TO_CHECK}" = "all" -a ! "${TEST_CATEGORY}" = "${TEST_CATEGORY_TO_CHECK}" ]; then
+            SKIPTEST=1; SKIPREASON="Incorrect category (${TEST_CATEGORY_TO_CHECK} only)"
         fi
 
         # Check for correct hardware platform
@@ -1708,6 +1883,42 @@
         fi
     }
 
+
+    ################################################################################
+    # Name        : RemoveColors()
+    #    RemoveColors    Clear color settings for --no-colors (see include/consts)
+    ################################################################################
+
+    RemoveColors() {
+        COLORS=0  # disable most color selections
+
+        # Normal color names
+        CYAN=""
+        BLUE=""
+        BROWN=""
+        DARKGRAY=""
+        GRAY=""
+        GREEN=""
+        LIGHTBLUE=""
+        MAGENTA=""
+        PURPLE=""
+        RED=""
+        YELLOW=""
+        WHITE=""
+
+        # Colors with background
+        BG_BLUE=""
+
+        # Semantic names
+        BAD=""
+        BOLD=""
+        HEADER=""
+        NORMAL=""
+        NOTICE=""
+        OK=""
+        WARNING=""
+        SECTION=""
+    }
 
     ################################################################################
     # Name        : RemovePIDFile()
@@ -1778,14 +1989,14 @@
     ################################################################################
 
     ReportDetails() {
+        TEST_DESCRIPTION=""
+        TEST_FIELD=""
+        TEST_ID=""
+        TEST_OTHER=""
+        TEST_PREFERRED_VALUE=""
+        TEST_SERVICE=""
+        TEST_VALUE=""
         while [ $# -ge 1 ]; do
-            TEST_DESCRIPTION=""
-            TEST_FIELD=""
-            TEST_ID=""
-            TEST_OTHER=""
-            TEST_PREFERRED_VALUE=""
-            TEST_SERVICE=""
-            TEST_VALUE=""
 
             case $1 in
                 --description)
@@ -1807,7 +2018,7 @@
                 ;;
                 --service)
                     shift
-                    TEST_SERVICE="service:$1;"
+                    TEST_SERVICE="$1"
                 ;;
                 --test)
                     shift
@@ -1817,7 +2028,6 @@
                     shift
                     TEST_VALUE="value:$1;"
                 ;;
-
                 *)
                     echo "INVALID OPTION (ReportDetails): $1"
                     ExitFatal
@@ -1872,12 +2082,14 @@
         #              * url:http://site/link
         #              * text:Additional explanation
         #              * - for none
-        if [ "$1" = "" ]; then TEST="UNKNOWN"; else TEST="$1"; fi
-        if [ "$2" = "" ]; then MESSAGE="UNKNOWN"; else MESSAGE="$2"; fi
-        if [ "$3" = "" ]; then DETAILS="-"; else DETAILS="$3"; fi
-        if [ "$4" = "" ]; then SOLUTION="-"; else SOLUTION="$4"; fi
+        if [ $# -eq 0 ]; then echo "Not enough arguments provided for function ReportSuggestion"; ExitFatal; fi
+        if [ $# -ge 1 ]; then TEST="$1"; else TEST="UNKNOWN"; fi
+        if [ $# -ge 2 ]; then MESSAGE="$2"; else MESSAGE="UNKNOWN"; fi
+        if [ $# -ge 3 ]; then DETAILS="$3"; else DETAILS="-"; fi
+        if [ $# -ge 4 ]; then SOLUTION="$4"; else SOLUTION="-"; fi
+        if [ $# -ge 5 ]; then echo "Too many arguments for function ReportSuggestion"; ExitFatal; fi
         Report "suggestion[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
-        LogText "Suggestion: ${MESSAGE} [test:$1] [details:${DETAILS}] [solution:${SOLUTION}]"
+        LogText "Suggestion: ${MESSAGE} [test:${TEST}] [details:${DETAILS}] [solution:${SOLUTION}]"
     }
 
 
@@ -1891,11 +2103,11 @@
         # Old style
         # <ID> <priority/impact> <warning text>
         if [ "$2" = "L" -o "$2" = "M" -o "$2" = "H" ]; then
-            DETAILS="$2"
-            MESSAGE="$3"
-            TEST="$1"
+            if [ $# -ge 1 ]; then TEST="$1"; fi
+            if [ $# -ge 2 ]; then DETAILS="$2"; fi
+            if [ $# -ge 3 ]; then DESSAGE="$3"; fi
             SOLUTION="-"
-          else
+        else
             # New style warning format:
             # <ID> <Warning> <Details> <Solution>
             #
@@ -1906,10 +2118,12 @@
             #              * url:http://site/link
             #              * text:Additional explanation
             #              * - for none
-            if [ "$1" = "" ]; then TEST="UNKNOWN"; else TEST="$1"; fi
-            if [ "$2" = "" ]; then MESSAGE="UNKNOWN"; else MESSAGE="$2"; fi
-            if [ "$3" = "" ]; then DETAILS="-"; else DETAILS="$3"; fi
-            if [ "$4" = "" ]; then SOLUTION="-"; else SOLUTION="$4"; fi
+            if [ $# -eq 0 ]; then echo "Not enough arguments provided for function ReportWarning"; ExitFatal; fi
+            if [ $# -ge 1 ]; then TEST="$1"; else TEST="UNKNOWN"; fi
+            if [ $# -ge 2 ]; then MESSAGE="$2"; else MESSAGE="UNKNOWN"; fi
+            if [ $# -ge 3 ]; then DETAILS="$3"; else DETAILS="-"; fi
+            if [ $# -ge 4 ]; then SOLUTION="$4"; else SOLUTION="-"; fi
+            if [ $# -ge 5 ]; then echo "Too many arguments for function ReportWarning"; ExitFatal; fi
         fi
         Report "warning[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
         LogText "Warning: ${MESSAGE} [test:${TEST}] [details:${DETAILS}] [solution:${SOLUTION}]"
@@ -2253,7 +2467,7 @@
             RETVAL=1
             # Check if this test is on the list to skip
             for I in ${SKIP_TESTS}; do
-                STRING=`echo $1 | tr '[:upper:]' '[:lower:]'`
+                STRING=`echo $1 | tr '[:lower:]' '[:upper:]'`
                 if [ "${I}" = "${STRING}" ]; then RETVAL=0; LogText "Atomic test ($1) skipped by configuration (skip-test)"; fi
             done
           else
@@ -2340,14 +2554,30 @@
     ################################################################################
 
     ViewCategories() {
+        for CATEGORY in ${TEST_AVAILABLE_CATEGORIES}; do echo "${CATEGORY}"; done
+        echo ""
+        ExitClean
+    }
+
+
+    ################################################################################
+    # Name        : ViewGroups()
+    # Description : Show what group of tests are available
+    #
+    # Input       : <nothing>
+    # Returns     : <nothing>
+    # Usage       : ViewGroups
+    ################################################################################
+
+    ViewGroups() {
         if [ ! "${INCLUDEDIR}" = "" ]; then
-            InsertSection "Available test categories"
+            InsertSection "Available test groups"
             for I in `ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"`; do
-              echo "  - ${I}"
+              echo "${I}"
             done
         fi
         echo ""
-        exit 0
+        ExitClean
     }
 
 

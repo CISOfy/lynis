@@ -31,9 +31,9 @@
                 CHECK_BINARIES=0
                 RUN_HELPERS=1
                 HELPER="audit"
-                RUN_PLUGINS=0
+                SKIP_PLUGINS=1
                 RUN_TESTS=0
-                if [ ! $2 = "" ]; then
+                if [ $# -gt 1 ]; then
                     case $2 in
                         "dockerfile")
                             if [ "$3" = "" ]; then
@@ -48,41 +48,44 @@
                             fi
                         ;;
                         "system")
-                            if [ "$3" = "remote" ]; then
-                                shift
-                                if [ "$3" = "" ]; then
-                                    echo "${RED}Error: ${WHITE}Missing remote location${NORMAL}"
-                                    echo "Example: $0 audit system remote 192.168.1.100"
-                                    ExitFatal
-                                  else
-                                    REMOTE_TARGET="$3"
-                                    shift; shift; shift  # shift out first three arguments
-                                    EXTRA_PARAMS=""
-                                    if [ ! "$1" = "" ]; then EXTRA_PARAMS=" $@"; fi
-                                    # --quick is added to be non-interactive
-                                    REMOTE_COMMAND="./lynis audit system --quick${EXTRA_PARAMS}"
-                                    echo ""
-                                    echo "  How to perform a remote scan:"
-                                    echo "  ============================="
-                                    echo "  Target  : ${REMOTE_TARGET}"
-                                    echo "  Command : ${REMOTE_COMMAND}"
-                                    HELPER="system_remote_scan"
-                                    HELPER_PARAMS="$@"
-                                    CHECK_BINARIES=0
-                                    QUIET=1
-                                    RUN_HELPERS=1
-                                    RUN_PLUGINS=0
-                                    RUN_TESTS=0
-                                    SHOW_PROGRAM_DETAILS=0
-                                    break
+                            if [ $# -gt 2 ]; then
+                                if [ "$3" = "remote" ]; then
+                                    shift
+                                    if [ "$3" = "" ]; then
+                                        echo "${RED}Error: ${WHITE}Missing remote location${NORMAL}"
+                                        echo "Example: $0 audit system remote 192.168.1.100"
+                                        ExitFatal
+                                      else
+                                        REMOTE_TARGET="$3"
+                                        shift; shift; shift  # shift out first three arguments
+                                        EXTRA_PARAMS=""
+                                        if [ ! "$1" = "" ]; then EXTRA_PARAMS=" $@"; fi
+                                        # --quick is added to be non-interactive
+                                        REMOTE_COMMAND="./lynis audit system --quick${EXTRA_PARAMS}"
+                                        echo ""
+                                        echo "  How to perform a remote scan:"
+                                        echo "  ============================="
+                                        echo "  Target  : ${REMOTE_TARGET}"
+                                        echo "  Command : ${REMOTE_COMMAND}"
+                                        HELPER="system_remote_scan"
+                                        HELPER_PARAMS="$@"
+                                        CHECK_BINARIES=0
+                                        QUIET=1
+                                        RUN_HELPERS=1
+                                        SKIP_PLUGINS=1
+                                        RUN_TESTS=0
+                                        SHOW_PROGRAM_DETAILS=0
+                                        break
+                                    fi
                                 fi
                             fi
                             CHECK=1
                             CHECK_BINARIES=1
                             HELPER=""
-                            RUN_PLUGINS=1
+                            SKIP_PLUGINS=0
                             RUN_TESTS=1
                             shift
+
                         ;;
                     esac
                   else
@@ -100,7 +103,7 @@
                 CHECK_BINARIES=0
                 RUN_HELPERS=1
                 QUIET=1
-                RUN_PLUGINS=0
+                SKIP_PLUGINS=1
                 RUN_TESTS=0
                 SHOW_PROGRAM_DETAILS=0
                 if [ $# -gt 0 ]; then shift; fi
@@ -114,26 +117,13 @@
                 CHECK_BINARIES=0
                 RUN_HELPERS=1
                 HELPER="show"
-                RUN_PLUGINS=0
                 RUN_TESTS=0
+                SKIP_PLUGINS=1
+                SHOW_TOOL_TIPS=0
                 QUIET=1
                 SHOW_PROGRAM_DETAILS=0
-                shift
-                HELPER_PARAMS="$1 $2"
+                shift; HELPER_PARAMS="$@"
                 break
-                #if [ ! $2 = "" ]; then
-                #    shift
-                #    HELPER_PARAMS="$1 $2"
-                #    break
-                #  else
-                #    echo "${RED}Error: ${WHITE}Need more specifics for show${NORMAL}"
-                #    echo " "
-                #    echo "Examples:"
-                #    echo "lynis show config"
-                #    echo "lynis show plugins"
-                #    echo "lynis show version"
-                #    ExitFatal
-                #fi
             ;;
 
             update)
@@ -141,7 +131,7 @@
                 RUN_HELPERS=1
                 HELPER="update"
                 QUIET=1
-                RUN_PLUGINS=0
+                SKIP_PLUGINS=1
                 RUN_TESTS=0
                 SHOW_PROGRAM_DETAILS=0
                 if [ ! $2 = "" ]; then
@@ -152,6 +142,7 @@
                     echo "${RED}Error: ${WHITE}Need a target for update${NORMAL}"
                     echo " "
                     echo "Examples:"
+                    echo "lynis update check"
                     echo "lynis update info"
                     echo "lynis update release"
                     ExitFatal
@@ -166,15 +157,15 @@
 
             # Perform tests (deprecated, use audit system)
             --check-all | --checkall | -c)
-                # echo "Usage of option -c is deprecated. Please use: lynis audit system [options]"
+                DisplayToolTip "Usage of option -c is deprecated. Please use: lynis audit system [options]"
                 CHECK=1
             ;;
 
             # Cronjob support
-            --cronjob | --cron)
+            --cron-job | --cronjob | --cron)
                 CRONJOB=1
-                CHECK=1; QUICKMODE=1; NEVERBREAK=1 # Use some defaults (-c, -Q, no colors)
-                NORMAL=""; WARNING=""; SECTION=""; NOTICE=""; OK=""; BAD=""; CYAN=""; MAGENTA=""; PURPLE=""; YELLOW=""; WHITE=""; GREEN=""; RED="" # Remove colors
+                CHECK=1; QUICKMODE=1; COLORS=0; NEVERBREAK=1 # Use some defaults (-c, -Q, no colors)
+                RemoveColors
             ;;
 
             # Perform tests with additional debugging information on screen
@@ -200,9 +191,9 @@
                          --pentest --profile --plugins-dir
                          --quiet_(-q) --quick_(-Q)
                          --report-file --reverse-colors
-                         --tests --tests-category
+                         --tests
                          --upload
-                         --version_(-V) --view-categories"
+                         --version_(-V)"
                 for I in ${OPTIONS}; do
                     echo "${I}" | tr '_' ' '
                 done
@@ -235,7 +226,8 @@
 
             # Don't use colors
             --no-colors | --nocolors)
-                NORMAL=""; WARNING=""; SECTION=""; NOTICE=""; OK=""; BAD=""; CYAN=""; MAGENTA=""; PURPLE=""; YELLOW=""; WHITE=""; GREEN=""; RED=""
+                COLORS=0
+                RemoveColors
             ;;
 
             # Disable logging
@@ -287,6 +279,7 @@
 
             # Strip the colors which aren't clearly visible on light backgrounds
             --reverse-colors)
+                BLUE="${NORMAL}";
                 SECTION="${NORMAL}";
                 NOTICE="${NORMAL}";
                 CYAN="${NORMAL}";
@@ -298,7 +291,7 @@
 
             # Skip execution of plugins
             --skip-plugins | --no-plugins)
-                RUN_PLUGINS=0
+                SKIP_PLUGINS=1
             ;;
 
             # Only scan these tests
@@ -307,10 +300,16 @@
                 TESTS_TO_PERFORM=$1
             ;;
 
-            # Scan one or more categories only
-            --tests-category)
+            # Scan one or more tests from just one category (e.g. security)
+            --tests-from-category)
                 shift
-                TESTS_CATEGORY_TO_PERFORM=$1
+                TEST_CATEGORY_TO_CHECK=$1
+            ;;
+
+            # Scan one or more tests from just on group
+            --tests-from-group)
+                shift
+                TEST_GROUP_TO_CHECK=$1
             ;;
 
             # Lynis Enterprise: upload data to central node
@@ -328,11 +327,6 @@
                 exit 0
             ;;
 
-            --view-categories | --list-categories | --show-categories)
-                ViewCategories
-                exit 0
-            ;;
-
             # View man page
             --view-manpage | --man-page | --manpage | --man)
                 if [ -f lynis.8 ]; then
@@ -345,11 +339,20 @@
                 fi
             ;;
 
+            --wait)
+                QUICKMODE=0
+            ;;
+
             # Warnings
             --warnings-only | --show-warnings-only)
                 SHOW_WARNINGS_ONLY=1
                 QUICKMODE=1
                 QUIET=1
+            ;;
+
+            --tests-category | --tests-categories | --view-categories | --list-categories | --show-categories)
+                echo "Error: Deprecated option ($1)"
+                exit 1
             ;;
 
             # Drop out when using wrong option(s)

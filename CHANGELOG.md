@@ -1,13 +1,14 @@
 Lynis Changelog
 ===============
 
-Lynis 2.3.2 (not released yet, under development)
+Lynis 2.3.2 (2016-08-09)
 
 
 Categories and Groups
 ---------------------
-Tests are now grouped by their focus and named 'groups' accordingly. Besides
-groups, each test will belong to a category (performance, privacy, or security).
+Tests are now grouped by their focus area and named 'groups' accordingly.
+Besides groups, each test will belong to a category (performance, privacy, or
+security).
 
 Commands: lynis show categories, lynis show groups
 Options: --tests-from-category, --tests-from-group
@@ -17,6 +18,7 @@ of tests to scan.
 
 
 Development
+
 -----------
 A new 'strict' option is available in the profiles and by default enabled for
 the initialization phases of Lynis. It will perform a strict code check for the
@@ -35,7 +37,8 @@ release can be specified as additional argument.
 Languages
 ---------
 Initial translation for German has been contributed by Kai Raven. The Italian
-translation Stefano Marty (stefanomarty).
+translation by Stefano Marty (stefanomarty). Hungarian translation by Zoltan
+Paldi (paldiz)
 
 
 Profiles
@@ -49,8 +52,9 @@ Tests
 * AUTH-9216 - Simplified test and make it more efficient
 * AUTH-9218 - Clean ups and improve readability
 * AUTH-9226 - Style, text, and removed warning
-* AUTH-9228 - Provide just an suggestion instead of warning
+* AUTH-9228 - Provide just a suggestion instead of warning
 * AUTH-9268 - Improve test for readability
+* AUTH-9328 - Test /etc/profile.d for umask setting
 * AUTH-9406 - Readability and code style changes
 * CONT-8102 - Determine if all Docker tests should be performed
 * DBS-1880  - Initial support for Redis server

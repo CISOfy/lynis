@@ -1,9 +1,18 @@
 Lynis Changelog
 ===============
 
+
 Lynis 2.3.3 (not released yet, under development)
 
-None
+
+Languages
+---------
+Japanese translation added, contributed by Yukio Takahara.
+
+Fixes
+-----
+Some tests did not show a warning text.
+
 
 ---------------------------------------------------------------------------------
 

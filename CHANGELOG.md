@@ -9,6 +9,8 @@ Additions
 ---------
 * OpenStack detection
 * Option to disable automatic refresh of software repository
+* Redis test to detect configuration file
+* Test secureauth for Redis configurations
 
 
 Languages
@@ -20,10 +22,17 @@ Fixes
 -----
 * Some tests did not show a warning text
 
+
+
 Functions
 ---------
 * ExitFatal can now exit program with optional text
 * ShowSymlinkPath and FileIsReadable test for at least one argument
+
+Tests
+-----
+* DBS-1882  - Redis configuration detection
+* DBS-1884  - Redis 'secureauth' check
 
 
 ---------------------------------------------------------------------------------

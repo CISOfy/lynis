@@ -634,7 +634,7 @@
     # Name        : ExitFatal()
     # Description : Perform exit of the program (with code 1), clean up resources
     #
-    # Input       : <nothing>
+    # Input       : $1 = text string (optional)
     # Returns     : <nothing>
     # Usage       : ExitFatal
     ################################################################################
@@ -643,6 +643,11 @@
         RemovePIDFile
         RemoveTempFiles
         LogText "${PROGRAM_NAME} ended with exit code 1."
+        if [ $# -eq 1 ]; then
+            ${ECHOCMD} ""
+            ${ECHOCMD} "${RED}Fatal error${NORMAL}: ${WHITE}$1${NORMAL}"
+            ${ECHOCMD} ""
+        fi
         exit 1
     }
 
@@ -700,6 +705,7 @@
     ################################################################################
 
     FileIsReadable() {
+        if [ $# -eq 0 ]; then ExitFatal "Function FileIsReadable() called without a file name"; fi
         sFILE=$1
         CANREAD=0
         LogText "Test: check if we can access ${sFILE}"
@@ -2353,10 +2359,12 @@
     ################################################################################
 
     ShowSymlinkPath() {
+        if [ $# -eq 0 ]; then ExitFatal "Function ShowSymlinkPath() called without a file name"; fi
         sFILE=$1
         FOUNDPATH=0
         SYMLINK_USE_PYTHON=0
         SYMLINK_USE_READLINK=0
+        LogText "Action: checking symlink for file ${sFILE}"
         # Check for symlink
         if [ -L ${sFILE} ]; then
 
@@ -2367,12 +2375,13 @@
                         FIND=`which python 2> /dev/null`
                         if [ ! "${FIND}" = "" ]; then LogText "Setting temporary pythonbinary variable"; PYTHONBINARY="${FIND}"; fi
                     fi
+
                     if [ ! "${PYTHONBINARY}" = "" ]; then
                         SYMLINK_USE_PYTHON=1
                         LogText "Note: using Python to determine symlinks"
                         tFILE=`python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" $1`
                     fi
-                  else
+                else
                     if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${READLINKBINARY}" = "" ]; then
                         FIND=`which readlink 2> /dev/null`
                         if [ ! "${FIND}" = "" ]; then LogText "Setting temporary readlinkbinary variable"; READLINKBINARY="${FIND}"; fi
@@ -2380,7 +2389,7 @@
 
                     if [ ! "${READLINKBINARY}" = "" ]; then
                         SYMLINK_USE_READLINK=1
-                        LogText "Note: Using real readlink binary to determine symlinks"
+                        LogText "Note: Using real readlink binary to determine symlink on ${sFILE}"
                         tFILE=`${READLINKBINARY} -f ${sFILE}`
                         LogText "Result: readlink shows ${tFILE} as output"
                     fi
@@ -2441,7 +2450,7 @@
                     fi
                 fi
           else
-            LogText "Result: file not a symlink"
+            LogText "Result: file ${sFILE} is not a symlink"
         fi
         # Now check if our new location is actually a file or directory destination
         if [ -L ${sFILE} ]; then

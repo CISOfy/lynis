@@ -20,6 +20,11 @@ Fixes
 -----
 * Some tests did not show a warning text
 
+Functions
+---------
+* ExitFatal can now exit program with optional text
+* ShowSymlinkPath and FileIsReadable test for at least one argument
+
 
 ---------------------------------------------------------------------------------
 

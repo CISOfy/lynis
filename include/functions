@@ -708,6 +708,7 @@
         if [ $# -eq 0 ]; then ExitFatal "Function FileIsReadable() called without a file name"; fi
         sFILE=$1
         CANREAD=0
+        RETVAL=1
         LogText "Test: check if we can access ${sFILE}"
 
         # Check for symlink
@@ -748,11 +749,11 @@
         # Check if we are root, or have the read bit
         if [ "${MYID}" = "0" -o "${OTHERPERMS}" = "r" ]; then
             CANREAD=1
-            return 0
             LogText "Result: file ${sFILE} is readable (or directory accessible)."
+            return 0
           else
-            LogText "Result: file ${sFILE} is NOT readable (or directory accessible), symlink, or does not exist. (OTHERPERMS: ${OTHERPERMS})"
             return 1
+            LogText "Result: file ${sFILE} is NOT readable (or directory accessible), symlink, or does not exist. (OTHERPERMS: ${OTHERPERMS})"
         fi
     }
 
@@ -2214,34 +2215,56 @@
     # Name        : SearchItem()
     # Description : Search if a specific string exists in in a file
     #
-    # Input       : $1 = search key (string), $2 = file (string)
-    # Returns     : True (0) or False (1) 
+    # Input       : $1 = search key (string), $2 = file (string), $3 and later
+    #               are optional arguments
+    # Returns     : True (0) or False (1)
     ################################################################################
 
     SearchItem()  {
+        PERFORM_SCAN=0
         ITEM_FOUND=0
+        MASK_LOG=0
         RETVAL=1
-        if [ $# -eq 2 ]; then
+        if [ $# -lt 2 ]; then
+            ExitFatal "Not enough arguments for function SearchItem()"
+        elif [ $# -ge 2 ]; then
+            FILE=$2
+            STRING=$1
+            PERFORM_SCAN=1
+        fi
+
+        # Parse any additional arguments
+        if [ $# -gt 2 ]; then
+            shift; shift # Skip the first two (string and file)
+            while [ $# -ge 1 ]; do
+                case $1 in
+                    "--sensitive") MASK_LOG=1 ;;
+                esac
+                shift # Go to next parameter
+            done
+        fi
+
+        if [ ${PERFORM_SCAN} -eq 1 ]; then
             # Don't search in /dev/null, it's too empty there
-            if [ -f $2 ]; then
+            if [ -f ${FILE} ]; then
                 # Check if we can find the main type (with or without brackets)
-                LogText "Test: search string $1 in file $2"
-                FIND=`egrep "$1" $2`
+                LogText "Test: search string ${STRING} in file ${FILE}"
+                FIND=`egrep "${STRING}" ${FILE}`
                 if [ ! "${FIND}" = "" ]; then
                     ITEM_FOUND=1
-                    LogText "Result: found string"
-                    LogText "Full string: ${FIND}"
+                    LogText "Result: found search string '${STRING}'"
+                    if [ ${MASK_LOG} -eq 0 ]; then LogText "Full string returned: ${FIND}"; fi
                     RETVAL=0
                  else
-                    LogText "Result: search string NOT found"
+                    LogText "Result: search search string '${STRING}' NOT found"
                     RETVAL=1
                 fi
               else
-                LogText "Skipping search, file does not exist"
-                ReportException ${TEST_NO} "Test is trying to search for a string in nonexistent file"
+                LogText "Skipping search, file (${FILE}) does not exist"
+                ReportException "${TEST_NO}" "Test is trying to search for a string in nonexistent file"
             fi
         else
-            ReportException ${TEST_NO} "Error in function call to SearchItem"
+            ReportException "${TEST_NO}" "Search test is skipped, which is unexpected"
         fi
         return ${RETVAL}
     }

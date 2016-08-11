@@ -8,6 +8,7 @@ Lynis 2.3.3 (not released yet, under development)
 Additions
 ---------
 * OpenStack detection
+* Option to disable automatic refresh of software repository
 
 
 Languages

@@ -5,13 +5,19 @@ Lynis Changelog
 Lynis 2.3.3 (not released yet, under development)
 
 
+Additions
+---------
+* OpenStack detection
+
+
 Languages
 ---------
-Japanese translation added, contributed by Yukio Takahara.
+* Japanese translation added, contributed by Yukio Takahara.
+
 
 Fixes
 -----
-Some tests did not show a warning text.
+* Some tests did not show a warning text
 
 
 ---------------------------------------------------------------------------------

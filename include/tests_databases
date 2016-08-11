@@ -26,6 +26,8 @@
     sMYSQLDBPATHS="/var/lib/mysql"
     # Paths to my.cnf
     sMYCNFLOCS="/etc/mysql/my.cnf /usr/etc/my.cnf"
+    REDIS_CONFIGURATION=""
+    REDIS_CONFIGURATION_FOUND=0
 #
 #################################################################################
 #
@@ -170,13 +172,59 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if IsRunning redis-server; then
             Display --indent 2 --text "- Redis (server) status" --result "${STATUS_FOUND}" --color GREEN
-            LogText "Result: Redit is running"
+            LogText "Result: Redis is running"
             REDIS_RUNNING=1
             DATABASE_ENGINE_RUNNING=1
             Report "redis_running=${REDIS_RUNNING}"
         else
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Redis (server) status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: No Redis processes are running"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1882
+    # Description : Determine Redis configuration
+    if [ ${REDIS_RUNNING} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; fi
+    Register --test-no DBS-1882 --weight L --network NO --preqs-met "${PREQS_MET}" --category security --description "Redis configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        PATHS="${ROOTDIR}etc/redis ${ROOTDIR}usr/local/etc/redis"
+        FOUND=0
+        REDIS_CONFIGURATION=""
+        for DIR in ${PATHS}; do
+            if [ -f ${DIR}/redis.conf ]; then
+                REDIS_CONFIGURATION="${DIR}/redis.conf"
+                REDIS_CONFIGURATION_FOUND=1
+                LogText "Result: found configuration file (${REDIS_CONFIGURATION})"
+            else
+                LogText "Result: no redis.conf in ${DIR}"
+            fi
+        done
+        if [ ${REDIS_CONFIGURATION_FOUND} -eq 0 ]; then ReportException "${TEST_NO}" "Found Redis, but no configuration file. Report this if you know where it is located on your system."; fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1884
+    # Description : Determine Redis configuration option: secureauth
+    if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; fi
+    Register --test-no DBS-1884 --weight L --network NO --preqs-met "${PREQS_MET}" --category security --description "Redis: secureauth option configured"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if FileIsReadable ${REDIS_CONFIGURATION}; then
+            if SearchItem "^secureauth" "${REDIS_CONFIGURATION}" "--sensitive"; then
+                LogText "Result: found 'secureauth' configured"
+                AddHP 3 3
+                Display --indent 4 --text "- Redis (secureauth configured)" --result "${STATUS_FOUND}" --color GREEN
+                Report "redis_secureauth=1"
+            else
+                AddHP 0 3
+                Display --indent 4 --text "- Redis (secureauth configured)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Configure the 'secureauth' setting for Redis" "${REDIS_CONFIGURATION}" "solution:configure 'secureauth' setting"
+                Report "redis_secureauth=0"
+            fi
+        else
+            LogText "Result: test skipped, as we can't read configuration file"
         fi
     fi
 #

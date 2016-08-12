@@ -230,6 +230,31 @@
 #
 #################################################################################
 #
+    # Test        : DBS-1886
+    # Description : Determine Redis configuration option: rename-command CONFIG
+    if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; fi
+    Register --test-no DBS-1886 --weight L --network NO --preqs-met "${PREQS_MET}" --category security --description "Redis: rename-command CONFIG used"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if FileIsReadable ${REDIS_CONFIGURATION}; then
+            if SearchItem "^rename-command CONFIG" "${REDIS_CONFIGURATION}" "--sensitive"; then
+                LogText "Result: found 'rename-command CONFIG' configured"
+                AddHP 3 3
+                Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_FOUND}" --color GREEN
+                Report "redis_rename_command_config=1"
+            else
+                AddHP 0 3
+                Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Use the 'rename-command CONFIG' setting for Redis" "${REDIS_CONFIGURATION}" "solution:configure 'requirepass' setting"
+                Report "redis_rename_command_config=0"
+            fi
+        else
+            LogText "Result: test skipped, as we can't read configuration file"
+        fi
+    fi
+#
+#################################################################################
+#
+
     if [ ${DATABASE_ENGINE_RUNNING} -eq 0 ]; then
         Display --indent 4 --text "No database engines found"
     fi

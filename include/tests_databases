@@ -254,6 +254,30 @@
 #
 #################################################################################
 #
+    # Test        : DBS-1888
+    # Description : Determine Redis configuration option: bind on localhost
+    if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; fi
+    Register --test-no DBS-1888 --weight L --network NO --preqs-met "${PREQS_MET}" --category security --description "Redis: bind on localhost"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if FileIsReadable ${REDIS_CONFIGURATION}; then
+            if SearchItem "^bind (localhost|127\.)" "${REDIS_CONFIGURATION}" "--sensitive"; then
+                LogText "Result: found 'bind on localhost' configured"
+                AddHP 3 3
+                Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_FOUND}" --color GREEN
+                Report "redis_bind_localhost=1"
+            else
+                AddHP 0 3
+                Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Use 'bind' setting to listen on localhost for Redis instance" "${REDIS_CONFIGURATION}" "solution:configure 'bind localhost' to listen on localhost only"
+                Report "redis_bind_localhost=0"
+            fi
+        else
+            LogText "Result: test skipped, as we can't read configuration file"
+        fi
+    fi
+#
+#################################################################################
+#
 
     if [ ${DATABASE_ENGINE_RUNNING} -eq 0 ]; then
         Display --indent 4 --text "No database engines found"

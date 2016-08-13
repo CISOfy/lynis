@@ -38,7 +38,7 @@ Typical users of the software:
 1. Clone or download the project files. No compilation or installation is required.
 2. Execute: `./lynis audit system`
 
-If you want to run the software as root, we suggest changing the ownership of the files. Use chown -R and chgrp -R to recursively alter the owner and group.
+If you want to run the software as root, we suggest changing the ownership of the files. Use chown -R 0:0 to recursively alter the owner and group and set it to user ID 0 (root).
 
 ### Package
 
@@ -60,15 +60,27 @@ This software is also available as part of an enterprise solution. It includes a
 ## Awards
 Last years we reached multiple times the top 10 of the yearly ToolsWatch vote for security tool of the year.
 
+### ToolsWatch
+
 [![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2013.svg)](https://www.toolswatch.org/2013/12/2013-top-security-tools-as-voted-by-toolswatch-org-readers/)
 [![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2014.svg)](https://www.toolswatch.org/2015/01/2014-top-security-tools-as-voted-by-toolswatch-org-readers/)
 [![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
-* 2013 - Place 6
-* 2014 - Place 3
-* 2015 - Place 2
+* 2015 - Second place!
+* 2014 - Third place!
+* 2013 - Sixth place
+
+### InfoWorld Bossies
+
+[Best of Open Source Software Awards 2015](http://www.idgenterprise.com/news/press-release/infoworld-announces-the-2015-best-of-open-source-software-awards/)
+
+* 2015 - Category Networking and Security
 
 ## Contribute
 We love contributors. Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
-More details can be found at [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).
+More details can be found in the [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).
+
+You can also simply contribute to the project by 'starring' the project and show your appreciation.
+
+
 

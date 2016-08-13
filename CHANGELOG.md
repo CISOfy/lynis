@@ -9,8 +9,6 @@ Additions
 ---------
 * OpenStack detection
 * Option to disable automatic refresh of software repository
-* Redis test to detect configuration file
-* Test Redis configuration for several best practices
 
 
 Languages
@@ -23,6 +21,18 @@ Fixes
 * Some tests did not show a warning text
 
 
+PHP
+---
+Support for PHP5.6
+
+
+Redis
+-----
+* Redis test to detect configuration files
+* Test Redis configuration for several best practices
+* Perform permission check on Redis configuration files
+
+
 Settings
 --------
 * Many settings have a new alias (with dashes instead underscores)
@@ -33,6 +43,7 @@ Functions
 ---------
 * ExitFatal can now exit program with optional text
 * ShowSymlinkPath and FileIsReadable test for at least one argument
+* IsNotebook can detect if system is a notebook (or not)
 
 
 Tests
@@ -41,6 +52,11 @@ Tests
 * DBS-1884  - Redis 'requirepass' check
 * DBS-1886  - Redis 'rename-command CONFIG' check
 * DBS-1888  - Redis 'bind localhost' check
+
+
+Lynis Enterprise integration
+----------------------------
+* Tag 'redis-server' is added for systems running Redis
 
 
 ---------------------------------------------------------------------------------

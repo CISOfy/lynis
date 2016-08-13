@@ -10,12 +10,12 @@ Additions
 * OpenStack detection
 * Option to disable automatic refresh of software repository
 * Redis test to detect configuration file
-* Test secureauth for Redis configurations
+* Test Redis configuration for several best practices
 
 
 Languages
 ---------
-* Japanese translation added, contributed by Yukio Takahara.
+* Japanese translation added, contributed by Yukio Takahara
 
 
 Fixes
@@ -23,16 +23,24 @@ Fixes
 * Some tests did not show a warning text
 
 
+Settings
+--------
+* Many settings have a new alias (with dashes instead underscores)
+* New setting 'show-report-solution' to show solution in report
+
 
 Functions
 ---------
 * ExitFatal can now exit program with optional text
 * ShowSymlinkPath and FileIsReadable test for at least one argument
 
+
 Tests
 -----
 * DBS-1882  - Redis configuration detection
-* DBS-1884  - Redis 'secureauth' check
+* DBS-1884  - Redis 'requirepass' check
+* DBS-1886  - Redis 'rename-command CONFIG' check
+* DBS-1888  - Redis 'bind localhost' check
 
 
 ---------------------------------------------------------------------------------

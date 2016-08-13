@@ -26,7 +26,7 @@
     sMYSQLDBPATHS="/var/lib/mysql"
     # Paths to my.cnf
     sMYCNFLOCS="/etc/mysql/my.cnf /usr/etc/my.cnf"
-    REDIS_CONFIGURATION=""
+    REDIS_CONFIGURATION_FILES=""
     REDIS_CONFIGURATION_FOUND=0
 #
 #################################################################################
@@ -191,14 +191,44 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         PATHS="${ROOTDIR}etc/redis ${ROOTDIR}usr/local/etc/redis"
         FOUND=0
-        REDIS_CONFIGURATION=""
         for DIR in ${PATHS}; do
-            if [ -f ${DIR}/redis.conf ]; then
-                REDIS_CONFIGURATION="${DIR}/redis.conf"
-                REDIS_CONFIGURATION_FOUND=1
-                LogText "Result: found configuration file (${REDIS_CONFIGURATION})"
+            LogText "Action: scanning directory (${DIR}) for Redis configuration files"
+            FILES=$(ls ${DIR}/*.conf 2> /dev/null)
+            if [ ! -z "${FILES}" ]; then
+                for CONFFILE in ${FILES}; do
+                    if FileIsReadable ${CONFFILE}; then
+                        LogText "Action: checking if ${CONFFILE} this is a Sentinel configuration file"
+                        # Exclude Sentinel configuration file
+                        FIND=$(grep "^sentinel " ${CONFFILE})
+                        if [ ! -z "${FIND}" ]; then
+                            LogText "Result: file is a Sentinel configuration file, skipping"
+                        else
+                            LogText "Result: not a Sentinel configuration file. Now scanning if it is a Redis configuration file"
+                            FIND=$(grep "Redis" ${CONFFILE})
+                            if [ ! -z "${FIND}" ]; then
+                                REDIS_CONFIGURATION_FILES="${REDIS_CONFIGURATION_FILES} ${CONFFILE}"
+                                REDIS_CONFIGURATION_FOUND=1
+                                LogText "Result: found a Redis configuration file (${CONFFILE})"
+                            else
+                                LogText "Result: this file does not look like a Redis file  (${CONFFILE})"
+                            fi
+                        fi
+                    else
+                        LogText "Could not read this file, so skipping it"
+                    fi
+                done
             else
-                LogText "Result: no redis.conf in ${DIR}"
+                LogText "Result: no configuration files found in this directory"
+            fi
+        done
+        # Sort the list of discovered configuration files so we can make them unique
+        REDIS_CONFIGURATION_FILES=$(echo ${REDIS_CONFIGURATION_FILES} | sed 's/^ //' | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if IsWorldReadable ${FILE}; then
+                LogText "Result: configuration file ${FILE} is world readable, this might leak sensitive information!"
+                ReportWarning "${TEST_NO}" "Redis configuration file ${FILE} is world readable and might leak sensitive details" "${FILE}" "Use chmod 640 to change file permissions"
+            else
+                LogText "Result: great, configuration file ${FILE} is not world readable"
             fi
         done
         if [ ${REDIS_CONFIGURATION_FOUND} -eq 0 ]; then ReportException "${TEST_NO}" "Found Redis, but no configuration file. Report this if you know where it is located on your system."; fi
@@ -211,21 +241,23 @@
     if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running, or no configuration file found"; fi
     Register --test-no DBS-1884 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis: requirepass option configured"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if FileIsReadable ${REDIS_CONFIGURATION}; then
-            if SearchItem "^requirepass" "${REDIS_CONFIGURATION}" "--sensitive"; then
-                LogText "Result: found 'requirepass' configured"
-                AddHP 3 3
-                Display --indent 4 --text "- Redis (requirepass configured)" --result "${STATUS_FOUND}" --color GREEN
-                Report "redis_requirepass=1"
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if FileIsReadable ${FILE}; then
+                if SearchItem "^requirepass" "${FILE}" "--sensitive"; then
+                    LogText "Result: found 'requirepass' configured"
+                    AddHP 3 3
+                    Display --indent 4 --text "- Redis (requirepass configured)" --result "${STATUS_FOUND}" --color GREEN
+                    Report "redis_requirepass=1"
+                else
+                    AddHP 0 3
+                    Display --indent 4 --text "- Redis (requirepass configured)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    ReportSuggestion "${TEST_NO}" "Configure the 'requirepass' setting for Redis" "${FILE}" "text:configure 'requirepass' setting in ${FILE}"
+                    Report "redis_requirepass=0"
+                fi
             else
-                AddHP 0 3
-                Display --indent 4 --text "- Redis (requirepass configured)" --result "${STATUS_NOT_FOUND}" --color YELLOW
-                ReportSuggestion "${TEST_NO}" "Configure the 'requirepass' setting for Redis" "${REDIS_CONFIGURATION}" "text:configure 'requirepass' setting in ${REDIS_CONFIGURATION}"
-                Report "redis_requirepass=0"
+                LogText "Result: test skipped, as we can't read configuration file"
             fi
-        else
-            LogText "Result: test skipped, as we can't read configuration file"
-        fi
+        done
     fi
 #
 #################################################################################
@@ -235,21 +267,23 @@
     if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running, or no configuration found"; fi
     Register --test-no DBS-1886 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis: rename-command CONFIG used"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if FileIsReadable ${REDIS_CONFIGURATION}; then
-            if SearchItem "^rename-command CONFIG" "${REDIS_CONFIGURATION}" "--sensitive"; then
-                LogText "Result: found 'rename-command CONFIG' configured"
-                AddHP 3 3
-                Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_FOUND}" --color GREEN
-                Report "redis_rename_command_config=1"
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if FileIsReadable ${FILE}; then
+                if SearchItem "^rename-command CONFIG" "${FILE}" "--sensitive"; then
+                    LogText "Result: found 'rename-command CONFIG' configured"
+                    AddHP 3 3
+                    Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_FOUND}" --color GREEN
+                    Report "redis_rename_command_config=1"
+                else
+                    AddHP 0 3
+                    Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    ReportSuggestion "${TEST_NO}" "Use the 'rename-command CONFIG' setting for Redis" "${FILE}" "text:configure 'rename-command CONFIG' in ${FILE}"
+                    Report "redis_rename_command_config=0"
+                fi
             else
-                AddHP 0 3
-                Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_NOT_FOUND}" --color YELLOW
-                ReportSuggestion "${TEST_NO}" "Use the 'rename-command CONFIG' setting for Redis" "${REDIS_CONFIGURATION}" "text:configure 'rename-command CONFIG' in ${REDIS_CONFIGURATION}"
-                Report "redis_rename_command_config=0"
+                LogText "Result: test skipped, as we can't read configuration file"
             fi
-        else
-            LogText "Result: test skipped, as we can't read configuration file"
-        fi
+        done
     fi
 #
 #################################################################################
@@ -259,26 +293,27 @@
     if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running, or no configuration found"; fi
     Register --test-no DBS-1888 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis: bind on localhost"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if FileIsReadable ${REDIS_CONFIGURATION}; then
-            if SearchItem "^bind (localhost|127\.)" "${REDIS_CONFIGURATION}" "--sensitive"; then
-                LogText "Result: found 'bind on localhost' configured"
-                AddHP 3 3
-                Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_FOUND}" --color GREEN
-                Report "redis_bind_localhost=1"
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if FileIsReadable ${FILE}; then
+                if SearchItem "^bind (localhost|127\.)" "${FILE}" "--sensitive"; then
+                    LogText "Result: found 'bind on localhost' configured"
+                    AddHP 3 3
+                    Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_FOUND}" --color GREEN
+                    Report "redis_bind_localhost=1"
+                else
+                    AddHP 0 3
+                    Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    ReportSuggestion "${TEST_NO}" "Use 'bind' setting to listen on localhost for Redis instance" "${FILE}" "text:configure 'bind localhost' in ${FILE}"
+                    Report "redis_bind_localhost=0"
+                fi
             else
-                AddHP 0 3
-                Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_NOT_FOUND}" --color YELLOW
-                ReportSuggestion "${TEST_NO}" "Use 'bind' setting to listen on localhost for Redis instance" "${REDIS_CONFIGURATION}" "text:configure 'bind localhost' in ${REDIS_CONFIGURATION}"
-                Report "redis_bind_localhost=0"
+                LogText "Result: test skipped, as we can't read configuration file"
             fi
-        else
-            LogText "Result: test skipped, as we can't read configuration file"
-        fi
+        done
     fi
 #
 #################################################################################
 #
-
     if [ ${DATABASE_ENGINE_RUNNING} -eq 0 ]; then
         Display --indent 4 --text "No database engines found"
     fi

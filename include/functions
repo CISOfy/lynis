@@ -1762,7 +1762,7 @@
     Register() {
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
-        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; TEST_NEED_OS=""; PREQS_MET=""
+        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; SKIPREASON=""; TEST_NEED_OS=""; PREQS_MET=""
         TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         while [ $# -ge 1 ]; do
@@ -1804,6 +1804,10 @@
                         Debug "Invalid option for --root-only parameter of Register function"
                     fi
                 ;;
+                --skip-reason)
+                    shift
+                    SKIPREASON="$1"
+                ;;
                 --test-no)
                     shift
                     TEST_NO=$1
@@ -1839,7 +1843,7 @@
         if [ ${SKIPTEST} -eq 0 ]; then
             VALUE=`echo ${TEST_NO} | tr '[:lower:]' '[:upper:]'`
             for I in ${SKIP_TESTS}; do
-                if [ "${I}" = "${VALUE}" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration (skip-test)"; fi
+                if [ "${I}" = "${VALUE}" ]; then SKIPTEST=1; SKIPREASON="Skipped by profile setting (skip-test)"; fi
             done
         fi
 
@@ -1870,7 +1874,7 @@
         if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
 
         # Not all prerequisites met, like missing tool
-        if [ ${SKIPTEST} -eq 0 -a "${PREQS_MET}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Prerequisities not met (ie missing tool, other type of Linux distribution)"; fi
+        if [ ${SKIPTEST} -eq 0 -a "${PREQS_MET}" = "NO" ]; then SKIPTEST=1; if [ -z "${SKIPREASON}" ]; then SKIPREASON="Prerequisities not met (ie missing tool, other type of Linux distribution)"; fi; fi
 
         # Skip test?
         if [ ${SKIPTEST} -eq 0 ]; then
@@ -1889,6 +1893,7 @@
             if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Reason to skip: ${SKIPREASON}"; fi
             TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
         fi
+        unset SKIPREASON
     }
 
 

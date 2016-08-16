@@ -34,6 +34,7 @@
     NGINX_CONF_LOCS="${ROOTDIR}etc/nginx ${ROOTDIR}usr/local/etc/nginx usr/local/nginx/conf"
     NGINX_CONF_LOCATION=""
     NGINX_CONF_FILES=""
+    NGINX_CONF_FILES_ADDITIONS=""
 #
 #################################################################################
 #
@@ -438,8 +439,6 @@
                     N=$((N + 1))
                     LogText "Result: found Nginx configuration file ${J}"
                     Report "nginx_sub_conf_file[]=${J}"
-                    FILENAME=$(echo ${J} | awk -F/ '{print $NF}')
-                    if [ ! "${FILENAME}" = "mime.types" ]; then
                         FileIsReadable ${J}
                         if [ ${CANREAD} -eq 1 ]; then
                             NGINX_CONF_FILES="${NGINX_CONF_FILES} ${J}"
@@ -447,9 +446,6 @@
                         else
                             ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
                         fi
-                    else
-                        LogText "Result: this configuration file is skipped, as it contains usually no interesting details"
-                    fi
                 fi
             done
         done
@@ -482,13 +478,33 @@
         LogText "Test: start parsing all discovered nginx options"
         Display --indent 4 --text "- Parsing configuration options"
         for I in ${NGINX_CONF_FILES}; do
-            if FileIsReadable ${I}; then
-                Display --indent 8 --text "- ${I}"
-                ParseNginx ${I}
+            FILENAME=$(echo ${I} | awk -F/ '{print $NF}')
+            if [ ! "${FILENAME}" = "mime.types" ]; then
+                if FileIsReadable ${I}; then
+                    Display --indent 8 --text "- ${I}"
+                    ParseNginx ${I}
+                else
+                    Display --indent 8 --text "- ${I}" --result "SKIPPED (NOT READABLE)" --color YELLOW
+                fi
             else
-                Display --indent 8 --text "- ${I}" --result "SKIPPED (NOT READABLE)" --color YELLOW
+                LogText "Result: this configuration file is skipped, as it contains usually no interesting details"
             fi
         done
+        if [ ! -z "${NGINX_CONF_FILES_ADDITIONS}" ]; then
+            for I in ${NGINX_CONF_FILES_ADDITIONS}; do
+                FILENAME=$(echo ${I} | awk -F/ '{print $NF}')
+                if [ ! "${FILENAME}" = "mime.types" ]; then
+                    if FileIsReadable ${I}; then
+                        Display --indent 8 --text "- ${I}"
+                        ParseNginx ${I}
+                    else
+                        Display --indent 8 --text "- ${I}" --result "SKIPPED (NOT READABLE)" --color YELLOW
+                    fi
+                else
+                    LogText "Result: this configuration file is skipped, as it contains usually no interesting details"
+                fi
+            done
+        fi
     fi
 #
 #################################################################################

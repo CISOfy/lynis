@@ -28,17 +28,18 @@
 #
     # Reset Apache status
     APACHE_INSTALLED=0
-    APACHE_MODULES_ENABLED_LOCS="/etc/apache2/mods-enabled"
-    APACHE_MODULES_LOCS="/etc/httpd/modules /opt/local/apache2/modules /usr/lib/apache2 /usr/lib/httpd/modules /usr/libexec/apache2 /usr/lib64/apache2 /usr/lib64/apache2/modules /usr/lib64/httpd/modules /usr/local/libexec/apache /usr/local/libexec/apache22"
+    APACHE_MODULES_ENABLED_LOCS="${ROOTDIR}etc/apache2/mods-enabled"
+    APACHE_MODULES_LOCS="${ROOTDIR}etc/httpd/modules ${ROOTDIR}opt/local/apache2/modules ${ROOTDIR}usr/lib/apache2 ${ROOTDIR}usr/lib/httpd/modules ${ROOTDIR}usr/libexec/apache2 ${ROOTDIR}usr/lib64/apache2 ${ROOTDIR}usr/lib64/apache2/modules ${ROOTDIR}usr/lib64/httpd/modules ${ROOTDIR}usr/local/libexec/apache ${ROOTDIR}usr/local/libexec/apache22"
     NGINX_RUNNING=0
-    NGINX_CONF_LOCS="/etc/nginx /usr/local/etc/nginx /usr/local/nginx/conf"
+    NGINX_CONF_LOCS="${ROOTDIR}etc/nginx ${ROOTDIR}usr/local/etc/nginx usr/local/nginx/conf"
     NGINX_CONF_LOCATION=""
+    NGINX_CONF_FILES=""
 #
 #################################################################################
 #
-    sTEST_APACHE_TARGETS="/etc/apache /etc/apache2 /etc/httpd /usr/local/apache /usr/local/apache2 \
-                          /usr/local/etc/apache /usr/local/etc/apache2 /usr/local/etc/apache22 \
-                          /usr/pkg/etc/httpd /etc/sysconfig/apache2"
+    sTEST_APACHE_TARGETS="${ROOTDIR}etc/apache ${ROOTDIR}etc/apache2 ${ROOTDIR}etc/httpd ${ROOTDIR}usr/local/apache ${ROOTDIR}usr/local/apache2 \
+                          ${ROOTDIR}usr/local/etc/apache ${ROOTDIR}usr/local/etc/apache2 ${ROOTDIR}usr/local/etc/apache22 \
+                          ${ROOTDIR}usr/pkg/etc/httpd ${ROOTDIR}etc/sysconfig/apache2"
 
     CreateTempFile || ExitFatal
     TMPFILE="${TEMP_FILE}"
@@ -383,6 +384,7 @@
             LogText "Result: found running nginx process(es)"
             Display --indent 2 --text "- Checking nginx" --result "${STATUS_FOUND}" --color GREEN
             NGINX_RUNNING=1
+            Report "nginx_running=1"
           else
             LogText "Result: no running nginx process found"
             Display --indent 2 --text "- Checking nginx" --result "${STATUS_NOT_FOUND}" --color WHITE
@@ -401,6 +403,7 @@
             if [ -f ${I}/nginx.conf ]; then
                 NGINX_CONF_LOCATION="${I}/nginx.conf"
                 LogText "Found file ${NGINX_CONF_LOCATION}"
+                NGINX_CONF_FILES="${I}/nginx.conf"
             fi
         done
         if [ ! "${NGINX_CONF_LOCATION}" = "" ]; then
@@ -430,18 +433,24 @@
         for I in ${FIND}; do
             FIND2=`${LSBINARY} ${I} 2>/dev/null`
             for J in ${FIND2}; do
-              # Ensure that we are parsing normal files
-              if [ -f ${J} ]; then
-                  N=$((N + 1))
-                  LogText "Result: found Nginx configuration file ${J}"
-                  Report "nginx_sub_conf_file=${J}"
-                  FileIsReadable ${J}
-                  if [ ${CANREAD} -eq 1 ]; then
-                      FIND3=`sed -e 's/^[ 	]*//' ${J} | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}`
+                # Ensure that we are parsing normal files
+                if [ -f ${J} ]; then
+                    N=$((N + 1))
+                    LogText "Result: found Nginx configuration file ${J}"
+                    Report "nginx_sub_conf_file[]=${J}"
+                    FILENAME=$(echo ${J} | awk -F/ '{print $NF}')
+                    if [ ! "${FILENAME}" = "mime.types" ]; then
+                        FileIsReadable ${J}
+                        if [ ${CANREAD} -eq 1 ]; then
+                            NGINX_CONF_FILES="${NGINX_CONF_FILES} ${J}"
+                            FIND3=`sed -e 's/^[ 	]*//' ${J} | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}`
+                        else
+                            ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
+                        fi
                     else
-                      ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
-                  fi
-              fi
+                        LogText "Result: this configuration file is skipped, as it contains usually no interesting details"
+                    fi
+                fi
             done
         done
 
@@ -449,7 +458,7 @@
         SORTFILE=`sort -u ${TMPFILE} | sed 's/ /:space:/g' | egrep -v "(application|audio|image|text|video)/" | egrep -v "({|})"`
         for I in ${SORTFILE}; do
             I=`echo ${I} | sed 's/:space:/ /g'`
-            Report "nginx_config_option=${I}";
+            Report "nginx_config_option[]=${I}";
         done
 
         # Remove unsorted file for next tests
@@ -467,12 +476,21 @@
     # Test        : HTTP-6708
     # Description : Check discovered nginx configuration settings for further hardering
     # Notes       : Daemon of nginx should be running, nginx.conf should be found
-    if [ ${NGINX_RUNNING} -eq 1 -a "${NGINX_CONF_LOCATION}" != "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NGINX_RUNNING} -eq 1 -a ! "${NGINX_CONF_FILES}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no HTTP-6708 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check discovered nginx configuration settings"
     if [ ${SKIPTEST} -eq 0 ]; then
+        CreateTempFile || ExitFatal "Could not create temporary file"
+        NGINX_FULL_CONFIG="${TEMP_FILE}"
         LogText "Test: start parsing all discovered nginx options"
         Display --indent 4 --text "- Parsing configuration options"
-        ParseNginx
+        for I in ${NGINX_CONF_FILES}; do
+            if FileIsReadable ${I}; then
+                Display --indent 8 --text "- ${I}"
+                ParseNginx ${I}
+            else
+                Display --indent 8 --text "- ${I}" --result "SKIPPED (NOT READABLE)" --color YELLOW
+            fi
+        done
     fi
 #
 #################################################################################
@@ -519,12 +537,12 @@
           else
             LogText "Result: No SSL configuration found"
             Display --indent 6 --text "- SSL configured" --result "${STATUS_NO}" --color RED
-            NGINX_SSL_SUGGESTION=1
+            ReportSuggestion ${TEST_NO} "Add HTTPS to nginx virtual hosts for enhanced protection of sensitive data and privacy"
             AddHP 1 5
         fi
         if [ ${NGINX_SSL_SUGGESTION} -eq 1 ]; then
             LogText "Result: one or more parts of the nginx configuration could be enhanced regarding SSL"
-            ReportSuggestion ${TEST_NO} "Configure SSL in nginx for protection of sensitive data and privacy"
+            ReportSuggestion "${TEST_NO}" "Change the HTTPS and SSL settings for enhanced protection of sensitive data and privacy"
         fi
     fi
 #

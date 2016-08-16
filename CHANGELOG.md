@@ -4,6 +4,10 @@ Lynis Changelog
 
 Lynis 2.3.3 (not released yet, under development)
 
+** TO BE DOCUMENTED **
+--bin-dirs
+--root-dir
+
 
 Additions
 ---------
@@ -21,9 +25,20 @@ Fixes
 * Some tests did not show a warning text
 
 
+Parameters
+----------
+* New --bin-dirs to define binary directories to scan
+* New option --root-dir to specify a different file system to scan
+
+
+Nginx
+-----
+* Rewrite of configuration parsing
+
+
 PHP
 ---
-Support for PHP5.6
+* Support for PHP 5.6
 
 
 Redis
@@ -42,8 +57,9 @@ Settings
 Functions
 ---------
 * ExitFatal can now exit program with optional text
-* ShowSymlinkPath and FileIsReadable test for at least one argument
 * IsNotebook can detect if system is a notebook (or not)
+* ShowSymlinkPath and FileIsReadable test for at least one argument
+* StoreNginxSettings will save parsed nginx configuration
 
 
 Tests

@@ -1554,17 +1554,118 @@
     ################################################################################
     # Name        : ParseNginx()
     # Description : Parse nginx configuration lines
+    # Input       : $1 = file (should be readable and tested upfront)
     # Returns     : <nothing>
     ################################################################################
 
+    StoreNginxSettings() {
+        CONFIG_DEPTH=0; CONFIG_FILE=""; CONFIG_SETTING=""; CONFIG_TREE=""; CONFIG_VALUE=""
+        if [ "${NGINX_FULL_CONFIG}" = "" ]; then ExitFatal "No 'full' configuration file created before, so can't store nginx configuration snippets"; fi
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --config)
+                    shift
+                    CONFIG_FILE=$1
+                ;;
+                --depth)
+                    shift
+                    CONFIG_DEPTH=$1
+                ;;
+                # none | events | server | unknown
+                --tree)
+                    shift
+                    CONFIG_TREE=$1
+                    case ${CONFIG_TREE} in
+                        "/") CONFIG_COUNTER=0 ;;
+                        "/events") CONFIG_COUNTER=${NGINX_EVENTS_COUNTER=0} ;;
+                        "/http") CONFIG_COUNTER=${NGINX_HTTP_COUNTER=0} ;;
+                        "/server") CONFIG_COUNTER=${NGINX_SERVER_COUNTER=0} ;;
+                        "/server/location") CONFIG_COUNTER=${NGINX_LOCATION_COUNTER=0} ;;
+                        *)
+                        Debug "Unknown configuration tree of nginx ${CONFIG_TREE}"
+                        ;;
+                    esac
+                ;;
+                --setting)
+                    shift
+                    CONFIG_SETTING=$1
+                ;;
+                --value)
+                    shift
+                    CONFIG_VALUE=$1
+                ;;
+                *)
+                    echo "INVALID OPTION (StoreNginxSettings): $1 $2"
+                    #ExitFatal
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+        if [ -z "${CONFIG_DEPTH}" ]; then CONFIG_DEPTH="0"; fi
+        if [ -z "${CONFIG_SETTING}" ]; then CONFIG_SETTING="NA"; fi
+        if [ -z "${CONFIG_TREE}" ]; then CONFIG_TREE="/"; fi
+        if [ -z "${CONFIG_VALUE}" ]; then CONFIG_VALUE="NA"; fi
+        echo "nginx_config[]=|file=${CONFIG_FILE}|depth=${CONFIG_DEPTH}|tree=${CONFIG_TREE}|number=${CONFIG_COUNTER}|setting=${CONFIG_SETTING}|value=${CONFIG_VALUE}|" >> ${NGINX_FULL_CONFIG}
+    }
+
     ParseNginx() {
-        FIND=`awk -F= '/^nginx_config_option=/ { print $2 }' ${REPORTFILE} | sed 's/ /:space:/g'`
+        COUNT=0
+        BREADCRUMB=""
+        if [ $# -eq 0 ]; then ExitFatal "No arguments provided to ParseNginx()"; fi
+        CONFIG_FILE=$1
+
+        # Create temporary files
+        CreateTempFile || ExitFatal "Could not create temporary file"
+        TMP_NGINX_FILE_RAW="${TEMP_FILE}"
+        CreateTempFile || ExitFatal "Could not create temporary file"
+        TMP_NGINX_FILE="${TEMP_FILE}"
+
+        # Strip out spaces, tabs and line breaks
+        awk '{$1=$1;print $0}' ${CONFIG_FILE} > ${TMP_NGINX_FILE_RAW}
+        # Now clean up the file further (combine lines, remove commented lines and empty lines)
+        cat ${TMP_NGINX_FILE_RAW} | sed 's#\\$##g' | grep -v "^#" | grep -v "^$" > ${TMP_NGINX_FILE}
+
+        LogText "Action: parsing configuration file ${CONFIG_FILE}"
+        COUNT=$(( COUNT + 1))
+        FIND=$(cat ${TMP_NGINX_FILE} | sed 's/ /:space:/g')
+        DEPTH=0
         for I in ${FIND}; do
             I=`echo ${I} | sed 's/:space:/ /g' | sed 's/;$//'`
             OPTION=`echo ${I} | awk '{ print $1 }'`
             VALUE=`echo ${I}| cut -d' ' -f2-`
-            LogText "Result: found option ${OPTION} with parameters ${VALUE}"
+            LogText "Result: found option ${OPTION} in ${CONFIG_FILE} with value '${VALUE}'"
+            STORE_SETTING=1
             case ${OPTION} in
+                "events")
+                    BREADCRUMB="${BREADCRUMB}/events"
+                    DEPTH=$(( DEPTH + 1))
+                    STORE_SETTING=0
+                    NGINX_EVENTS_COUNTER=$(( NGINX_EVENTS_COUNTER + 1 ))
+                ;;
+                "http")
+                    BREADCRUMB="${BREADCRUMB}/http"
+                    DEPTH=$(( DEPTH + 1))
+                    STORE_SETTING=0
+                    NGINX_HTTP_COUNTER=$(( NGINX_HTTP_COUNTER + 1 ))
+                ;;
+                "location")
+                    BREADCRUMB="${BREADCRUMB}/location"
+                    DEPTH=$(( DEPTH + 1))
+                    STORE_SETTING=0
+                    NGINX_LOCATION_COUNTER=$(( NGINX_LOCATION_COUNTER + 1 ))
+                ;;
+                "server")
+                    BREADCRUMB="${BREADCRUMB}/server"
+                    DEPTH=$(( DEPTH + 1))
+                    STORE_SETTING=0
+                    NGINX_SERVER_COUNTER=$(( NGINX_SERVER_COUNTER + 1 ))
+                ;;
+                "}")
+                    BREADCRUMB=$(echo ${BREADCRUMB} | awk -F/ 'sub(FS $NF,x)')
+                    DEPTH=$(( DEPTH - 1))
+                    STORE_SETTING=0
+                ;;
                 access_log)
                     if [ "${VALUE}" = "off" ]; then
                         LogText "Result: found logging disabled for one virtual host"
@@ -1690,6 +1791,13 @@
                     LogText "Found unknown option ${OPTION} in nginx configuration"
                 ;;
             esac
+            if [ ${STORE_SETTING} -eq 1 ]; then
+                CONFIG_TREE="${BREADCRUMB}"
+                if [ -z "${CONFIG_TREE}" ]; then CONFIG_TREE="/"; fi
+                if [ -z "${OPTION}" ]; then OPTION="NA"; fi
+                if [ -z "${VALUE}" ]; then VALUE="NA"; fi
+                StoreNginxSettings --config ${CONFIG_FILE} --tree ${CONFIG_TREE} --depth ${DEPTH} --setting ${OPTION} --value "${VALUE}"
+            fi
         done
     }
 

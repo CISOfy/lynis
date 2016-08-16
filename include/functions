@@ -83,6 +83,7 @@
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
 #    SkipAtomicTest             Test if a subtest needs to be skipped
+#    StoreNginxSettings         Save parsed nginx settings to file
 #    TestValue                  Evaluate a value in a string or key
 #    ViewCategories             Show available category of tests
 #    ViewGroups                 Display test groups
@@ -1558,57 +1559,6 @@
     # Returns     : <nothing>
     ################################################################################
 
-    StoreNginxSettings() {
-        CONFIG_DEPTH=0; CONFIG_FILE=""; CONFIG_SETTING=""; CONFIG_TREE=""; CONFIG_VALUE=""
-        if [ "${NGINX_FULL_CONFIG}" = "" ]; then ExitFatal "No 'full' configuration file created before, so can't store nginx configuration snippets"; fi
-        while [ $# -ge 1 ]; do
-            case $1 in
-                --config)
-                    shift
-                    CONFIG_FILE=$1
-                ;;
-                --depth)
-                    shift
-                    CONFIG_DEPTH=$1
-                ;;
-                # none | events | server | unknown
-                --tree)
-                    shift
-                    CONFIG_TREE=$1
-                    case ${CONFIG_TREE} in
-                        "/") CONFIG_COUNTER=0 ;;
-                        "/events") CONFIG_COUNTER=${NGINX_EVENTS_COUNTER=0} ;;
-                        "/http") CONFIG_COUNTER=${NGINX_HTTP_COUNTER=0} ;;
-                        "/server") CONFIG_COUNTER=${NGINX_SERVER_COUNTER=0} ;;
-                        "/server/location") CONFIG_COUNTER=${NGINX_LOCATION_COUNTER=0} ;;
-                        *)
-                        Debug "Unknown configuration tree of nginx ${CONFIG_TREE}"
-                        ;;
-                    esac
-                ;;
-                --setting)
-                    shift
-                    CONFIG_SETTING=$1
-                ;;
-                --value)
-                    shift
-                    CONFIG_VALUE=$1
-                ;;
-                *)
-                    echo "INVALID OPTION (StoreNginxSettings): $1 $2"
-                    #ExitFatal
-                ;;
-            esac
-            # Go to next parameter
-            shift
-        done
-        if [ -z "${CONFIG_DEPTH}" ]; then CONFIG_DEPTH="0"; fi
-        if [ -z "${CONFIG_SETTING}" ]; then CONFIG_SETTING="NA"; fi
-        if [ -z "${CONFIG_TREE}" ]; then CONFIG_TREE="/"; fi
-        if [ -z "${CONFIG_VALUE}" ]; then CONFIG_VALUE="NA"; fi
-        echo "nginx_config[]=|file=${CONFIG_FILE}|depth=${CONFIG_DEPTH}|tree=${CONFIG_TREE}|number=${CONFIG_COUNTER}|setting=${CONFIG_SETTING}|value=${CONFIG_VALUE}|" >> ${NGINX_FULL_CONFIG}
-    }
-
     ParseNginx() {
         COUNT=0
         BREADCRUMB=""
@@ -2643,6 +2593,64 @@
             ReportException "SkipAtomicTest()" "Function called without right number of arguments (1)"
         fi
         return $RETVAL
+    }
+
+
+    ################################################################################
+    # Name        : StoreNginxSettings()
+    # Description : Store parsed settings from nginx (by ParseNginx)
+    # Input       : multiple options
+    # Returns     : <nothing>
+    ################################################################################
+
+    StoreNginxSettings() {
+        CONFIG_DEPTH=0; CONFIG_FILE=""; CONFIG_SETTING=""; CONFIG_TREE=""; CONFIG_VALUE=""
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --config)
+                    shift
+                    CONFIG_FILE=$1
+                ;;
+                --depth)
+                    shift
+                    CONFIG_DEPTH=$1
+                ;;
+                # none | events | server | unknown
+                --tree)
+                    shift
+                    CONFIG_TREE=$1
+                    case ${CONFIG_TREE} in
+                        "/") CONFIG_COUNTER=0 ;;
+                        "/events") CONFIG_COUNTER=${NGINX_EVENTS_COUNTER=0} ;;
+                        "/http") CONFIG_COUNTER=${NGINX_HTTP_COUNTER=0} ;;
+                        "/server") CONFIG_COUNTER=${NGINX_SERVER_COUNTER=0} ;;
+                        "/server/location") CONFIG_COUNTER=${NGINX_LOCATION_COUNTER=0} ;;
+                        *)
+                        Debug "Unknown configuration tree of nginx ${CONFIG_TREE}"
+                        ;;
+                    esac
+                ;;
+                --setting)
+                    shift
+                    CONFIG_SETTING=$1
+                ;;
+                --value)
+                    shift
+                    CONFIG_VALUE=$1
+                ;;
+                *)
+                    echo "INVALID OPTION (StoreNginxSettings): $1 $2"
+                    #ExitFatal
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+        if [ -z "${CONFIG_DEPTH}" ]; then CONFIG_DEPTH="0"; fi
+        if [ -z "${CONFIG_SETTING}" ]; then CONFIG_SETTING="NA"; fi
+        if [ -z "${CONFIG_TREE}" ]; then CONFIG_TREE="/"; fi
+        if [ -z "${CONFIG_VALUE}" ]; then CONFIG_VALUE="NA"; fi
+        Report "nginx_config[]=|file=${CONFIG_FILE}|depth=${CONFIG_DEPTH}|tree=${CONFIG_TREE}|number=${CONFIG_COUNTER}|setting=${CONFIG_SETTING}|value=${CONFIG_VALUE}|"
     }
 
 

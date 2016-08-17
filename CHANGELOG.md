@@ -68,6 +68,8 @@ Tests
 * DBS-1884  - Redis 'requirepass' check
 * DBS-1886  - Redis 'rename-command CONFIG' check
 * DBS-1888  - Redis 'bind localhost' check
+* FILE-6374 - Improved logging
+* KRNL-5830 - Improved logging for detected Linux kernels
 
 
 Lynis Enterprise integration

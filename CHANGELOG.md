@@ -9,6 +9,12 @@ Lynis 2.3.3 (not released yet, under development)
 --root-dir
 
 
+Upgrade note
+------------
+Customized profiles that included sysctl settings need to be altered. See
+default.prf for the correct format of the lines.
+
+
 Additions
 ---------
 * OpenStack detection
@@ -70,6 +76,7 @@ Tests
 * DBS-1888  - Redis 'bind localhost' check
 * FILE-6374 - Improved logging
 * KRNL-5830 - Improved logging for detected Linux kernels
+* KRNL-6000 - Support for multiple profiles and new format style
 
 
 Lynis Enterprise integration

@@ -31,6 +31,7 @@ Languages
 Fixes
 -----
 * Some tests did not show a warning text
+* Typo in man page for tests-from-group
 
 
 Parameters

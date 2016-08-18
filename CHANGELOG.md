@@ -4,9 +4,11 @@ Lynis Changelog
 
 Lynis 2.3.3 (not released yet, under development)
 
-** TO BE DOCUMENTED **
---bin-dirs
---root-dir
+
+Experimental features (in development)
+--------------------------------------
+--bin-dirs - set what directories should be scanned for binaries
+--root-dir - define the root of the file system, to allow forensics
 
 
 Upgrade note

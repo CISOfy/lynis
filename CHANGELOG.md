@@ -79,6 +79,7 @@ Tests
 * FILE-6374 - Improved logging
 * KRNL-5830 - Improved logging for detected Linux kernels
 * KRNL-6000 - Support for multiple profiles and new format style
+* LOGG-2190 - Ignore MySQL files in /tmp from early MySQL 5.x releases
 
 
 Lynis Enterprise integration

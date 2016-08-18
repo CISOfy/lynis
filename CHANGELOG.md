@@ -72,6 +72,7 @@ Functions
 
 Tests
 -----
+* BOOT-5108 - Support for Syslinux bootloader
 * DBS-1882  - Redis configuration detection
 * DBS-1884  - Redis 'requirepass' check
 * DBS-1886  - Redis 'rename-command CONFIG' check

@@ -474,27 +474,23 @@
     if [ ! "${LSOFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2190 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for deleted files in use"
     if [ ${SKIPTEST} -eq 0 ]; then
+        EARLY_MYSQL=""
         LogText "Test: checking deleted files that are still in use"
 
         LSOF_GREP="WARNING|Output information"
-        
-        EARLY_MYSQL=`dpkg -l | egrep mysql-server-5.[0-5]`
-        
-        if [ ! "${EARLY_MYSQL}" = "" ]; then
-            # MySQL versions prior to 5.6 leave lots of deleted in-use files in /tmp
-            LSOF_GREP="${LSOF_GREP}|mysqld"
-        fi
-        
-        if [ ${GRSEC_FOUND} -eq 1 ]; then
-            # grsecurity causes Fail2Ban to hold onto deleted in-use files in /var/tmp
-            LSOF_GREP="${LSOF_GREP}|fail2ban"
-        fi
+
+        # MySQL versions prior to 5.6 leave lots of deleted in-use files in /tmp, ignoring those
+        if [ ! -z "${DPKGBINARY}" ]; then EARLY_MYSQL=$(${DPKGBINARY} -l | egrep mysql-server-5.[0-5]); fi
+        if [ ! -z "${EARLY_MYSQL}" ]; then LSOF_GREP="${LSOF_GREP}|mysqld"; fi
+
+        # grsecurity causes Fail2Ban to hold onto deleted in-use files in /var/tmp
+        if [ ${GRSEC_FOUND} -eq 1 ]; then LSOF_GREP="${LSOF_GREP}|fail2ban"; fi
         if [ ${OS_REDHAT_OR_CLONE} -eq 1 ]; then
             # If lynis is run from /etc/cron.daily some deleted in-use files are kept in /tmp
             LSOF_GREP="${LSOF_GREP}|anacron|awk|run-parts"
         fi
 
-        FIND=`${LSOFBINARY} -n +L 1 2>&1 | egrep -vw "${LSOF_GREP}" | awk '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | grep -v "^$" | sort -u`
+        FIND=$(${LSOFBINARY} -n +L 1 2>&1 | egrep -vw "${LSOF_GREP}" | awk '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | grep -v "^$" | sort -u)
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found one or more files which are deleted, but still in use"
             for I in ${FIND}; do
@@ -503,7 +499,7 @@
             done
             Display --indent 2 --text "- Checking deleted files in use" --result "FILES FOUND" --color YELLOW
             ReportSuggestion ${TEST_NO} "Check what deleted files are still in use and why."
-          else
+        else
             LogText "Result: no deleted files found"
             Display --indent 2 --text "- Checking deleted files in use" --result "${STATUS_DONE}" --color GREEN
         fi

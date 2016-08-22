@@ -507,6 +507,24 @@
 #
 #################################################################################
 #
+    # Test        : LOGG-2192
+    # Description : Check for open log files which are empty. This may indicate a problem with log rotation, or unused services
+    if [ ! "${LSOFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no LOGG-2192 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for open log files that are empty"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(${LSOFBINARY} -n -w | awk '{if ($5=="REG" && $7=="0" && $9 ~ /log$/) {print $1","$9}}' | sort | uniq)
+        if [ ! -z "${FIND}" ]; then
+            for I in ${FIND}; do
+                LogText "Found an opened logfile that is empty: ${I}"
+                Report "open_empty_log_file[]=${I}"
+            done
+        else
+            LogText "Result: all opened log files are bigger than zero bytes in size"
+        fi
+    fi
+#
+#################################################################################
+#
 
 Report "log_rotation_config_found=${LOGROTATE_CONFIG_FOUND}"
 Report "log_rotation_tool=${LOGROTATE_TOOL}"

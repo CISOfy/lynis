@@ -2,6 +2,15 @@ Lynis Changelog
 ===============
 
 
+Lynis 2.3.4 (development version, not released yet)
+
+
+Changes:
+* Do not display when a new update is available when using the 'show' helper
+
+
+---------------------------------------------------------------------------------
+
 Lynis 2.3.3 (2016-08-23)
 
 

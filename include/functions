@@ -245,26 +245,28 @@
 
     CheckUpdates() {
         PROGRAM_LV="0000000000"; DB_MALWARE_LV="0000000000"; DB_FILEPERMS_LV="0000000000"
-        LYNIS_LV_RECORD="lynis-latest-version.cisofy.com."
-        FIND=`which dig 2> /dev/null`
-        if [ ! "${FIND}" = "" ]; then
-            PROGRAM_LV=`dig +short +time=3 -t txt lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | sed 's/[".]//g' | grep "^[1-9][0-9][0-9]$"`
-          else
-            FIND=`which host 2> /dev/null`
-            if [ ! "${FIND}" = "" ]; then
-                PROGRAM_LV=`host -t txt -W 3 lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | awk '{ if ($1=="lynis-latest-version.cisofy.com" && $3=="text") { print $4 }}' | sed 's/"//g' | grep "^[1-9][0-9][0-9]$"`
-                if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
-              else
-                FIND=`which drill 2> /dev/null`
-                if [ ! "${FIND}" = "" ]; then
-                    PROGRAM_LV=`drill txt ${LYNIS_LV_RECORD} | awk '{ if ($1=="lynis-latest-version.cisofy.com." && $4=="TXT") { print $5 }}' | tr -d '"' | grep "^[1-9][0-9][0-9]$"`
+        if [ ${RUN_UPDATE_CHECK} -eq 1 ]; then
+            LYNIS_LV_RECORD="lynis-latest-version.cisofy.com."
+            FIND=$(which dig 2> /dev/null)
+            if [ ! -z "${FIND}" ]; then
+                PROGRAM_LV=$(dig +short +time=3 -t txt lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | sed 's/[".]//g' | grep "^[1-9][0-9][0-9]$")
+            else
+                FIND=$(which host 2> /dev/null)
+                if [ ! -z "${FIND}" ]; then
+                    PROGRAM_LV=$(host -t txt -W 3 lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | awk '{ if ($1=="lynis-latest-version.cisofy.com" && $3=="text") { print $4 }}' | sed 's/"//g' | grep "^[1-9][0-9][0-9]$")
                     if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
-                  else
-                    LogText "Result: dig, drill or host not installed, update check skipped"
-                    UPDATE_CHECK_SKIPPED=1
+                else
+                    FIND=$(which drill 2> /dev/null)
+                    if [ ! -z "${FIND}" ]; then
+                        PROGRAM_LV=$(drill txt ${LYNIS_LV_RECORD} | awk '{ if ($1=="lynis-latest-version.cisofy.com." && $4=="TXT") { print $5 }}' | tr -d '"' | grep "^[1-9][0-9][0-9]$")
+                        if [ -z "${PROGRAM_LV}" ]; then PROGRAM_LV=0; fi
+                    else
+                        LogText "Result: dig, drill or host not installed, update check skipped"
+                        UPDATE_CHECK_SKIPPED=1
+                    fi
                 fi
             fi
-         fi
+        fi
     }
 
 

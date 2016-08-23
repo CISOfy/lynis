@@ -2,7 +2,7 @@ Lynis Changelog
 ===============
 
 
-Lynis 2.3.3 (not released yet, under development)
+Lynis 2.3.3 (2016-08-23)
 
 
 Experimental features (in development)

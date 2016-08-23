@@ -5,12 +5,6 @@ Lynis Changelog
 Lynis 2.3.3 (2016-08-23)
 
 
-Experimental features (in development)
---------------------------------------
---bin-dirs - set what directories should be scanned for binaries
---root-dir - define the root of the file system, to allow forensics
-
-
 Upgrade note
 ------------
 Customized profiles that included sysctl settings need to be altered. See
@@ -55,6 +49,12 @@ Redis
 * Redis test to detect configuration files
 * Test Redis configuration for several best practices
 * Perform permission check on Redis configuration files
+
+
+Experimental features (in development)
+--------------------------------------
+* --bin-dirs - set what directories should be scanned for binaries
+* --root-dir - define the root of the file system, to allow forensics
 
 
 Settings

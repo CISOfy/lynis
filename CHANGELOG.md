@@ -9,6 +9,11 @@ Changes:
 * Do not display when a new update is available when using the 'show' helper
 
 
+Tests:
+------
+* FILE-6362 - Removed warning and add skip reason
+
+
 ---------------------------------------------------------------------------------
 
 Lynis 2.3.3 (2016-08-23)

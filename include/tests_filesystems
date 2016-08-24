@@ -356,23 +356,23 @@
 #
     # Test        : FILE-6362
     # Description : Check for sticky bit on /tmp
-    if [ -d /tmp -a ! -L /tmp ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no FILE-6362 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking /tmp sticky bit"
+    if [ -d /tmp -a ! -L /tmp ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No /tmp or /tmp is symlinked"; fi
+    Register --test-no FILE-6362 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking /tmp sticky bit"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Depending on OS, number of field with 'tmp' differs
-        FIND=`ls -l / | tr -s ' ' | awk -F" " '{ if ( $8 == "tmp" || $9 == "tmp" ) { print $1 } }' | cut -c 10`
-        if [ "${FIND}" = "t" -o "${FIND}" = "T" ]; then
+        FIND=$(${LSBINARY} -ld /tmp | ${AWKBINARY} '$1 ~ /[tT]/ { print 1 }')
+        if [ "${FIND}" = "1" ]; then
             Display --indent 2 --text "- Checking /tmp sticky bit" --result "${STATUS_OK}" --color GREEN
             LogText "Result: Sticky bit (${FIND}) found on /tmp directory"
             AddHP 3 3
-          else
+        else
             Display --indent 2 --text "- Checking /tmp sticky bit" --result "${STATUS_WARNING}" --color RED
-            ReportWarning ${TEST_NO} "No sticky bit found on /tmp directory, which can be dangerous!"
-            ReportSuggestion ${TEST_NO} "Consult documentation and place the sticky bit, to prevent users deleting (by other owned) files in the /tmp directory."
+            ReportSuggestion ${TEST_NO} "Set the sticky bit on /tmp, to prevent users deleting (by other owned) files in the /tmp directory." "/tmp" "text:Set sticky bit"
             AddHP 0 3
         fi
-      else
-        LogText "Result: Sticky bit test (on /tmp) skipped. Possible reason: missing or symlinked directory, or test skipped."
+        unset FIND
+    else
+        LogText "Result: Sticky bit test (on /tmp) skipped. Possible reason: missing directory, or symlinked directory, or test skipped."
     fi
 #
 #################################################################################

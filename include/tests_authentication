@@ -40,7 +40,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Search accounts with UID 0
         LogText "Test: Searching accounts with UID 0"
-        FIND=(${GREPBINARY} ':0:' /etc/passwd | egrep -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | grep ':0')
+        FIND=(${GREPBINARY} ':0:' /etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | grep ':0')
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found more than one administrator accounts"
@@ -74,7 +74,7 @@
         fi
         # Check password file
         if [ -f ${PASSWD_FILE} ]; then
-            FIND=`grep -v '^#' ${PASSWD_FILE} | cut -d ':' -f3 | sort | uniq -d`
+            FIND=$(${GREPBINARY} -v '^#' ${PASSWD_FILE} | cut -d ':' -f3 | sort | uniq -d)
             if [ "${FIND}" = "" ]; then
                 Display --indent 2 --text "- Unique UIDs" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: all accounts found in ${PASSWD_FILE} are unique"
@@ -102,7 +102,7 @@
         Display --indent 2 --text "- Checking chkgrp tool" --result "${STATUS_FOUND}" --color GREEN
         LogText "Result: /usr/sbin/chkgrp binary found. Using this to perform next test(s)."
         LogText "Test: Testing consistency of /etc/group file"
-        FIND=`/usr/sbin/chkgrp | grep -v 'is fine'`
+        FIND=`/usr/sbin/chkgrp | ${GREPBINARY} -v 'is fine'`
         if [ "${FIND}" = "" ]; then
             Display --indent 4 --text "- Checking consistency of /etc/group file" --result "${STATUS_OK}" --color GREEN
             LogText "Result: chkgrp test performed, Group file seems to be ok."
@@ -158,7 +158,7 @@
         LogText "Test: Checking login shells"
         if [ -f /etc/master.passwd ]; then
             # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
-            FIND=`grep "[a-z]:\*:" /etc/master.passwd | egrep -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | sed 's/ /!space!/g'`
+            FIND=`${GREPBINARY} "[a-z]:\*:" /etc/master.passwd | ${EGREPBINARY} -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | sed 's/ /!space!/g'`
             if [ "${FIND}" = "" ]; then
                 Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
             else
@@ -198,7 +198,7 @@
     Register --test-no AUTH-9222 --weight L --network NO --category security --description "Check unique groups (IDs)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for non unique group ID's in /etc/group"
-        FIND=$(grep -v '^#' /etc/group | grep -v '^$' | awk -F: '{ print $3 }' | sort | uniq -d)
+        FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | awk -F: '{ print $3 }' | sort | uniq -d)
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Unique group IDs" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group ID's are unique"
@@ -218,7 +218,7 @@
     Register --test-no AUTH-9226 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unique group names"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for non unique group names in /etc/group"
-        FIND=$(grep -v '^#' /etc/group | grep -v '^$' | awk -F: '{ print $1 }' | sort | uniq -d)
+        FIND=$(${GREPBINARY} -v '^#' /etc/group | grep -v '^$' | awk -F: '{ print $1 }' | sort | uniq -d)
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Unique group names" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group names are unique"
@@ -295,7 +295,7 @@
             "Linux")
                 UID_MIN=""
                 if [ -f /etc/login.defs ]; then
-                    UID_MIN=$(grep "^UID_MIN" /etc/login.defs | awk '{print $2}')
+                    UID_MIN=$(${GREPBINARY} "^UID_MIN" /etc/login.defs | awk '{print $2}')
                     LogText "Result: found minimal user id specified: ${UID_MIN}"
                 fi
                 if [ "${UID_MIN}" = "" ]; then UID_MIN="1000"; fi
@@ -339,13 +339,13 @@
     Register --test-no AUTH-9240 --weight L --network NO --category security --description "Query NIS+ authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=`egrep "^passwd" /etc/nsswitch.conf | egrep "compat|nisplus"`
+            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | egrep "compat|nisplus")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: NIS+ authentication not enabled"
                 Display --indent 2 --text "- NIS+ authentication support" --result "NOT ENABLED" --color WHITE
               else
-                FIND2=`egrep "^passwd_compat" /etc/nsswitch.conf | grep "nisplus"`
-                FIND3=`egrep "^passwd" /etc/nsswitch.conf | grep "nisplus"`
+                FIND2=$(${EGREPBINARY} "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nisplus")
+                FIND3=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nisplus")
                 if [ ! "${FIND2}" = "" -o ! "${FIND3}" = "" ]; then
                     LogText "Result: NIS+ authentication enabled"
                     Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_ENABLED}" --color GREEN
@@ -366,13 +366,13 @@
     Register --test-no AUTH-9242 --weight L --network NO --category security --description "Query NIS authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=`egrep "^passwd" /etc/nsswitch.conf | egrep "compat|nis" | grep -v "nisplus"`
+            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | egrep "compat|nis" | grep -v "nisplus")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: NIS authentication not enabled"
                 Display --indent 2 --text "- NIS authentication support" --result "NOT ENABLED" --color WHITE
               else
-                FIND2=`egrep "^passwd_compat" /etc/nsswitch.conf | grep "nis" | grep -v "nisplus"`
-                FIND3=`egrep "^passwd" /etc/nsswitch.conf | grep "nis" | grep -v "nisplus"`
+                FIND2=$(${EGREPBINARY} "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
+                FIND3=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
                 if [ ! "${FIND2}" = "" -o ! "${FIND3}" = "" ]; then
                     LogText "Result: NIS authentication enabled"
                     Display --indent 2 --text "- NIS authentication support" --result "${STATUS_ENABLED}" --color GREEN
@@ -530,17 +530,17 @@
             LogText "Result: file /etc/pam.conf exists"
             Display --indent 2 --text "- PAM configuration files (pam.conf)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Test: searching PAM configuration files"
-            FIND=`grep -v "^#" /etc/pam.conf | grep -v "^$" | sed 's/[[:space:]]/ /g' | sed 's/  / /g' | sed 's/ /:space:/g'`
+            FIND=$(${EGREPBINARY} -v "^#" /etc/pam.conf | ${EGREPBINARY} -v "^$" | sed 's/[[:space:]]/ /g' | sed 's/  / /g' | sed 's/ /:space:/g')
             if [ "${FIND}" = "" ]; then
                 LogText "Result: File has no configuration options defined (empty, or only filled with comments and empty lines)"
-              else
+            else
                 LogText "Result: found one or more configuration lines"
-                for I in ${FIND}; do
-                    I=`echo ${I} | sed 's/:space:/ /g'`
-                    LogText "Found line: ${I}"
+                for LINE in ${FIND}; do
+                    LINE=$(echo ${LINE} | sed 's/:space:/ /g')
+                    LogText "Found line: ${LINE}"
                 done
             fi
-          else
+        else
             LogText "Result: file /etc/pam.conf could not be found"
             Display --indent 2 --text "- PAM configuration file (pam.conf)" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -557,9 +557,9 @@
             LogText "Result: directory /etc/pam.d exists"
             Display --indent 2 --text "- PAM configuration files (pam.d)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Test: searching PAM configuration files"
-            FIND=`find /etc/pam.d -type f -print | sort`
-            for I in ${FIND}; do
-                LogText "Found file: ${I}"
+            FIND=$(find /etc/pam.d -type f -print | sort)
+            for FILE in ${FIND}; do
+                LogText "Found file: ${FILE}"
             done
           else
             LogText "Result: directory /etc/pam.d could not be found"
@@ -638,13 +638,13 @@
             case ${LINUX_VERSION} in
                 "SuSE")
                     PREQS_MET="YES"
-                    FIND=`passwd -a -S 2> /dev/null | awk '{ if ($2=="P" && $5=="99999") print $1 }'`
-                    FIND2=`passwd -a -S 2> /dev/null | awk '{ if ($2=="NP") print $1 }'`
+                    FIND=$(passwd -a -S 2> /dev/null | awk '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND2=$(passwd -a -S 2> /dev/null | awk '{ if ($2=="NP") print $1 }')
                     ;;
                 *)
                     PREQS_MET="YES"
-                    FIND=`passwd --all --status 2> /dev/null | awk '{ if ($2=="P" && $5=="99999") print $1 }'`
-                    FIND2=`passwd --all --status 2> /dev/null | awk '{ if ($2=="NP") print $1 }'`
+                    FIND=$(passwd --all --status 2> /dev/null | awk '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND2=$(passwd --all --status 2> /dev/null | awk '{ if ($2=="NP") print $1 }')
                     ;;
             esac
           else
@@ -704,13 +704,13 @@
     Register --test-no AUTH-9286 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking user password aging"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PASS_MIN_DAYS option in /etc/login.defs "
-        FIND=`grep "^PASS_MIN_DAYS" /etc/login.defs | awk '{ if ($1=="PASS_MIN_DAYS") { print $2 } }'`
+        FIND=$(${GREPBINARY} "^PASS_MIN_DAYS" /etc/login.defs | awk '{ if ($1=="PASS_MIN_DAYS") { print $2 } }')
         if [ "${FIND}" = "" -o "${FIND}" = "0" ]; then
             LogText "Result: password minimum age is not configured"
             Display --indent 2 --text "- Checking user password aging (minimum)" --result "${STATUS_DISABLED}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Configure minimum password age in /etc/login.defs"
             AddHP 0 1
-          else
+        else
             LogText "Result: password needs to be at least ${FIND} days old"
             PASSWORD_MINIMUM_DAYS=${FIND}
             Display --indent 2 --text "- User password aging (minimum)" --result CONFIGURED --color GREEN
@@ -718,13 +718,13 @@
         fi
 
         LogText "Test: Checking PASS_MAX_DAYS option in /etc/login.defs "
-        FIND=`grep "^PASS_MAX_DAYS" /etc/login.defs | awk '{ if ($1=="PASS_MAX_DAYS") { print $2 } }'`
+        FIND=$(${GREPBINARY} "^PASS_MAX_DAYS" /etc/login.defs | awk '{ if ($1=="PASS_MAX_DAYS") { print $2 } }')
         if [ "${FIND}" = "" -o "${FIND}" = "99999" ]; then
             LogText "Result: password aging limits are not configured"
             Display --indent 2 --text "- User password aging (maximum)" --result "${STATUS_DISABLED}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Configure maximum password age in /etc/login.defs"
             AddHP 0 1
-          else
+        else
             LogText "Result: max password age is ${FIND} days"
             PASSWORD_MAXIMUM_DAYS=${FIND}
             Display --indent 2 --text "- User password aging (maximum)" --result CONFIGURED --color GREEN
@@ -745,7 +745,7 @@
             LogText "Data: Days since epoch is ${DAYS_SINCE_EPOCH}"
             LogText "Test: collecting accounts which have an expired password (last day changed + maximum change time)"
             # Skip fields with a !, *, or x, or !* (field $3 is last changed, $5 is maximum changed)
-            FIND=`egrep -v ":[\!\*x](\*)?:" /etc/shadow | awk -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}'`
+            FIND=$(${EGREPBINARY} -v ":[\!\*x](\*)?:" /etc/shadow | awk -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
             if [ ! "${FIND}" = "" ]; then
                 for ACCOUNT in ${FIND}; do
                     LogText "Result: password of user ${ACCOUNT} has been expired"
@@ -754,7 +754,7 @@
                 AddHP 0 10
                 Display --indent 2 --text "- Checking expired passwords" --result "${STATUS_FOUND}" --color RED
                 ReportSuggestion "${TEST_NO}" "Delete accounts which are no longer used"
-              else
+            else
                 LogText "Result: good, no passwords have been expired"
                 Display --indent 2 --text "- Checking expired passwords" --result "${STATUS_OK}" --color GREEN
                 AddHP 10 10
@@ -775,18 +775,18 @@
         if [ -f /etc/default/sulogin ]; then
             LogText "Result: file /etc/default/sulogin exists"
             LogText "Test: checking presence PASSREQ=NO"
-            FIND=`grep "^PASSREQ=NO" /etc/default/sulogin`
+            FIND=$(${GREPBINARY} "^PASSREQ=NO" /etc/default/sulogin)
             if [ "${FIND}" = "" ]; then
                 LogText "Result: option not present or configured to request a password at single user mode login"
                 Display --indent 2 --text "- Checking Solaris /etc/default/sulogin file" --result "${STATUS_OK}" --color GREEN
                 AddHP 1 1
-              else
+            else
                 LogText "Result: option present, no password needed at single user mode login"
                 Display --indent 2 --text "- Checking Solaris /etc/default/sulogin file" --result "${STATUS_WARNING}" --color RED
                 ReportWarning ${TEST_NO} "No password needed for single user mode login"
                 AddHP 0 1
             fi
-          else
+        else
             LogText "Result: file /etc/default/sulogin does not exist"
         fi
     fi
@@ -805,12 +805,12 @@
         if [ -f /tcb/files/auth/system/default ]; then
             LogText "Result: file /tcb/files/auth/system/default exists"
             LogText "Test: checking presence :d_boot_authenticate@:"
-            FIND=`grep "^:d_boot_authenticate@" /tcb/files/auth/system/default`
-            if [ "${FIND}" = "" ]; then
+            FIND=$(grep "^:d_boot_authenticate@" /tcb/files/auth/system/default)
+            if [ -z "${FIND}" ]; then
                 LogText "Result: option not set, password is needed at boot"
                 Display --indent 2 --text "- Checking HP-UX boot authentication" --result "${STATUS_OK}" --color GREEN
                 AddHP 1 1
-              else
+            else
                 LogText "Result: option present, no password needed at single user mode login"
                 Display --indent 2 --text "- Checking HP-UX boot authentication" --result "${STATUS_SUGGESTION}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Set password for system boot"
@@ -837,9 +837,9 @@
                 TEST_PERFORMED=1
                 LogText "Result: file /etc/inittab exists"
                 LogText "Test: checking presence sulogin for single user mode"
-                FIND=`egrep "^~~:S:(respawn|wait):/sbin/sulogin" /etc/inittab`
-                FIND2=`egrep "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab`
-                if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
+                FIND=$(${EGREPBINARY} "^~~:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
+                FIND2=$(${EGREPBINARY} "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
+                if [ ! -z "${FIND}" -o ! -z "${FIND2}" ]; then
                     FOUND=1
                     LogText "Result: found sulogin, so single user is protected"
                 fi

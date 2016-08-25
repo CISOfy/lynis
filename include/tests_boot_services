@@ -70,9 +70,9 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FILENAME=`awk '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
+                    FILENAME=`${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
                     LogText "Result: cmdline found = ${FILENAME}"
-                    ISFILE=`echo ${FILENAME} | grep "^/"`
+                    ISFILE=`echo ${FILENAME} | ${GREPBINARY} "^/"`
                     if [ ! "${ISFILE}" = "" ]; then
                         if [ -L ${ISFILE} ]; then
                             ShowSymlinkPath ${ISFILE}
@@ -84,7 +84,7 @@
                         fi
                     fi
                     if [ ! "${FILENAME}" = "" ]; then
-                        SHORTNAME=`echo ${FILENAME} | awk -F/ '{ print $NF }'`
+                        SHORTNAME=`echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }'`
                         LogText "Found: ${SHORTNAME}"
                         case ${SHORTNAME} in
                             "init")
@@ -97,7 +97,7 @@
                                 SERVICE_MANAGER="upstart"
                             ;;
                             *)
-                                CONTAINS_SYSTEMD=`echo ${SHORTNAME} | grep "systemd"`
+                                CONTAINS_SYSTEMD=`echo ${SHORTNAME} | ${GREPBINARY} "systemd"`
                                 if [ ! "${CONTAINS_SYSTEMD}" = "" ]; then
                                     SERVICE_MANAGER="systemd"
                                 else
@@ -186,7 +186,7 @@
                     if [ ! "${FIND}" = "" ]; then
                         for I in ${FIND}; do
                             LogText "Test: checking file ${I}"
-                            J=`od -An -t u1 ${I} | awk '{ print $5 }'`
+                            J=`od -An -t u1 ${I} | ${AWKBINARY} '{ print $5 }'`
                             if [ "${J}" = "1" ]; then
                                 LogText "Result: found SecureBoot file with enabled status"
                                 UEFI_BOOTED_SECURE=1
@@ -200,7 +200,7 @@
                 fi
             ;;
             #MacOS)
-            # Mac OS ioreg -l -p IODeviceTree | grep firmware-abi
+            # Mac OS ioreg -l -p IODeviceTree | ${GREPBINARY} firmware-abi
             #;;
             *)
                 LogText "Result: no test implemented yet to test for UEFI on this platform"
@@ -279,11 +279,11 @@
         LogText "Found file ${GRUBCONFFILE}, proceeding with tests."
         FileIsReadable ${GRUBCONFFILE}
         if [ ${CANREAD} -eq 1 ]; then
-            FIND=`grep 'password --md5' ${GRUBCONFFILE} | grep -v '^#'`
-            FIND2=`grep 'password --encrypted' ${GRUBCONFFILE} | grep -v '^#'`
-            FIND3=`grep 'set superusers' ${GRUBCONFFILE} | grep -v '^#'`
-            FIND4=`grep 'password_pbkdf2' ${GRUBCONFFILE} | grep -v '^#'`
-            FIND5=`grep 'grub.pbkdf2' ${GRUBCONFFILE} | grep -v '^#'`
+            FIND=`${GREPBINARY} 'password --md5' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#'`
+            FIND2=`${GREPBINARY} 'password --encrypted' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#'`
+            FIND3=`${GREPBINARY} 'set superusers' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#'`
+            FIND4=`${GREPBINARY} 'password_pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#'`
+            FIND5=`${GREPBINARY} 'grub.pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#'`
             # GRUB1: Password should be set (MD5 or SHA1)
             if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
                 FOUND=1
@@ -358,7 +358,7 @@
                 BOOT_LOADER_FOUND=1
                 Display --indent 2 --text "- Checking presence LILO" --result "${STATUS_OK}" --color GREEN
                 LogText "Checking password option LILO"
-                FIND=`${EGREPBINARY} 'password[[:space:]]?=' ${LILOCONFFILE} | grep -v "^#"`
+                FIND=`${EGREPBINARY} 'password[[:space:]]?=' ${LILOCONFFILE} | ${GREPBINARY} -v "^#"`
                 if [ "${FIND}" = "" ]; then
                     Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color RED
                     LogText "Result: no password set for LILO. Bootloader is unprotected to"
@@ -404,7 +404,7 @@
 #    Register --test-no BOOT-5144 --weight L --network NO --category security --description "Check SPARC Improved boot loader (SILO)"
 #    if [ ${SKIPTEST} -eq 0 ]; then
 #        if [ -f /etc/silo.conf -a -x /sbin/silo ]; then
-#            FIND=`/sbin/silo | grep "appears to be valid"`
+#            FIND=`/sbin/silo | ${GREPBINARY} "appears to be valid"`
 #            if [ ! "${FIND}" = "" ]; then
 #                LogText "Result: Found SILO configuration file (/etc/silo.conf)"
 #                Display --indent 6 --text "- Checking SILO consistency" --result "${STATUS_OK}" --color GREEN
@@ -453,7 +453,7 @@
         if [ -f /etc/boot.conf ]; then
             FOUND=1
             Display --indent 2 --text "- Checking /etc/boot.conf" --result "${STATUS_FOUND}" --color GREEN
-            FIND=`grep '^boot' /etc/boot.conf`
+            FIND=`${GREPBINARY} '^boot' /etc/boot.conf`
             if [ "${FIND}" = "" ]; then
                 Display --indent 4 --text "- Checking boot option" --result "${STATUS_WARNING}" --color RED
                 #ReportSuggestion ${TEST_NO} "Add 'boot' to the /etc/boot.conf file to disable the default 5 seconds waiting time, to disallow booting into single user mode."
@@ -498,7 +498,7 @@
         else
             # FreeBSD (Read /etc/rc.conf file for enabled services)
             LogText "Searching for services at startup (rc.conf)"
-            FIND=`egrep -v -i '^#|none' /etc/rc.conf | egrep -i '_enable.*(yes|on|1)' | sort | awk -F= '{ print $1 }' | sed 's/_enable//'`
+            FIND=`${EGREPBINARY} -v -i '^#|none' /etc/rc.conf | ${EGREPBINARY} -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | sed 's/_enable//'`
         fi
         N=0
         for I in ${FIND}; do
@@ -525,7 +525,7 @@
             LogText "Result: systemctl binary found, trying that to discover information"
             # Running services
             LogText "Searching for running services (systemctl services only)"
-            FIND=`${SYSTEMCTLBINARY} --full --type=service | awk '{ if ($4=="running") { print $1 } }' | awk -F. '{ print $1 }'`
+            FIND=`${SYSTEMCTLBINARY} --full --type=service | ${AWKBINARY} '{ if ($4=="running") { print $1 } }' | ${AWKBINARY} -F. '{ print $1 }'`
             N=0
             Report "running_service_tool=systemctl"
             for I in ${FIND}; do
@@ -540,7 +540,7 @@
 
             # Services at boot
             LogText "Searching for enabled services (systemctl services only)"
-            FIND=`${SYSTEMCTLBINARY} list-unit-files --type=service | awk '{ if ($2=="enabled") { print $1 } }' | awk -F. '{ print $1 }'`
+            FIND=`${SYSTEMCTLBINARY} list-unit-files --type=service | ${AWKBINARY} '{ if ($2=="enabled") { print $1 } }' | ${AWKBINARY} -F. '{ print $1 }'`
             N=0
             Report "boot_service_tool=systemctl"
             for I in ${FIND}; do
@@ -558,7 +558,7 @@
             if [ ! "${CHKCONFIGBINARY}" = "" ]; then
                 LogText "Result: chkconfig binary found, trying that to discover information"
                 LogText "Searching for services at startup (chkconfig, runlevel 3 and 5)"
-                FIND=`${CHKCONFIGBINARY} --list | egrep '3:on|5:on' | awk '{ print $1 }'`
+                FIND=`${CHKCONFIGBINARY} --list | ${EGREPBINARY} '3:on|5:on' | ${AWKBINARY} '{ print $1 }'`
                 N=0
                 Report "boot_service_tool=chkconfig"
                 for I in ${FIND}; do
@@ -585,7 +585,7 @@
     Register --test-no BOOT-5180 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for Linux boot services (Debian style)"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Runlevel check
-        sRUNLEVEL=`${RUNLEVELBINARY} | grep "N [0-9]" | awk '{ print $2} '`
+        sRUNLEVEL=`${RUNLEVELBINARY} | ${GREPBINARY} "N [0-9]" | ${AWKBINARY} '{ print $2} '`
         LogText "Result: found runlevel ${sRUNLEVEL}"
         if [ "${sRUNLEVEL}" = "2" ]; then
             LogText "Result: performing find in /etc/rc2.d as runlevel 2 is found"
@@ -713,7 +713,7 @@
 
              DragonFly|FreeBSD|MacOS)
                 if [ ! "${SYSCTLBINARY}" = "" ]; then
-                    FIND=`${SYSCTLBINARY} kern.boottime | awk '{ print $5 }' | sed -e 's/,//' | grep "[0-9]"`
+                    FIND=`${SYSCTLBINARY} kern.boottime | ${AWKBINARY} '{ print $5 }' | sed -e 's/,//' | ${GREPBINARY} "[0-9]"`
                   else
                     Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:4" "No uptime test available for this operating system (sysctl missing)"
@@ -739,7 +739,7 @@
 
             Solaris)
                 if [ ! "${KSTATBINARY}" = "" ]; then
-                    FIND=`${KSTATBINARY} -p unix:0:system_misc:snaptime | grep "^unix" | awk '{print $2}' | cut -d "." -f1`
+                    FIND=`${KSTATBINARY} -p unix:0:system_misc:snaptime | ${GREPBINARY} "^unix" | ${AWKBINARY} '{print $2}' | cut -d "." -f1`
                   else
                     Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:2" "No uptime test available for this operating system (kstat missing)"
@@ -776,7 +776,7 @@
          if [ -f /usr/lib/systemd/system/rescue.service ]; then
              LogText "Result: file /usr/lib/systemd/system/rescue.service"
              LogText "Test: checking presence sulogin for single user mode"
-             FIND=`egrep "^ExecStart=-(/bin/sh -c \")?(/usr)?/(s)?bin/sulogin" /usr/lib/systemd/system/rescue.service`
+             FIND=`${EGREPBINARY} "^ExecStart=-(/bin/sh -c \")?(/usr)?/(s)?bin/sulogin" /usr/lib/systemd/system/rescue.service`
              if [ ! "${FIND}" = "" ]; then
                  FOUND=1
                  LogText "Result: found sulogin, so single user is protected"

@@ -40,7 +40,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Search accounts with UID 0
         LogText "Test: Searching accounts with UID 0"
-        FIND=(${GREPBINARY} ':0:' /etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | grep ':0')
+        FIND=(${GREPBINARY} ':0:' /etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | ${GREPBINARY} ':0')
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found more than one administrator accounts"
@@ -74,7 +74,7 @@
         fi
         # Check password file
         if [ -f ${PASSWD_FILE} ]; then
-            FIND=$(${GREPBINARY} -v '^#' ${PASSWD_FILE} | cut -d ':' -f3 | sort | uniq -d)
+            FIND=$(${GREPBINARY} -v '^#' ${PASSWD_FILE} | cut -d ':' -f3 | ${SORTBINARY} | uniq -d)
             if [ "${FIND}" = "" ]; then
                 Display --indent 2 --text "- Unique UIDs" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: all accounts found in ${PASSWD_FILE} are unique"
@@ -165,7 +165,7 @@
                 Display --indent 2 --text "- Login shells" --result "${STATUS_WARNING}" --color RED
                 for LINE in ${FIND}; do
                     LINE=$(echo ${LINE} | sed 's/!space!/ /g')
-                    SHELL=$(echo ${LINE} | awk -F: '{ print $10 }')
+                    SHELL=$(echo ${LINE} | ${AWKBINARY} -F: '{ print $10 }')
                     LogText "Output: ${LINE}"
                     if [ -z "${SHELL}" ]; then
                         LogText "Result: found no shell on line"
@@ -198,7 +198,7 @@
     Register --test-no AUTH-9222 --weight L --network NO --category security --description "Check unique groups (IDs)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for non unique group ID's in /etc/group"
-        FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | awk -F: '{ print $3 }' | sort | uniq -d)
+        FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $3 }' | ${SORTBINARY} | uniq -d)
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Unique group IDs" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group ID's are unique"
@@ -218,7 +218,7 @@
     Register --test-no AUTH-9226 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unique group names"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for non unique group names in /etc/group"
-        FIND=$(${GREPBINARY} -v '^#' /etc/group | grep -v '^$' | awk -F: '{ print $1 }' | sort | uniq -d)
+        FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $1 }' | ${SORTBINARY} | uniq -d)
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Unique group names" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group names are unique"
@@ -284,33 +284,33 @@
         case ${OS} in
             "AIX")
                 LogText "AIX real users output (ID = 0, or 100+):"
-                FIND=`awk -F: '($3 >= 100 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=`${AWKBINARY} -F: '($3 >= 100 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
             ;;
 
             "FreeBSD")
                 LogText "FreeBSD real users output (ID = 0, or 1000+, but not 65534):"
-                FIND=`awk -F: '($3 >= 1000 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=`${AWKBINARY} -F: '($3 >= 1000 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
             ;;
 
             "Linux")
                 UID_MIN=""
                 if [ -f /etc/login.defs ]; then
-                    UID_MIN=$(${GREPBINARY} "^UID_MIN" /etc/login.defs | awk '{print $2}')
+                    UID_MIN=$(${GREPBINARY} "^UID_MIN" /etc/login.defs | ${AWKBINARY} '{print $2}')
                     LogText "Result: found minimal user id specified: ${UID_MIN}"
                 fi
                 if [ "${UID_MIN}" = "" ]; then UID_MIN="1000"; fi
                 LogText "Linux real users output (ID = 0, or ${UID_MIN}+, but not 65534):"
-                FIND=`awk -v UID_MIN="${UID_MIN}" -F: '($3 >= UID_MIN && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=`${AWKBINARY} -v UID_MIN="${UID_MIN}" -F: '($3 >= UID_MIN && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
             ;;
 
             "OpenBSD")
                 LogText "OpenBSD real users output (ID = 0, or 1000-60000, but not 32767):"
-                FIND=`awk -F: '($3 >= 1000 && $3 <= 60000 && $3 != 32767) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=`${AWKBINARY} -F: '($3 >= 1000 && $3 <= 60000 && $3 != 32767) || ($3 == 0) { print $1","$3 }' /etc/passwd`
             ;;
 
             "Solaris")
                 LogText "Solaris real users output (ID =0, or 100+, but not 60001/65534):"
-                FIND=`awk -F: '($3 >= 100 && $3 != 60001 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=`${AWKBINARY} -F: '($3 >= 100 && $3 != 60001 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
             ;;
             *)
                 # Want to help improving Lynis? Determine what user IDs belong to normal user accounts
@@ -339,7 +339,7 @@
     Register --test-no AUTH-9240 --weight L --network NO --category security --description "Query NIS+ authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | egrep "compat|nisplus")
+            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nisplus")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: NIS+ authentication not enabled"
                 Display --indent 2 --text "- NIS+ authentication support" --result "NOT ENABLED" --color WHITE
@@ -366,7 +366,7 @@
     Register --test-no AUTH-9242 --weight L --network NO --category security --description "Query NIS authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | egrep "compat|nis" | grep -v "nisplus")
+            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nis" | ${GREPBINARY} -v "nisplus")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: NIS authentication not enabled"
                 Display --indent 2 --text "- NIS authentication support" --result "NOT ENABLED" --color WHITE
@@ -437,7 +437,7 @@
     # Description : Solaris test to check passwordless accounts
     Register --test-no AUTH-9254 --os Solaris --weight L --network NO --root-only YES --category security --description "Solaris passwordless accounts"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(logins -p | awk '{ print $1 }')
+        FIND=$(logins -p | ${AWKBINARY} '{ print $1 }')
         if [ "${FIND}" = "" ]; then
             LogText "Result: no passwordless accounts found"
             Display --indent 2 --text "- Passwordless accounts on Solaris" --result "${STATUS_OK}" --color GREEN
@@ -612,7 +612,7 @@
         if [ -f /etc/pam.d/common-auth ]; then
             LogText "Result: file /etc/pam.d/common-auth exists"
             LogText "Test: checking presence LDAP module"
-            FIND=`grep "^auth.*ldap" /etc/pam.d/common-auth`
+            FIND=`${GREPBINARY} "^auth.*ldap" /etc/pam.d/common-auth`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: LDAP module present"
                 LogText "Output: ${FIND}"
@@ -638,13 +638,13 @@
             case ${LINUX_VERSION} in
                 "SuSE")
                     PREQS_MET="YES"
-                    FIND=$(passwd -a -S 2> /dev/null | awk '{ if ($2=="P" && $5=="99999") print $1 }')
-                    FIND2=$(passwd -a -S 2> /dev/null | awk '{ if ($2=="NP") print $1 }')
+                    FIND=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND2=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
                     ;;
                 *)
                     PREQS_MET="YES"
-                    FIND=$(passwd --all --status 2> /dev/null | awk '{ if ($2=="P" && $5=="99999") print $1 }')
-                    FIND2=$(passwd --all --status 2> /dev/null | awk '{ if ($2=="NP") print $1 }')
+                    FIND=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND2=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
                     ;;
             esac
           else
@@ -704,7 +704,7 @@
     Register --test-no AUTH-9286 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking user password aging"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PASS_MIN_DAYS option in /etc/login.defs "
-        FIND=$(${GREPBINARY} "^PASS_MIN_DAYS" /etc/login.defs | awk '{ if ($1=="PASS_MIN_DAYS") { print $2 } }')
+        FIND=$(${GREPBINARY} "^PASS_MIN_DAYS" /etc/login.defs | ${AWKBINARY} '{ if ($1=="PASS_MIN_DAYS") { print $2 } }')
         if [ "${FIND}" = "" -o "${FIND}" = "0" ]; then
             LogText "Result: password minimum age is not configured"
             Display --indent 2 --text "- Checking user password aging (minimum)" --result "${STATUS_DISABLED}" --color YELLOW
@@ -718,7 +718,7 @@
         fi
 
         LogText "Test: Checking PASS_MAX_DAYS option in /etc/login.defs "
-        FIND=$(${GREPBINARY} "^PASS_MAX_DAYS" /etc/login.defs | awk '{ if ($1=="PASS_MAX_DAYS") { print $2 } }')
+        FIND=$(${GREPBINARY} "^PASS_MAX_DAYS" /etc/login.defs | ${AWKBINARY} '{ if ($1=="PASS_MAX_DAYS") { print $2 } }')
         if [ "${FIND}" = "" -o "${FIND}" = "99999" ]; then
             LogText "Result: password aging limits are not configured"
             Display --indent 2 --text "- User password aging (maximum)" --result "${STATUS_DISABLED}" --color YELLOW
@@ -745,7 +745,7 @@
             LogText "Data: Days since epoch is ${DAYS_SINCE_EPOCH}"
             LogText "Test: collecting accounts which have an expired password (last day changed + maximum change time)"
             # Skip fields with a !, *, or x, or !* (field $3 is last changed, $5 is maximum changed)
-            FIND=$(${EGREPBINARY} -v ":[\!\*x](\*)?:" /etc/shadow | awk -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
+            FIND=$(${EGREPBINARY} -v ":[\!\*x](\*)?:" /etc/shadow | ${AWKBINARY} -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
             if [ ! "${FIND}" = "" ]; then
                 for ACCOUNT in ${FIND}; do
                     LogText "Result: password of user ${ACCOUNT} has been expired"
@@ -805,7 +805,7 @@
         if [ -f /tcb/files/auth/system/default ]; then
             LogText "Result: file /tcb/files/auth/system/default exists"
             LogText "Test: checking presence :d_boot_authenticate@:"
-            FIND=$(grep "^:d_boot_authenticate@" /tcb/files/auth/system/default)
+            FIND=$(${GREPBINARY} "^:d_boot_authenticate@" /tcb/files/auth/system/default)
             if [ -z "${FIND}" ]; then
                 LogText "Result: option not set, password is needed at boot"
                 Display --indent 2 --text "- Checking HP-UX boot authentication" --result "${STATUS_OK}" --color GREEN
@@ -853,7 +853,7 @@
                 TEST_PERFORMED=1
                 LogText "Result: file /etc/sysconfig/init exists"
                 LogText "Test: checking presence sulogin for single user mode"
-                FIND=`grep "^SINGLE=/sbin/sulogin" /etc/sysconfig/init`
+                FIND=`${GREPBINARY} "^SINGLE=/sbin/sulogin" /etc/sysconfig/init`
                 if [ ! "${FIND}" = "" ]; then
                     FOUND=1
                     LogText "Result: found sulogin, so single user is protected"
@@ -875,7 +875,7 @@
                     # Mark test as performed only when at least 1 target exists (e.g. Ubuntu 14.04 has limited systemd support)
                     TEST_PERFORMED=1
                     LogText "Result: found target ${I}"
-                    FIND=`egrep "^ExecStart=" ${FILE} | grep "/sulogin"`
+                    FIND=`${EGREPBINARY} "^ExecStart=" ${FILE} | ${GREPBINARY} "/sulogin"`
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: did not find sulogin specified, possible risk of getting into single user mode without authentication"
                       else
@@ -926,7 +926,7 @@
             if [ ! -z "${FIND}" ]; then
                 LogText "Result: found /etc/profile.d, with one or more files in it"
                 for FILE in ${FIND}; do
-                    HAS_MASK=$(grep umask ${FILE} | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }')
+                    HAS_MASK=$(${GREPBINARY} umask ${FILE} | sed 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
                     for MASK in ${HAS_MASK}; do
                         if [ "${MASK}" = "077" -o "${MASK}" = "027" ]; then
                             LogText "Result: found a strong umask '${MASK}' set in ${FILE}"
@@ -949,8 +949,8 @@
         if [ -f /etc/profile -a ${GOOD_UMASK} -eq 0 ]; then
             LogText "Result: file /etc/profile exists"
             LogText "Test: Checking umask value in /etc/profile"
-            FIND=$(grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }')
-            FIND2=$(grep "umask" /etc/profile | sed 's/^[ \t]*//' | grep -v "^#" | awk '{ print $2 }' | wc -l)
+            FIND=$(${GREPBINARY} "umask" /etc/profile | sed 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
+            FIND2=$(${GREPBINARY} "umask" /etc/profile | sed 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }' | wc -l)
             FOUND_UMASK=0
             if [ "${FIND2}" = "0" ]; then
                 LogText "Result: did not find umask in /etc/profile"
@@ -1007,7 +1007,7 @@
         if [ -f /etc/passwd ]; then
             LogText "Result: file /etc/passwd exists"
             LogText "Test: Checking umask value in /etc/passwd"
-            FIND=`grep "umask=" /etc/passwd`
+            FIND=`${GREPBINARY} "umask=" /etc/passwd`
             if [ "${FIND}" = "" ]; then
                 ReportManual "AUTH-9328:03"
             fi
@@ -1020,7 +1020,7 @@
         if [ -f /etc/login.defs ]; then
             LogText "Result: file /etc/login.defs exists"
             LogText "Test: Checking umask value in /etc/login.defs"
-            FIND=`grep "^UMASK" /etc/login.defs | awk '{ print $2 }'`
+            FIND=`${GREPBINARY} "^UMASK" /etc/login.defs | ${AWKBINARY} '{ print $2 }'`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: umask value is not configured (most likely it will have the default 022 value)"
                 Display --indent 4 --text "- umask (/etc/login.defs)" --result "${STATUS_SUGGESTION}" --color YELLOW
@@ -1045,7 +1045,7 @@
         if [ -f /etc/init.d/functions ]; then
             LogText "Result: file /etc/init.d/functions exists"
             LogText "Test: Checking umask value in /etc/init.d/functions"
-            FIND=`grep "^umask" /etc/init.d/functions | awk '{ print $2 }'`
+            FIND=`${GREPBINARY} "^umask" /etc/init.d/functions | ${AWKBINARY} '{ print $2 }'`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: umask is not configured"
                 Display --indent 4 --text "- umask (/etc/init.d/functions)" --result "${STATUS_NONE}" --color WHITE
@@ -1067,7 +1067,7 @@
         if [ -f /etc/init.d/rc ]; then
             LogText "Result: file /etc/init.d/rc exists"
             LogText "Test: Checking UMASK value in /etc/init.d/rc"
-            FIND=`grep -i "^UMASK" /etc/init.d/rc | awk '{ print $2 }'`
+            FIND=`${GREPBINARY} -i "^UMASK" /etc/init.d/rc | ${AWKBINARY} '{ print $2 }'`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: UMASK value is not configured (most likely it will have the default 022 value)"
                 Display --indent 4 --text "- Checking umask (/etc/init.d/rc)" --result "${STATUS_SUGGESTION}" --color YELLOW
@@ -1092,7 +1092,7 @@
             FOUND=0
             WEAK_UMASK=0
             LogText "Result: file /etc/login.conf exists"
-            FIND=`grep "umask" /etc/login.conf | sed 's/#.*//' | sed -E 's/^[[:cntrl:]]//' | grep -v '^$' | awk -F: '{ print $2}' | awk -F= '{ if ($1=="umask") { print $2 }}'`
+            FIND=`${GREPBINARY} "umask" /etc/login.conf | sed 's/#.*//' | sed -E 's/^[[:cntrl:]]//' | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $2}' | ${AWKBINARY} -F= '{ if ($1=="umask") { print $2 }}'`
             if [ ! "${FIND}" = "" ]; then
                 for UMASK_VALUE in ${FIND}; do
                     case ${UMASK_VALUE} in
@@ -1128,9 +1128,9 @@
         if [ -f /etc/init.d/rcS ]; then
             LogText "Result: file /etc/init.d/rcS exists"
             LogText "Test: Checking if script runs another script."
-            FIND=`grep -i "^exec " /etc/init.d/rcS | awk '{ print $2 }'`
+            FIND=`${GREPBINARY} -i "^exec " /etc/init.d/rcS | ${AWKBINARY} '{ print $2 }'`
             if [ "${FIND}" = "" ]; then
-                FIND2=`grep -i "^UMASK" /etc/init.d/rcS | awk '{ print $2 }'`
+                FIND2=`${GREPBINARY} -i "^UMASK" /etc/init.d/rcS | ${AWKBINARY} '{ print $2 }'`
                 if [ "${FIND2}" = "" ]; then
                     LogText "Result: UMASK value is not configured (most likely it will have the default 022 value)"
                     Display --indent 4 --text "- Checking umask (/etc/init.d/rcS)" --result "${STATUS_SUGGESTION}" --color YELLOW
@@ -1166,7 +1166,7 @@
         FOUND=0
         if [ -f /etc/security/policy.conf ]; then
             LogText "Result: found /etc/security/policy.conf"
-            FIND=`grep "^LOCK_AFTER_RETRIES" /etc/security/policy.conf`
+            FIND=`${GREPBINARY} "^LOCK_AFTER_RETRIES" /etc/security/policy.conf`
             if [ ! "${FIND}" = "" ]; then
                 FOUND=1
                 LogText "Result: account locking option set"
@@ -1186,7 +1186,7 @@
             LogText "Test: checking /etc/default/login"
             if [ -f /etc/default/login ]; then
                 LogText "Result: file /etc/default/login exists"
-                FIND=`grep "^RETRIES" /etc/default/login`
+                FIND=`${GREPBINARY} "^RETRIES" /etc/default/login`
                 if [ ! "${FIND}" = "" ]; then
                     FOUND=1
                     LogText "Result: retries option configured"
@@ -1214,7 +1214,7 @@
     Register --test-no AUTH-9402 --weight L --network NO --category security --description "Query LDAP authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=$(egrep "^passwd" /etc/nsswitch.conf | grep "ldap")
+            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "ldap")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: LDAP authentication not enabled"
                 Display --indent 2 --text "- LDAP authentication support" --result "NOT ENABLED" --color WHITE
@@ -1242,7 +1242,7 @@
                 LogText "Result: file ${FILE} exists, LDAP being used"
                 LDAP_CLIENT_CONFIG_FILE="${FILE}"
                 LogText "Test: checking LDAP servers in file ${FILE}"
-                FIND=$(egrep "^host " ${FILE} | awk '{ print $2 }')
+                FIND=$(${EGREPBINARY} "^host " ${FILE} | ${AWKBINARY} '{ print $2 }')
                 for SERVER in ${FIND}; do
                     Display --indent 6 --text "LDAP server: ${SERVER}"
                     LogText "Result: found LDAP server ${SERVER}"
@@ -1263,7 +1263,7 @@
     Register --test-no AUTH-9408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Logging of failed login attempts via /etc/login.defs"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking FAILLOG_ENAB option in /etc/login.defs "
-        FIND=`grep "^FAILLOG_ENAB" /etc/login.defs | awk '{ if ($1=="FAILLOG_ENAB") { print $2 } }'`
+        FIND=`${GREPBINARY} "^FAILLOG_ENAB" /etc/login.defs | ${AWKBINARY} '{ if ($1=="FAILLOG_ENAB") { print $2 } }'`
         # Search for enabled status (yes), otherwise consider it to be disabled (e.g. empty, or other value)
         if [ "${FIND}" = "yes" ]; then
             AUTH_FAILED_LOGINS_LOGGED=1

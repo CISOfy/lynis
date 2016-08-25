@@ -73,7 +73,7 @@
         LogText "Test: Querying pkg_info to get package list"
         Display --indent 6 --text "- Querying pkg_info for installed packages"
         LogText "Output:"; LogText "-----"
-        SPACKAGES=`/usr/sbin/pkg_info 2>&1 | sort | tr -s ' ' | cut -d ' ' -f1 | sed -e 's/^\(.*\)-\([0-9].*\)$/\1,\2/g'`
+        SPACKAGES=`/usr/sbin/pkg_info 2>&1 | ${SORTBINARY} | tr -s ' ' | cut -d ' ' -f1 | sed -e 's/^\(.*\)-\([0-9].*\)$/\1,\2/g'`
         for J in ${SPACKAGES}; do
             N=$((N + 1))
             sPKG_NAME=`echo ${J} | cut -d ',' -f1`
@@ -176,8 +176,8 @@
           else
             for J in ${SPACKAGES}; do
                 N=$((N + 1))
-                PACKAGE_NAME=`echo ${J} | awk -F, '{print $1}'`
-                PACKAGE_VERSION=`echo ${J} | awk -F, '{print $2}'`
+                PACKAGE_NAME=`echo ${J} | ${AWKBINARY} -F, '{print $1}'`
+                PACKAGE_VERSION=`echo ${J} | ${AWKBINARY} -F, '{print $2}'`
                 LogText "Found package: ${J}"
                 INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION},"
             done
@@ -201,15 +201,15 @@
         LogText "Test: Querying 'pacman -Q' to get package list"
         Display --indent 6 --text "- Querying pacman package manager"
         LogText "Output:"; LogText "--------"
-        SPACKAGES=`${PACMANBINARY} -Q | sort | sed 's/ /,/g'`
+        SPACKAGES=`${PACMANBINARY} -Q | ${SORTBINARY} | sed 's/ /,/g'`
         if [ "${SPACKAGES}" = "" ]; then
             LogText "Result: pacman binary available, but package list seems to be empty"
             LogText "Info: looks like the pacman binary is installed, but not used for package installation"
           else
             for J in ${SPACKAGES}; do
                 N=$((N + 1))
-                PACKAGE_NAME=`echo ${J} | awk -F, '{ print $1 }'`
-                PACKAGE_VERSION=`echo ${J} | awk -F, '{ print $2 }'`
+                PACKAGE_NAME=`echo ${J} | ${AWKBINARY} -F, '{ print $1 }'`
+                PACKAGE_VERSION=`echo ${J} | ${AWKBINARY} -F, '{ print $2 }'`
                 LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
                 INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
             done
@@ -257,7 +257,7 @@
         COUNT=0
         # Check configuration options (options start with a capital)
         LogText "Test: searching configured options in ${PACMANCONF}"
-        FIND=`grep "^[A-Z]" ${PACMANCONF} | sort -u | sed 's/ /:space:/g'`
+        FIND=`${GREPBINARY} "^[A-Z]" ${PACMANCONF} | ${SORTBINARY} -u | sed 's/ /:space:/g'`
         for I in ${FIND}; do
             PMOPTION=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $1 }'`
             PMVALUE=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $2 }'`
@@ -267,7 +267,7 @@
 
         # Check software repositories
         LogText "Test: checking available repositories"
-        FIND=`grep "^\[.*\]$" ${PACMANCONF} | tr -d '[]'`
+        FIND=`${GREPBINARY} "^\[.*\]$" ${PACMANCONF} | tr -d '[]'`
         for I in ${FIND}; do
             COUNT=$((COUNT + 1))
             Report "package_repository[]=${I}"
@@ -285,7 +285,7 @@
         N=0
         PACKAGE_AUDIT_TOOL_FOUND=1
         PACKAGE_AUDIT_TOOL="zypper"
-        FIND=`${ZYPPERBINARY} -n se -t package -i | awk '{ if ($1=="i") { print $3 } }'`
+        FIND=`${ZYPPERBINARY} -n se -t package -i | ${AWKBINARY} '{ if ($1=="i") { print $3 } }'`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 N=$((N + 1))
@@ -306,7 +306,7 @@
     if [ ! "${ZYPPERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7330 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying Zypper for vulnerable packages"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${ZYPPERBINARY} -n pchk | grep "(0 security patches)"`
+        FIND=`${ZYPPERBINARY} -n pchk | ${GREPBINARY} "(0 security patches)"`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: No security updates found with Zypper"
                 Display --indent 2 --text "- Using Zypper to find vulnerable packages" --result "${STATUS_NONE}" --color GREEN
@@ -315,7 +315,7 @@
                 LogText "Result: Zypper found one or more installed packages which are vulnerable."
                 ReportWarning ${TEST_NO} "Found one or more vulnerable packages installed"
                 # Unfortunately zypper does not properly give back which package it is. Usually best guess is last word on the line
-                FIND=`${ZYPPERBINARY} -n lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | sed 's/:$//' | grep -v "^$" | sort -u`
+                FIND=`${ZYPPERBINARY} -n lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | sed 's/:$//' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u`
                 LogText "List of vulnerable packages/version:"
                 for I in ${FIND}; do
                     VULNERABLE_PACKAGES_FOUND=1
@@ -341,7 +341,7 @@
         LogText "Test: Querying dpkg -l to get package list"
         Display --indent 6 --text "- Querying package manager"
         LogText "Output:"
-        SPACKAGES=`dpkg -l 2>/dev/null | grep "^ii" | tr -s ' ' | tr ' ' ',' | sort`
+        SPACKAGES=`dpkg -l 2>/dev/null | ${GREPBINARY} "^ii" | tr -s ' ' | tr ' ' ',' | sort`
         for J in ${SPACKAGES}; do
             N=$((N + 1))
             PACKAGE_NAME=`echo ${J} | cut -d ',' -f2`
@@ -358,13 +358,13 @@
 #
     # Test        : PKGS-7346
     # Description : Check packages which are removed, but still own configuration files, cron jobs etc
-    # Notes       : Cleanup: for pkg in `dpkg -l | grep "^rc" | cut -d' ' -f3`; do aptitude purge ${pkg}; done
+    # Notes       : Cleanup: for pkg in `dpkg -l | ${GREPBINARY} "^rc" | cut -d' ' -f3`; do aptitude purge ${pkg}; done
     if [ -x /usr/bin/dpkg ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7346 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Search unpurged packages on system"
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
         LogText "Test: Querying dpkg -l to get unpurged packages"
-        SPACKAGES=`dpkg -l 2>/dev/null | grep "^rc" | cut -d ' ' -f3 | sort`
+        SPACKAGES=`dpkg -l 2>/dev/null | ${GREPBINARY} "^rc" | cut -d ' ' -f3 | sort`
         if [ "${SPACKAGES}" = "" ]; then
             Display --indent 4 --text "- Query unpurged packages" --result "${STATUS_NONE}" --color GREEN
             LogText "Result: no packages found with left overs"
@@ -392,7 +392,7 @@
     Register --test-no PKGS-7348 --os FreeBSD --weight L --network NO --category security --description "Check for old distfiles"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/local/sbin/portsclean ]; then
-            FIND=`/usr/local/sbin/portsclean -n -DD | grep 'Delete' | wc -l | tr -d ' '`
+            FIND=`/usr/local/sbin/portsclean -n -DD | ${GREPBINARY} 'Delete' | wc -l | tr -d ' '`
             if [ ${FIND} -eq 0 ]; then
                 Display --indent 2 --text "- Checking presence old distfiles" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: no unused distfiles found"
@@ -419,7 +419,7 @@
 
         PACKAGE_AUDIT_TOOL_FOUND=1
         PACKAGE_AUDIT_TOOL="dnf"
-        SPACKAGES=`${DNFBINARY} -q list installed 2> /dev/null | awk '{ if ($1!="Installed" && $1!="Last") {print $1","$2 }}'`
+        SPACKAGES=`${DNFBINARY} -q list installed 2> /dev/null | ${AWKBINARY} '{ if ($1!="Installed" && $1!="Last") {print $1","$2 }}'`
         for J in ${SPACKAGES}; do
             N=$((N + 1))
             PACKAGE_NAME=`echo ${J} | cut -d ',' -f1`
@@ -437,7 +437,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check for security updates
         LogText "Action: checking updateinfo for security updates"
-        FIND=`${DNFBINARY} -q updateinfo list sec 2> /dev/null | awk '{ if ($2=="security") { print $3 }}'`
+        FIND=`${DNFBINARY} -q updateinfo list sec 2> /dev/null | ${AWKBINARY} '{ if ($2=="security") { print $3 }}'`
         if [ ! "${FIND}" = "" ]; then
             VULNERABLE_PACKAGES_FOUND=1
             LogText "Result: found vulnerable packages, upgrade of system needed."
@@ -463,7 +463,7 @@
     Register --test-no "PKGS-7354" --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking package database integrity"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if repoquery plugin is available
-        FIND=`${DNFBINARY} 2>&1 | grep "^repoquery"`
+        FIND=`${DNFBINARY} 2>&1 | ${GREPBINARY} "^repoquery"`
         if [ ! "${FIND}" = "" ]; then
             LogText "Action: checking integrity of package database"
             FIND=`${DNFBINARY} -q repoquery --duplicated`
@@ -553,7 +553,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
         LogText "Test: Querying portmaster for possible port upgrades"
-        UPACKAGES=`/usr/local/sbin/portmaster -L | grep "version available" | awk '{ print $5 }'`
+        UPACKAGES=`/usr/local/sbin/portmaster -L | ${GREPBINARY} "version available" | ${AWKBINARY} '{ print $5 }'`
         for J in ${UPACKAGES}; do
             N=$((N + 1))
             LogText "Upgrade available (new version): ${J}"
@@ -588,7 +588,7 @@
                     LogText "Result: pkg_admin audit found one or more installed packages which are vulnerable."
                     ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
                     LogText "List of vulnerable packages/version:"
-                    for I in `/usr/sbin/pkg_admin audit | awk '{ print $2 }' | sort -u`; do
+                    for I in `/usr/sbin/pkg_admin audit | ${AWKBINARY} '{ print $2 }' | ${SORTBINARY} -u`; do
                         VULNERABLE_PACKAGES_FOUND=1
                         Report "vulnerable_package[]=${I}"
                         LogText "Vulnerable package: ${I}"
@@ -615,7 +615,7 @@
     Register --test-no PKGS-7381 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with pkg"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/sbin/pkg ]; then
-            FIND=`/usr/sbin/pkg audit 2> /dev/null | grep 'problem(s) in your installed packages found' | grep -v '0 problem(s) in your installed packages found'`
+            FIND=`/usr/sbin/pkg audit 2> /dev/null | ${GREPBINARY} 'problem(s) in your installed packages found' | ${GREPBINARY} -v '0 problem(s) in your installed packages found'`
             PACKAGE_AUDIT_TOOL_FOUND=1
             PACKAGE_AUDIT_TOOL="pkg audit"
             if [ "${FIND}" = "" ]; then
@@ -631,7 +631,7 @@
                 #ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
                 #ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
                 #LogText "List of vulnerable packages/version:"
-                #for I in `/usr/sbin/pkg audit -F | grep "Affected package" | cut -d ' ' -f3 | sort -u`; do
+                #for I in `/usr/sbin/pkg audit -F | ${GREPBINARY} "Affected package" | cut -d ' ' -f3 | ${SORTBINARY} -u`; do
                 #    Report "vulnerable_package[]=${I}"
                 #    LogText "Vulnerable package: ${I}"
                 #    # Decrease hardening points for every found vulnerable package
@@ -653,7 +653,7 @@
     Register --test-no PKGS-7382 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with portaudit"
     if [ ${SKIPTEST} -eq 0 ]; then
             PACKAGE_AUDIT_TOOL_FOUND=1
-            FIND=`/usr/local/sbin/portaudit | grep 'problem(s) in your installed packages found' | grep -v '0 problem(s) in your installed packages found'`
+            FIND=`/usr/local/sbin/portaudit | ${GREPBINARY} 'problem(s) in your installed packages found' | ${GREPBINARY} -v '0 problem(s) in your installed packages found'`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: Portaudit results are clean"
                 Display --indent 2 --text "- Checking portaudit to obtain vulnerable packages" --result "${STATUS_NONE}" --color GREEN
@@ -663,7 +663,7 @@
                 ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
                 ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
                 LogText "List of vulnerable packages/version:"
-                for I in `/usr/local/sbin/portaudit | grep "Affected package" | cut -d ' ' -f3 | sort -u`; do
+                for I in `/usr/local/sbin/portaudit | ${GREPBINARY} "Affected package" | cut -d ' ' -f3 | ${SORTBINARY} -u`; do
                     VULNERABLE_PACKAGES_FOUND=1
                     Report "vulnerable_package[]=${I}"
                     LogText "Vulnerable package: ${I}"
@@ -682,7 +682,7 @@
     Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
-        FIND=$(${YUMBINARY} repolist 2>/dev/null | grep repolist | sed 's/ //g' | sed 's/[,.]//g' | awk -F ":" '{print $2}' | egrep "^[0-9]+$")
+        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | sed 's/ //g' | sed 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
         if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
             LogText "Result: YUM package update management failed"
             Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_WARNING}" --color RED
@@ -777,7 +777,7 @@
 
         # Check if it's installed as package (this is old style)
         if [ ${DO_TEST} -eq 0 ]; then
-            FIND=`rpm -q yum-security yum-plugin-security | grep -v "not installed"`
+            FIND=`rpm -q yum-security yum-plugin-security | ${GREPBINARY} -v "not installed"`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: found yum-plugin-security package"
                 DO_TEST=1
@@ -789,7 +789,7 @@
             PACKAGE_AUDIT_TOOL_FOUND=1
             PACKAGE_AUDIT_TOOL="yum-security"
             LogText "Test: Checking for vulnerable packages"
-            FIND2=`/usr/bin/yum list-sec security | awk '{ if($2=="security" || $2~"Sec") print $3","$5 }'`
+            FIND2=`/usr/bin/yum list-sec security | ${AWKBINARY} '{ if($2=="security" || $2~"Sec") print $3","$5 }'`
             if [ "${FIND2}" = "" ]; then
                 LogText "Result: no vulnerable packages found"
                 Display --indent 2 --text "- Checking missing security packages" --result "${STATUS_OK}" --color GREEN
@@ -845,7 +845,7 @@
         if [ ${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY} -eq 0 ]; then
             if [ -f /etc/apt/sources.list ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list file"
-                FIND=$(egrep "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list | grep -v '#' | sed 's/ /!space!/g')
+                FIND=$(${EGREPBINARY} "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list | ${GREPBINARY} -v '#' | sed 's/ /!space!/g')
                 if [ ! "${FIND}" = "" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list file" --result "${STATUS_OK}" --color GREEN
@@ -858,7 +858,7 @@
             fi
             if [ -d /etc/apt/sources.list.d ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
-                FIND=$(egrep -r "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list.d | grep -v '#' | sed 's/ /!space!/g')
+                FIND=$(${EGREPBINARY} -r "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | sed 's/ /!space!/g')
                 if [ ! -z "${FIND}" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list.d directory" --result "${STATUS_OK}" --color GREEN
@@ -926,7 +926,7 @@
           LogText "Result: found /usr/lib/update-notifier/apt-check"
           LogText "Test: checking if any of the updates contain security updates"
           # apt-check binary is a script and translated. Do not search for normal text strings, but use numbered output only
-          FIND=`/usr/lib/update-notifier/apt-check 2>&1 | awk -F\; '{ print $2 }'`
+          FIND=`/usr/lib/update-notifier/apt-check 2>&1 | ${AWKBINARY} -F\; '{ print $2 }'`
           # Check if we get the proper line back and amount of security patches available
           if [ "${FIND}" = "" ]; then
               LogText "Result: did not find security updates line"
@@ -949,7 +949,7 @@
 
         # Trying also with apt-get directly (does not always work, as updates are distributed on both -security and -updates)
         # Show packages which would be upgraded and match 'security' in repository name
-        FIND=`/usr/bin/apt-get --dry-run --show-upgraded upgrade 2> /dev/null | grep '-security' | grep "^Inst" | cut -d ' ' -f2 | sort -u`
+        FIND=`/usr/bin/apt-get --dry-run --show-upgraded upgrade 2> /dev/null | ${GREPBINARY} '-security' | ${GREPBINARY} "^Inst" | cut -d ' ' -f2 | ${SORTBINARY} -u`
         if [ ! "${FIND}" = "" ]; then
             VULNERABLE_PACKAGES_FOUND=1
             SCAN_PERFORMED=1
@@ -1003,7 +1003,7 @@
             LogText "Result: found /usr/bin/glsa-check"
             LogText "Test: checking if there are any vulnerable packages"
             # glsa-check reports the GLSA date/ID string, not the vulnerable package.
-            FIND=`/usr/bin/glsa-check -t all 2>&1 | grep -v "This system is affected by the following GLSAs:" | grep -v "This system is not affected by any of the listed GLSAs" | wc -l`
+            FIND=`/usr/bin/glsa-check -t all 2>&1 | ${GREPBINARY} -v "This system is affected by the following GLSAs:" | ${GREPBINARY} -v "This system is not affected by any of the listed GLSAs" | wc -l`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: unexpected result: wc should report 0 if no vulnerable packages are found."
                 LogText "Notes: Check if system is up-to-date, security updates check (glsa-check) gives and unexpected result"
@@ -1081,7 +1081,7 @@
 #################################################################################
 #
     # Description : HP-UX packages
-    # Notes       : swlist -l fileset (|grep patch) / print_manifest
+    # Notes       : swlist -l fileset (|${GREPBINARY} patch) / print_manifest
 #
 #################################################################################
 #

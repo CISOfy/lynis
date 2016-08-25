@@ -48,7 +48,7 @@
                 Display --indent 4 --text "- Checking ${I} mount point" --result SYMLINK --color WHITE
               elif [ -d ${I} ]; then
                 LogText "Result: directory ${I} exists"
-                FIND=`mount | grep "${I}"`
+                FIND=`mount | ${GREPBINARY} "${I}"`
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found ${I} as a separated mount point"
                     Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_OK}" --color GREEN
@@ -79,7 +79,7 @@
                  FIND=`${LSVGBINARY} -o`
             ;;
             Linux)
-                 FIND=`${VGDISPLAYBINARY} 2> /dev/null | grep -v "No volume groups found" | grep "VG Name" | awk '{ print $3 }' | sort`
+                 FIND=`${VGDISPLAYBINARY} 2> /dev/null | ${GREPBINARY} -v "No volume groups found" | ${GREPBINARY} "VG Name" | ${AWKBINARY} '{ print $3 }' | sort`
             ;;
             *)
                  ReportException "${TEST_NO}:1" "Don't know this specific operating system yet, while volume group manager was found"
@@ -110,10 +110,10 @@
         case ${OS} in
             AIX)
                  ACTIVE_VG_LIST=`${LSVGBINARY} -o`
-                 FIND=`for I in ${ACTIVE_VG_LIST}; do ${LSVGBINARY} -l ${I} | awk 'NR>2 { print $1 }'; done`
+                 FIND=`for I in ${ACTIVE_VG_LIST}; do ${LSVGBINARY} -l ${I} | ${AWKBINARY} 'NR>2 { print $1 }'; done`
             ;;
             Linux)
-                 FIND=`${LVDISPLAYBINARY} | grep -v "No volume groups found" | grep "LV Name" | awk '{ print $3 }' | sort`
+                 FIND=`${LVDISPLAYBINARY} | ${GREPBINARY} -v "No volume groups found" | ${GREPBINARY} "LV Name" | ${AWKBINARY} '{ print $3 }' | sort`
             ;;
             *)
                  ReportException "${TEST_NO}:1" "Need specific test for gathering volume manager data"
@@ -147,7 +147,7 @@
     Register --test-no FILE-6323 --os Linux --weight L --network NO --category security --description "Checking EXT file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for Linux EXT file systems"
-        FIND=`mount -t ext2,ext3,ext4 | awk '{ print $3","$5 }'`
+        FIND=`mount -t ext2,ext3,ext4 | ${AWKBINARY} '{ print $3","$5 }'`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found one or more EXT file systems"
             for I in ${FIND}; do
@@ -170,7 +170,7 @@
     Register --test-no FILE-6329 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking FFS/UFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Query /etc/fstab for available FFS/UFS mount points"
-        FIND=`awk '{ if ($3 == "ufs" || $3 == "ffs" ) { print $1":"$2":"$3":"$4":" }}' /etc/fstab`
+        FIND=`${AWKBINARY} '{ if ($3 == "ufs" || $3 == "ffs" ) { print $1":"$2":"$3":"$4":" }}' /etc/fstab`
         if [ "${FIND}" = "" ]; then
             if IsVerbose; then Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result "${STATUS_NONE}" --color WHITE; fi
             LogText "Result: unable to find any single mount point (FFS/UFS)"
@@ -191,7 +191,7 @@
     Register --test-no FILE-6330 --os FreeBSD --weight L --network NO --category security --description "Checking ZFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Query /etc/fstab for available ZFS mount points"
-        FIND=`mount -p | awk '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}'`
+        FIND=`mount -p | ${AWKBINARY} '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}'`
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result "${STATUS_NONE}" --color WHITE
             LogText "Result: unable to find any single mount point (ZFS)"
@@ -215,7 +215,7 @@
         FOUND=0
         LogText "Test: query swap partitions from /etc/fstab file"
         # Check if third field contains 'swap'
-        FIND=`awk '{ if ($2=="swap" || $3=="swap") { print $1 }}' /etc/fstab | grep -v "^#"`
+        FIND=`${AWKBINARY} '{ if ($2=="swap" || $3=="swap") { print $1 }}' /etc/fstab | ${GREPBINARY} -v "^#"`
         for I in ${FIND}; do
             FOUND=1
             REAL=""
@@ -226,12 +226,12 @@
             # Can be ^/dev/partition
 
             # Test for UUID usage (e.g. UUID=uuid --> /dev/disk/by-uuid/<uuid>)
-            HAS_UUID=`echo ${I} | grep "^UUID="`
+            HAS_UUID=`echo ${I} | ${GREPBINARY} "^UUID="`
             if [ ! "${HAS_UUID}" = "" ]; then
-                UUID=`echo ${HAS_UUID} | awk -F= '{ print $2 }'`
+                UUID=`echo ${HAS_UUID} | ${AWKBINARY} -F= '{ print $2 }'`
                 LogText "Result: Using ${UUID} as UUID"
                 if [ ! "${BLKIDBINARY}" = "" ]; then
-                    FIND2=$(${BLKIDBINARY} | awk '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | sed 's/:$//')
+                    FIND2=$(${BLKIDBINARY} | ${AWKBINARY} '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | sed 's/:$//')
                     if [ ! "${FIND2}" = "" ]; then
                         REAL="${FIND2}"
                     fi
@@ -275,8 +275,8 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Swap partitions should be mounted with 'sw' or 'swap'
         LogText "Test: check swap partitions with incorrect mount options"
-        #FIND=`awk '{ if ($3=="swap" && ($4!="sw" && $4!="swap" && $4!="defaults")) print $1 }' /etc/fstab`
-        FIND=`awk '{ if ($3=="swap" && ($4~/sw/ || $4=="defaults")) { print $1 }}' /etc/fstab`
+        #FIND=`${AWKBINARY} '{ if ($3=="swap" && ($4!="sw" && $4!="swap" && $4!="defaults")) print $1 }' /etc/fstab`
+        FIND=`${AWKBINARY} '{ if ($3=="swap" && ($4~/sw/ || $4=="defaults")) { print $1 }}' /etc/fstab`
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Testing swap partitions" --result "${STATUS_OK}" --color GREEN
             LogText "Result: all swap partitions have correct options (sw or swap)"
@@ -296,8 +296,8 @@
     # Examples    : proc /proc proc defaults,hidepid=2 0 0
     # Goal        : Users should not be able to see processes of other users
     if [ "${OS}" = "Linux" -a -f /proc/version ]; then
-        LINUX_KERNEL_MAJOR=$(echo $OS_KERNELVERSION | awk -F. '{print $1}')
-        LINUX_KERNEL_MINOR=$(echo $OS_KERNELVERSION | awk -F. '{print $2}')
+        LINUX_KERNEL_MAJOR=$(echo $OS_KERNELVERSION | ${AWKBINARY} -F. '{print $1}')
+        LINUX_KERNEL_MINOR=$(echo $OS_KERNELVERSION | ${AWKBINARY} -F. '{print $2}')
         if [ ! -z "${LINUX_KERNEL_MAJOR}" -a ! -z "${LINUX_KERNEL_MINOR}" ]; then
             if [ ${LINUX_KERNEL_MAJOR} -ge 3 -a ${LINUX_KERNEL_MINOR} -ge 3 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
         else
@@ -392,7 +392,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: Checking acl option on ext[2-4] root file system"
-        FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/ext[2-4]/) { print $6 } }' | grep acl`
+        FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/ext[2-4]/) { print $6 } }' | ${GREPBINARY} acl`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found ACL option"
             FOUND=1
@@ -405,14 +405,14 @@
                 FIND1="/dev/root"
               else
                 # Only determine device if it is EXT2/3/4
-                #FIND1=`mount | grep "on / " | awk '{ if ($5~/ext[2-4]/) { print $1 }}'`
-                FIND1=`mount -t ext2,ext3,ext4 | grep "on / " | awk '{ print $1 }'`
+                #FIND1=`mount | ${GREPBINARY} "on / " | ${AWKBINARY} '{ if ($5~/ext[2-4]/) { print $1 }}'`
+                FIND1=`mount -t ext2,ext3,ext4 | ${GREPBINARY} "on / " | ${AWKBINARY} '{ print $1 }'`
             fi
             # Trying to determine default mount options from EXT2/EXT3/EXT4 file systems
             if [ ! "${FIND1}" = "" ]; then
                 LogText "Result: found ${FIND1}"
                 LogText "Test: Checking default options on ${FIND1}"
-                FIND2=`${TUNE2FSBINARY} -l ${FIND1} 2> /dev/null | grep "^Default mount options" | grep "acl"`
+                FIND2=`${TUNE2FSBINARY} -l ${FIND1} 2> /dev/null | ${GREPBINARY} "^Default mount options" | ${GREPBINARY} "acl"`
                 if [ ! "${FIND2}" = "" ]; then
                     LogText "Result: found ACL option in default mount options"
                     FOUND=1
@@ -425,7 +425,7 @@
         fi
 
         LogText "Test: Checking acl option on xfs root file system"
-        FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | egrep 'no_acl|no_user_xattr'`
+        FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | ${EGREPBINARY} 'no_acl|no_user_xattr'`
         if [ "${FIND}" = "" ]; then
             FOUND=1
             # some other tests to do ?
@@ -452,10 +452,10 @@
     Register --test-no FILE-6372 --os Linux --weight L --network NO --category security --description "Checking / mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/fstab ]; then
-            FIND=$(awk '{ if ($2=="/") { print $4 } }' /etc/fstab | grep -v "^#")
-            NODEV=$(echo ${FIND} | awk '{ if ($1 ~ "nodev") { print "YES" } else { print "NO" } }')
-            NOEXEC=$(echo ${FIND} | awk '{ if ($1 ~ "noexec") { print "YES" } else { print "NO" } }')
-            NOSUID=$(echo ${FIND} | awk '{ if ($1 ~ "nosuid") { print "YES" } else { print "NO" } }')
+            FIND=$(${AWKBINARY} '{ if ($2=="/") { print $4 } }' /etc/fstab | ${GREPBINARY} -v "^#")
+            NODEV=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "nodev") { print "YES" } else { print "NO" } }')
+            NOEXEC=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "noexec") { print "YES" } else { print "NO" } }')
+            NOSUID=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "nosuid") { print "YES" } else { print "NO" } }')
 
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: mount system / is configured with options: ${FIND}"
@@ -499,16 +499,16 @@
             for I in ${FILESYSTEMS_TO_CHECK}; do
                 FILESYSTEM=$(echo ${I} | cut -d: -f1)
                 EXPECTED_FLAGS=$(echo ${I} | cut -d: -f2 | sed 's/,/ /g')
-                IN_FSTAB=$(awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print "FOUND" } }' /etc/fstab)
+                IN_FSTAB=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print "FOUND" } }' /etc/fstab)
                 if [ ! "${IN_FSTAB}" = "" ]; then
-                    FOUND_FLAGS=$(awk -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' /etc/fstab | sed 's/,/ /g' | tr '\n' ' ')
+                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' /etc/fstab | sed 's/,/ /g' | tr '\n' ' ')
                     LogText "File system:    ${FILESYSTEM}"
                     LogText "Expected flags: ${EXPECTED_FLAGS}"
                     LogText "Found flags:    ${FOUND_FLAGS}"
                     PARTIALLY_HARDENED=0
                     FULLY_HARDENED=1
                     for FLAG in ${EXPECTED_FLAGS}; do
-                        FLAG_AVAILABLE=`echo ${FOUND_FLAGS} | grep ${FLAG}`
+                        FLAG_AVAILABLE=`echo ${FOUND_FLAGS} | ${GREPBINARY} ${FLAG}`
                         if [ "${FLAG_AVAILABLE}" = "" ]; then
                             LogText "Result: Could not find mount option ${FLAG} on file system ${FILESYSTEM}"
                             FULLY_HARDENED=0
@@ -550,8 +550,8 @@
     Register --test-no FILE-6376 --os Linux --weight L --network NO --category security --description "Determine if /var/tmp is bound to /tmp"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/fstab ]; then
-            FIND=$(awk '{ if ($2=="/var/tmp") { print $4 } }' /etc/fstab)
-            BIND=$(echo ${FIND} | awk '{ if ($1 ~ "bind") { print "YES" } else { print "NO" } }')
+            FIND=$(${AWKBINARY} '{ if ($2=="/var/tmp") { print $4 } }' /etc/fstab)
+            BIND=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "bind") { print "YES" } else { print "NO" } }')
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: mount system /var/tmp is configured with options: ${FIND}"
                 if [ "${BIND}" = "YES" ]; then

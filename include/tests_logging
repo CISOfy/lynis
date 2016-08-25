@@ -43,7 +43,7 @@
     Register --test-no LOGG-2130 --weight L --network NO --category security --description "Check for running syslog daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for a logging daemon"
-        FIND=`${PSBINARY} ax | egrep "syslogd|syslog-ng|metalog|systemd-journal" | grep -v "grep"`
+        FIND=`${PSBINARY} ax | ${EGREPBINARY} "syslogd|syslog-ng|metalog|systemd-journal" | ${GREPBINARY} -v "grep"`
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Checking for a running log daemon" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Could not find a syslog daemon like syslog, syslog-ng, rsyslog, metalog, systemd-journal"
@@ -183,7 +183,7 @@
         LogText "Test: Searching kernel logger daemon (klogd)"
         if [ ${RSYSLOG_RUNNING} -eq 0 -a ${SYSTEMD_JOURNAL_RUNNING} -eq 0 ]; then
             # Search for klogd, but ignore other lines related to klogd (like dd with input/output file)
-            #FIND=`${PSBINARY} ax | grep "klogd" | grep -v "dd" | grep -v "grep"`
+            #FIND=`${PSBINARY} ax | ${GREPBINARY} "klogd" | ${GREPBINARY} -v "dd" | ${GREPBINARY} -v "grep"`
             IsRunning klogd
             if [ ${RUNNING} -eq 1 ]; then
                 LogText "Result: klogd running"
@@ -258,7 +258,7 @@
     Register --test-no LOGG-2148 --weight L --preqs-met ${PREQS_MET} --network NO --category security --description "Checking logrotated files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking which files are rotated with logrotate and if they exist"
-        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | egrep "considering log|skipping" | grep -v '*' | sort -u | awk '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }'`
+        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }'`
         if [ "${FIND}" = "" ]; then
             LogText "Result: nothing found"
           else
@@ -277,7 +277,7 @@
     Register --test-no LOGG-2150 --weight L --preqs-met ${PREQS_MET} --network NO --category security --description "Checking directories in logrotate configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking which directories can be found in logrotate configuration"
-        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | egrep "considering log|skipping" | grep -v '*' | sort -u | awk '{ if ($2=="log") { print $3 } }' | sed 's@/[^/]*$@@g' | sort -u`
+        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2=="log") { print $3 } }' | sed 's@/[^/]*$@@g' | ${SORTBINARY} -u`
         if [ "${FIND}" = "" ]; then
             LogText "Result: nothing found"
           else
@@ -302,7 +302,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Try local hosts file
         LogText "Result: Checking for loghost in /etc/inet/hosts"
-        FIND=`grep loghost /etc/inet/hosts | grep -v "^#"`
+        FIND=`${GREPBINARY} loghost /etc/inet/hosts | ${GREPBINARY} -v "^#"`
         if [ ! "${FIND}" = "" ]; then
             SOLARIS_LOGHOST_FOUND=1
             LogText "Result: Found loghost entry in /etc/inet/hosts"
@@ -311,7 +311,7 @@
 
             # Try name resolving if no entry is present in local host file
             LogText "Result: Checking for loghost via name resolving"
-            FIND=`getent hosts loghost | grep loghost`
+            FIND=`getent hosts loghost | ${GREPBINARY} loghost`
             if [ ! "${FIND}" = "" ]; then
                 SOLARIS_LOGHOST_FOUND=1
                 LogText "Result: name resolving was succesful"
@@ -347,15 +347,15 @@
         fi
         if [ -f ${SYSLOGD_CONF} ]; then
             LogText "Test: check if logs are also logged to a remote logging host"
-            FIND=`egrep "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | grep -v "^#" | grep -v "[a-zA-Z0-9]@"`
+            FIND=`${EGREPBINARY} "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@"`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: remote logging enabled"
                 REMOTE_LOGGING_ENABLED=1
             else
                 # Search for configured destinations with an IP address or hostname, then determine which ones are used as a log destination
-                DESTINATIONS=`grep "^destination" ${SYSLOGD_CONF} | egrep "(udp|tcp)" | grep "port" | awk '{print $2}'`
+                DESTINATIONS=`${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${EGREPBINARY} "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}'`
                 for DESTINATION in ${DESTINATIONS}; do
-                    FIND2=`grep "log" | grep "source" | egrep "destination\(${DESTINATION}\)"`
+                    FIND2=`${GREPBINARY} "log" | ${GREPBINARY} "source" | ${EGREPBINARY} "destination\(${DESTINATION}\)"`
                     if [ ! "${FIND2}" = "" ]; then
                         LogText "Result: found destination ${DESTINATION} configured for remote logging"
                         REMOTE_LOGGING_ENABLED=1
@@ -397,7 +397,7 @@
     Register --test-no LOGG-2162 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking directories in /etc/newsyslog.conf"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: parsing directories from /etc/newsyslog.conf file"
-        FIND=`awk '/^\// { print $1 }' /etc/newsyslog.conf | sed 's/\/*[a-zA-Z_.-]*$//g' | sort -u`
+        FIND=`${AWKBINARY} '/^\// { print $1 }' /etc/newsyslog.conf | sed 's/\/*[a-zA-Z_.-]*$//g' | ${SORTBINARY} -u`
         for I in ${FIND}; do
             if [ -d ${I} ]; then
                 LogText "Result: Directory ${I} found and exists"
@@ -417,7 +417,7 @@
     Register --test-no LOGG-2164 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking files specified /etc/newsyslog.conf"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: parsing files from /etc/newsyslog.conf file"
-        FIND=`awk '/^\// { print $1 }' /etc/newsyslog.conf | sort -u`
+        FIND=`${AWKBINARY} '/^\// { print $1 }' /etc/newsyslog.conf | ${SORTBINARY} -u`
         for I in ${FIND}; do
             if [ -f ${I} ]; then
                 LogText "Result: File ${I} found and exists"
@@ -454,7 +454,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking open log files with lsof"
         if [ ! "${LSOFBINARY}" = "" ]; then
-            FIND=`${LSOFBINARY} -n 2>&1 | grep "log$" | egrep -v "WARNING|Output information" | awk '{ if ($5=="REG") { print $9 } }' | sort -u | grep -v "^$"`
+            FIND=`${LSOFBINARY} -n 2>&1 | ${GREPBINARY} "log$" | ${EGREPBINARY} -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$"`
             for I in ${FIND}; do
                 LogText "Found logfile: ${I}"
                 Report "open_logfile[]=${I}"
@@ -480,7 +480,7 @@
         LSOF_GREP="WARNING|Output information"
 
         # MySQL versions prior to 5.6 leave lots of deleted in-use files in /tmp, ignoring those
-        if [ ! -z "${DPKGBINARY}" ]; then EARLY_MYSQL=$(${DPKGBINARY} -l | egrep mysql-server-5.[0-5]); fi
+        if [ ! -z "${DPKGBINARY}" ]; then EARLY_MYSQL=$(${DPKGBINARY} -l | ${EGREPBINARY} mysql-server-5.[0-5]); fi
         if [ ! -z "${EARLY_MYSQL}" ]; then LSOF_GREP="${LSOF_GREP}|mysqld"; fi
 
         # grsecurity causes Fail2Ban to hold onto deleted in-use files in /var/tmp
@@ -490,7 +490,7 @@
             LSOF_GREP="${LSOF_GREP}|anacron|awk|run-parts"
         fi
 
-        FIND=$(${LSOFBINARY} -n +L 1 2>&1 | egrep -vw "${LSOF_GREP}" | awk '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | grep -v "^$" | sort -u)
+        FIND=$(${LSOFBINARY} -n +L 1 2>&1 | ${EGREPBINARY} -vw "${LSOF_GREP}" | ${AWKBINARY} '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found one or more files which are deleted, but still in use"
             for I in ${FIND}; do
@@ -512,7 +512,7 @@
     if [ ! "${LSOFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2192 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for open log files that are empty"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${LSOFBINARY} -n -w | awk '{if ($5=="REG" && $7=="0" && $9 ~ /log$/) {print $1","$9}}' | sort | uniq)
+        FIND=$(${LSOFBINARY} -n -w | ${AWKBINARY} '{if ($5=="REG" && $7=="0" && $9 ~ /log$/) {print $1","$9}}' | ${SORTBINARY} | uniq)
         if [ ! -z "${FIND}" ]; then
             for I in ${FIND}; do
                 LogText "Found an opened logfile that is empty: ${I}"

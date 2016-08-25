@@ -46,7 +46,7 @@
         LogText "Test: check /etc/resolv.conf for default domain"
         if [ -f /etc/resolv.conf ]; then
             LogText "Result: /etc/resolv.conf found"
-            FIND=`awk '/^domain/ { print $2 }' /etc/resolv.conf`
+            FIND=`${AWKBINARY} '/^domain/ { print $2 }' /etc/resolv.conf`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: no default domain found"
                 if IsVerbose; then Display --indent 2 --text "- Checking default DNS search domain" --result "${STATUS_NONE}" --color WHITE; fi
@@ -71,7 +71,7 @@
         LogText "Test: check /etc/resolv.conf for search domains"
         if [ -f /etc/resolv.conf ]; then
             LogText "Result: /etc/resolv.conf found"
-            FIND=`awk '/^search/ { print $2 }' /etc/resolv.conf`
+            FIND=`${AWKBINARY} '/^search/ { print $2 }' /etc/resolv.conf`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: no search domains found, default domain is being used"
               else
@@ -96,7 +96,7 @@
         fi
 
         # Check amount of search domains (max 1)
-            FIND=`grep -c "^search" /etc/resolv.conf`
+            FIND=`${GREPBINARY} -c "^search" /etc/resolv.conf`
             if [ ! "${FIND}" = "0" -a ! "${FIND}" = "1" ]; then
                 LogText "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"
                 Display --indent 4 --text "- Checking search domains lines" --result "CONFIG ERROR" --color YELLOW
@@ -115,7 +115,7 @@
         LogText "Test: check /etc/resolv.conf for non default options"
         if [ -f /etc/resolv.conf ]; then
             LogText "Result: /etc/resolv.conf found"
-            FIND=`grep "^options" /etc/resolv.conf | awk '{ print $2 }'`
+            FIND=`${GREPBINARY} "^options" /etc/resolv.conf | ${AWKBINARY} '{ print $2 }'`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: no specific other options configured in /etc/resolv.conf"
                 if IsVerbose; then Display --indent 2 --text "- Checking /etc/resolv.conf options" --result "${STATUS_NONE}" --color WHITE; fi
@@ -168,7 +168,7 @@
 #
     # Test        : NAME-4028
     # Description : Check DNS domain name
-    # To Do       : grep ^DOMAINNAME /etc/conf.d/domainname (remove "'s)
+    # To Do       : ${GREPBINARY} ^DOMAINNAME /etc/conf.d/domainname (remove "'s)
     Register --test-no NAME-4028 --weight L --network NO --category security --description "Check domain name"
     if [ ${SKIPTEST} -eq 0 ]; then
         DOMAINNAME=""
@@ -365,7 +365,7 @@
     Register --test-no NAME-4210 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check DNS banner"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Trying to determine version from banner"
-        FIND=`${DIGBINARY} @localhost version.bind chaos txt | grep "^version.bind" | grep TXT | egrep "[0-9].[0-9].[0-9]*"`
+        FIND=`${DIGBINARY} @localhost version.bind chaos txt | ${GREPBINARY} "^version.bind" | ${GREPBINARY} TXT | ${EGREPBINARY} "[0-9].[0-9].[0-9]*"`
         if [ "${FIND}" = "" ]; then
             LogText "Result: no useful information in banner found"
             Display --indent 4 --text "- Checking BIND version in banner" --result "${STATUS_OK}" --color GREEN
@@ -456,7 +456,7 @@
     Register --test-no NAME-4236 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PowerDNS backends"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for PowerDNS backends"
-        FIND=`awk -F= '/^launch/ { print $2 }' ${POWERDNS_AUTH_CONFIG_LOCATION}`
+        FIND=`${AWKBINARY} -F= '/^launch/ { print $2 }' ${POWERDNS_AUTH_CONFIG_LOCATION}`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 LogText "Found backend: ${I}"
@@ -476,7 +476,7 @@
     Register --test-no NAME-4238 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PowerDNS authoritive status"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for PowerDNS master status"
-        FIND=`grep "^master=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
+        FIND=`${GREPBINARY} "^master=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
         if [ ! "${FIND}" = "" ]; then
             LogText "Found master=yes in configuration file"
             Display --indent 4 --text "- PowerDNS authoritive master: YES"
@@ -486,7 +486,7 @@
             Display --indent 4 --text "- PowerDNS authoritive master: NO"
         fi
         LogText "Test: Checking for PowerDNS slave status"
-        FIND=`grep "^slave=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
+        FIND=`${GREPBINARY} "^slave=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
         if [ ! "${FIND}" = "" ]; then
             LogText "Found slave=yes in configuration file"
             Display --indent 4 --text "- PowerDNS authoritive slave: YES"
@@ -531,7 +531,7 @@
     Register --test-no NAME-4306 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NIS domain"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking `domainname` for NIS domain value"
-        FIND=`${DOMAINNAMEBINARY} | grep -v "(none)"`
+        FIND=`${DOMAINNAMEBINARY} | ${GREPBINARY} -v "(none)"`
         if [ ! "${FIND}" = "" ]; then
             LogText "Value: ${FIND}"
             NISDOMAIN="${FIND}"
@@ -555,7 +555,7 @@
         if [ -f /etc/sysconfig/network ]; then
             LogText "Result: file /etc/sysconfig/network exists"
             LogText "Test: checking NISDOMAIN value in file"
-            FIND3=`grep "^NISDOMAIN" /etc/sysconfig/network | awk -F= '{ print $2 }' | sed 's/"//g'`
+            FIND3=`${GREPBINARY} "^NISDOMAIN" /etc/sysconfig/network | ${AWKBINARY} -F= '{ print $2 }' | sed 's/"//g'`
             if [ ! "${FIND3}" = "" ]; then
                 LogText "Found NIS domain: ${FIND3}"
                 NISDOMAIN="${FIND3}"
@@ -569,7 +569,7 @@
         if [ ! "${SYSCTLBINARY}" = "" ]; then
             # Check sysctl (e.g. FreeBSD)
             LogText "Test: checking sysctl for kern.domainname"
-            FIND=`${SYSCTLBINARY} -a 2>&1 | grep "^kern.domainname" | awk -F: '{ print $2 }' | sed 's/ //g' | grep -v "^$"`
+            FIND=`${SYSCTLBINARY} -a 2>&1 | ${GREPBINARY} "^kern.domainname" | ${AWKBINARY} -F: '{ print $2 }' | sed 's/ //g' | ${GREPBINARY} -v "^$"`
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: found NIS domain via sysctl"
                 NISDOMAIN="${FIND}"
@@ -598,7 +598,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check duplicate line in /etc/hosts"
         if [ -f /etc/hosts ]; then
-            sFIND=`egrep -v '^(#|$)' /etc/hosts | awk '{ print $1, $2 }' | sort | uniq -d`
+            sFIND=`${EGREPBINARY} -v '^(#|$)' /etc/hosts | ${AWKBINARY} '{ print $1, $2 }' | ${SORTBINARY} | uniq -d`
             if [ "${sFIND}" = "" ]; then
                 LogText "Result: OK, no duplicate lines found"
                 Display --indent 4 --text "- Checking /etc/hosts (duplicates)" --result "${STATUS_OK}" --color GREEN
@@ -623,7 +623,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check /etc/hosts contains an entry for this server name"
         if [ -f /etc/hosts ]; then
-            sFIND=`egrep -v '^(#|$|^::1\s|localhost)' /etc/hosts | grep -i ${HOSTNAME}`
+            sFIND=`${EGREPBINARY} -v '^(#|$|^::1\s|localhost)' /etc/hosts | ${GREPBINARY} -i ${HOSTNAME}`
             if [ "${sFIND}" != "" ]; then
                 LogText "Result: Found entry for ${HOSTNAME} in /etc/hosts"
                 Display --indent 4 --text "- Checking /etc/hosts (hostname)" --result "${STATUS_OK}" --color GREEN
@@ -644,7 +644,7 @@
     Register --test-no NAME-4406 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check server hostname mapping"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check server hostname not locally mapped in /etc/hosts"
-        sFIND=`egrep -v '^(#|$)' /etc/hosts | egrep '^(localhost|::1)\s' | grep -w ${HOSTNAME}`
+        sFIND=`${EGREPBINARY} -v '^(#|$)' /etc/hosts | ${EGREPBINARY} '^(localhost|::1)\s' | ${GREPBINARY} -w ${HOSTNAME}`
         if  [ ! "${sFIND}" = "" ]; then
           LogText "Result: Found this server hostname mapped to a local address"
           LogText "Output: ${sFIND}"

@@ -51,7 +51,7 @@
     Register --test-no SHLL-6202 --os FreeBSD --weight L --network NO --category security --description "Check console TTYs"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking console TTYs"
-        FIND=`egrep '^console' /etc/ttys | grep -v 'insecure'`
+        FIND=`${EGREPBINARY} '^console' /etc/ttys | ${GREPBINARY} -v 'insecure'`
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Checking console TTYs" --result "${STATUS_OK}" --color GREEN
             LogText "Result: console is secured against single user mode without password."
@@ -75,7 +75,7 @@
         if [ -f /etc/shells ]; then
             LogText "Result: Found /etc/shells file"
             LogText "Test: Reading available shells from /etc/shells"
-            SSHELLS=`grep "^/" /etc/shells`
+            SSHELLS=`${GREPBINARY} "^/" /etc/shells`
             CSSHELLS=0; CSSHELLS_ALL=0
             Display --indent 2 --text "- Checking shells from /etc/shells"
             for I in ${SSHELLS}; do
@@ -117,9 +117,9 @@
 
         if [ -f /etc/profile ]; then
             # Determine if we can find a TMOUT value
-            FIND=`grep 'TMOUT=' /etc/profile | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+            FIND=`${GREPBINARY} 'TMOUT=' /etc/profile | tr -d ' ' | tr -d '\t' | ${GREPBINARY} -v "^#" | sed 's/export//' | sed 's/#.*//' | ${AWKBINARY} -F= '{ print $2 }'`
             # Determine if the value is exported (with export, readonly, or typeset)
-            FIND2=`grep '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' /etc/profile | grep -v "^#" | sed 's/#.*//' | awk '{ print $1 }'`
+            FIND2=`${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' /etc/profile | ${GREPBINARY} -v "^#" | sed 's/#.*//' | ${AWKBINARY} '{ print $1 }'`
             if [ ! "${FIND}" = "" ]; then
                 N=0; IDLE_TIMEOUT=1
                 for I in ${FIND}; do
@@ -163,9 +163,9 @@
             FIND=`ls /etc/profile.d/*.sh 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
                 # Determine if we can find a TMOUT value
-                FIND=`cat /etc/profile.d/*.sh 2> /dev/null | grep 'TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+                FIND=`cat /etc/profile.d/*.sh 2> /dev/null | ${GREPBINARY} 'TMOUT=' | tr -d ' ' | tr -d '\t' | ${GREPBINARY} -v "^#" | sed 's/export//' | sed 's/#.*//' | ${AWKBINARY} -F= '{ print $2 }'`
                 # Determine if the value is exported (with export, readonly, or typeset)
-                FIND2=`cat /etc/profile.d/*.sh 2> /dev/null | grep '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | grep -v "^#" | sed 's/#.*//' | awk '{ print $1 }'`
+                FIND2=`cat /etc/profile.d/*.sh 2> /dev/null | ${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | ${GREPBINARY} -v "^#" | sed 's/#.*//' | ${AWKBINARY} '{ print $1 }'`
 
                 if [ ! "${FIND}" = "" ]; then
                     N=0; IDLE_TIMEOUT=1
@@ -231,7 +231,7 @@
             if [ -f ${FILE} ]; then
                 LogText "Result: file ${FILE} exists"
                 FOUND=1
-                FIND=`grep umask ${FILE} | sed 's/^[ \t]*//g' | sed 's/#.*$//' | grep -v "^$" | awk '{ print $2 }'`
+                FIND=`${GREPBINARY} umask ${FILE} | sed 's/^[ \t]*//g' | sed 's/#.*$//' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ print $2 }'`
                 if [ "${FIND}" = "" ]; then
                     LogText "Result: did not find umask configured in ${FILE}"
                     Display --indent 4 --text "- Checking default umask in ${FILE}" --result "${STATUS_NONE}" --color YELLOW
@@ -280,7 +280,7 @@
         LogText "Test: Check if bash is in the list of shells."
         if [ -f /etc/shells ]; then
             LogText "Test: checking for bash shell in /etc/shells"
-            FIND=`egrep '(/usr)?(/local)?/bin/bash' /etc/shells | grep -v "^#" | head -1`
+            FIND=`${EGREPBINARY} '(/usr)?(/local)?/bin/bash' /etc/shells | ${GREPBINARY} -v "^#" | head -1`
           else
             LogText "Test: checking if bash is available via which command"
             FIND=`which bash 2> /dev/null | head -1`
@@ -295,7 +295,7 @@
 
                 # CVE-2014-6271
                 LogText "Test: Check for first exploit (CVE-2014-6271)"
-                echo "env 'x=() { :;}; echo vulnerable' 'BASH_FUNC_x()=() { :;}; echo vulnerable' bash -c \"echo test\" 2>&1 | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                echo "env 'x=() { :;}; echo vulnerable' 'BASH_FUNC_x()=() { :;}; echo vulnerable' bash -c \"echo test\" 2>&1 | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
@@ -312,7 +312,7 @@
 
                 # CVE-2014-6278
                 LogText "Test: Check for CVE-2014-6278"
-                echo "shellshocker='() { echo vulnerable; }' bash -c shellshocker 2>/dev/null | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                echo "shellshocker='() { echo vulnerable; }' bash -c shellshocker 2>/dev/null | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
@@ -327,7 +327,7 @@
 
                 # CVE-2014-7169
                 LogText "Test: Check for taviso bug CVE-2014-7169"
-                echo "(cd /tmp; rm -f /tmp/echo; env X='() { (a)=>\' bash -c "echo echo nonvuln" 2>/dev/null; [[ \"\$(cat echo 2> /dev/null)\" == \"nonvuln\" ]] && echo \"vulnerable\" 2> /dev/null) | grep '   vulnerable'" > ${SHELLSHOCK_TMP}
+                echo "(cd /tmp; rm -f /tmp/echo; env X='() { (a)=>\' bash -c "echo echo nonvuln" 2>/dev/null; [[ \"\$(cat echo 2> /dev/null)\" == \"nonvuln\" ]] && echo \"vulnerable\" 2> /dev/null) | ${GREPBINARY} '   vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
@@ -342,7 +342,7 @@
 
                 # CVE-2014-7186
                 LogText "Test: Check for CVE-2014-7186"
-                echo "(bash -c 'true <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF' 2>/dev/null || echo \"vulnerable\") | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                echo "(bash -c 'true <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF' 2>/dev/null || echo \"vulnerable\") | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
@@ -357,7 +357,7 @@
 
                 # CVE-2014-7187
                 LogText "Test: Check for CVE-2014-7187"
-                echo "((for x in {1..200}; do echo \"for x$x in ; do :\"; done; for x in {1..200}; do echo done; done) | bash || echo \"vulnerable\") | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                echo "((for x in {1..200}; do echo \"for x$x in ; do :\"; done; for x in {1..200}; do echo done; done) | bash || echo \"vulnerable\") | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
@@ -372,7 +372,7 @@
 
                 # CVE-2014-////
                 LogText "Test: Check for bug Exploit #3 - shellshocker.net (no CVE)"
-                echo "env X=' () { }; echo hello' bash -c 'date'| grep 'hello'" > ${SHELLSHOCK_TMP}
+                echo "env X=' () { }; echo hello' bash -c 'date'| ${GREPBINARY} 'hello'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then

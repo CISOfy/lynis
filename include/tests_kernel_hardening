@@ -39,18 +39,18 @@
 
         # First scan optional profiles only (ignore default and custom)
         for PROFILE in ${PROFILES}; do
-            FILE=$(echo ${PROFILE} | awk -F/ '{print $NF}')
+            FILE=$(echo ${PROFILE} | ${AWKBINARY} -F/ '{print $NF}')
             if [ ! "${FILE}" = "default.prf" -a ! "${FILE}" = "custom.prf" ]; then
-                FIND=$(grep "^config-data=sysctl;" ${PROFILE} | sed 's/ /-space-/g')
+                FIND=$(${GREPBINARY} "^config-data=sysctl;" ${PROFILE} | sed 's/ /-space-/g')
                 DATA_TO_SCAN="${DATA_TO_SCAN} ${FIND}"
             fi
         done
 
         # Scan custom profile
         if [ ! -z "${CUSTOM_PROFILE}" ]; then
-            FIND=$(grep "^config-data=sysctl;" ${CUSTOM_PROFILE} | sed 's/ /-space-/g')
+            FIND=$(${GREPBINARY} "^config-data=sysctl;" ${CUSTOM_PROFILE} | sed 's/ /-space-/g')
             for LINE in ${FIND}; do
-                SYSCTLKEY=$(echo ${LINE} | awk -F\; '{ print $2 }')
+                SYSCTLKEY=$(echo ${LINE} | ${AWKBINARY} -F\; '{ print $2 }')
                 HAS_KEY=$(echo ${DATA_TO_SCAN} | ${GREPBINARY} ";${SYSCTLKEY};")
                 if [ $? -gt 0 ]; then DATA_TO_SCAN="${DATA_TO_SCAN} ${LINE}"; fi
             done
@@ -58,9 +58,9 @@
 
         # Last, use data from default profile
         if [ ! -z "${DEFAULT_PROFILE}" ]; then
-            FIND=$(grep "^config-data=sysctl;" ${DEFAULT_PROFILE} | sed 's/ /-space-/g')
+            FIND=$(${GREPBINARY} "^config-data=sysctl;" ${DEFAULT_PROFILE} | sed 's/ /-space-/g')
             for LINE in ${FIND}; do
-                SYSCTLKEY=$(echo ${LINE} | awk -F\; '{ print $2 }')
+                SYSCTLKEY=$(echo ${LINE} | ${AWKBINARY} -F\; '{ print $2 }')
                 HAS_KEY=$(echo ${DATA_TO_SCAN} | ${GREPBINARY} ";${SYSCTLKEY};")
                 if [ $? -gt 0 ]; then DATA_TO_SCAN="${DATA_TO_SCAN} ${LINE}"; fi
             done
@@ -70,10 +70,10 @@
         DATA_TO_SCAN=$(echo ${DATA_TO_SCAN} | tr ' ' '\n' | sort)
 
         for I in ${DATA_TO_SCAN}; do
-            tFINDkey=$(echo ${I} | awk -F\; '{ print $2 }')
-            tFINDexpvalue=$(echo ${I} | awk -F\; '{ print $3 }')
-            tFINDhp=$(echo ${I} | awk -F\; '{ print $4 }' | grep "[0-9]")
-            tFINDdesc=$(echo ${I} | awk -F\; '{ print $5 }' | sed 's/-space-/ /g')
+            tFINDkey=$(echo ${I} | ${AWKBINARY} -F\; '{ print $2 }')
+            tFINDexpvalue=$(echo ${I} | ${AWKBINARY} -F\; '{ print $3 }')
+            tFINDhp=$(echo ${I} | ${AWKBINARY} -F\; '{ print $4 }' | ${GREPBINARY} "[0-9]")
+            tFINDdesc=$(echo ${I} | ${AWKBINARY} -F\; '{ print $5 }' | sed 's/-space-/ /g')
             tFINDcurvalue=$(${SYSCTL_READKEY} ${tFINDkey} 2> /dev/null)
             if [ ! "${tFINDcurvalue}" = "" ]; then
                 if [ "${tFINDexpvalue}" = "${tFINDcurvalue}" ]; then

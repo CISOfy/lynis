@@ -48,7 +48,7 @@
                     LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
                     ReportException "${TEST_NO}:01"
                   else
-                    FIND2=`echo ${FIND} | egrep "runlevel5|graphical"`
+                    FIND2=`echo ${FIND} | ${EGREPBINARY} "runlevel5|graphical"`
                     if [ ! "${FIND2}" = "" ]; then
                         LogText "Result: Found match on runlevel5/graphical"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
@@ -69,7 +69,7 @@
             if [ -f /etc/inittab ]; then
                 LogText "Result: file /etc/inittab found"
                 LogText "Test: Checking default Linux run level"
-                FIND=`awk -F: '/^id/ { print $2; }' /etc/inittab | head -n 1`
+                FIND=`${AWKBINARY} -F: '/^id/ { print $2; }' /etc/inittab | head -n 1`
                 if [ "${FIND}" = "" ]; then
                     Display --indent 2 --text "- Checking default runlevel" --result "${STATUS_UNKNOWN}" --color YELLOW
                     LogText "Result: Can't determine default run level from /etc/inittab"
@@ -82,7 +82,7 @@
                 LogText "Result: file /etc/inittab not found"
                 if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then
                     LogText "Test: Checking run level with who -r, for Debian based systems"
-                    FIND=`who -r | awk '{ if ($1=="run-level") { print $2 } }'`
+                    FIND=`who -r | ${AWKBINARY} '{ if ($1=="run-level") { print $2 } }'`
                     if [ ! "${FIND}" = "" ]; then
                         LogText "Result: Found default run level '${FIND}'"
                         Report "linux_default_runlevel=${FIND}"
@@ -109,9 +109,9 @@
         if [ -f /proc/cpuinfo ]; then
             LogText "Result: found /proc/cpuinfo"
             LogText "Test: Checking CPU options (XD/NX/PAE)"
-            FIND_PAE_NX=`grep " pae " /proc/cpuinfo | grep " nx "`
-            FIND_PAE=`grep " pae " /proc/cpuinfo`
-            FIND_NX=`grep " nx " /proc/cpuinfo`
+            FIND_PAE_NX=`${GREPBINARY} " pae " /proc/cpuinfo | ${GREPBINARY} " nx "`
+            FIND_PAE=`${GREPBINARY} " pae " /proc/cpuinfo`
+            FIND_NX=`${GREPBINARY} " nx " /proc/cpuinfo`
             FOUND=0
             if [ ! "${FIND_PAE_NX}" = "" ]; then
                 LogText "PAE: Yes"
@@ -184,7 +184,7 @@
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
             LogText "Test: checking if kernel is monolithic or modular"
             # Checking if any modules are loaded
-            FIND=`${LSMODBINARY} | grep -v "^Module" | wc -l | tr -s ' ' | tr -d ' '`
+            FIND=`${LSMODBINARY} | ${GREPBINARY} -v "^Module" | wc -l | tr -s ' ' | tr -d ' '`
             Display --indent 2 --text "- Checking kernel type" --result "${STATUS_DONE}" --color GREEN
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: Found monolithic kernel"
@@ -207,7 +207,7 @@
     Register --test-no KRNL-5726 --os Linux --weight L --network NO --category security --description "Checking Linux loaded kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
-            FIND=`${LSMODBINARY} | awk '{ if ($1!="Module") print $1 }' | sort`
+            FIND=`${LSMODBINARY} | ${AWKBINARY} '{ if ($1!="Module") print $1 }' | sort`
             Display --indent 2 --text "- Checking loaded kernel modules" --result "${STATUS_DONE}" --color GREEN
             if [ ! "${FIND}" = "" ]; then
                 LogText "Loaded modules according lsmod:"
@@ -267,7 +267,7 @@
         if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
         if [ ! "${GREPTOOL}" = "" ]; then
             LogText "Test: Checking the default I/O kernel scheduler"
-            LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | awk -F= '{ print $2 }' | sed s/\"//g`
+            LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | sed s/\"//g`
             if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
                 LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
@@ -277,7 +277,7 @@
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_NOT_FOUND}" --color WHITE
             fi
           else
-            ReportException "${TEST_NO}" "No valid grep tool found to search kernel settings"
+            ReportException "${TEST_NO}" "No valid ${GREPBINARY} tool found to search kernel settings"
         fi
    fi
 #
@@ -292,7 +292,7 @@
         LogText "Description: View all active kernel modules (including kernel)"
         LogText "Test: Checking modules"
         if [ -f /sbin/kldstat ]; then
-            FIND=`kldstat | grep -v 'Name' | tr -s ' ' | cut -d ' ' -f6`
+            FIND=`kldstat | ${GREPBINARY} -v 'Name' | tr -s ' ' | cut -d ' ' -f6`
             if [ $? -eq 0 ]; then
                 LogText "Loaded modules according kldstat:"
                 N=0
@@ -319,7 +319,7 @@
     Register --test-no KRNL-5770 --os Solaris --weight L --network NO --category security --description "Checking active kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: searching loaded kernel modules"
-        FIND=`modinfo -c -w | grep -v "UNLOADED" | grep LOADED | awk '{ print $3 }' | sort`
+        FIND=`modinfo -c -w | ${GREPBINARY} -v "UNLOADED" | ${GREPBINARY} LOADED | ${AWKBINARY} '{ print $3 }' | sort`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 LogText "Found module: ${I}"
@@ -347,7 +347,7 @@
                 FINDKERNFILE=`readlink -f /vmlinuz`
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
                 LogText "Test: checking package from dpkg -S"
-                FINDKERNEL=`dpkg -S ${FINDKERNFILE} 2> /dev/null | awk -F : '{print $1}'`
+                FINDKERNEL=`dpkg -S ${FINDKERNFILE} 2> /dev/null | ${AWKBINARY} -F : '{print $1}'`
                 LogText "Output: dpkg -S reported package ${FINDKERNEL}"
             elif [ -e /dev/grsec ]; then
                 FINDKERNEL=linux-image-`uname -r`
@@ -358,8 +358,8 @@
                 ReportSuggestion ${TEST_NO} "Discover why /vmlinuz is missing. Consider manually re-linking."
             fi
             LogText "Test: Using apt-cache policy to determine if there is an update available"
-            FINDINST=`apt-cache policy ${FINDKERNEL} | egrep 'Installed' | cut -d ':' -f2 | tr -d ' '`
-            FINDCAND=`apt-cache policy ${FINDKERNEL} | egrep 'Candidate' | cut -d ':' -f2 | tr -d ' '`
+            FINDINST=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | cut -d ':' -f2 | tr -d ' '`
+            FINDCAND=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | cut -d ':' -f2 | tr -d ' '`
             LogText "Kernel installed: ${FINDINST}"
             LogText "Kernel candidate: ${FINDCAND}"
             if [ "${FINDINST}" = "" ]; then
@@ -399,8 +399,8 @@
         if [ -f /etc/security/limits.conf ]; then
             LogText "Result: file /etc/security/limits.conf exists"
             LogText "Test: Checking if core dumps are disabled in /etc/security/limits.conf"
-            FIND1=`grep -v "^#" /etc/security/limits.conf | grep -v "^$" | awk '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="1") { print "soft core enabled" } }'`
-            FIND2=`grep -v "^#" /etc/security/limits.conf | grep -v "^$" | awk '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="1") { print "hard core enabled" } }'`
+            FIND1=`${GREPBINARY} -v "^#" /etc/security/limits.conf | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="1") { print "soft core enabled" } }'`
+            FIND2=`${GREPBINARY} -v "^#" /etc/security/limits.conf | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="1") { print "hard core enabled" } }'`
             if [ "${FIND1}" = "soft core enabled" -o "${FIND2}" = "hard core enabled" ]; then
                 LogText "Result: core dumps (soft or hard) are enabled"
                 Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_ENABLED}" --color YELLOW
@@ -415,7 +415,7 @@
 
             # Sysctl option
             LogText "Test: Checking sysctl value of fs.suid_dumpable"
-            FIND=`${SYSCTLBINARY} fs.suid_dumpable 2> /dev/null | awk '{ if ($1=="fs.suid_dumpable") { print $3 } }'`
+            FIND=`${SYSCTLBINARY} fs.suid_dumpable 2> /dev/null | ${AWKBINARY} '{ if ($1=="fs.suid_dumpable") { print $3 } }'`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: sysctl key fs.suid_dumpable not found"
               else
@@ -504,7 +504,7 @@
                 elif [ -f /boot/vmlinuz-linux ]; then
                     LogText "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
                     LogText "Test: checking kernel version on disk"
-                    VERSION_ON_DISK=`file -b /boot/vmlinuz-linux | awk '{ if ($1=="Linux" && $7=="version") { print $8 }}'`
+                    VERSION_ON_DISK=`file -b /boot/vmlinuz-linux | ${AWKBINARY} '{ if ($1=="Linux" && $7=="version") { print $8 }}'`
                     if [ ! "${VERSION_ON_DISK}" = "" ]; then
                         LogText "Result: found version ${VERSION_ON_DISK}"
                         ACTIVE_KERNEL=`uname -r`
@@ -526,7 +526,7 @@
                     else
                         LogText "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
                     fi
-                    # Extra current kernel version and replace dashes to allow numeric sort later on
+                    # Extra current kernel version and replace dashes to allow numeric ${SORTBINARY} later on
                     MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's/-/./g'`
                     LogText "Result: using ${MYKERNEL} as my kernel version (stripped)"
                     FIND=$(ls /boot/vmlinuz* 2> /dev/null)
@@ -534,18 +534,18 @@
                          for ITEM in ${FIND}; do
                              LogText "Result: found ${ITEM}"
                          done
-                         # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
+                         # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
                          # Ignore rescue images. Remove generic. and huge. for Slackware machines
                          LogText "Action: checking relevant kernels"
-                         KERNELS=`ls /boot/vmlinuz* | grep -v rescue | sed 's/vmlinuz-//' | sed 's/generic.//' | sed 's/huge.//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+                         KERNELS=`ls /boot/vmlinuz* | ${GREPBINARY} -v rescue | sed 's/vmlinuz-//' | sed 's/generic.//' | sed 's/huge.//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
                          KERNELS_ONE_LINE=$(echo ${KERNELS} | tr '\n' ' ')
                          LogText "Output: ${KERNELS_ONE_LINE}"
                     elif [ ! "$(ls /boot/kernel* 2> /dev/null)" = "" ]; then
                          LogText "Output: Found a kernel file in /boot"
-                         # Display kernels, extract version numbers and sort them numeric per column (up to 6 numbers)
+                         # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
                          # Examples:
                          # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
-                         KERNELS=`ls /boot/kernel* | awk -F- '{ if ($2=="genkernel") { print $4 }}' | grep "^[0-9]" | sort -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+                         KERNELS=`ls /boot/kernel* | ${AWKBINARY} -F- '{ if ($2=="genkernel") { print $4 }}' | ${GREPBINARY} "^[0-9]" | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
                          LogText "Output: ${KERNELS}"
                     else
                         ReportException "${TEST_NO}:2" "Can not find any vmlinuz or kernel files in /boot, which is unexpected"

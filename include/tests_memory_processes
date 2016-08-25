@@ -33,9 +33,9 @@
         if [ -f /proc/meminfo ]; then
             LogText "Result: found /proc/meminfo"
             Display --indent 2 --text "- Checking /proc/meminfo" --result "${STATUS_FOUND}" --color GREEN
-            FIND=`awk '/^MemTotal/ { print $2, $3 }' /proc/meminfo`
-            MEMORY_SIZE=`echo ${FIND} | awk '{ print $1 }'`
-            MEMORY_UNITS=`echo ${FIND} | awk '{ print $2 }'`
+            FIND=`${AWKBINARY} '/^MemTotal/ { print $2, $3 }' /proc/meminfo`
+            MEMORY_SIZE=`echo ${FIND} | ${AWKBINARY} '{ print $1 }'`
+            MEMORY_UNITS=`echo ${FIND} | ${AWKBINARY} '{ print $2 }'`
             LogText "Result: Found ${MEMORY_SIZE} ${MEMORY_UNITS} memory"
             Report "memory_size=${MEMORY_SIZE}"
             Report "memory_units=${MEMORY_UNITS}"
@@ -53,8 +53,8 @@
         LogText "Test: Searching /usr/sbin/prtconf"
         if [ -x /usr/sbin/prtconf ]; then
             Display --indent 2 --text "- Querying prtconf for installed memory" --result "${STATUS_DONE}" --color GREEN
-            MEMORY_SIZE=`/usr/sbin/prtconf | grep "^Memory size:" | cut -d ' ' -f3`
-            MEMORY_UNITS=`/usr/sbin/prtconf | grep "^Memory size:" | cut -d ' ' -f4`
+            MEMORY_SIZE=`/usr/sbin/prtconf | ${GREPBINARY} "^Memory size:" | cut -d ' ' -f3`
+            MEMORY_UNITS=`/usr/sbin/prtconf | ${GREPBINARY} "^Memory size:" | cut -d ' ' -f4`
             LogText "Result: Found ${MEMORY_SIZE} ${MEMORY_UNITS} memory"
             Report "memory_size=${MEMORY_SIZE}"
             Report "memory_units=${MEMORY_UNITS}"
@@ -73,9 +73,9 @@
     Register --test-no PROC-3612 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check dead or zombie processes"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${OS}" = "AIX" ]; then
-            FIND=`${PSBINARY} -Ae -o pid,stat,comm | awk '{ if ($2 ~ /Z|X/) print $1 }' | xargs`
+            FIND=`${PSBINARY} -Ae -o pid,stat,comm | ${AWKBINARY} '{ if ($2 ~ /Z|X/) print $1 }' | xargs`
           else
-            FIND=`${PSBINARY} x -o pid,stat,comm | awk '{ if ($2 ~ /Z|X/) print $1 }' | xargs`
+            FIND=`${PSBINARY} x -o pid,stat,comm | ${AWKBINARY} '{ if ($2 ~ /Z|X/) print $1 }' | xargs`
         fi
         if [ "${FIND}" = "" ]; then
             LogText "Result: no zombie processes found"
@@ -97,9 +97,9 @@
     Register --test-no PROC-3614 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check heavy IO waiting based processes"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${OS}" = "AIX" ]; then
-            FIND=`${PSBINARY} -Ae -o pid,stat,comm | awk '{ if ($2=="D") print $1 }' | xargs`
+            FIND=`${PSBINARY} -Ae -o pid,stat,comm | ${AWKBINARY} '{ if ($2=="D") print $1 }' | xargs`
           else
-            FIND=`${PSBINARY} x -o pid,stat,comm | awk '{ if ($2=="D") print $1 }' | xargs`
+            FIND=`${PSBINARY} x -o pid,stat,comm | ${AWKBINARY} '{ if ($2=="D") print $1 }' | xargs`
         fi
         if [ "${FIND}" = "" ]; then
             LogText "Result: No processes were waiting for IO requests to be handled first"

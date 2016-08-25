@@ -45,12 +45,12 @@
         IPV6_ONLY=255
         IPV6_MISCONFIGURED=0
         IPV6_MISCONFIGURED_MTU=0
-        FIND=`sysctl -a 2> /dev/null | grep "^net.ipv6" | sed "s/ = /=/"`
+        FIND=`sysctl -a 2> /dev/null | ${GREPBINARY} "^net.ipv6" | sed "s/ = /=/"`
         if [ ! "${FIND}" = "" ]; then
             IPV6_CONFIGURED=1
             for I in ${FIND}; do
-                SYSCTL_KEY=`echo ${I} | awk -F= '{ print $1 }'`
-                SYSCTL_VALUE=`echo ${I} | awk -F= '{ print $2 }'`
+                SYSCTL_KEY=`echo ${I} | ${AWKBINARY} -F= '{ print $1 }'`
+                SYSCTL_VALUE=`echo ${I} | ${AWKBINARY} -F= '{ print $2 }'`
                 case ${SYSCTL_KEY} in
                     "net.ipv6.conf.default.accept_ra")
                         if [ "${SYSCTL_VALUE}" = "1" ]; then IPV6_ACCEPT_RA=1; else IPV6_ACCEPT_RA=0; fi
@@ -122,7 +122,7 @@
         LogText "Test: Checking /etc/resolv.conf file"
         if [ -f /etc/resolv.conf ]; then
             LogText "Result: Found /etc/resolv.conf file"
-            FIND=`grep '^nameserver' /etc/resolv.conf | tr -d '\t' | sed 's/nameserver*//g' | uniq`
+            FIND=`${GREPBINARY} '^nameserver' /etc/resolv.conf | tr -d '\t' | sed 's/nameserver*//g' | uniq`
             if [ ! "${FIND}" = "" ]; then
                 Display --indent 4 --text "- Testing nameservers"
                 LogText "Test: Querying nameservers"
@@ -195,7 +195,7 @@
     Register --test-no NETW-3001 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Find default gateway (route)"
     if [ $SKIPTEST -eq 0 ]; then
         LogText "Test: Searching default gateway(s)"
-        FIND=`${NETSTATBINARY} -rn | egrep "^0.0.0.0|default" | tr -s ' ' | cut -d ' ' -f2`
+        FIND=`${NETSTATBINARY} -rn | ${EGREPBINARY} "^0.0.0.0|default" | tr -s ' ' | cut -d ' ' -f2`
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 LogText "Result: Found default gateway ${I}"
@@ -259,14 +259,14 @@
         FIND=""
         case ${OS} in
             AIX)
-                FIND=`lscfg -vl ent* | fgrep "Network Address" | cut -d"." -f14 | awk '{ ctr=1; i=1; while (ctr <= 6) { d[ctr++]=substr($0,i,2);i=i+2 } printf("%s:%s:%s:%s:%s:%s\n",d[1],d[2],d[3],d[4],d[5],d[6]) }'`
+                FIND=`lscfg -vl ent* | f${GREPBINARY} "Network Address" | cut -d"." -f14 | ${AWKBINARY} '{ ctr=1; i=1; while (ctr <= 6) { d[ctr++]=substr($0,i,2);i=i+2 } printf("%s:%s:%s:%s:%s:%s\n",d[1],d[2],d[3],d[4],d[5],d[6]) }'`
                 ;;
             DragonFly|FreeBSD)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | sort -u`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u`
                 ;;
             Linux)
                 if [ ! "${IFCONFIGBINARY}" = "" ]; then
-                    FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "HWaddr" | awk '{ if ($4=="HWaddr") print $5 }' | sort -u`
+                    FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "HWaddr" | ${AWKBINARY} '{ if ($4=="HWaddr") print $5 }' | ${SORTBINARY} -u`
                   else
                     if [ ! "${IPBINARY}" = "" ]; then
                         LogText "Test: Using ip binary to gather hardware addresses"
@@ -277,16 +277,16 @@
                 fi
                 ;;
             MacOS)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="lladdr" || $1=="ether") print $2 }' | sort -u`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="lladdr" || $1=="ether") print $2 }' | ${SORTBINARY} -u`
                 ;;
             NetBSD)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="address:") print $2 }' | sort -u`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="address:") print $2 }' | ${SORTBINARY} -u`
                 ;;
             OpenBSD)
-                FIND=`${IFCONFIGBINARY} -A | awk '{ if ($1=="lladdr") print $2 }' | sort -u`
+                FIND=`${IFCONFIGBINARY} -A | ${AWKBINARY} '{ if ($1=="lladdr") print $2 }' | ${SORTBINARY} -u`
                 ;;
             Solaris)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="ether") print $2 }' | sort -u`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u`
                 ;;
             *)
                 # Having a system currently unsupported? Share your details to determine MAC information
@@ -310,18 +310,18 @@
         FIND=""; FIND2=""
         case ${OS} in
             AIX)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             DragonFly|FreeBSD|NetBSD)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             Linux)
                 if [ ! "${IFCONFIGBINARY}" = "" ]; then
-                    FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }' | cut -d ':' -f2`
+                    FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }' | cut -d ':' -f2`
                     # Version which works for multiple types of ifconfig (e.g. Slackware)
-                    FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
+                    FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
                   else
                     if [ ! "${IPBINARY}" = "" ]; then
                         LogText "Test: Using ip binary to gather IP addresses"
@@ -333,16 +333,16 @@
                 fi
                 ;;
             MacOS)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             OpenBSD)
-                FIND=`${IFCONFIGBINARY} -A | awk '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -A | awk '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -A | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -A | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             Solaris)
-                FIND=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | awk '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             *)
                 LogText "Result: no support yet for this OS (${OS}) to find IP address information. You can help improving this test by submitting your details."
@@ -376,7 +376,7 @@
         case ${OS} in
             DragonFly|FreeBSD)
                 if [ ! "${SOCKSTATBINARY}" = "" ]; then
-                    FIND=`${SOCKSTATBINARY} | awk '{ if ($7 ~ /\*:\*/) print $5"|"$6"|"$2"|" }' | sort -u`
+                    FIND=`${SOCKSTATBINARY} | ${AWKBINARY} '{ if ($7 ~ /\*:\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u`
                     # To strip off IP's: sed 's/|.*:/|/'
                   else
                     FIND=""
@@ -386,15 +386,15 @@
             Linux)
                 if [ ! "${NETSTATBINARY}" = "" ]; then
                     # UDP
-                    FIND=`${NETSTATBINARY} -nlp 2> /dev/null | grep "^udp" | awk '{ print $4"|"$1"|"$6"|" }' | sed 's:|[0-9]*/:|:'`
+                    FIND=`${NETSTATBINARY} -nlp 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"|"$6"|" }' | sed 's:|[0-9]*/:|:'`
                     # TCP
-                    FIND2=`${NETSTATBINARY} -nlp 2> /dev/null  | grep "^tcp" | awk '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | sed 's:|[0-9]*/:|:'`
+                    FIND2=`${NETSTATBINARY} -nlp 2> /dev/null  | ${GREPBINARY} "^tcp" | ${AWKBINARY} '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | sed 's:|[0-9]*/:|:'`
                   else
                     if [ ! "${SSBINARY}" = "" ]; then
                         # UDP
-                        FIND=`${SSBINARY} -u -a -n | awk '{ print $4 }' | grep -v Local`
+                        FIND=`${SSBINARY} -u -a -n | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local`
                         # TCP
-                        FIND2=`${SSBINARY} -t -a -n | awk '{ print $4 }' | grep -v Local`
+                        FIND2=`${SSBINARY} -t -a -n | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local`
                       else
                         ReportException "${TEST_NO}:1" "netstat and ss binary missing to gather listening ports"
                     fi
@@ -404,7 +404,7 @@
             MacOS)
                 if [ ! "${LSOFBINARY}" = "" ]; then
                     # UDP and TCP combined
-                    FIND=`${LSOFBINARY} -i -P | awk '{ print $9"|"$8"|"$1"|" }' | sed 's/\(.*\)\-\>.*\(\|.*\)/\1\2/' | sed 's/\*/'$IP'/' | sort -u | grep -v "NAME"`
+                    FIND=`${LSOFBINARY} -i -P | ${AWKBINARY} '{ print $9"|"$8"|"$1"|" }' | sed 's/\(.*\)\-\>.*\(\|.*\)/\1\2/' | sed 's/\*/'$IP'/' | ${SORTBINARY} -u | ${GREPBINARY} -v "NAME"`
                   else
                     FIND=""
                 fi
@@ -415,7 +415,7 @@
 
             NetBSD)
                 if [ ! "${SOCKSTATBINARY}" = "" ]; then
-                    FIND=`${SOCKSTATBINARY} | awk '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | sort -u`
+                    FIND=`${SOCKSTATBINARY} | ${AWKBINARY} '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u`
                   else
                     FIND=""
                 fi
@@ -424,9 +424,9 @@
             OpenBSD)
                 if [ ! "${NETSTATBINARY}" = "" ]; then
                     # UDP
-                    FIND=`${NETSTATBINARY} -an 2> /dev/null | grep "^udp" | awk '{ print $4"|"$1"||" }'`
+                    FIND=`${NETSTATBINARY} -an 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"||" }'`
                     # TCP
-                    FIND2=`${NETSTATBINARY} -an 2> /dev/null  | grep "^tcp" | awk '{ if($6=="LISTEN") { print $4"|"$1"||" }}'`
+                    FIND2=`${NETSTATBINARY} -an 2> /dev/null  | ${GREPBINARY} "^tcp" | ${AWKBINARY} '{ if($6=="LISTEN") { print $4"|"$1"||" }}'`
                   else
                     ReportException "${TEST_NO}:3" "netstat missing to gather listening ports"
                 fi
@@ -471,14 +471,14 @@
     Register --test-no NETW-3014 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (BSD)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking promiscuous interfaces (FreeBSD)"
-        FIND=`${IFCONFIGBINARY} | grep PROMISC | cut -d ':' -f1`
+        FIND=`${IFCONFIGBINARY} | ${GREPBINARY} PROMISC | cut -d ':' -f1`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: Promiscuous interfaces: ${FIND}"
             for I in ${FIND}; do
                 WHITELISTED=0
                 for PROFILE in ${PROFILES}; do
                     Debug "Checking if interface ${I} is whitelisted in profile ${PROFILE}"
-                    ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
+                    ISWHITELISTED=`${GREPBINARY} "^if_promisc:${I}:" ${PROFILE}`
                     if [ ! "${ISWHITELISTED}" = "" ]; then
                         WHITELISTED=1
                         LogText "Result: this interface was whitelisted in profile (${PROFILE})"
@@ -513,13 +513,13 @@
     Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (Linux)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking promiscuous interfaces (Linux)"
-        NETWORK=`${IFCONFIGBINARY} | grep Link | tr -s ' ' | cut -d ' ' -f1`
+        NETWORK=`${IFCONFIGBINARY} | ${GREPBINARY} Link | tr -s ' ' | cut -d ' ' -f1`
         if [ ! "${NETWORK}" = "" ]; then
             for I in ${NETWORK}; do
-                FIND=`${IFCONFIGBINARY} ${I} | grep PROMISC`
+                FIND=`${IFCONFIGBINARY} ${I} | ${GREPBINARY} PROMISC`
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: Promiscuous interface: ${I}"
-                    ISWHITELISTED=`grep "^if_promisc:${I}:" ${PROFILE}`
+                    ISWHITELISTED=`${GREPBINARY} "^if_promisc:${I}:" ${PROFILE}`
                     if [ "${ISWHITELISTED}" = "" ]; then
                         FOUNDPROMISC=1
                         ReportWarning ${TEST_NO} "Found promiscuous interface (${I})"
@@ -551,7 +551,7 @@
     # Description : Netstat/socktstat compare (FreeBSD)
     #	    echo -n "        - Comparing output sockstat and netstat"
     #	    LogText "Comparing output of sockstat and netstat"
-    #	    NETSTATOUTPUT=`netstat -an | grep -v 'TIME_WAIT' | grep -v 'ESTABLISHED' | grep -v 'SYN_SENT' | grep -v 'CLOSE_WAIT' | grep -v 'LAST_ACK' | grep -v 'SYN_RECV' | grep -v 'CLOSING' | cut -c 1-44 | grep '*.' | cut -c 24-32 | tr -d ' ' | tr -d '\t' | grep -v '*' | sort -u`
+    #	    NETSTATOUTPUT=`netstat -an | ${GREPBINARY} -v 'TIME_WAIT' | ${GREPBINARY} -v 'ESTABLISHED' | ${GREPBINARY} -v 'SYN_SENT' | ${GREPBINARY} -v 'CLOSE_WAIT' | ${GREPBINARY} -v 'LAST_ACK' | ${GREPBINARY} -v 'SYN_RECV' | ${GREPBINARY} -v 'CLOSING' | cut -c 1-44 | ${GREPBINARY} '*.' | cut -c 24-32 | tr -d ' ' | tr -d '\t' | ${GREPBINARY} -v '*' | ${SORTBINARY} -u`
     #
     #	    if [ "${SOCKSTATOUTPUT}" = "${NETSTATOUTPUT}" ]; then
     #	        ShowResult OK
@@ -572,7 +572,7 @@
     Register --test-no NETW-3028 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking connections in WAIT state"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Using netstat for check for connections in WAIT state"
-        FIND=`${NETSTATBINARY} -an | grep WAIT | wc -l | awk '{ print $1 }'`
+        FIND=`${NETSTATBINARY} -an | ${GREPBINARY} WAIT | wc -l | ${AWKBINARY} '{ print $1 }'`
         if [ "${OPTIONS_CONN_MAX_WAIT_STATE}" = "" ]; then OPTIONS_CONN_MAX_WAIT_STATE="5000"; fi
         LogText "Result: currently ${FIND} connections are in a waiting state (max configured: ${OPTIONS_CONN_MAX_WAIT_STATE})."
         if [ ${FIND} -gt ${OPTIONS_CONN_MAX_WAIT_STATE} ]; then

@@ -37,7 +37,7 @@
     Register --test-no CONT-8004 --os Solaris --weight L --network NO --category security --description "Query running Solaris zones"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: query zoneadm to list all running zones"
-        FIND=`/usr/sbin/zoneadm list -p | awk -F: '{ if ($2!="global") print $0 }'`
+        FIND=`/usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }'`
         if [ ! "${FIND}" = "" ]; then
             N=0
             for I in ${FIND}; do
@@ -63,7 +63,7 @@
     #Register --test-no CONT-1906 --weight L --network NO --category security --description "Query Xen guests"
     #if [ ${SKIPTEST} -eq 0 ]; then
         # Show Xen guests
-        #FIND=`xm list | awk '$1 != "Name|Domain-0" {print $1","$2}'`
+        #FIND=`xm list | ${AWKBINARY} '$1 != "Name|Domain-0" {print $1","$2}'`
         #for I in ${FIND}; do
             #XENGUESTNAME=`echo ${I} | cut -d ':' -f1`
             #XENGUESTID=`echo ${I} | cut -d ':' -f2`
@@ -104,7 +104,7 @@
             LogText "Result: disabling further Docker tests as docker version gave exit code other than zero (0)"
             RUN_DOCKER_TESTS=0
         fi
-        FIND=`${DOCKERBINARY} info 2>&1 | grep "^WARNING:" | cut -d " " -f 2- | sed 's/ /:space:/g'`
+        FIND=`${DOCKERBINARY} info 2>&1 | ${GREPBINARY} "^WARNING:" | cut -d " " -f 2- | sed 's/ /:space:/g'`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found warning(s) in output"
             for I in ${FIND}; do
@@ -134,12 +134,12 @@
 
         # Check total of containers
         LogText "Test: checking total amount of Docker containers"
-        DOCKER_CONTAINERS_TOTAL=`${DOCKERBINARY} info 2> /dev/null | grep "^Containers: " | awk '{ print $2 }'`
+        DOCKER_CONTAINERS_TOTAL=`${DOCKERBINARY} info 2> /dev/null | ${GREPBINARY} "^Containers: " | ${AWKBINARY} '{ print $2 }'`
         if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
             DOCKER_CONTAINERS_TOTAL=0
         fi
         LogText "Result: docker info shows ${DOCKER_CONTAINERS_TOTAL} containers"
-        DOCKER_CONTAINERS_TOTAL2=$(${DOCKERBINARY} ps -a 2> /dev/null | grep -c -v "CONTAINER")
+        DOCKER_CONTAINERS_TOTAL2=$(${DOCKERBINARY} ps -a 2> /dev/null | ${GREPBINARY} -c -v "CONTAINER")
         LogText "Result: docker ps -a shows ${DOCKER_CONTAINERS_TOTAL2} containers"
         if [ ! "${DOCKER_CONTAINERS_TOTAL}" = "${DOCKER_CONTAINERS_TOTAL2}" ]; then
             LogText "Result: difference detected, which is unexpected"
@@ -150,7 +150,7 @@
         fi
 
         # Check running instances
-        DOCKER_CONTAINERS_RUNNING=$(${DOCKERBINARY} ps 2> /dev/null | grep -c -v "CONTAINER")
+        DOCKER_CONTAINERS_RUNNING=$(${DOCKERBINARY} ps 2> /dev/null | ${GREPBINARY} -c -v "CONTAINER")
         if [ ${DOCKER_CONTAINERS_RUNNING} -gt 0 ]; then
             Display --indent 10 --text "- Running containers" --result "${DOCKER_CONTAINERS_RUNNING}" --color GREEN
             LogText "Result: ${DOCKER_CONTAINERS_RUNNING} containers are currently active"

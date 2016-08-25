@@ -37,7 +37,7 @@
     # Description : Check if MySQL is being used
     Register --test-no DBS-1804 --weight L --network NO --category security --description "Checking active MySQL process"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${PSBINARY} ax | egrep "mysqld|mysqld_safe" | grep -v "grep"`
+        FIND=`${PSBINARY} ax | ${EGREPBINARY} "mysqld|mysqld_safe" | ${GREPBINARY} -v "grep"`
         if [ "${FIND}" = "" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- MySQL process status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: MySQL process not active"
@@ -122,7 +122,7 @@
     #               reco: recovery (optional)
     Register --test-no DBS-1840 --weight L --network NO --category security --description "Checking active Oracle processes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${PSBINARY} ax | egrep "ora_pmon|ora_smon|tnslsnr" | grep -v "grep"`
+        FIND=`${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep"`
         if [ "${FIND}" = "" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: Oracle process(es) not active"
@@ -142,7 +142,7 @@
     #Register --test-no DBS-1842 --weight L --network NO --category security --description "Checking Oracle home paths"
     #if [ ${SKIPTEST} -eq 0 ]; then
     # if [ -f /etc/oratab ]; then
-    #  FIND=`grep -v "#" /etc/oratab | awk -F: "{ print $2 }"`
+    #  FIND=`${GREPBINARY} -v "#" /etc/oratab | ${AWKBINARY} -F: "{ print $2 }"`
     # fi
     #fi
 #
@@ -199,12 +199,12 @@
                     if FileIsReadable ${CONFFILE}; then
                         LogText "Action: checking if ${CONFFILE} is a Sentinel configuration file"
                         # Exclude Sentinel configuration file
-                        FIND=$(grep "^sentinel " ${CONFFILE})
+                        FIND=$(${GREPBINARY} "^sentinel " ${CONFFILE})
                         if [ ! -z "${FIND}" ]; then
                             LogText "Result: file is a Sentinel configuration file, skipping it"
                         else
                             LogText "Result: file is NOT a Sentinel configuration file. Now scanning if it is a Redis configuration file"
-                            FIND=$(grep "Redis" ${CONFFILE})
+                            FIND=$(${GREPBINARY} "Redis" ${CONFFILE})
                             if [ ! -z "${FIND}" ]; then
                                 REDIS_CONFIGURATION_FILES="${REDIS_CONFIGURATION_FILES} ${CONFFILE}"
                                 REDIS_CONFIGURATION_FOUND=1
@@ -222,7 +222,7 @@
             fi
         done
         # Sort the list of discovered configuration files so we can make them unique
-        REDIS_CONFIGURATION_FILES=$(echo ${REDIS_CONFIGURATION_FILES} | sed 's/^ //' | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
+        REDIS_CONFIGURATION_FILES=$(echo ${REDIS_CONFIGURATION_FILES} | sed 's/^ //' | tr ' ' '\n' | ${SORTBINARY} | uniq | tr '\n' ' ')
         for FILE in ${REDIS_CONFIGURATION_FILES}; do
             if IsWorldReadable ${FILE}; then
                 LogText "Result: configuration file ${FILE} is world readable, this might leak sensitive information!"

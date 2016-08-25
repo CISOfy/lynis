@@ -55,7 +55,7 @@
         BAD_FILE_PERMISSIONS=0
         BAD_FILE_OWNERSHIP=0
         FindCronJob() {
-            sCRONJOBS=$(egrep '^([0-9*])' $1 | tr '\t' ' ' | tr -s ' ' | tr ' ' ',')
+            sCRONJOBS=$(${EGREPBINARY} '^([0-9*])' $1 | tr '\t' ' ' | tr -s ' ' | tr ' ' ',')
         }
 
         CRONTAB_FILE="/etc/crontab"
@@ -77,7 +77,7 @@
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: found directory ${I}"
                     LogText "Test: searching files in ${I}"
-                    FIND=$(find ${I} -type f -print | grep -v ".placeholder")
+                    FIND=$(find ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: no files found in ${I}"
                       else
@@ -109,7 +109,7 @@
             if [ -d ${I} ]; then
                 LogText "Result: found directory ${I}"
                 LogText "Test: searching files in ${I}"
-                FIND=$(find ${I} -type f -print | grep -v ".placeholder")
+                FIND=$(find ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
                 if [ "${FIND}" = "" ]; then
                     LogText "Result: no files found in ${I}"
                   else
@@ -186,7 +186,7 @@
     Register --test-no SCHD-7718 --weight L --network NO --category security --description "Check at users"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking atd status"
-        FIND=$(${PSBINARY} ax | grep "/atd" | grep -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} "/atd" | ${GREPBINARY} -v "grep")
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: at daemon active"
             Display --indent 2 --text "- Checking atd status" --result "${STATUS_RUNNING}" --color GREEN
@@ -224,7 +224,7 @@
                 FileIsReadable ${AT_ALLOW}
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: file ${AT_ALLOW} exists, only listed users can schedule at jobs"
-                    FIND=$(sort ${AT_ALLOW})
+                    FIND=$(${SORTBINARY} ${AT_ALLOW})
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: File empty, no users are allowed to schedule at jobs"
                       else
@@ -242,7 +242,7 @@
                    FileIsReadable ${AT_DENY}
                    if [ ${CANREAD} -eq 1 ]; then
                        LogText "Result: file ${AT_DENY} exists, only non listed users can schedule at jobs"
-                       FIND=$(sort ${AT_DENY})
+                       FIND=$(${SORTBINARY} ${AT_DENY})
                        if [ "${FIND}" = "" ]; then
                            LogText "Result: file is empty, no users are denied access to schedule jobs"
                          else
@@ -273,7 +273,7 @@
     Register --test-no SCHD-7724 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check at jobs"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check scheduled at jobs"
-        FIND=$(atq | grep -v "no files in queue" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g')
+        FIND=$(atq | ${GREPBINARY} -v "no files in queue" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g')
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found one or more jobs"
             for I in ${FIND}; do

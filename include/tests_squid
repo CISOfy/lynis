@@ -42,7 +42,7 @@
         LogText "Test: Searching for a Squid daemon"
         FOUND=0
         # Check running processes
-        FIND=`${PSBINARY} ax | egrep "(squid|squid3) " | grep -v "grep"`
+        FIND=`${PSBINARY} ax | ${EGREPBINARY} "(squid|squid3) " | ${GREPBINARY} -v "grep"`
         if [ ! "${FIND}" = "" ]; then
             SQUID_DAEMON_RUNNING=1
             LogText "Result: Squid daemon is running"
@@ -94,7 +94,7 @@
             # Skip check if a setuid/setgid bit is found
             FIND=`find ${SQUIDBINARY} \( -perm 4000 -o -perm 2000 \) -print`
             if [ "${FIND}" = "" ]; then
-                FIND2=`${SQUIDBINARY} -v | awk '{ if ($3=="Version") { print $4 } }'`
+                FIND2=`${SQUIDBINARY} -v | ${AWKBINARY} '{ if ($3=="Version") { print $4 } }'`
                 Display --indent 4 --text "- Checking Squid version" --result "${STATUS_FOUND}" --color GREEN
                 SQUID_VERSION="${FIND2}"
               else
@@ -114,7 +114,7 @@
     Register --test-no SQD-3610 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid version"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking all specific defined options in ${SQUID_DAEMON_CONFIG}"
-        FIND=`grep -v "^#" ${SQUID_DAEMON_CONFIG} | grep -v "^$" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g'`
+        FIND=`${GREPBINARY} -v "^#" ${SQUID_DAEMON_CONFIG} | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g'`
         for I in ${FIND}; do
             I=`echo ${I} | sed 's/!space!/ /g'`
             LogText "Found Squid option: ${I}"
@@ -159,7 +159,7 @@
     Register --test-no SQD-3614 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid authentication methods"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check auth_param option for authentication methods"
-        FIND=`grep "^auth_param" ${SQUID_DAEMON_CONFIG} | awk '{ print $2 }'`
+        FIND=`${GREPBINARY} "^auth_param" ${SQUID_DAEMON_CONFIG} | ${AWKBINARY} '{ print $2 }'`
         if [ "${FIND}" = "" ]; then
             LogText "No auth_param option found, proxy access anonymous or based on other methods (like ACLs)"
             Display --indent 6 --text "- Checking Squid authentication methods" --result "${STATUS_NONE}" --color YELLOW
@@ -180,7 +180,7 @@
     Register --test-no SQD-3616 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check external Squid authentication"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check external_acl_type option for external authentication helpers"
-        FIND=`grep "^external_acl_type" ${SQUID_DAEMON_CONFIG}`
+        FIND=`${GREPBINARY} "^external_acl_type" ${SQUID_DAEMON_CONFIG}`
         if [ "${FIND}" = "" ]; then
             LogText "No external_acl_type found"
             Display --indent 6 --text "- Checking Squid external authentication methods" --result "${STATUS_NONE}" --color YELLOW
@@ -203,7 +203,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
         LogText "Test: checking ACLs"
-        FIND=`grep "^acl " ${SQUID_DAEMON_CONFIG} | sed 's/ /!space!/g'`
+        FIND=`${GREPBINARY} "^acl " ${SQUID_DAEMON_CONFIG} | sed 's/ /!space!/g'`
         if [ "${FIND}" = "" ]; then
             LogText "Result: No ACLs found"
             Display --indent 6 --text "- Checking Access Control Lists" --result "${STATUS_NONE}" --color RED
@@ -228,14 +228,14 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
         LogText "Test: checking ACL Safe_ports http_access option"
-        FIND=`grep "^http_access" ${SQUID_DAEMON_CONFIG} | grep "Safe_ports"`
+        FIND=`${GREPBINARY} "^http_access" ${SQUID_DAEMON_CONFIG} | ${GREPBINARY} "Safe_ports"`
         if [ "${FIND}" = "" ]; then
             LogText "Result: no Safe_ports found"
             Display --indent 6 --text "- Checking ACL 'Safe_ports' http_access option" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Check if Squid has been configured to restrict access to all safe ports"
           else
             LogText "Result: checking ACL safe ports"
-            FIND2=`grep "^acl Safe_ports port" ${SQUID_DAEMON_CONFIG} | awk '{ print $4 }'`
+            FIND2=`${GREPBINARY} "^acl Safe_ports port" ${SQUID_DAEMON_CONFIG} | ${AWKBINARY} '{ print $4 }'`
             if [ "${FIND2}" = "" ]; then
                 Display --indent 6 --text "- Checking ACL 'Safe_ports' ports" --result "NONE FOUND" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Check if Squid has been configured for which ports it can allow outgoing traffic (Safe_ports)"
@@ -251,7 +251,7 @@
             #SQUID_DAEMON_UNSAFE_PORTS_LIST
             for I in ${SQUID_DAEMON_UNSAFE_PORTS_LIST}; do
                 LogText "Test: Checking port ${I} in Safe_ports list"
-                FIND2=`grep -w "^acl Safe_ports port ${I}" ${SQUID_DAEMON_CONFIG}`
+                FIND2=`${GREPBINARY} -w "^acl Safe_ports port ${I}" ${SQUID_DAEMON_CONFIG}`
                 if [ "${FIND2}" = "" ]; then
                     Display --indent 6 --text "- Checking ACL 'Safe_ports' (port ${I})" --result "${STATUS_NOT_FOUND}" --color GREEN
                     AddHP 1 1
@@ -279,7 +279,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
         LogText "Test: checking option reply_body_max_size"
-        FIND=`grep "^reply_body_max_size " ${SQUID_DAEMON_CONFIG} | sed 's/ /!space!/g'`
+        FIND=`${GREPBINARY} "^reply_body_max_size " ${SQUID_DAEMON_CONFIG} | sed 's/ /!space!/g'`
         if [ "${FIND}" = "" ]; then
             LogText "Result: option reply_body_max_size not configured"
             Display --indent 6 --text "- Checking option: reply_body_max_size" --result "${STATUS_NONE}" --color RED
@@ -306,7 +306,7 @@
     if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! "${SQUID_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3680 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid version suppresion"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`grep "^httpd_suppress_version_string " ${SQUID_DAEMON_CONFIG} | grep " on"`
+        FIND=`${GREPBINARY} "^httpd_suppress_version_string " ${SQUID_DAEMON_CONFIG} | ${GREPBINARY} " on"`
         if [ "${FIND}" = "" ]; then
             LogText "Result: option httpd_suppress_version_string not configured"
             Display --indent 6 --text "- Checking option: httpd_supress_version_string" --result "${STATUS_NOT_FOUND}" --color YELLOW

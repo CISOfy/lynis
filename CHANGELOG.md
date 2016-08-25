@@ -11,8 +11,8 @@ Changes:
 
 Tests:
 ------
+* DBS-1816  - Define skip reason
 * FILE-6362 - Removed warning and add skip reason
-
 
 ---------------------------------------------------------------------------------
 

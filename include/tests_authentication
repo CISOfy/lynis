@@ -40,14 +40,15 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Search accounts with UID 0
         LogText "Test: Searching accounts with UID 0"
-        FIND=`grep ':0:' /etc/passwd | egrep -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | grep ':0'`
+        FIND=(${GREPBINARY} ':0:' /etc/passwd | egrep -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | grep ':0')
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found more than one administrator accounts"
             ReportWarning "${TEST_NO}" "Multiple users with UID 0 found in passwd file"
-            for I in ${FIND}; do
-                LogText "Administrator account: ${I}"
-                if [ "${I}" = "toor" ]; then
+            for USER in ${FIND}; do
+                LogText "Administrator account: ${USER}"
+                Report "user_with_uid_zero[]=${USER}"
+                if [ "${USER}" = "toor" ]; then
                     LogText "BSD note: default there is a user 'toor' installed. This account is considered useless unless it"
                     LogText "is assigned a password and used for daily operations or emergencies. ie: bad shell for root user."
                     ReportSuggestion ${TEST_NO} "Use vipw to delete the 'toor' user if not used."

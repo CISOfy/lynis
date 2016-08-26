@@ -7,12 +7,14 @@ Lynis 2.3.4 (development version, not released yet)
 
 Changes:
 * Do not display when a new update is available when using the 'show' helper
-
+* Instead of opening the log file, you can now use 'lynis show details' followed
+  by the test ID. It will show the relevant section.
 
 Tests:
 ------
 * DBS-1816  - Define skip reason
 * FILE-6362 - Removed warning and add skip reason
+
 
 ---------------------------------------------------------------------------------
 

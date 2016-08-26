@@ -228,8 +228,12 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     if [ ${PRIVILEGED} -eq 0 ]; then
         if [ "${LOGFILE}" = "" ]; then
             # Try creating a log file in temporary directory
-            touch /tmp/lynis.log
-            if [ $? -eq 0 ]; then LOGFILE="/tmp/lynis.log"; else LOGFILE="/dev/null"; fi
+            if [ ! -f /tmp/lynis.log ]; then
+                touch /tmp/lynis.log
+                if [ $? -eq 0 ]; then LOGFILE="/tmp/lynis.log"; else LOGFILE="/dev/null"; fi
+            else
+                LOGFILE="/tmp/lynis.log"
+            fi
         fi
         if [ "${REPORTFILE}" = "" ]; then
             touch /tmp/lynis-report.dat
@@ -477,7 +481,7 @@ ${NORMAL}
 #
     # Clear log file and test if it's writable
     CDATE=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "${CDATE} Starting ${PROGRAM_NAME} ${PROGRAM_VERSION} with PID ${OURPID}, build date ${PROGRAM_RELEASE_DATE}" > ${LOGFILE}
+    if [ ${LOGTEXT} -eq 1 ]; then echo "${CDATE} Starting ${PROGRAM_NAME} ${PROGRAM_VERSION} with PID ${OURPID}, build date ${PROGRAM_RELEASE_DATE}" > ${LOGFILE}; fi
     if [ $? -gt 0 ]; then
         Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result WARNING --color RED
         echo "${WARNING}Fatal error${NORMAL}: problem while writing to log file. Check location and permissions."

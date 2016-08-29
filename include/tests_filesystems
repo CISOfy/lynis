@@ -499,8 +499,14 @@
             for I in ${FILESYSTEMS_TO_CHECK}; do
                 FILESYSTEM=$(echo ${I} | cut -d: -f1)
                 EXPECTED_FLAGS=$(echo ${I} | cut -d: -f2 | sed 's/,/ /g')
-                IN_FSTAB=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print "FOUND" } }' /etc/fstab)
-                if [ ! "${IN_FSTAB}" = "" ]; then
+                FS_FSTAB=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $3 } }' /etc/fstab)
+                if [ "${FS_FSTAB}" = "glusterfs" ]; then
+                    EXPECTED_FLAGS=$(echo ${EXPECTED_FLAGS} | sed 's/\<\(nodev\|nosuid\)\> *//g')
+                    if [ "${EXPECTED_FLAGS}" = "" ]; then
+                        FS_FSTAB=""
+                    fi
+                fi
+                if [ ! "${FS_FSTAB}" = "" ]; then
                     FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' /etc/fstab | sed 's/,/ /g' | tr '\n' ' ')
                     LogText "File system:    ${FILESYSTEM}"
                     LogText "Expected flags: ${EXPECTED_FLAGS}"

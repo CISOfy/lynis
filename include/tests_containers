@@ -26,6 +26,8 @@
 #
 #################################################################################
 #
+    DOCKER_CONTAINERS_RUNNING=0
+    DOCKER_CONTAINERS_TOTAL=0
     DOCKER_FILE_PERMISSIONS_WARNINGS=0
     RUN_DOCKER_TESTS=0
 #
@@ -134,7 +136,7 @@
 
         # Check total of containers
         LogText "Test: checking total amount of Docker containers"
-        DOCKER_CONTAINERS_TOTAL=`${DOCKERBINARY} info 2> /dev/null | ${GREPBINARY} "^Containers: " | ${AWKBINARY} '{ print $2 }'`
+        DOCKER_CONTAINERS_TOTAL=$(${DOCKERBINARY} info 2> /dev/null | ${GREPBINARY} "^Containers: " | ${AWKBINARY} '{ print $2 }')
         if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
             DOCKER_CONTAINERS_TOTAL=0
         fi
@@ -145,7 +147,7 @@
             LogText "Result: difference detected, which is unexpected"
             ReportSuggestion "${TEST_NO}" "Test output of both 'docker ps -a' and 'docker info', to determine why they report a different amount of containers"
             Display --indent 8 --text "- Total containers" --result "${STATUS_UNKNOWN}" --color RED
-          else
+        else
             Display --indent 8 --text "- Total containers" --result "${DOCKER_CONTAINERS_TOTAL}" --color WHITE
         fi
 
@@ -155,11 +157,20 @@
             Display --indent 10 --text "- Running containers" --result "${DOCKER_CONTAINERS_RUNNING}" --color GREEN
             LogText "Result: ${DOCKER_CONTAINERS_RUNNING} containers are currently active"
             Report "docker_containers_running=${DOCKER_CONTAINERS_RUNNING}"
-          else
+        else
             LogText "Result: no active containers"
             Report "docker_containers_running=0"
         fi
-
+    fi
+#
+#################################################################################
+#
+    # Test        : CONT-8107
+    # Description : Checking Docker number of unused containers
+    # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
+    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8107 --preqs-met ${PREQS_MET} --weight L --network NO --category performance --description "Check number of Docker containers"
+    if [ ${SKIPTEST} -eq 0 ]; then
         # Check if there aren't too many unused containers on the system
         if [ ${DOCKER_CONTAINERS_TOTAL} -gt 0 ]; then
             DOCKER_CONTAINERS_UNUSED=$((DOCKER_CONTAINERS_TOTAL - DOCKER_CONTAINERS_RUNNING))
@@ -167,10 +178,10 @@
                 ReportSuggestion "${TEST_NO}" "More than 10 unused containers found on the system. Clean up old containers by using output of 'docker ps -a' command"
                 Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color RED
                 AddHP 0 2
-              else
-               LogText "Result: found ${DOCKER_CONTAINERS_UNUSED} unused containers"
-               Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color YELLOW
-               AddHP 1 1
+            else
+                LogText "Result: found ${DOCKER_CONTAINERS_UNUSED} unused containers"
+                Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color YELLOW
+                AddHP 1 1
             fi
         fi
     fi

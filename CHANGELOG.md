@@ -12,6 +12,7 @@ Changes:
 
 Tests:
 ------
+* CONT-8107 - New test checking number of Docker containers
 * DBS-1816  - Define skip reason
 * FILE-6362 - Removed warning and add skip reason
 

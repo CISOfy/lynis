@@ -42,7 +42,7 @@
             LogText "Result: inetd is running"
             Display --indent 2 --text "- Checking inetd status" --result "ACTIVE" --color GREEN
             INETD_ACTIVE=1
-          else
+        else
             LogText "Result: inetd is NOT running"
             Display --indent 2 --text "- Checking inetd status" --result "NOT ACTIVE" --color GREEN
         fi
@@ -60,7 +60,7 @@
         if [ -f ${INETD_CONFIG_FILE} ]; then
             LogText "Result: ${INETD_CONFIG_FILE} exists"
             Display --indent 4 --text "- Checking inetd.conf" --result "${STATUS_FOUND}" --color WHITE
-          else
+        else
             LogText "Result: ${INETD_CONFIG_FILE} does not exist"
             Display --indent 4 --text "- Checking inetd.conf" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -75,12 +75,14 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if any service is enabled in /etc/inetd.conf (inetd is not active, see test 8002)
         LogText "Test: check if all services are disabled if inetd is disabled"
-        FIND=`${GREPBINARY} -v "^#" ${INETD_CONFIG_FILE} | ${GREPBINARY} -v "^$"`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${GREPBINARY} -v "^#" ${INETD_CONFIG_FILE} | ${GREPBINARY} -v "^$")
+        if [ -z "${FIND}" ]; then
+            LogText "Result: no services found in ${INETD_CONFIG_FILE}"
             Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_OK}" --color GREEN
-          else
+        else
+            LogText "Result: found services in inetd, even though inetd is not running"
             Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_SUGGESTION}" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Although inetd is not running, make sure no services are enabled in ${INETD_CONFIG_FILE}"
+            ReportSuggestion ${TEST_NO} "Although inetd is not running, make sure no services are enabled in ${INETD_CONFIG_FILE}, or remove inetd service"
         fi
     fi
 #
@@ -92,12 +94,12 @@
     Register --test-no INSE-8016 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for telnet via inetd"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking telnet presence in inetd configuration"
-        FIND=`${GREPBINARY} "^telnet" ${INETD_CONFIG_FILE}`
+        FIND=$(${GREPBINARY} "^telnet" ${INETD_CONFIG_FILE})
         if [ "${FIND}" = "" ]; then
             LogText "Result: telnet not enabled in ${INETD_CONFIG_FILE}"
             Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_NOT_FOUND}" --color GREEN
             AddHP 3 3
-          else
+        else
             LogText "Result: telnet enabled in ${INETD_CONFIG_FILE}"
             Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion "${TEST_NO}" "Disable telnet in inetd configuration and use SSH instead"

@@ -22,6 +22,7 @@ Tests:
 * FIRE-4520 - Change test to use detected binary
 * FIRE-4520 - New test to check for empty nftables ruleset
 * LOGG-2146 - Textual change
+* TIME-3104 - timedatectl test now detects NTP synchronization properly
 
 ---------------------------------------------------------------------------------
 

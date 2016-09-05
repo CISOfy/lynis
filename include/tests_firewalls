@@ -384,11 +384,14 @@
     if [ ! "${NFTBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FIRE-4536 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nftables status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${LSMODBINARY} | ${AWKBINARY} '{ print $1 }' | ${GREPBINARY} "^nf*_tables"`
-        if [ ! "${FIND}" = "" ]; then
+        FIND=$(${LSMODBINARY} | ${AWKBINARY} '{ print $1 }' | ${GREPBINARY} "^nf*_tables")
+        if [ ! -z "${FIND}" ]; then
+            LogText "Result: found nftables kernel module"
             FIREWALL_SOFTWARE="nftables"
             NFTABLES_ACTIVE=1
             Report "firewall_software[]=nftables"
+        else
+            LogText "Result: no nftables kernel module found"
         fi
     fi
 #
@@ -400,19 +403,33 @@
     Register --test-no FIRE-4538 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nftables basic configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Retrieve nft version
-        NFT_VERSION=`${NFTBINARY} --version 2> /dev/null | ${AWKBINARY} '{ if ($1=="nftables") { print $2 }}' | tr -d 'v'`
+        NFT_VERSION=$(${NFTBINARY} --version 2> /dev/null | ${AWKBINARY} '{ if ($1=="nftables") { print $2 }}' | ${TRBINARY} -d 'v')
         Report "nft_version=${NFT_VERSION}"
-
+        LogText "Result: found version ${NFT_VERSION} of nft"
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4540
+    # Description : Check nftables configuration
+    if [ ! "${NFTBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FIRE-4540 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for empty nftables configuration"
+    if [ ${SKIPTEST} -eq 0 ]; then
         # Check for empty ruleset
-        NFT_RULES_LENGTH=`${NFTBINARY} export json 2> /dev/null | wc -c`
+        NFT_RULES_LENGTH=$(${NFTBINARY} export json 2> /dev/null | wc -c)
         if [ ${NFT_RULES_LENGTH} -le 16 ]; then
             FIREWALL_EMPTY_RULESET=1
+            LogText "Result: this firewall set has 16 rules or less and is considered to be empty"
+        else
+            LogText "Result: found ${NFT_RULES_LENGTH} rules in nftables configuration"
         fi
-        # Ideas:
-        # Suggestion to disable iptables if nftables is enabled
-        # Check for specific features in nftables releases
     fi
-
+#
+#################################################################################
+#
+    # Ideas:
+    # Suggestion to disable iptables if nftables is enabled
+    # Check for specific features in nftables releases
 #
 #################################################################################
 #

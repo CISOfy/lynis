@@ -9,13 +9,19 @@ Changes:
 * Do not display when a new update is available when using the 'show' helper
 * Instead of opening the log file, you can now use 'lynis show details' followed
   by the test ID. It will show the relevant section.
+* Several tests have extended log details
+* Many style improvements as part of ongoing refactoring of the code
+
 
 Tests:
 ------
 * CONT-8107 - New test checking number of Docker containers
 * DBS-1816  - Define skip reason
+* FILE-6344 - Adjusted /proc test for hidepid option
 * FILE-6362 - Removed warning and add skip reason
-
+* FIRE-4520 - Change test to use detected binary
+* FIRE-4520 - New test to check for empty nftables ruleset
+* LOGG-2146 - Textual change
 
 ---------------------------------------------------------------------------------
 

@@ -399,14 +399,14 @@
         if [ -f /etc/security/limits.conf ]; then
             LogText "Result: file /etc/security/limits.conf exists"
             LogText "Test: Checking if core dumps are disabled in /etc/security/limits.conf"
-            FIND1=`${GREPBINARY} -v "^#" /etc/security/limits.conf | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="1") { print "soft core enabled" } }'`
-            FIND2=`${GREPBINARY} -v "^#" /etc/security/limits.conf | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="1") { print "hard core enabled" } }'`
+            FIND1=$(${GREPBINARY} -v "^#" /etc/security/limits.conf | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="1") { print "soft core enabled" } }')
+            FIND2=$(${GREPBINARY} -v "^#" /etc/security/limits.conf | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="1") { print "hard core enabled" } }')
             if [ "${FIND1}" = "soft core enabled" -o "${FIND2}" = "hard core enabled" ]; then
                 LogText "Result: core dumps (soft or hard) are enabled"
                 Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_ENABLED}" --color YELLOW
-                AddSuggestion "${TEST_NO}" "Check if core dumps need to be enabled on this system"
+                ReportSuggestion "${TEST_NO}" "Check if core dumps need to be enabled on this system"
                 AddHP 1 2
-              else
+            else
                 LogText "Result: core dumps (soft and hard) are both disabled"
                 Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_DISABLED}" --color GREEN
                 CORE_DUMPS_DISABLED=1
@@ -415,10 +415,10 @@
 
             # Sysctl option
             LogText "Test: Checking sysctl value of fs.suid_dumpable"
-            FIND=`${SYSCTLBINARY} fs.suid_dumpable 2> /dev/null | ${AWKBINARY} '{ if ($1=="fs.suid_dumpable") { print $3 } }'`
-            if [ "${FIND}" = "" ]; then
+            FIND=$(${SYSCTLBINARY} fs.suid_dumpable 2> /dev/null | ${AWKBINARY} '{ if ($1=="fs.suid_dumpable") { print $3 } }')
+            if [ -z "${FIND}" ]; then
                 LogText "Result: sysctl key fs.suid_dumpable not found"
-              else
+            else
                 LogText "Result: value ${FIND} found"
             fi
             if [ "${FIND}" = "2" ]; then
@@ -428,18 +428,18 @@
             elif [ "${FIND}" = "1" ]; then
                 LogText "Result: all programs can perform core dumps (value 1, for debugging)"
                 Display --indent 2 --text "- Checking setuid core dumps configuration" --result DEBUG --color YELLOW
-                ReportSuggestion ${TEST_NO} "Determine if really all binaries need to be able to core dump"
+                ReportSuggestion "${TEST_NO}" "Determine if all binaries need to be able to core dump"
                 AddHP 0 1
-              else
+            else
                 LogText "Result: found default option, some programs can dump (not processes which need to change credentials)"
                 Display --indent 4 --text "- Checking setuid core dumps configuration" --result DEFAULT --color YELLOW
                 AddHP 1 1
             fi
-            # Check ulimit settings and harden it
-            # echo 'ulimit -S -c 0 > /dev/null 2>&1' >> /etc/profile
           else
             LogText "Result: file /etc/security/limits.conf does not exist, skipping test"
         fi
+        # TODO: Check ulimit settings in /etc/profile and /etc/profile.d
+
     fi
 #
 #################################################################################

@@ -21,6 +21,7 @@ Tests:
 * FILE-6362 - Removed warning and add skip reason
 * FIRE-4520 - Change test to use detected binary
 * FIRE-4520 - New test to check for empty nftables ruleset
+* KRNL-5820 - Corrected function and style improvements
 * LOGG-2146 - Textual change
 * TIME-3104 - timedatectl test now detects NTP synchronization properly
 

@@ -151,8 +151,8 @@
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found one or more EXT file systems"
             for I in ${FIND}; do
-                FILESYSTEM=`echo ${I} | cut -d ',' -f1`
-                FILETYPE=`echo ${I} | cut -d ',' -f2`
+                FILESYSTEM=`echo ${I} | ${CUTBINARY} -d ',' -f1`
+                FILETYPE=`echo ${I} | ${CUTBINARY} -d ',' -f2`
                 LogText "File system: ${FILESYSTEM} (type: ${FILETYPE})"
                 Report "file_systems_ext[]=${FILESYSTEM}|${FILETYPE}|"
             done
@@ -231,7 +231,7 @@
                 UUID=`echo ${HAS_UUID} | ${AWKBINARY} -F= '{ print $2 }'`
                 LogText "Result: Using ${UUID} as UUID"
                 if [ ! "${BLKIDBINARY}" = "" ]; then
-                    FIND2=$(${BLKIDBINARY} | ${AWKBINARY} '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | sed 's/:$//')
+                    FIND2=$(${BLKIDBINARY} | ${AWKBINARY} '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | ${SEDBINARY} 's/:$//')
                     if [ ! "${FIND2}" = "" ]; then
                         REAL="${FIND2}"
                     fi
@@ -335,7 +335,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for old files in /tmp"
         # Search for files only in /tmp, with an access time older than X days
-        FIND=`find /tmp -xdev -type f -atime +${TMP_OLD_DAYS} | sed 's/ /!space!/g'`
+        FIND=`find /tmp -xdev -type f -atime +${TMP_OLD_DAYS} | ${SEDBINARY} 's/ /!space!/g'`
         if [ "${FIND}" = "" ]; then
             Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_OK}" --color GREEN
             LogText "Result: no files found in /tmp which are older than 3 months"
@@ -343,7 +343,7 @@
             Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_FOUND}" --color RED
             N=0
             for I in ${FIND}; do
-                FILE=`echo ${I} | sed 's/!space!/ /g'`
+                FILE=`echo ${I} | ${SEDBINARY} 's/!space!/ /g'`
                 LogText "Old temporary file: ${FILE}"
                 N=$((N + 1))
             done
@@ -501,17 +501,17 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/fstab ]; then
             for I in ${FILESYSTEMS_TO_CHECK}; do
-                FILESYSTEM=$(echo ${I} | cut -d: -f1)
-                EXPECTED_FLAGS=$(echo ${I} | cut -d: -f2 | sed 's/,/ /g')
+                FILESYSTEM=$(echo ${I} | ${CUTBINARY} -d: -f1)
+                EXPECTED_FLAGS=$(echo ${I} | ${CUTBINARY} -d: -f2 | ${SEDBINARY} 's/,/ /g')
                 FS_FSTAB=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $3 } }' /etc/fstab)
                 if [ "${FS_FSTAB}" = "glusterfs" ]; then
-                    EXPECTED_FLAGS=$(echo ${EXPECTED_FLAGS} | sed 's/\<\(nodev\|nosuid\)\> *//g')
+                    EXPECTED_FLAGS=$(echo ${EXPECTED_FLAGS} | ${SEDBINARY} 's/\<\(nodev\|nosuid\)\> *//g')
                     if [ "${EXPECTED_FLAGS}" = "" ]; then
                         FS_FSTAB=""
                     fi
                 fi
                 if [ ! "${FS_FSTAB}" = "" ]; then
-                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' /etc/fstab | sed 's/,/ /g' | tr '\n' ' ')
+                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' /etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
                     LogText "File system:    ${FILESYSTEM}"
                     LogText "Expected flags: ${EXPECTED_FLAGS}"
                     LogText "Found flags:    ${FOUND_FLAGS}"

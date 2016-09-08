@@ -93,7 +93,7 @@
     Register --test-no HTTP-6624 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Testing main Apache configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         APACHE_CONFIGFILE=""
-        APACHE_TEST=`${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D SERVER_CONFIG_FILE=" | sed 's/[ ]-D SERVER_CONFIG_FILE=//' | tr -d '"' | tr -d ' ' | tr -d '[:cntrl:]'`
+        APACHE_TEST=`${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D SERVER_CONFIG_FILE=" | ${SEDBINARY} 's/[ ]-D SERVER_CONFIG_FILE=//' | ${TRBINARY} -d '"' | ${TRBINARY} -d ' ' | ${TRBINARY} -d '[:cntrl:]'`
 
         if [ "${APACHE_TEST}" = "" ]; then
             LogText "Result: Can't find the configuration file, so skipping some Apache related tests"
@@ -104,7 +104,7 @@
                 Display --indent 6 --text "Info: Configuration file found (${APACHE_CONFIGFILE})"
               else
                 # Probably the prefix is missing, so we are going to search that
-                APACHE_HTTPDROOT=`${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D HTTPD_ROOT=" | sed 's/[ ]-D HTTPD_ROOT=//' | tr -d '"' | tr -d ' '`
+                APACHE_HTTPDROOT=`${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D HTTPD_ROOT=" | ${SEDBINARY} 's/[ ]-D HTTPD_ROOT=//' | ${TRBINARY} -d '"' | ${TRBINARY} -d ' '`
                 #echo "Apache root prefix: ${APACHE_HTTPDROOT}"
                 #echo "Complete path to configuration file: ${APACHE_HTTPDROOT}/${APACHE_TEST}"
                 APACHE_TESTFILE="${APACHE_HTTPDROOT}/${APACHE_TEST}"
@@ -156,7 +156,7 @@
                     fi
                 done
                 # Search Server aliases
-                for J in `${GREPBINARY} "ServerAlias" ${I} | ${GREPBINARY} -v "^#" | sed "s/.* ServerAlias//g" | sed "s/#.*//g"`; do
+                for J in `${GREPBINARY} "ServerAlias" ${I} | ${GREPBINARY} -v "^#" | ${SEDBINARY} "s/.* ServerAlias//g" | ${SEDBINARY} "s/#.*//g"`; do
                     if [ ! -z ${J} ]; then
                         tVHOSTS="${tVHOSTS} ${J}"
                         cVHOSTS=$((cVHOSTS + 1))
@@ -208,9 +208,9 @@
 #	        	SERVERTOKENSTEST=`${GREPBINARY} ServerTokens ${APACHE_CONFIGFILE} | ${GREPBINARY} -v '^#'`
 #	        	if [ ! "${SERVERTOKENSTEST}" = "" ]; then
 #	    		    Display --indent 4 --text "- Checking option ServerTokens" --result "${STATUS_FOUND}" --color WHITE
-#	        	    SERVERTOKENSTEST=`echo ${SERVERTOKENSTEST} | sed 's/ServerTokens//' | tr -d ' '`
+#	        	    SERVERTOKENSTEST=`echo ${SERVERTOKENSTEST} | ${SEDBINARY} 's/ServerTokens//' | ${TRBINARY} -d ' '`
 #	    		    LogText "Option ServerTokens found: ${SERVERTOKENSTEST}"
-#	    		    SERVERTOKENSEXPECTED=`${GREPBINARY} 'apache' ${PROFILE} | ${GREPBINARY} 'ServerTokens' | cut -d ':' -f3`
+#	    		    SERVERTOKENSEXPECTED=`${GREPBINARY} 'apache' ${PROFILE} | ${GREPBINARY} 'ServerTokens' | ${CUTBINARY} -d ':' -f3`
 #	    		    if [ "${SERVERTOKENSEXPECTED}" = "${SERVERTOKENSTEST}" ]; then
 #	    		        LogText "Result: Value from configuration file yielded the same output as in template"
 #	    		        SERVERTOKENSFOUND=1
@@ -250,7 +250,7 @@
     #if [ ${SKIPTEST} -eq 0 ]; then
         # Testing Debian style
         #LogText "Test: searching loaded/enabled Apache modules"
-        #apachectl -t -D DUMP_MODULES 2>&1 | ${EGREPBINARY} -v "(Loaded Modules|Syntax OK)" | sed 's/(\(shared\|static\))//' | sed 's/ //'
+        #apachectl -t -D DUMP_MODULES 2>&1 | ${EGREPBINARY} -v "(Loaded Modules|Syntax OK)" | ${SEDBINARY} 's/(\(shared\|static\))//' | ${SEDBINARY} 's/ //'
         #for I in ${APACHE_MODULES_ENABLED_LOCS}; do
             #LogText "Test: checking ${I}"
             #if [ -d ${I} ]; then
@@ -428,9 +428,9 @@
         # Remove temp file
         if [ ! "${TMPFILE}" = "" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
         N=0
-        sed -e 's/^[ 	]*//' ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}
+        ${SEDBINARY} -e 's/^[ 	]*//' ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "^$" | ${SEDBINARY} 's/[	]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/  / /g' >> ${TMPFILE}
         # Search for included configuration files (may include directories and wild cards)
-        FIND=`${GREPBINARY} "include" ${NGINX_CONF_LOCATION} | ${AWKBINARY} '{ if ($1=="include") { print $2 }}' | sed 's/;$//g'`
+        FIND=`${GREPBINARY} "include" ${NGINX_CONF_LOCATION} | ${AWKBINARY} '{ if ($1=="include") { print $2 }}' | ${SEDBINARY} 's/;$//g'`
         for I in ${FIND}; do
             FIND2=`${LSBINARY} ${I} 2>/dev/null`
             for J in ${FIND2}; do
@@ -442,7 +442,7 @@
                         FileIsReadable ${J}
                         if [ ${CANREAD} -eq 1 ]; then
                             NGINX_CONF_FILES="${NGINX_CONF_FILES} ${J}"
-                            FIND3=`sed -e 's/^[ 	]*//' ${J} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}`
+                            FIND3=`sed -e 's/^[ 	]*//' ${J} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "^$" | ${SEDBINARY} 's/[	]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/  / /g' >> ${TMPFILE}`
                         else
                             ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
                         fi
@@ -451,9 +451,9 @@
         done
 
         # Sort all discovered configuration lines and store unique ones. Also strip out the mime types configured in nginx
-        SORTFILE=`${SORTBINARY} -u ${TMPFILE} | sed 's/ /:space:/g' | ${EGREPBINARY} -v "(application|audio|image|text|video)/" | ${EGREPBINARY} -v "({|})"`
+        SORTFILE=`${SORTBINARY} -u ${TMPFILE} | ${SEDBINARY} 's/ /:space:/g' | ${EGREPBINARY} -v "(application|audio|image|text|video)/" | ${EGREPBINARY} -v "({|})"`
         for I in ${SORTFILE}; do
-            I=`echo ${I} | sed 's/:space:/ /g'`
+            I=`echo ${I} | ${SEDBINARY} 's/:space:/ /g'`
             Report "nginx_config_option[]=${I}";
         done
 
@@ -651,7 +651,7 @@
 #    if [ ${SKIPTEST} -eq 0 ]; then
 #	N=0
 #	LogText "Test: searching proxy_pass statement in configuration file ${NGINX_CONF_LOCATION}"
-#	FIND=`${GREPBINARY} "proxy_pass" ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "#" | sed 's/proxy_pass//g' | tr -d ';'`
+#	FIND=`${GREPBINARY} "proxy_pass" ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "#" | ${SEDBINARY} 's/proxy_pass//g' | ${TRBINARY} -d ';'`
 #	for I in ${FIND}; do
 #	    LogText "Found reverse proxy configuration for: ${I}"
 #	    N=$((N + 1))
@@ -675,7 +675,7 @@
 #    if [ ${SKIPTEST} -eq 0 ]; then
 #	N=0
 #	LogText "Test: searching nginx virtual hosts"
-#	FIND=`${GREPBINARY} "server_name" ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "#" | sed 's/server_name//g' | tr -d ';'`
+#	FIND=`${GREPBINARY} "server_name" ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "#" | ${SEDBINARY} 's/server_name//g' | ${TRBINARY} -d ';'`
 #	for I in ${FIND}; do
 #	    if [ "${I}" = "_" ]; then I="Default virtual host"; fi
 #	    LogText "Found virtual host: ${I}"
@@ -703,7 +703,7 @@
             LogText "Test: Checking ${DIR}"
             if [ -d ${DIR} ]; then
                 LogText "Result: Directory ${DIR} exists, so will be used as search path"
-                FIND=$(find ${DIR} -type f -exec ${GREPBINARY} access_log \{\} \; | ${GREPBINARY} -v "#" | ${AWKBINARY} '{ if($1=="access_log") { print $2 } }' | sed 's/;$//g' | ${SORTBINARY} -u)
+                FIND=$(find ${DIR} -type f -exec ${GREPBINARY} access_log \{\} \; | ${GREPBINARY} -v "#" | ${AWKBINARY} '{ if($1=="access_log") { print $2 } }' | ${SEDBINARY} 's/;$//g' | ${SORTBINARY} -u)
                 if [ -z "${FIND}" ]; then
                     LogText "Result: no log files found"
                 else

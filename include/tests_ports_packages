@@ -51,8 +51,8 @@
             LogText "Output:"; LogText "-----"
             SPACKAGES=`/usr/sbin/pkg query %n,%v`
             for J in ${SPACKAGES}; do
-                sPKG_NAME=`echo ${J} | cut -d ',' -f1`
-                sPKG_VERSION=`echo ${J} | cut -d ',' -f2`
+                sPKG_NAME=`echo ${J} | ${CUTBINARY} -d ',' -f1`
+                sPKG_VERSION=`echo ${J} | ${CUTBINARY} -d ',' -f2`
                 LogText "Installed package: ${sPKG_NAME} (version: ${sPKG_VERSION})"
                 INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
             done
@@ -73,11 +73,11 @@
         LogText "Test: Querying pkg_info to get package list"
         Display --indent 6 --text "- Querying pkg_info for installed packages"
         LogText "Output:"; LogText "-----"
-        SPACKAGES=`/usr/sbin/pkg_info 2>&1 | ${SORTBINARY} | tr -s ' ' | cut -d ' ' -f1 | sed -e 's/^\(.*\)-\([0-9].*\)$/\1,\2/g'`
+        SPACKAGES=`/usr/sbin/pkg_info 2>&1 | ${SORTBINARY} | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f1 | ${SEDBINARY} -e 's/^\(.*\)-\([0-9].*\)$/\1,\2/g'`
         for J in ${SPACKAGES}; do
             N=$((N + 1))
-            sPKG_NAME=`echo ${J} | cut -d ',' -f1`
-            sPKG_VERSION=`echo ${J} | cut -d ',' -f2`
+            sPKG_NAME=`echo ${J} | ${CUTBINARY} -d ',' -f1`
+            sPKG_VERSION=`echo ${J} | ${CUTBINARY} -d ',' -f2`
             LogText "Installed package: ${sPKG_NAME} (version: ${sPKG_VERSION})"
             INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
         done
@@ -121,7 +121,7 @@
         LogText "Test: Querying portage to get package list"
         Display --indent 4 --text "- Querying portage for installed packages"
         LogText "Output:"; LogText "-----"
-        GPACKAGES=`equery l '*' | sed -e 's/[.*]//g'`
+        GPACKAGES=`equery l '*' | ${SEDBINARY} -e 's/[.*]//g'`
         for J in ${GPACKAGES}; do
             LogText "Found package ${J}"
             INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J},0,"
@@ -145,7 +145,7 @@
             Display --indent 4 --text "- Querying pkginfo for installed packages"
             LogText "Output:"; LogText "-----"
             # Strip SUNW from strings
-            SPACKAGES=`/usr/bin/pkginfo -i | tr -s ' ' | cut -d ' ' -f2 | sed "s#^SUNW##"`
+            SPACKAGES=`/usr/bin/pkginfo -i | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f2 | ${SEDBINARY} "s#^SUNW##"`
             for J in ${SPACKAGES}; do
                 LogText "Found package ${J}"
                 INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J},0,"
@@ -201,7 +201,7 @@
         LogText "Test: Querying 'pacman -Q' to get package list"
         Display --indent 6 --text "- Querying pacman package manager"
         LogText "Output:"; LogText "--------"
-        SPACKAGES=`${PACMANBINARY} -Q | ${SORTBINARY} | sed 's/ /,/g'`
+        SPACKAGES=`${PACMANBINARY} -Q | ${SORTBINARY} | ${SEDBINARY} 's/ /,/g'`
         if [ "${SPACKAGES}" = "" ]; then
             LogText "Result: pacman binary available, but package list seems to be empty"
             LogText "Info: looks like the pacman binary is installed, but not used for package installation"
@@ -257,17 +257,17 @@
         COUNT=0
         # Check configuration options (options start with a capital)
         LogText "Test: searching configured options in ${PACMANCONF}"
-        FIND=`${GREPBINARY} "^[A-Z]" ${PACMANCONF} | ${SORTBINARY} -u | sed 's/ /:space:/g'`
+        FIND=`${GREPBINARY} "^[A-Z]" ${PACMANCONF} | ${SORTBINARY} -u | ${SEDBINARY} 's/ /:space:/g'`
         for I in ${FIND}; do
-            PMOPTION=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $1 }'`
-            PMVALUE=`echo ${I} | sed 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $2 }'`
+            PMOPTION=`echo ${I} | ${SEDBINARY} 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $1 }'`
+            PMVALUE=`echo ${I} | ${SEDBINARY} 's/:space:/ /g' | ${AWKBINARY} -F= '{ print $2 }'`
             LogText "Result: found option ${PMOPTION} configured with value ${PMVALUE}"
             Report "pacman_option[]=${PMOPTION}:${PMVALUE}:"
         done
 
         # Check software repositories
         LogText "Test: checking available repositories"
-        FIND=`${GREPBINARY} "^\[.*\]$" ${PACMANCONF} | tr -d '[]'`
+        FIND=`${GREPBINARY} "^\[.*\]$" ${PACMANCONF} | ${TRBINARY} -d '[]'`
         for I in ${FIND}; do
             COUNT=$((COUNT + 1))
             Report "package_repository[]=${I}"
@@ -315,7 +315,7 @@
                 LogText "Result: Zypper found one or more installed packages which are vulnerable."
                 ReportWarning ${TEST_NO} "Found one or more vulnerable packages installed"
                 # Unfortunately zypper does not properly give back which package it is. Usually best guess is last word on the line
-                FIND=`${ZYPPERBINARY} -n lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | sed 's/:$//' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u`
+                FIND=`${ZYPPERBINARY} -n lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | ${SEDBINARY} 's/:$//' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u`
                 LogText "List of vulnerable packages/version:"
                 for I in ${FIND}; do
                     VULNERABLE_PACKAGES_FOUND=1
@@ -341,11 +341,11 @@
         LogText "Test: Querying dpkg -l to get package list"
         Display --indent 6 --text "- Querying package manager"
         LogText "Output:"
-        SPACKAGES=`dpkg -l 2>/dev/null | ${GREPBINARY} "^ii" | tr -s ' ' | tr ' ' ',' | sort`
+        SPACKAGES=`dpkg -l 2>/dev/null | ${GREPBINARY} "^ii" | ${TRBINARY} -s ' ' | ${TRBINARY} ' ' ',' | sort`
         for J in ${SPACKAGES}; do
             N=$((N + 1))
-            PACKAGE_NAME=`echo ${J} | cut -d ',' -f2`
-            PACKAGE_VERSION=`echo ${J} | cut -d ',' -f3`
+            PACKAGE_NAME=`echo ${J} | ${CUTBINARY} -d ',' -f2`
+            PACKAGE_VERSION=`echo ${J} | ${CUTBINARY} -d ',' -f3`
             LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
             INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
         done
@@ -358,13 +358,13 @@
 #
     # Test        : PKGS-7346
     # Description : Check packages which are removed, but still own configuration files, cron jobs etc
-    # Notes       : Cleanup: for pkg in `dpkg -l | ${GREPBINARY} "^rc" | cut -d' ' -f3`; do aptitude purge ${pkg}; done
+    # Notes       : Cleanup: for pkg in `dpkg -l | ${GREPBINARY} "^rc" | ${CUTBINARY} -d' ' -f3`; do aptitude purge ${pkg}; done
     if [ -x /usr/bin/dpkg ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7346 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Search unpurged packages on system"
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
         LogText "Test: Querying dpkg -l to get unpurged packages"
-        SPACKAGES=`dpkg -l 2>/dev/null | ${GREPBINARY} "^rc" | cut -d ' ' -f3 | sort`
+        SPACKAGES=`dpkg -l 2>/dev/null | ${GREPBINARY} "^rc" | ${CUTBINARY} -d ' ' -f3 | sort`
         if [ "${SPACKAGES}" = "" ]; then
             Display --indent 4 --text "- Query unpurged packages" --result "${STATUS_NONE}" --color GREEN
             LogText "Result: no packages found with left overs"
@@ -392,7 +392,7 @@
     Register --test-no PKGS-7348 --os FreeBSD --weight L --network NO --category security --description "Check for old distfiles"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -x /usr/local/sbin/portsclean ]; then
-            FIND=`/usr/local/sbin/portsclean -n -DD | ${GREPBINARY} 'Delete' | wc -l | tr -d ' '`
+            FIND=`/usr/local/sbin/portsclean -n -DD | ${GREPBINARY} 'Delete' | wc -l | ${TRBINARY} -d ' '`
             if [ ${FIND} -eq 0 ]; then
                 Display --indent 2 --text "- Checking presence old distfiles" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: no unused distfiles found"
@@ -422,8 +422,8 @@
         SPACKAGES=`${DNFBINARY} -q list installed 2> /dev/null | ${AWKBINARY} '{ if ($1!="Installed" && $1!="Last") {print $1","$2 }}'`
         for J in ${SPACKAGES}; do
             N=$((N + 1))
-            PACKAGE_NAME=`echo ${J} | cut -d ',' -f1`
-            PACKAGE_VERSION=`echo ${J} | cut -d ',' -f2`
+            PACKAGE_NAME=`echo ${J} | ${CUTBINARY} -d ',' -f1`
+            PACKAGE_VERSION=`echo ${J} | ${CUTBINARY} -d ',' -f2`
             LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
             INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
         done
@@ -631,7 +631,7 @@
                 #ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
                 #ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
                 #LogText "List of vulnerable packages/version:"
-                #for I in `/usr/sbin/pkg audit -F | ${GREPBINARY} "Affected package" | cut -d ' ' -f3 | ${SORTBINARY} -u`; do
+                #for I in `/usr/sbin/pkg audit -F | ${GREPBINARY} "Affected package" | ${CUTBINARY} -d ' ' -f3 | ${SORTBINARY} -u`; do
                 #    Report "vulnerable_package[]=${I}"
                 #    LogText "Vulnerable package: ${I}"
                 #    # Decrease hardening points for every found vulnerable package
@@ -663,7 +663,7 @@
                 ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
                 ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
                 LogText "List of vulnerable packages/version:"
-                for I in `/usr/local/sbin/portaudit | ${GREPBINARY} "Affected package" | cut -d ' ' -f3 | ${SORTBINARY} -u`; do
+                for I in `/usr/local/sbin/portaudit | ${GREPBINARY} "Affected package" | ${CUTBINARY} -d ' ' -f3 | ${SORTBINARY} -u`; do
                     VULNERABLE_PACKAGES_FOUND=1
                     Report "vulnerable_package[]=${I}"
                     LogText "Vulnerable package: ${I}"
@@ -682,7 +682,7 @@
     Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
-        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | sed 's/ //g' | sed 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
+        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/ //g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
         if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
             LogText "Result: YUM package update management failed"
             Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_WARNING}" --color RED
@@ -845,26 +845,26 @@
         if [ ${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY} -eq 0 ]; then
             if [ -f /etc/apt/sources.list ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list file"
-                FIND=$(${EGREPBINARY} "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list | ${GREPBINARY} -v '#' | sed 's/ /!space!/g')
+                FIND=$(${EGREPBINARY} "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
                 if [ ! "${FIND}" = "" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list file" --result "${STATUS_OK}" --color GREEN
                     LogText "Result: Found security repository in /etc/apt/sources.list"
                     for REPO in ${FIND}; do
-                        REPO=$(echo ${REPO} | sed 's/!space!/ /g')
+                        REPO=$(echo ${REPO} | ${SEDBINARY} 's/!space!/ /g')
                         LogText "Output: ${REPO}"
                     done
                 fi
             fi
             if [ -d /etc/apt/sources.list.d ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
-                FIND=$(${EGREPBINARY} -r "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | sed 's/ /!space!/g')
+                FIND=$(${EGREPBINARY} -r "security.debian.org|security.ubuntu.com|-security " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
                 if [ ! -z "${FIND}" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list.d directory" --result "${STATUS_OK}" --color GREEN
                     LogText "Result: Found security repository in one or more files in directory /etc/apt/sources.list.d"
                     for REPO in ${FIND}; do
-                        REPO=$(echo ${REPO} | sed 's/!space!/ /g')
+                        REPO=$(echo ${REPO} | ${SEDBINARY} 's/!space!/ /g')
                         LogText "Output: ${REPO}"
                     done
                 fi
@@ -949,7 +949,7 @@
 
         # Trying also with apt-get directly (does not always work, as updates are distributed on both -security and -updates)
         # Show packages which would be upgraded and match 'security' in repository name
-        FIND=`/usr/bin/apt-get --dry-run --show-upgraded upgrade 2> /dev/null | ${GREPBINARY} '-security' | ${GREPBINARY} "^Inst" | cut -d ' ' -f2 | ${SORTBINARY} -u`
+        FIND=`/usr/bin/apt-get --dry-run --show-upgraded upgrade 2> /dev/null | ${GREPBINARY} '-security' | ${GREPBINARY} "^Inst" | ${CUTBINARY} -d ' ' -f2 | ${SORTBINARY} -u`
         if [ ! "${FIND}" = "" ]; then
             VULNERABLE_PACKAGES_FOUND=1
             SCAN_PERFORMED=1
@@ -1038,7 +1038,7 @@
         if [ -x /usr/bin/apt-show-versions ]; then
             LogText "Result: found /usr/bin/apt-show-versions"
             LogText "Test: Checking packages which can be upgraded via apt-show-versions"
-            FIND=`/usr/bin/apt-show-versions -u | sed 's/ /!space!/g'`
+            FIND=`/usr/bin/apt-show-versions -u | ${SEDBINARY} 's/ /!space!/g'`
             if [ "${FIND}" = "" ]; then
                 LogText "Result: no packages found which can be upgraded"
                 Display --indent 2 --text "- Checking upgradeable packages" --result "${STATUS_NONE}" --color GREEN
@@ -1048,7 +1048,7 @@
                 Display --indent 2 --text "- Checking upgradeable packages" --result "${STATUS_FOUND}" --color YELLOW
                 # output: program/repository upgradeable from version X to Y
                 for I in ${FIND}; do
-                    I=`echo ${I} | sed 's/!space!/ /g'`
+                    I=`echo ${I} | ${SEDBINARY} 's/!space!/ /g'`
                     LogText "${I}"
                 done
             fi
@@ -1086,7 +1086,7 @@
 #################################################################################
 #
     # Description : AIX patches
-    # Notes       : /usr/sbin/instfix -c -i | cut -d":" -f1
+    # Notes       : /usr/sbin/instfix -c -i | ${CUTBINARY} -d":" -f1
 #
 #################################################################################
 #

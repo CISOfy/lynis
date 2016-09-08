@@ -184,7 +184,7 @@
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
             LogText "Test: checking if kernel is monolithic or modular"
             # Checking if any modules are loaded
-            FIND=`${LSMODBINARY} | ${GREPBINARY} -v "^Module" | wc -l | tr -s ' ' | tr -d ' '`
+            FIND=`${LSMODBINARY} | ${GREPBINARY} -v "^Module" | wc -l | ${TRBINARY} -s ' ' | ${TRBINARY} -d ' '`
             Display --indent 2 --text "- Checking kernel type" --result "${STATUS_DONE}" --color GREEN
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: Found monolithic kernel"
@@ -267,7 +267,7 @@
         if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
         if [ ! "${GREPTOOL}" = "" ]; then
             LogText "Test: Checking the default I/O kernel scheduler"
-            LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | sed s/\"//g`
+            LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | ${SEDBINARY} s/\"//g`
             if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
                 LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
@@ -292,7 +292,7 @@
         LogText "Description: View all active kernel modules (including kernel)"
         LogText "Test: Checking modules"
         if [ -f /sbin/kldstat ]; then
-            FIND=`kldstat | ${GREPBINARY} -v 'Name' | tr -s ' ' | cut -d ' ' -f6`
+            FIND=`kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6`
             if [ $? -eq 0 ]; then
                 LogText "Loaded modules according kldstat:"
                 N=0
@@ -358,8 +358,8 @@
                 ReportSuggestion ${TEST_NO} "Discover why /vmlinuz is missing. Consider manually re-linking."
             fi
             LogText "Test: Using apt-cache policy to determine if there is an update available"
-            FINDINST=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | cut -d ':' -f2 | tr -d ' '`
-            FINDCAND=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | cut -d ':' -f2 | tr -d ' '`
+            FINDINST=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' '`
+            FINDCAND=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' '`
             LogText "Kernel installed: ${FINDINST}"
             LogText "Kernel candidate: ${FINDCAND}"
             if [ "${FINDINST}" = "" ]; then
@@ -527,7 +527,7 @@
                         LogText "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
                     fi
                     # Extra current kernel version and replace dashes to allow numeric ${SORTBINARY} later on
-                    MYKERNEL=`uname -r | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's/-/./g'`
+                    MYKERNEL=`uname -r | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's/-/./g'`
                     LogText "Result: using ${MYKERNEL} as my kernel version (stripped)"
                     FIND=$(ls /boot/vmlinuz* 2> /dev/null)
                     if [ ! "${FIND}" = "" ]; then
@@ -537,8 +537,8 @@
                          # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
                          # Ignore rescue images. Remove generic. and huge. for Slackware machines
                          LogText "Action: checking relevant kernels"
-                         KERNELS=`ls /boot/vmlinuz* | ${GREPBINARY} -v rescue | sed 's/vmlinuz-//' | sed 's/generic.//' | sed 's/huge.//' | sed 's/\.[a-z].*.//g' | sed 's/-[a-z].*.//g' | sed 's./boot/..' | sed 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
-                         KERNELS_ONE_LINE=$(echo ${KERNELS} | tr '\n' ' ')
+                         KERNELS=`ls /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+                         KERNELS_ONE_LINE=$(echo ${KERNELS} | ${TRBINARY} '\n' ' ')
                          LogText "Output: ${KERNELS_ONE_LINE}"
                     elif [ ! "$(ls /boot/kernel* 2> /dev/null)" = "" ]; then
                          LogText "Output: Found a kernel file in /boot"

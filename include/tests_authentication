@@ -40,7 +40,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Search accounts with UID 0
         LogText "Test: Searching accounts with UID 0"
-        FIND=$(${GREPBINARY} ':0:' /etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | cut -d ":" -f1,3 | ${GREPBINARY} ':0')
+        FIND=$(${GREPBINARY} ':0:' /etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
         if [ ! "${FIND}" = "" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found more than one administrator accounts"
@@ -74,7 +74,7 @@
         fi
         # Check password file
         if [ -f ${PASSWD_FILE} ]; then
-            FIND=$(${GREPBINARY} -v '^#' ${PASSWD_FILE} | cut -d ':' -f3 | ${SORTBINARY} | uniq -d)
+            FIND=$(${GREPBINARY} -v '^#' ${PASSWD_FILE} | ${CUTBINARY} -d ':' -f3 | ${SORTBINARY} | uniq -d)
             if [ "${FIND}" = "" ]; then
                 Display --indent 2 --text "- Unique UIDs" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: all accounts found in ${PASSWD_FILE} are unique"
@@ -158,13 +158,13 @@
         LogText "Test: Checking login shells"
         if [ -f /etc/master.passwd ]; then
             # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
-            FIND=`${GREPBINARY} "[a-z]:\*:" /etc/master.passwd | ${EGREPBINARY} -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | sed 's/ /!space!/g'`
+            FIND=`${GREPBINARY} "[a-z]:\*:" /etc/master.passwd | ${EGREPBINARY} -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g'`
             if [ "${FIND}" = "" ]; then
                 Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
             else
                 Display --indent 2 --text "- Login shells" --result "${STATUS_WARNING}" --color RED
                 for LINE in ${FIND}; do
-                    LINE=$(echo ${LINE} | sed 's/!space!/ /g')
+                    LINE=$(echo ${LINE} | ${SEDBINARY} 's/!space!/ /g')
                     SHELL=$(echo ${LINE} | ${AWKBINARY} -F: '{ print $10 }')
                     LogText "Output: ${LINE}"
                     if [ -z "${SHELL}" ]; then
@@ -420,7 +420,7 @@
     Register --test-no AUTH-9252 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check sudoers file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking sudoers file (${SUDOERS_FILE}) permissions"
-        FIND=`ls -l ${SUDOERS_FILE} | cut -c 2-10`
+        FIND=`ls -l ${SUDOERS_FILE} | ${CUTBINARY} -c 2-10`
         LogText "Result: Found file permissions: ${FIND}"
         if [ "${FIND}" = "rw-------" -o "${FIND}" = "rw-rw----" -o "${FIND}" = "r--r-----" ]; then
             LogText "Result: file ${SUDOERS_FILE} has correct permissions"
@@ -530,13 +530,13 @@
             LogText "Result: file /etc/pam.conf exists"
             Display --indent 2 --text "- PAM configuration files (pam.conf)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Test: searching PAM configuration files"
-            FIND=$(${EGREPBINARY} -v "^#" /etc/pam.conf | ${EGREPBINARY} -v "^$" | sed 's/[[:space:]]/ /g' | sed 's/  / /g' | sed 's/ /:space:/g')
+            FIND=$(${EGREPBINARY} -v "^#" /etc/pam.conf | ${EGREPBINARY} -v "^$" | ${SEDBINARY} 's/[[:space:]]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/ /:space:/g')
             if [ "${FIND}" = "" ]; then
                 LogText "Result: File has no configuration options defined (empty, or only filled with comments and empty lines)"
             else
                 LogText "Result: found one or more configuration lines"
                 for LINE in ${FIND}; do
-                    LINE=$(echo ${LINE} | sed 's/:space:/ /g')
+                    LINE=$(echo ${LINE} | ${SEDBINARY} 's/:space:/ /g')
                     LogText "Found line: ${LINE}"
                 done
             fi
@@ -926,7 +926,7 @@
             if [ ! -z "${FIND}" ]; then
                 LogText "Result: found /etc/profile.d, with one or more files in it"
                 for FILE in ${FIND}; do
-                    HAS_MASK=$(${GREPBINARY} umask ${FILE} | sed 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
+                    HAS_MASK=$(${GREPBINARY} umask ${FILE} | ${SEDBINARY} 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
                     for MASK in ${HAS_MASK}; do
                         if [ "${MASK}" = "077" -o "${MASK}" = "027" ]; then
                             LogText "Result: found a strong umask '${MASK}' set in ${FILE}"
@@ -949,8 +949,8 @@
         if [ -f /etc/profile -a ${GOOD_UMASK} -eq 0 ]; then
             LogText "Result: file /etc/profile exists"
             LogText "Test: Checking umask value in /etc/profile"
-            FIND=$(${GREPBINARY} "umask" /etc/profile | sed 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
-            FIND2=$(${GREPBINARY} "umask" /etc/profile | sed 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }' | wc -l)
+            FIND=$(${GREPBINARY} "umask" /etc/profile | ${SEDBINARY} 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
+            FIND2=$(${GREPBINARY} "umask" /etc/profile | ${SEDBINARY} 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }' | wc -l)
             FOUND_UMASK=0
             if [ "${FIND2}" = "0" ]; then
                 LogText "Result: did not find umask in /etc/profile"
@@ -1092,7 +1092,7 @@
             FOUND=0
             WEAK_UMASK=0
             LogText "Result: file /etc/login.conf exists"
-            FIND=`${GREPBINARY} "umask" /etc/login.conf | sed 's/#.*//' | sed -E 's/^[[:cntrl:]]//' | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $2}' | ${AWKBINARY} -F= '{ if ($1=="umask") { print $2 }}'`
+            FIND=`${GREPBINARY} "umask" /etc/login.conf | ${SEDBINARY} 's/#.*//' | ${SEDBINARY} -E 's/^[[:cntrl:]]//' | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $2}' | ${AWKBINARY} -F= '{ if ($1=="umask") { print $2 }}'`
             if [ ! "${FIND}" = "" ]; then
                 for UMASK_VALUE in ${FIND}; do
                     case ${UMASK_VALUE} in

@@ -39,19 +39,19 @@
     Register --test-no CONT-8004 --os Solaris --weight L --network NO --category security --description "Query running Solaris zones"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: query zoneadm to list all running zones"
-        FIND=`/usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }'`
-        if [ ! "${FIND}" = "" ]; then
+        FIND=$(/usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }')
+        if [ ! -z "${FIND}" ]; then
             N=0
             for I in ${FIND}; do
                 N=$((N + 1))
-                ZONEID=`echo ${I} | cut -d ':' -f1`
-                ZONENAME=`echo ${I} | cut -d ':' -f2`
+                ZONEID=$(echo ${I} | ${CUTBINARY} -d ':' -f1)
+                ZONENAME=$(echo ${I} | ${CUTBINARY} -d ':' -f2)
                 LogText "Result: found zone ${ZONENAME} (running)"
                 Report "solaris_running_zone[]=${ZONENAME} [id:${ZONEID}]"
             done
             LogText "Result: total of ${N} running zones"
             Display --indent 2 --text "- Checking Solaris Zones" --result "FOUND ${N} zones" --color GREEN
-          else
+        else
             LogText "Result: no running zones found"
             Display --indent 2 --text "- Checking Solaris Zones" --result "${STATUS_NONE}" --color WHITE
         fi
@@ -67,8 +67,8 @@
         # Show Xen guests
         #FIND=`xm list | ${AWKBINARY} '$1 != "Name|Domain-0" {print $1","$2}'`
         #for I in ${FIND}; do
-            #XENGUESTNAME=`echo ${I} | cut -d ':' -f1`
-            #XENGUESTID=`echo ${I} | cut -d ':' -f2`
+            #XENGUESTNAME=`echo ${I} | ${CUTBINARY} -d ':' -f1`
+            #XENGUESTID=`echo ${I} | ${CUTBINARY} -d ':' -f2`
             #LogText "Result: found Xen guest ${XENGUESTNAME} (ID: ${XENGUESTID})"
         #done
     #fi
@@ -95,7 +95,7 @@
     # Test        : CONT-8104
     # Description : Checking Docker info for any warnings
     # Notes       : Hardening points are awarded, as usually warnings are the result of missing controls to restrict boundaries like memory
-    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${DOCKERBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8104 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Docker info for any warnings"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
@@ -106,18 +106,18 @@
             LogText "Result: disabling further Docker tests as docker version gave exit code other than zero (0)"
             RUN_DOCKER_TESTS=0
         fi
-        FIND=`${DOCKERBINARY} info 2>&1 | ${GREPBINARY} "^WARNING:" | cut -d " " -f 2- | sed 's/ /:space:/g'`
+        FIND=$(${DOCKERBINARY} info 2>&1 | ${GREPBINARY} "^WARNING:" | ${CUTBINARY} -d " " -f 2- | ${SEDBINARY} 's/ /:space:/g')
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found warning(s) in output"
             for I in ${FIND}; do
-                J=`echo ${I} | sed 's/:space:/ /g'`
+                J=$(echo ${I} | ${SEDBINARY} 's/:space:/ /g')
                 LogText "Output: ${J}"
                 COUNT=$((COUNT + 1))
             done
             Display --indent 8 --text "- Docker info output (warnings)" --result "${COUNT}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Run 'docker info' to see warnings applicable to Docker daemon"
             AddHP 3 4
-          else
+        else
             LogText "Result: no warnings found from 'docker info' output"
             Display --indent 8 --text "- Docker info output (warnings)" --result "${STATUS_NONE}" --color GREEN
             AddHP 1 1
@@ -129,7 +129,7 @@
     # Test        : CONT-8106
     # Description : Checking Docker containers (basic stats)
     # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
-    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Gather basic stats from Docker"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 6 --text "- Containers"
@@ -140,6 +140,7 @@
         if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
             DOCKER_CONTAINERS_TOTAL=0
         fi
+
         LogText "Result: docker info shows ${DOCKER_CONTAINERS_TOTAL} containers"
         DOCKER_CONTAINERS_TOTAL2=$(${DOCKERBINARY} ps -a 2> /dev/null | ${GREPBINARY} -c -v "CONTAINER")
         LogText "Result: docker ps -a shows ${DOCKER_CONTAINERS_TOTAL2} containers"
@@ -195,23 +196,23 @@
     Register --test-no CONT-8108 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check file permissions for Docker files"
     if [ ${SKIPTEST} -eq 0 ]; then
         NOT_WORLD_WRITABLE="/var/run/docker.sock"
-        for I in ${NOT_WORLD_WRITABLE}; do
-            LogText "Test: Check ${I}"
-            if [ -f ${I} ]; then
-                LogText "Result: file ${I} found, permissions will be tested"
-                if IsWorldWritable ${I}; then
+        for FILE in ${NOT_WORLD_WRITABLE}; do
+            LogText "Test: Check ${FILE}"
+            if [ -f ${FILE} ]; then
+                LogText "Result: file ${FILE} found, permissions will be tested"
+                if IsWorldWritable ${FILE}; then
                     LogText "Result: file is writable by others, which is a security risk (e.g. privilege escalation)"
-                    ReportWarning "${TEST_NO}" "Docker file is world writable" "${I}" "-"
+                    ReportWarning "${TEST_NO}" "Docker file is world writable" "${FILE}" "-"
                     DOCKER_FILE_PERMISSIONS_WARNINGS=$((DOCKER_FILE_PERMISSIONS_WARNINGS + 1))
-                  else
-                    LogText "Result: file is not writable by others, which is fine"
+                else
+                    LogText "Result: file ${FILE} is not writable by others, which is fine"
                 fi
             fi
         done
         if [ ${DOCKER_FILE_PERMISSIONS_WARNINGS} -gt 0 ]; then
             Display --indent 4 --text "- File permissions" --result "${STATUS_WARNING}"S --color YELLOW
             AddHP 0 5
-          else
+        else
             Display --indent 4 --text "- File permissions" --result "${STATUS_OK}" --color GREEN
             AddHP 5 5
         fi

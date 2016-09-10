@@ -11,11 +11,15 @@ Changes:
   by the test ID. It will show the relevant section.
 * Several tests have extended log details
 * Many style improvements as part of ongoing refactoring of the code
+* Detection of nftables improved
+* Replaced cut, sed, tr and others commands with binary variable (for forensics
+  and future intrusion checking capabilities)
 
 
 Tests:
 ------
 * CONT-8107 - New test checking number of Docker containers
+* CRYP-7902 - Gather more details regarding certificates
 * DBS-1816  - Define skip reason
 * FILE-6344 - Adjusted /proc test for hidepid option
 * FILE-6362 - Removed warning and add skip reason
@@ -24,6 +28,7 @@ Tests:
 * KRNL-5820 - Corrected function and style improvements
 * LOGG-2146 - Textual change
 * TIME-3104 - timedatectl test now detects NTP synchronization properly
+
 
 ---------------------------------------------------------------------------------
 

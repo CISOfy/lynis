@@ -23,9 +23,9 @@
 #################################################################################
 #
     # Paths to DATADIR
-    sMYSQLDBPATHS="/var/lib/mysql"
+    sMYSQLDBPATHS="${ROOTDIR}var/lib/mysql"
     # Paths to my.cnf
-    sMYCNFLOCS="/etc/mysql/my.cnf /usr/etc/my.cnf"
+    sMYCNFLOCS="${ROOTDIR}etc/mysql/my.cnf ${ROOTDIR}usr/etc/my.cnf"
     REDIS_CONFIGURATION_FILES=""
     REDIS_CONFIGURATION_FOUND=0
 #
@@ -75,13 +75,13 @@
     Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking MySQL root password"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Trying to login to local MySQL server without password"
-        FIND=`${MYSQLCLIENTBINARY} -u root --password= --silent --batch --execute="" 2> /dev/null; echo $?`
+        FIND=$(${MYSQLCLIENTBINARY} -u root --password= --silent --batch --execute="" 2> /dev/null; echo $?)
         if [ "${FIND}" = "0" ]; then
             LogText "Result: Login succeeded, no MySQL root password set!"
             ReportWarning ${TEST_NO} "No MySQL root password set"
             Display --indent 4 --text "- Checking empty MySQL root password" --result "${STATUS_WARNING}" --color RED
             AddHP 0 5
-          else
+        else
             LogText "Result: Login did not succeed, so a MySQL root password is set"
             Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN
             AddHP 2 2
@@ -102,7 +102,7 @@
             POSTGRESQL_RUNNING=1
             DATABASE_ENGINE_RUNNING=1
             Report "postgresql_running=${POSTGRESQL_RUNNING}"
-          else
+        else
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: PostgreSQL process not active"
         fi
@@ -122,11 +122,11 @@
     #               reco: recovery (optional)
     Register --test-no DBS-1840 --weight L --network NO --category security --description "Checking active Oracle processes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep"`
+        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
         if [ "${FIND}" = "" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: Oracle process(es) not active"
-          else
+        else
             Display --indent 2 --text "- Oracle processes status" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: Oracle is active"
             ORACLE_RUNNING=1
@@ -158,7 +158,7 @@
             DB2_RUNNING=1
             DATABASE_ENGINE_RUNNING=1
             Report "db2_running=${DB2_RUNNING}"
-          else
+        else
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- DB2 instance running" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: No DB2 instances are running"
         fi
@@ -193,7 +193,7 @@
         FOUND=0
         for DIR in ${PATHS}; do
             LogText "Action: scanning directory (${DIR}) for Redis configuration files"
-            FILES=$(ls ${DIR}/*.conf 2> /dev/null)
+            FILES=$(${LSBINARY} ${DIR}/*.conf 2> /dev/null)
             if [ ! -z "${FILES}" ]; then
                 for CONFFILE in ${FILES}; do
                     if FileIsReadable ${CONFFILE}; then
@@ -222,7 +222,7 @@
             fi
         done
         # Sort the list of discovered configuration files so we can make them unique
-        REDIS_CONFIGURATION_FILES=$(echo ${REDIS_CONFIGURATION_FILES} | ${SEDBINARY} 's/^ //' | ${TRBINARY} ' ' '\n' | ${SORTBINARY} | uniq | ${TRBINARY} '\n' ' ')
+        REDIS_CONFIGURATION_FILES=$(echo ${REDIS_CONFIGURATION_FILES} | ${SEDBINARY} 's/^ //' | ${TRBINARY} ' ' '\n' | ${SORTBINARY} | ${UNIQBINARY} | ${TRBINARY} '\n' ' ')
         for FILE in ${REDIS_CONFIGURATION_FILES}; do
             if IsWorldReadable ${FILE}; then
                 LogText "Result: configuration file ${FILE} is world readable, this might leak sensitive information!"

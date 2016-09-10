@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    LOG_FILES_LOCS="/var/log /var/adm"
+    LOG_FILES_LOCS="${ROOTDIR}var/log ${ROOTDIR}var/adm"
     LOGROTATE_CONFIG_FOUND=0
     LOGROTATE_TOOL=""
     METALOG_RUNNING=0
@@ -43,14 +43,14 @@
     Register --test-no LOGG-2130 --weight L --network NO --category security --description "Check for running syslog daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for a logging daemon"
-        FIND=`${PSBINARY} ax | ${EGREPBINARY} "syslogd|syslog-ng|metalog|systemd-journal" | ${GREPBINARY} -v "grep"`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "syslogd|syslog-ng|metalog|systemd-journal" | ${GREPBINARY} -v "grep")
+        if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking for a running log daemon" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Could not find a syslog daemon like syslog, syslog-ng, rsyslog, metalog, systemd-journal"
             ReportSuggestion ${TEST_NO} "Check if any syslog daemon is running and correctly configured."
             ReportWarning ${TEST_NO} "No syslog daemon found"
             AddHP 0 3
-          else
+        else
             Display --indent 2 --text "- Checking for a running log daemon" --result "${STATUS_OK}" --color GREEN
             LogText "Result: Found a logging daemon"
             SYSLOG_DAEMON_PRESENT=1
@@ -72,7 +72,7 @@
             Display --indent 4 --text "- Checking Syslog-NG status" --result "${STATUS_FOUND}" --color GREEN
             SYSLOG_DAEMON_PRESENT=1
             SYSLOG_NG_RUNNING=1
-          else
+        else
             LogText "Result: Syslog-ng NOT found in process list"
             Display --indent 4 --text "- Checking Syslog-NG status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -85,11 +85,11 @@
     if [ ! "${SYSLOGNGBINARY}" = "" -a ${SYSLOG_NG_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2134 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Syslog-NG configuration file consistency"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${SYSLOGNGBINARY} -s; echo $?`
+        FIND=$(${SYSLOGNGBINARY} -s; echo $?)
         if [ "${FIND}" = "0" ]; then
             LogText "Result: Syslog-NG configuration file seems to be consistent"
             Display --indent 6 --text "- Checking Syslog-NG consistency" --result "${STATUS_OK}" --color GREEN
-          else
+        else
             LogText "Result: Syslog-NG configuration file seems NOT to be consistent"
             Display --indent 6 --text "- Checking Syslog-NG consistency" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "Found one or more problems in Syslog-NG configuration file"
@@ -108,7 +108,7 @@
         if [ ${RUNNING} -eq 1 ]; then
             Display --indent 4 --text "- Checking systemd journal status" --result "${STATUS_FOUND}" --color GREEN
             SYSTEMD_JOURNAL_RUNNING=1
-          else
+        else
             Display --indent 4 --text "- Checking systemd journal status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
@@ -126,7 +126,7 @@
             Display --indent 4 --text "- Checking Metalog status" --result "${STATUS_FOUND}" --color GREEN
             SYSLOG_DAEMON_PRESENT=1
             METALOG_RUNNING=1
-          else
+        else
             LogText "Result: metalog NOT found in process list"
             Display --indent 4 --text "- Checking Metalog status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -145,7 +145,7 @@
             Display --indent 4 --text "- Checking RSyslog status" --result "${STATUS_FOUND}" --color GREEN
             SYSLOG_DAEMON_PRESENT=1
             RSYSLOG_RUNNING=1
-          else
+        else
             LogText "Result: rsyslogd NOT found in process list"
             Display --indent 4 --text "- Checking RSyslog status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -164,7 +164,7 @@
             Display --indent 4 --text "- Checking RFC 3195 daemon status" --result "${STATUS_FOUND}" --color GREEN
             SYSLOG_DAEMON_PRESENT=1
             RFC3195D_RUNNING=1
-          else
+        else
             LogText "Result: rfc3195d NOT found in process list"
             Display --indent 4 --text "- Checking RFC 3195 daemon status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -188,12 +188,12 @@
             if [ ${RUNNING} -eq 1 ]; then
                 LogText "Result: klogd running"
                 Display --indent 4 --text "- Checking klogd" --result "${STATUS_FOUND}" --color GREEN
-              else
+            else
                 LogText "Result: No klogd found"
                 Display --indent 4 --text "- Checking klogd" --result "${STATUS_NOT_FOUND}" --color RED
                 ReportWarning ${TEST_NO} "klogd is not running, which could lead to missing kernel messages in log files"
             fi
-          else
+        else
             LogText "Result: test skipped, because other facility is being used to log kernel messages"
         fi
     fi
@@ -210,7 +210,7 @@
         if [ ${RUNNING} -eq 0 ]; then
             Display --indent 4 --text "- Checking minilogd instances" --result "${STATUS_NOT_FOUND}" --color WHITE
             LogText "Result: No minilogd is running"
-          else
+        else
             Display --indent 4 --text "- Checking minilogd instances" --result "${STATUS_WARNING}" --color RED
             LogText "Result: minilogd found in process list"
             # minilogd daemon seems to be running
@@ -224,22 +224,22 @@
     # Description : Check for logrotate (/etc/logrotate.conf and logrotate.d)
     Register --test-no LOGG-2146 --weight L --os Linux --network NO --category security --description "Checking logrotate.conf and logrotate.d"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking for /etc/logrotate.conf"
-        if [ -f /etc/logrotate.conf ]; then
+        LogText "Test: Checking for ${ROOTDIR}etc/logrotate.conf"
+        if [ -f ${ROOTDIR}etc/logrotate.conf ]; then
             LOGROTATE_CONFIG_FOUND=1
             LOGROTATE_TOOL="logrotate"
-            LogText "Result: /etc/logrotate.conf found (file)"
+            LogText "Result: ${ROOTDIR}etc/logrotate.conf found (file)"
         else
-            LogText "Result: /etc/logrotate.conf NOT found"
+            LogText "Result: ${ROOTDIR}etc/logrotate.conf NOT found"
         fi
 
-        LogText "Test: Checking for /etc/logrotate.d (directory)"
-        if [ -d /etc/logrotate.d ]; then
+        LogText "Test: Checking for ${ROOTDIR}etc/logrotate.d (directory)"
+        if [ -d ${ROOTDIR}etc/logrotate.d ]; then
             LOGROTATE_CONFIG_FOUND=1
             LOGROTATE_TOOL="logrotate"
-            LogText "Result: /etc/logrotate.d found"
+            LogText "Result: ${ROOTDIR}etc/logrotate.d found"
         else
-            LogText "Result: /etc/logrotate.conf found"
+            LogText "Result: ${ROOTDIR}etc/logrotate.conf found"
         fi
 
         if [ ${LOGROTATE_CONFIG_FOUND} -eq 1 ]; then
@@ -256,14 +256,14 @@
 #
     # Test        : LOGG-2148
     # Description : Checking log files rotated with logrotate
-    if [ ! "${LOGROTATEBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${LOGROTATEBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2148 --weight L --preqs-met ${PREQS_MET} --network NO --category security --description "Checking logrotated files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking which files are rotated with logrotate and if they exist"
-        FIND=`${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }'`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${LOGROTATEBINARY} -d -v ${ROOTDIR}etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }')
+        if [ -z "${FIND}" ]; then
             LogText "Result: nothing found"
-          else
+        else
             LogText "Result: found one or more files which are rotated via logrotate"
             for I in ${FIND}; do
                 LogText "Output: ${I}"
@@ -304,21 +304,21 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Try local hosts file
         LogText "Result: Checking for loghost in /etc/inet/hosts"
-        FIND=`${GREPBINARY} loghost /etc/inet/hosts | ${GREPBINARY} -v "^#"`
-        if [ ! "${FIND}" = "" ]; then
+        FIND=$(${GREPBINARY} loghost /etc/inet/hosts | ${GREPBINARY} -v "^#")
+        if [ ! -z "${FIND}" ]; then
             SOLARIS_LOGHOST_FOUND=1
             LogText "Result: Found loghost entry in /etc/inet/hosts"
-          else
+        else
             LogText "Result: No loghost entry found in /etc/inet/hosts"
 
             # Try name resolving if no entry is present in local host file
             LogText "Result: Checking for loghost via name resolving"
             FIND=`getent hosts loghost | ${GREPBINARY} loghost`
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 SOLARIS_LOGHOST_FOUND=1
                 LogText "Result: name resolving was succesful"
                 LogText "Output: ${FIND}"
-              else
+            else
                 LogText "Result: name resolving didn't find results"
             fi
         fi
@@ -326,7 +326,7 @@
         if [ ${SOLARIS_LOGHOST_FOUND} -eq 1 ]; then
             LogText "Result: loghost entry found and most likely used to send syslog messages"
             Display --indent 2 --text "- Checking loghost entry" --result "${STATUS_OK}" --color GREEN
-          else
+        else
             Display --indent 2 --text "- Checking loghost entry" --result "${STATUS_WARNING}" --color RED
             LogText "Result: No loghost entry found"
             ReportWarning ${TEST_NO} "No loghost entry found"
@@ -344,21 +344,21 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ${SYSLOG_NG_RUNNING} -eq 1 ]; then
             SYSLOGD_CONF="/etc/syslog-ng/syslog-ng.conf"
-          else
+        else
             SYSLOGD_CONF="/etc/syslog.conf"
         fi
         if [ -f ${SYSLOGD_CONF} ]; then
             LogText "Test: check if logs are also logged to a remote logging host"
-            FIND=`${EGREPBINARY} "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@"`
-            if [ ! "${FIND}" = "" ]; then
+            FIND=$(${EGREPBINARY} "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: remote logging enabled"
                 REMOTE_LOGGING_ENABLED=1
             else
                 # Search for configured destinations with an IP address or hostname, then determine which ones are used as a log destination
-                DESTINATIONS=`${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${EGREPBINARY} "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}'`
+                DESTINATIONS=$(${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${EGREPBINARY} "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}')
                 for DESTINATION in ${DESTINATIONS}; do
-                    FIND2=`${GREPBINARY} "log" | ${GREPBINARY} "source" | ${EGREPBINARY} "destination\(${DESTINATION}\)"`
-                    if [ ! "${FIND2}" = "" ]; then
+                    FIND2=$(${GREPBINARY} "log" | ${GREPBINARY} "source" | ${EGREPBINARY} "destination\(${DESTINATION}\)")
+                    if [ ! -z "${FIND2}" = "" ]; then
                         LogText "Result: found destination ${DESTINATION} configured for remote logging"
                         REMOTE_LOGGING_ENABLED=1
                     fi
@@ -369,7 +369,7 @@
                 ReportSuggestion ${TEST_NO} "Enable logging to an external logging host for archiving purposes and additional protection"
                 AddHP 1 3
                 Display --indent 2 --text "- Checking remote logging" --result "NOT ENABLED" --color YELLOW
-              else
+            else
                 AddHP 5 5
                 Display --indent 2 --text "- Checking remote logging" --result "${STATUS_ENABLED}" --color GREEN
             fi
@@ -382,11 +382,11 @@
 #
     # Test        : LOGG-2160
     # Description : Check for /etc/newsyslog.conf (FreeBSD/OpenBSD)
-    if [ -f /etc/newsyslog.conf ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -f ${ROOTDIR}etc/newsyslog.conf ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2160 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking /etc/newsyslog.conf"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Result: /etc/newsyslog.conf found"
-        Display --indent 2 --text "- Checking /etc/newsyslog.conf" --result "${STATUS_FOUND}" --color GREEN
+        LogText "Result: ${ROOTDIR}etc/newsyslog.conf found"
+        Display --indent 2 --text "- Checking ${ROOTDIR}etc/newsyslog.conf" --result "${STATUS_FOUND}" --color GREEN
         LOGROTATE_CONFIG_FOUND=1
         LOGROTATE_TOOL="newsyslog"
     fi
@@ -399,12 +399,12 @@
     Register --test-no LOGG-2162 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking directories in /etc/newsyslog.conf"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: parsing directories from /etc/newsyslog.conf file"
-        FIND=`${AWKBINARY} '/^\// { print $1 }' /etc/newsyslog.conf | ${SEDBINARY} 's/\/*[a-zA-Z_.-]*$//g' | ${SORTBINARY} -u`
+        FIND=$(${AWKBINARY} '/^\// { print $1 }' /etc/newsyslog.conf | ${SEDBINARY} 's/\/*[a-zA-Z_.-]*$//g' | ${SORTBINARY} -u)
         for I in ${FIND}; do
             if [ -d ${I} ]; then
                 LogText "Result: Directory ${I} found and exists"
                 Report "log_directory[]=${I}"
-              else
+            else
                 LogText "Result: Item ${I} is not a directory"
             fi
         done
@@ -415,15 +415,15 @@
 #
     # Test        : LOGG-2164
     # Description : Check for files in /etc/newsyslog.conf
-    if [ -f /etc/newsyslog.conf ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -f ${ROOTDIR}etc/newsyslog.conf ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2164 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking files specified /etc/newsyslog.conf"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: parsing files from /etc/newsyslog.conf file"
-        FIND=`${AWKBINARY} '/^\// { print $1 }' /etc/newsyslog.conf | ${SORTBINARY} -u`
+        LogText "Test: parsing files from ${ROOTDIR}etc/newsyslog.conf file"
+        FIND=$(${AWKBINARY} '/^\// { print $1 }' ${ROOTDIR}etc/newsyslog.conf | ${SORTBINARY} -u)
         for I in ${FIND}; do
             if [ -f ${I} ]; then
                 LogText "Result: File ${I} found and exists"
-              else
+            else
                 LogText "Result: Item ${I} is not a file"
             fi
         done
@@ -441,7 +441,7 @@
             if [ -d ${I} ]; then
                 LogText "Result: directory ${I} exists"
                 Report "log_directory[]=${I}"
-              else
+            else
                 LogText "Result: directory ${I} can't be found"
             fi
         done
@@ -455,14 +455,14 @@
     Register --test-no LOGG-2180 --weight L --network NO --category security --description "Checking open log files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking open log files with lsof"
-        if [ ! "${LSOFBINARY}" = "" ]; then
-            FIND=`${LSOFBINARY} -n 2>&1 | ${GREPBINARY} "log$" | ${EGREPBINARY} -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$"`
+        if [ ! -z "${LSOFBINARY}" ]; then
+            FIND=$(${LSOFBINARY} -n 2>&1 | ${GREPBINARY} "log$" | ${EGREPBINARY} -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$")
             for I in ${FIND}; do
                 LogText "Found logfile: ${I}"
                 Report "open_logfile[]=${I}"
             done
             Display --indent 2 --text "- Checking open log files" --result "${STATUS_DONE}" --color GREEN
-          else
+        else
             LogText "Result: lsof not installed, skipping test"
             Display --indent 2 --text "- Checking open log files" --result "${STATUS_SKIPPED}" --color YELLOW
             # Add suggestion
@@ -493,7 +493,7 @@
         fi
 
         FIND=$(${LSOFBINARY} -n +L 1 2>&1 | ${EGREPBINARY} -vw "${LSOF_GREP}" | ${AWKBINARY} '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: found one or more files which are deleted, but still in use"
             for I in ${FIND}; do
                 LogText "Found deleted file: ${I}"

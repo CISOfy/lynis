@@ -46,20 +46,20 @@
                 LogText "Result: ${I} is a symlink. Manual check required to determine exact file system options"
                 ReportSuggestion ${TEST_NO} "Symlinked mount point needs to be checked manually" "${I}" ""
                 Display --indent 4 --text "- Checking ${I} mount point" --result SYMLINK --color WHITE
-              elif [ -d ${I} ]; then
+            elif [ -d ${I} ]; then
                 LogText "Result: directory ${I} exists"
-                FIND=`mount | ${GREPBINARY} "${I}"`
-                if [ ! "${FIND}" = "" ]; then
+                FIND=$(${MOUNTBINARY} | ${GREPBINARY} "${I}")
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: found ${I} as a separated mount point"
                     Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_OK}" --color GREEN
                     AddHP 10 10
-                  else
+                else
                     LogText "Result: ${I} not found in mount list. Directory most likely stored on / file system"
                     Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_SUGGESTION}" --color YELLOW
                     ReportSuggestion ${TEST_NO} "To decrease the impact of a full ${I} file system, place ${I} on a separated partition"
                     AddHP 9 10
                 fi
-              else
+            else
                 LogText "Result: directory ${I} does not exist"
             fi
         done
@@ -76,16 +76,16 @@
         LogText "Test: Checking for LVM volume groups"
         case ${OS} in
             AIX)
-                 FIND=`${LSVGBINARY} -o`
+                 FIND=$(${LSVGBINARY} -o)
             ;;
             Linux)
-                 FIND=`${VGDISPLAYBINARY} 2> /dev/null | ${GREPBINARY} -v "No volume groups found" | ${GREPBINARY} "VG Name" | ${AWKBINARY} '{ print $3 }' | sort`
+                 FIND=$(${VGDISPLAYBINARY} 2> /dev/null | ${GREPBINARY} -v "No volume groups found" | ${GREPBINARY} "VG Name" | ${AWKBINARY} '{ print $3 }' | ${SORTBINARY})
             ;;
             *)
                  ReportException "${TEST_NO}:1" "Don't know this specific operating system yet, while volume group manager was found"
             ;;
         esac
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: found one or more volume groups"
             for I in ${FIND}; do
                 LogText "Found LVM volume group: ${I}"
@@ -93,7 +93,7 @@
             done
             LVM_VG_USED=1
             Display --indent 2 --text "- Checking LVM volume groups" --result "${STATUS_FOUND}" --color GREEN
-          else
+        else
             LogText "Result: no LVM volume groups found"
             if IsVerbose; then Display --indent 2 --text "- Checking LVM volume groups" --result "${STATUS_NONE}" --color WHITE; fi
         fi
@@ -109,11 +109,11 @@
         LogText "Test: Checking for LVM volumes"
         case ${OS} in
             AIX)
-                 ACTIVE_VG_LIST=`${LSVGBINARY} -o`
-                 FIND=`for I in ${ACTIVE_VG_LIST}; do ${LSVGBINARY} -l ${I} | ${AWKBINARY} 'NR>2 { print $1 }'; done`
+                 ACTIVE_VG_LIST=$(${LSVGBINARY} -o)
+                 FIND=$(for I in ${ACTIVE_VG_LIST}; do ${LSVGBINARY} -l ${I} | ${AWKBINARY} 'NR>2 { print $1 }'; done)
             ;;
             Linux)
-                 FIND=`${LVDISPLAYBINARY} | ${GREPBINARY} -v "No volume groups found" | ${GREPBINARY} "LV Name" | ${AWKBINARY} '{ print $3 }' | sort`
+                 FIND=$(${LVDISPLAYBINARY} | ${GREPBINARY} -v "No volume groups found" | ${GREPBINARY} "LV Name" | ${AWKBINARY} '{ print $3 }' | ${SORTBINARY})
             ;;
             *)
                  ReportException "${TEST_NO}:1" "Need specific test for gathering volume manager data"
@@ -126,7 +126,7 @@
                 Report "lvm_volume[]=${I}"
             done
             Display --indent 4 --text "- Checking LVM volumes" --result "${STATUS_FOUND}" --color GREEN
-          else
+        else
             LogText "Result: no LVM volume groups found"
             Display --indent 4 --text "- Checking LVM volumes" --result "${STATUS_NONE}" --color WHITE
         fi
@@ -147,16 +147,16 @@
     Register --test-no FILE-6323 --os Linux --weight L --network NO --category security --description "Checking EXT file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for Linux EXT file systems"
-        FIND=`mount -t ext2,ext3,ext4 | ${AWKBINARY} '{ print $3","$5 }'`
-        if [ ! "${FIND}" = "" ]; then
+        FIND=$(${MOUNTBINARY} -t ext2,ext3,ext4 | ${AWKBINARY} '{ print $3","$5 }')
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: found one or more EXT file systems"
             for I in ${FIND}; do
-                FILESYSTEM=`echo ${I} | ${CUTBINARY} -d ',' -f1`
-                FILETYPE=`echo ${I} | ${CUTBINARY} -d ',' -f2`
+                FILESYSTEM=$(echo ${I} | ${CUTBINARY} -d ',' -f1)
+                FILETYPE=$(echo ${I} | ${CUTBINARY} -d ',' -f2)
                 LogText "File system: ${FILESYSTEM} (type: ${FILETYPE})"
                 Report "file_systems_ext[]=${FILESYSTEM}|${FILETYPE}|"
             done
-          else
+        else
             LogText "Result: no EXT file systems found"
             Report "file_systems_ext[]=none"
         fi
@@ -170,11 +170,11 @@
     Register --test-no FILE-6329 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking FFS/UFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Query /etc/fstab for available FFS/UFS mount points"
-        FIND=`${AWKBINARY} '{ if ($3 == "ufs" || $3 == "ffs" ) { print $1":"$2":"$3":"$4":" }}' /etc/fstab`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${AWKBINARY} '{ if ($3 == "ufs" || $3 == "ffs" ) { print $1":"$2":"$3":"$4":" }}' /etc/fstab)
+        if [ -z "${FIND}" ]; then
             if IsVerbose; then Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result "${STATUS_NONE}" --color WHITE; fi
             LogText "Result: unable to find any single mount point (FFS/UFS)"
-          else
+        else
             Display --indent 2 --text "- Querying FFS/UFS mount points (fstab)" --result "${STATUS_FOUND}" --color GREEN
             Report "filesystem[]=ufs"
             for I in ${FIND}; do
@@ -191,11 +191,11 @@
     Register --test-no FILE-6330 --os FreeBSD --weight L --network NO --category security --description "Checking ZFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Query /etc/fstab for available ZFS mount points"
-        FIND=`mount -p | ${AWKBINARY} '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}'`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${MOUNTBINARY} -p | ${AWKBINARY} '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}')
+        if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result "${STATUS_NONE}" --color WHITE
             LogText "Result: unable to find any single mount point (ZFS)"
-          else
+        else
             Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result "${STATUS_FOUND}" --color GREEN
             Report "filesystem[]=zfs"
             for I in ${FIND}; do
@@ -215,7 +215,7 @@
         FOUND=0
         LogText "Test: query swap partitions from /etc/fstab file"
         # Check if third field contains 'swap'
-        FIND=`${AWKBINARY} '{ if ($2=="swap" || $3=="swap") { print $1 }}' /etc/fstab | ${GREPBINARY} -v "^#"`
+        FIND=$(${AWKBINARY} '{ if ($2=="swap" || $3=="swap") { print $1 }}' /etc/fstab | ${GREPBINARY} -v "^#")
         for I in ${FIND}; do
             FOUND=1
             REAL=""
@@ -227,12 +227,12 @@
 
             # Test for UUID usage (e.g. UUID=uuid --> /dev/disk/by-uuid/<uuid>)
             HAS_UUID=`echo ${I} | ${GREPBINARY} "^UUID="`
-            if [ ! "${HAS_UUID}" = "" ]; then
+            if [ ! -z "${HAS_UUID}" ]; then
                 UUID=`echo ${HAS_UUID} | ${AWKBINARY} -F= '{ print $2 }'`
                 LogText "Result: Using ${UUID} as UUID"
-                if [ ! "${BLKIDBINARY}" = "" ]; then
+                if [ ! -z "${BLKIDBINARY}" ]; then
                     FIND2=$(${BLKIDBINARY} | ${AWKBINARY} '{ if ($2=="UUID=\"${UUID}\"") print $1 }' | ${SEDBINARY} 's/:$//')
-                    if [ ! "${FIND2}" = "" ]; then
+                    if [ ! -z "${FIND2}" ]; then
                         REAL="${FIND2}"
                     fi
                 else
@@ -241,7 +241,7 @@
                     if [ -L /dev/disk/by-uuid/${UUID} ]; then
                         LogText "Result: found disk via /dev/disk/by-uuid listing"
                         ShowSymlinkPath /dev/disk/by-uuid/${UUID}
-                        if [ ! "${sFILE}" = "" ]; then
+                        if [ ! -z "${sFILE}" ]; then
                             REAL="${sFILE}"
                             LogText "Result: disk is ${REAL}"
                         fi
@@ -251,7 +251,7 @@
                 fi
             fi
             # Set real device
-            if [ "${REAL}" = "" ]; then
+            if [ -z "${REAL}" ]; then
                 REAL="${I}"
             fi
             Report "swap_partition[]=${I},${REAL},"
@@ -275,12 +275,11 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Swap partitions should be mounted with 'sw' or 'swap'
         LogText "Test: check swap partitions with incorrect mount options"
-        #FIND=`${AWKBINARY} '{ if ($3=="swap" && ($4!="sw" && $4!="swap" && $4!="defaults")) print $1 }' /etc/fstab`
-        FIND=`${AWKBINARY} '{ if ($3=="swap" && ($4!~/sw/ && $4!="defaults")) { print $1 }}' /etc/fstab`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${AWKBINARY} '{ if ($3=="swap" && ($4!~/sw/ && $4!="defaults")) { print $1 }}' /etc/fstab)
+        if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Testing swap partitions" --result "${STATUS_OK}" --color GREEN
             LogText "Result: all swap partitions have correct options (sw or swap)"
-          else
+        else
             Display --indent 2 --text "- Testing swap partitions" --result "CHECK NEEDED" --color YELLOW
             LogText "Result: possible incorrect mount options used for mounting swap partition (${FIND})"
             #ReportWarning ${TEST_NO} "Possible incorrect mount options used for swap parition (${FIND})"
@@ -295,7 +294,7 @@
     # Description : Check proc mount options (Linux >=3.3 only)
     # Examples    : proc /proc proc defaults,hidepid=2 0 0
     # Goal        : Users should not be able to see processes of other users
-    if [ "${OS}" = "Linux" -a -f /proc/version ]; then
+    if [ "${OS}" = "Linux" -a -f ${ROOTDIR}proc/version ]; then
         LINUX_KERNEL_MAJOR=$(echo $OS_KERNELVERSION | ${AWKBINARY} -F. '{print $1}')
         LINUX_KERNEL_MINOR=$(echo $OS_KERNELVERSION | ${AWKBINARY} -F. '{print $2}')
         if [ ! -z "${LINUX_KERNEL_MAJOR}" -a ! -z "${LINUX_KERNEL_MINOR}" ]; then
@@ -308,7 +307,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Proc should be mounted with 'hidepid=2' or 'hidepid=1' at least
         LogText "Test: check proc mount with incorrect mount options"
-        FIND=$(mount | ${EGREPBINARY} "/proc " | ${EGREPBINARY} -o "hidepid=[0-9]")
+        FIND=$(${MOUNTBINARY} | ${EGREPBINARY} "${ROOTDIR}proc " | ${EGREPBINARY} -o "hidepid=[0-9]")
         if [ "${FIND}" = "hidepid=2" ]; then
             Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
             LogText "Result: proc mount mounted with hidepid=2"
@@ -335,15 +334,15 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for old files in /tmp"
         # Search for files only in /tmp, with an access time older than X days
-        FIND=`find /tmp -xdev -type f -atime +${TMP_OLD_DAYS} | ${SEDBINARY} 's/ /!space!/g'`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${FINDBINARY} ${ROOTDIR}tmp -xdev -type f -atime +${TMP_OLD_DAYS} | ${SEDBINARY} 's/ /!space!/g')
+        if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_OK}" --color GREEN
             LogText "Result: no files found in /tmp which are older than 3 months"
-          else
+        else
             Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_FOUND}" --color RED
             N=0
             for I in ${FIND}; do
-                FILE=`echo ${I} | ${SEDBINARY} 's/!space!/ /g'`
+                FILE=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')
                 LogText "Old temporary file: ${FILE}"
                 N=$((N + 1))
             done
@@ -396,28 +395,28 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: Checking acl option on ext[2-4] root file system"
-        FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/ext[2-4]/) { print $6 } }' | ${GREPBINARY} acl`
-        if [ ! "${FIND}" = "" ]; then
+        FIND=$(${MOUNTBINARY} | ${AWKBINARY} '{ if ($3=="/" && $5~/ext[2-4]/) { print $6 } }' | ${GREPBINARY} acl)
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: found ACL option"
             FOUND=1
-          else
+        else
             LogText "Result: mount point probably mounted with defaults"
             LogText "Test: Checking device which holds root file system"
             # Get device on which root file system is mounted. Use /dev/root if it exists, or
             # else check output of mount
-            if [ -b /dev/root ]; then
-                FIND1="/dev/root"
-              else
+            if [ -b ${ROOTDIR}dev/root ]; then
+                FIND1="${ROOTDIR}dev/root"
+            else
                 # Only determine device if it is EXT2/3/4
                 #FIND1=`mount | ${GREPBINARY} "on / " | ${AWKBINARY} '{ if ($5~/ext[2-4]/) { print $1 }}'`
-                FIND1=`mount -t ext2,ext3,ext4 | ${GREPBINARY} "on / " | ${AWKBINARY} '{ print $1 }'`
+                FIND1=$(${MOUNTBINARY} -t ext2,ext3,ext4 | ${GREPBINARY} "on / " | ${AWKBINARY} '{ print $1 }')
             fi
             # Trying to determine default mount options from EXT2/EXT3/EXT4 file systems
-            if [ ! "${FIND1}" = "" ]; then
+            if [ ! -z "${FIND1}" ]; then
                 LogText "Result: found ${FIND1}"
                 LogText "Test: Checking default options on ${FIND1}"
-                FIND2=`${TUNE2FSBINARY} -l ${FIND1} 2> /dev/null | ${GREPBINARY} "^Default mount options" | ${GREPBINARY} "acl"`
-                if [ ! "${FIND2}" = "" ]; then
+                FIND2=$(${TUNE2FSBINARY} -l ${FIND1} 2> /dev/null | ${GREPBINARY} "^Default mount options" | ${GREPBINARY} "acl")
+                if [ ! -z "${FIND2}" ]; then
                     LogText "Result: found ACL option in default mount options"
                     FOUND=1
                   else
@@ -429,8 +428,8 @@
         fi
 
         LogText "Test: Checking acl option on xfs root file system"
-        FIND=`mount | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | ${EGREPBINARY} 'no_acl|no_user_xattr'`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${MOUNTBINARY} | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | ${EGREPBINARY} 'no_acl|no_user_xattr')
+        if [ -z "${FIND}" ]; then
             FOUND=1
             # some other tests to do ?
         fi
@@ -441,7 +440,7 @@
             LogText "Activate acl support on and active file system with mount -o remount,acl / and add the acl option to the fstab file"
             Display --indent 2 --text "- ACL support root file system" --result "${STATUS_DISABLED}" --color YELLOW
             AddHP 0 1
-          else
+        else
             LogText "Result: ACL option enabled on root file system"
             Display --indent 2 --text "- ACL support root file system" --result "${STATUS_ENABLED}" --color GREEN
             AddHP 3 3
@@ -506,11 +505,11 @@
                 FS_FSTAB=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $3 } }' /etc/fstab)
                 if [ "${FS_FSTAB}" = "glusterfs" ]; then
                     EXPECTED_FLAGS=$(echo ${EXPECTED_FLAGS} | ${SEDBINARY} 's/\<\(nodev\|nosuid\)\> *//g')
-                    if [ "${EXPECTED_FLAGS}" = "" ]; then
+                    if [ -z "${EXPECTED_FLAGS}" ]; then
                         FS_FSTAB=""
                     fi
                 fi
-                if [ ! "${FS_FSTAB}" = "" ]; then
+                if [ ! -z "${FS_FSTAB}" ]; then
                     FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' /etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
                     LogText "File system:    ${FILESYSTEM}"
                     LogText "Expected flags: ${EXPECTED_FLAGS}"
@@ -522,7 +521,7 @@
                         if [ "${FLAG_AVAILABLE}" = "" ]; then
                             LogText "Result: Could not find mount option ${FLAG} on file system ${FILESYSTEM}"
                             FULLY_HARDENED=0
-                          else
+                        else
                             LogText "Result: GOOD, found mount option ${FLAG} on file system ${FILESYSTEM}"
                             PARTIALLY_HARDENED=1
                         fi
@@ -540,7 +539,7 @@
                             LogText "Result: marked ${FILESYSTEM} options as default (non hardened)"
                             Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result DEFAULT --color YELLOW
                             AddHP 3 5
-                          else
+                        else
                             LogText "Result: marked ${FILESYSTEM} options as non default (unclear about hardening)"
                             Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "NON DEFAULT" --color YELLOW
                             AddHP 4 5
@@ -562,16 +561,16 @@
         if [ -f /etc/fstab ]; then
             FIND=$(${AWKBINARY} '{ if ($2=="/var/tmp") { print $4 } }' /etc/fstab)
             BIND=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "bind") { print "YES" } else { print "NO" } }')
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: mount system /var/tmp is configured with options: ${FIND}"
                 if [ "${BIND}" = "YES" ]; then
                     Display --indent 2 --text "- /var/tmp is bound to /tmp" --result "${STATUS_OK}" --color GREEN
                     LogText "Result : /var/tmp is bind to /tmp"
-                  else
+                else
                     Display --indent 2 --text "- /var/tmp is not bound to /tmp" --result "NON DEFAULT" --color YELLOW
                     LogText "Result: /var/tmp is not bind to /tmp"
                 fi
-              else
+            else
                 LogText "Result: no mount point /var/tmp or expected options found"
                 if IsVerbose; then Display --indent 2 --text "- /var/tmp is not bound to /tmp" --result "INFO" --color WHITE; fi
             fi
@@ -693,7 +692,7 @@
     # Data        : cramfs freevxfs hfs hfsplus jffs2 squashfs udf 
     Register --test-no FILE-6430 --weight L --network NO --category security --description "Disable mounting of some filesystems"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
+        if [ ! -z "${LSMODBINARY}" -a -f /proc/modules ]; then
             Display --indent 2 --text "- Disable kernel support of some filesystems"
             LIST_FS_NOT_SUPPORTED="cramfs freevxfs hfs hfsplus jffs2 squashfs udf"
             FOUND=0
@@ -701,13 +700,13 @@
             AVAILABLE_MODPROBE_FS=""
             for FS in ${LIST_FS_NOT_SUPPORTED}; do
                 # Check if filesystem is present in modprobe output
-                FIND=`${MODPROBEBINARY} -v -n $FS 2>/dev/null | ${EGREPBINARY} "/${FS}.ko" | tail -1`
+                FIND=$(${MODPROBEBINARY} -v -n $FS 2>/dev/null | ${EGREPBINARY} "/${FS}.ko" | tail -1)
                 if [ ! -z "${FIND}" ]; then
                     LogText "Result: found module support in kernel: ${FIND}"
                     Debug "Module ${FS} present in the kernel"
                     LogText "Test: Checking if ${FS} is active"
                     # Check if FS is present in lsmod output
-                    FIND=`${LSMODBINARY} | ${EGREPBINARY} "^${FS}"`
+                    FIND=$(${LSMODBINARY} | ${EGREPBINARY} "^${FS}")
                     if [ -z "${FIND}" ]; then
                         LogText "Result: module ${FS} is not loaded in the kernel"
                         AddHP 2 3

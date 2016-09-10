@@ -28,11 +28,13 @@
 #
     DOVECOT_RUNNING=0
     EXIM_RUNNING=0
-    SMTP_DAEMON=""
+    IMAP_DAEMON=""
+    OPENSMTPD_RUNNING=0
+    POP3_DAEMON=""
     POSTFIX_RUNNING=0
     QMAIL_RUNNING=0
     SENDMAIL_RUNNING=0
-    OPENSMTPD_RUNNING=0
+    SMTP_DAEMON=""
 #
 #################################################################################
 #
@@ -47,7 +49,7 @@
             Display --indent 2 --text "- Checking Exim status" --result "${STATUS_RUNNING}" --color GREEN
             EXIM_RUNNING=1
             SMTP_DAEMON="exim"
-          else
+        else
             LogText "Result: no running Exim processes found"
             Display --indent 2 --text "- Checking Exim status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -62,15 +64,13 @@
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check Postfix status"
         # Some other processes also use master, therefore it should include both master and postfix
-        FIND1=`${PSBINARY} ax | ${GREPBINARY} "master" | ${GREPBINARY} "postfix" | ${GREPBINARY} -v "grep"`
-        #FIND2=`${PSBINARY} ax | ${GREPBINARY} "qmgr" | ${GREPBINARY} "postfix" | ${GREPBINARY} -v "grep"`
-        #FIND3=`${PSBINARY} ax | ${GREPBINARY} "pickup" | ${GREPBINARY} "postfix" | ${GREPBINARY} -v "grep"`
-        if [ ! "${FIND1}" = "" ]; then
+        FIND1=$(${PSBINARY} ax | ${GREPBINARY} "master" | ${GREPBINARY} "postfix" | ${GREPBINARY} -v "grep")
+        if [ ! -z "${FIND1}" ]; then
             LogText "Result: found running Postfix process"
             Display --indent 2 --text "- Checking Postfix status" --result "${STATUS_RUNNING}" --color GREEN
             POSTFIX_RUNNING=1
             SMTP_DAEMON="postfix"
-          else
+        else
             LogText "Result: no running Postfix processes found"
             Display --indent 2 --text "- Checking Postfix status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -84,7 +84,7 @@
     Register --test-no MAIL-8816 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Postfix configuration"
     if [ ${SKIPTEST} -eq 0  ]; then
         Display --indent 2 --text "- Checking Postfix configuration" --result "${STATUS_FOUND}" --color GREEN
-        POSTFIX_CONFIGDIR=`${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^config_directory' | ${AWKBINARY} '{ print $3 }'`
+        POSTFIX_CONFIGDIR=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^config_directory' | ${AWKBINARY} '{ print $3 }')
         POSTFIX_CONFIGFILE="${POSTFIX_CONFIGDIR}/main.cf"
         LogText "Postfix configuration directory: ${POSTFIX_CONFIGDIR}"
         LogText "Postfix configuration file: ${POSTFIX_CONFIGFILE}"
@@ -135,7 +135,7 @@
             DOVECOT_RUNNING=1
             IMAP_DAEMON="dovecot"
             POP3_DAEMON="dovecot"
-          else
+        else
             LogText "Result: dovecot not found"
             Display --indent 2 --text "- Checking Dovecot status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -154,7 +154,7 @@
             Display --indent 2 --text "- Checking Qmail status" --result "${STATUS_RUNNING}" --color GREEN
             QMAIL_RUNNING=1
             SMTP_DAEMON="qmail"
-          else
+        else
             LogText "Result: no running Qmail processes found"
             Display --indent 2 --text "- Checking Qmail status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -173,7 +173,7 @@
             Display --indent 2 --text "- Checking Sendmail status" --result "${STATUS_RUNNING}" --color GREEN
             SENDMAIL_RUNNING=1
             SMTP_DAEMON="sendmail"
-          else
+        else
             LogText "Result: no running Sendmail processes found"
             Display --indent 2 --text "- Checking Sendmail status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -183,17 +183,17 @@
 #
     # Test        : MAIL-8920
     # Description : Check OpenSMTPD process status
-    if [ ! "${SMTPCTLBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${SMTPCTLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no MAIL-8920 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check OpenSMTPD status"
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check smtpd status"
-        FIND=`${PSBINARY} ax | ${EGREPBINARY} "(/smtpd|smtpd: \[priv\]|smtpd: smtp)" | ${GREPBINARY} -v "grep"`
+        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "(/smtpd|smtpd: \[priv\]|smtpd: smtp)" | ${GREPBINARY} -v "grep")
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found running smtpd process"
             Display --indent 2 --text "- Checking OpenSMTPD status" --result "${STATUS_RUNNING}" --color GREEN
             OPENSMTPD_RUNNING=1
             SMTP_DAEMON="opensmtpd"
-          else
+        else
             LogText "Result: smtpd not found"
             Display --indent 2 --text "- Checking OpenSMTPD status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi

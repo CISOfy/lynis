@@ -31,11 +31,11 @@
     # Description : Check if AppArmor is installed
     Register --test-no MACF-6204 --weight L --network NO --category security --description "Check AppArmor presence"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ "${AASTATUSBINARY}" = "" ]; then
+        if [ -z "${AASTATUSBINARY}" ]; then
             APPARMORFOUND=0
             LogText "Result: aa-status binary not found, AppArmor not installed"
             Display --indent 2 --text "- Checking presence AppArmor" --result "${STATUS_NOT_FOUND}" --color WHITE
-          else
+        else
             APPARMORFOUND=1
             LogText "Result: aa-status binary found, AppArmor is installed"
             Display --indent 2 --text "- Checking presence AppArmor" --result "${STATUS_FOUND}" --color GREEN
@@ -49,14 +49,14 @@
     if [ ${APPARMORFOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no MACF-6208 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check if AppArmor is enabled"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! "${AASTATUSBINARY}" = "" ]; then
+        if [ ! -z "${AASTATUSBINARY}" ]; then
             # Checking AppArmor status
             # 0 if apparmor is enabled and policy is loaded.
             # 1 if apparmor is not enabled/loaded.
             # 2 if apparmor is enabled but no policy is loaded.
             # 3 if control files are not available
             # 4 if apparmor status can't be read
-            FIND=`${AASTATUSBINARY} > /dev/null; echo $?`
+            FIND=$(${AASTATUSBINARY} > /dev/null; echo $?)
             if [ ${FIND} -eq 0 ]; then
                 MAC_FRAMEWORK_ACTIVE=1
                 LogText "Result: AppArmor is enabled and a policy is loaded"
@@ -93,10 +93,10 @@
     Register --test-no MACF-6232 --weight L --network NO --category security --description "Check SELINUX presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking if we have sestatus binary"
-        if [ ! "${SESTATUSBINARY}" = "" ]; then
+        if [ ! -z "${SESTATUSBINARY}" ]; then
             LogText "Result: found sestatus binary (${SESTATUSBINARY})"
             Display --indent 2 --text "- Checking presence SELinux" --result "${STATUS_FOUND}" --color GREEN
-          else
+        else
             LogText "Result: sestatus binary NOT found"
             Display --indent 2 --text "- Checking presence SELinux" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -110,22 +110,22 @@
     Register --test-no MACF-6234 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SELINUX status"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Status: Enabled/Disabled
-        FIND=`${SESTATUSBINARY} | ${GREPBINARY} "^SELinux status" | ${AWKBINARY} '{ print $3 }'`
+        FIND=$(${SESTATUSBINARY} | ${GREPBINARY} "^SELinux status" | ${AWKBINARY} '{ print $3 }')
         if [ "${FIND}" = "enabled" ]; then
                 MAC_FRAMEWORK_ACTIVE=1
                 LogText "Result: SELinux framework is enabled"
                 Report "selinux_status=1"
                 SELINUXFOUND=1
                 Display --indent 4 --text "- Checking SELinux status" --result "${STATUS_ENABLED}" --color GREEN
-                FIND=`${SESTATUSBINARY} | ${GREPBINARY} "^Current mode" | ${AWKBINARY} '{ print $3 }'`
+                FIND=$(${SESTATUSBINARY} | ${GREPBINARY} "^Current mode" | ${AWKBINARY} '{ print $3 }')
                 Report "selinux_mode=${FIND}"
-                FIND2=`${SESTATUSBINARY} | ${GREPBINARY} "^Mode from config file" | ${AWKBINARY} '{ print $5 }'`
+                FIND2=$(${SESTATUSBINARY} | ${GREPBINARY} "^Mode from config file" | ${AWKBINARY} '{ print $5 }')
                 LogText "Result: current SELinux mode is ${FIND}"
                 LogText "Result: mode configured in config file is ${FIND2}"
                 if [ "${FIND}" = "${FIND2}" ]; then
                     LogText "Result: Current SELinux mode is the same as in config file."
                     Display --indent 6 --text "- Checking current mode and config file" --result "${STATUS_OK}" --color GREEN
-                  else
+                else
                     LogText "Result: Current SELinux mode (${FIND}) is NOT the same as in config file (${FIND2})."
                     ReportWarning ${TEST_NO} "Current SELinux mode is different from config file (current: ${FIND}, config file: ${FIND2})"
                     Display --indent 6 --text "- Checking current mode and config file" --result "${STATUS_WARNING}" --color RED
@@ -145,19 +145,19 @@
     Register --test-no RBAC-6272 --weight L --network NO --category security --description "Check grsecurity presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check Linux kernel configuration
-        if [ ! "${LINUXCONFIGFILE}" = "" -a -f "${LINUXCONFIGFILE}" ]; then
-            FIND=`${GREPBINARY} ^CONFIG_GRKERNSEC=y ${LINUXCONFIGFILE}`
+        if [ ! -z "${LINUXCONFIGFILE}" -a -f "${LINUXCONFIGFILE}" ]; then
+            FIND=$(${GREPBINARY} ^CONFIG_GRKERNSEC=y ${LINUXCONFIGFILE})
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: grsecurity available (in kernel config)"
                 GRSEC_FOUND=1
-              else
+            else
                 LogText "Result: no grsecurity found in kernel config"
             fi
         fi
         if [ ${GRSEC_FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking presence grsecurity" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
-          else
+        else
             Display --indent 2 --text "- Checking presence grsecurity" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
@@ -172,7 +172,7 @@
             Display --indent 2 --text "- Checking for implemented MAC framework" --result "${STATUS_OK}" --color GREEN
             AddHP 3 3
             LogText "Result: found implemented MAC framework"
-          else
+        else
             Display --indent 2 --text "- Checking for implemented MAC framework" --result "${STATUS_NONE}" --color YELLOW
             AddHP 2 3
             LogText "Result: found no implemented MAC framework"

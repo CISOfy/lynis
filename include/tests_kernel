@@ -456,16 +456,16 @@
     Register --test-no KRNL-5830 --os Linux --weight L --network NO --category security --description "Checking if system is running on the latest installed kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
         REBOOT_NEEDED=2
-        FILE="/var/run/reboot-required.pkgs"
+        FILE="${ROOTDIR}var/run/reboot-required.pkgs"
         LogText "Test: Checking presence ${FILE}"
         if [ -f ${FILE} ]; then
             LogText "Result: file ${FILE} exists"
-            FIND=$(wc -l < ${FILE})
+            FIND=$(${WCBINARY} -l < ${FILE})
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: No reboot needed (file empty)"
                 REBOOT_NEEDED=0
             else
-                PKGSCOUNT=$(wc -l < ${FILE})
+                PKGSCOUNT=$(${WCBINARY} -l < ${FILE})
                 LogText "Result: reboot is needed, related to ${PKGSCOUNT} packages"
                 for I in ${FIND}; do
                     LogText "Package: ${I}"
@@ -476,15 +476,15 @@
             LogText "Result: file ${FILE} not found"
         fi
         # Check if /boot exists
-        if [ -d /boot ]; then
+        if [ -d ${ROOTDIR}boot ]; then
             LogText "Result: /boot exists, performing more tests from here"
-            FIND=$(ls /boot/* 2> /dev/null)
-            if [ ! "${FIND}" = "" ]; then
-                if [ -f /boot/vmlinuz -a ! -L /boot/vmlinuz ]; then
+            FIND=$(${LSBINARY} ${ROOTDIR}boot/* 2> /dev/null)
+            if [ ! -z "${FIND}" ]; then
+                if [ -f ${ROOTDIR}boot/vmlinuz -a ! -L ${ROOTDIR}boot/vmlinuz ]; then
                     LogText "Result: found /boot/vmlinuz (not symlinked)"
                     NEXTLINE=0
                     FINDVERSION=""
-                    for I in `file /boot/vmlinuz-linux`; do
+                    for I in $(file ${ROOTDIR}boot/vmlinuz-linux); do
                         if [ ${NEXTLINE} -eq 1 ]; then
                             FINDVERSION="${I}"
                         else
@@ -492,7 +492,7 @@
                             if [ "${I}" = "version" ]; then NEXTLINE=1; fi
                         fi
                     done
-                    if [ ! "${FINDVERSION}" = "" ]; then
+                    if [ ! -z "${FINDVERSION}" ]; then
                         CURRENT_KERNEL=`uname -r`
                         if [ ! "${CURRENT_KERNEL}" = "${FINDVERSION}" ]; then
                             LogText "Result: reboot needed, as current kernel is different than the one loaded"
@@ -501,11 +501,11 @@
                     else
                         ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
                     fi
-                elif [ -f /boot/vmlinuz-linux ]; then
+                elif [ -f ${ROOTDIR}boot/vmlinuz-linux ]; then
                     LogText "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
                     LogText "Test: checking kernel version on disk"
-                    VERSION_ON_DISK=`file -b /boot/vmlinuz-linux | ${AWKBINARY} '{ if ($1=="Linux" && $7=="version") { print $8 }}'`
-                    if [ ! "${VERSION_ON_DISK}" = "" ]; then
+                    VERSION_ON_DISK=$(${FILEBINARY} -b ${ROOTDIR}boot/vmlinuz-linux | ${AWKBINARY} '{ if ($1=="Linux" && $7=="version") { print $8 }}')
+                    if [ ! -z "${VERSION_ON_DISK}" ]; then
                         LogText "Result: found version ${VERSION_ON_DISK}"
                         ACTIVE_KERNEL=`uname -r`
                         LogText "Result: active kernel version ${ACTIVE_KERNEL}"
@@ -521,36 +521,36 @@
                         ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
                     fi
                 else
-                    if [ -L /boot/vmlinuz ]; then
-                        LogText "Result: found symlink of /boot/vmlinuz, skipping file"
+                    if [ -L ${ROOTDIR}boot/vmlinuz ]; then
+                        LogText "Result: found symlink of ${ROOTDIR}boot/vmlinuz, skipping file"
                     else
-                        LogText "Result: /boot/vmlinuz not on disk, trying to find /boot/vmlinuz*"
+                        LogText "Result: ${ROOTDIR}boot/vmlinuz not on disk, trying to find ${ROOTDIR}boot/vmlinuz*"
                     fi
                     # Extra current kernel version and replace dashes to allow numeric ${SORTBINARY} later on
-                    MYKERNEL=`uname -r | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's/-/./g'`
+                    MYKERNEL=$(${UNAMEBINARY} -r | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's/-/./g')
                     LogText "Result: using ${MYKERNEL} as my kernel version (stripped)"
-                    FIND=$(ls /boot/vmlinuz* 2> /dev/null)
-                    if [ ! "${FIND}" = "" ]; then
+                    FIND=$(ls ${ROOTDIR}boot/vmlinuz* 2> /dev/null)
+                    if [ ! -z "${FIND}" ]; then
                          for ITEM in ${FIND}; do
                              LogText "Result: found ${ITEM}"
                          done
                          # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
                          # Ignore rescue images. Remove generic. and huge. for Slackware machines
                          LogText "Action: checking relevant kernels"
-                         KERNELS=`ls /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+                         KERNELS=$(${LSBINARY} /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
                          KERNELS_ONE_LINE=$(echo ${KERNELS} | ${TRBINARY} '\n' ' ')
                          LogText "Output: ${KERNELS_ONE_LINE}"
-                    elif [ ! "$(ls /boot/kernel* 2> /dev/null)" = "" ]; then
-                         LogText "Output: Found a kernel file in /boot"
+                    elif [ ! "$(ls ${ROOTDIR}boot/kernel* 2> /dev/null)" = "" ]; then
+                         LogText "Output: Found a kernel file in ${ROOTDIR}boot"
                          # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
                          # Examples:
                          # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
-                         KERNELS=`ls /boot/kernel* | ${AWKBINARY} -F- '{ if ($2=="genkernel") { print $4 }}' | ${GREPBINARY} "^[0-9]" | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.`
+                         KERNELS=$(${LSBINARY} ${ROOTDIR}boot/kernel* | ${AWKBINARY} -F- '{ if ($2=="genkernel") { print $4 }}' | ${GREPBINARY} "^[0-9]" | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
                          LogText "Output: ${KERNELS}"
                     else
                         ReportException "${TEST_NO}:2" "Can not find any vmlinuz or kernel files in /boot, which is unexpected"
                     fi
-                    if [ ! "${KERNELS}" = "" ]; then
+                    if [ ! -z "${KERNELS}" ]; then
                          FOUND_KERNEL=0
                          for I in ${KERNELS}; do
                              # Check if we already found a kernel and it is not equal to what we run (e.g. double versions may exist)

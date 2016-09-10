@@ -40,6 +40,8 @@
 
     PHPINIDIRS="/etc/php5/conf.d \
                 /etc/php.d"
+
+    PHPVERSION=""
 #
 #################################################################################
 #
@@ -93,26 +95,26 @@
 #
     # Test        : PHP-2320
     # Description : Check php disable functions option
-    if [ ! "${PHPINI_ALLFILES}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${PHPINI_ALLFILES}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PHP-2320 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP disabled functions"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         for I in ${PHPINI_ALLFILES}; do
             LogText "Test: Checking for PHP function hardening disabled_functions or suhosin.executor.func.blacklist in file ${I}"
-            FIND=`${GREPBINARY} "^disable_functions.*=" ${I}`
-            if [ "${FIND}" = "" ]; then
-              LogText "Result: ${I}: disabled_functions not found"
+            FIND=$(${GREPBINARY} "^disable_functions.*=" ${I})
+            if [ -z "${FIND}" ]; then
+                LogText "Result: ${I}: disabled_functions not found"
             else
-              LogText "Result: ${I}: found disabled_functions"
-              FOUND=1
+                LogText "Result: ${I}: found disabled_functions"
+                FOUND=1
             fi
 
-            FIND=`${GREPBINARY} "^suhosin.executor.func.blacklist=" ${I}`
-            if [ "${FIND}" = "" ]; then
-              LogText "Result: ${I}: suhosin.executor.func.blacklist not found"
+            FIND=$(${GREPBINARY} "^suhosin.executor.func.blacklist=" ${I})
+            if [ -z "${FIND}" ]; then
+                LogText "Result: ${I}: suhosin.executor.func.blacklist not found"
             else
-              LogText "Result: ${I}: found suhosin.executor.func.blacklist"
-              FOUND=1
+                LogText "Result: ${I}: found suhosin.executor.func.blacklist"
+                FOUND=1
             fi
         done
         if [ ${FOUND} -eq 0 ]; then
@@ -121,7 +123,7 @@
             ReportSuggestion ${TEST_NO} "Harden PHP by disabling risky functions"
             LogText "Functions of interest to research/disable: chown, diskfreespace, disk_free_space, disk_total_space, dl, exec, escapeshellarg, escapeshellcmd, fileinode, highlight_file, max_execution_time, passthru, pclose, phpinfo, popen, proc_close, proc_open, proc_get_status, proc_nice, proc_open, proc_terminate, set_time_limit, shell_exec, show_source, system)"
             AddHP 0 1
-          else
+        else
             LogText "Result: one or more PHP functions are disabled/blacklisted"
             Display --indent 4 --text "- Checking PHP disabled functions" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
@@ -133,34 +135,34 @@
     # Test        : PHP-2368
     # Description : Check php register_globals option
     # Notes       : Don't test for it if PHP version is 5.4.0 or later (it has been removed)
-    if [ ! "${PHPINIFILE}" = "" -a ! "${PHPVERSION}" = "" -a ! "${EGREPBINARY}" = "" ]; then
+    if [ ! -z "${PHPINIFILE}" -a ! -z "${PHPVERSION}" -a ! -z "${EGREPBINARY}" ]; then
         if [ -f "${PHPINIFILE}" ]; then
-            FIND=`echo ${PHPVERSION} | ${EGREPBINARY} "^(4.|5.[0-3])"`
+            FIND=$(echo ${PHPVERSION} | ${EGREPBINARY} "^(4.|5.[0-3])")
             if [ "${FIND}" = "" ]; then
                 PREQS_MET="NO"; Debug "Found most likely PHP version 5.4.0 or higher (${PHPVERSION}) which does not use register_globals"
-              else
+            else
                PREQS_MET="YES"; Debug "Found PHP version 4 or up to 5.3 (${FIND}) which we are going to scan"
             fi
-          else
+        else
             Debug "File php.ini (${PHPINIFILE}) not found"
         fi
     else
-      PREQS_MET="NO"
-      Debug "Skipping test: php.ini not found, or PHP version empty"
-      Debug "php.ini: ${PHPINIFILE}"
-      Debug "version: ${PHPVERSION}"
+        PREQS_MET="NO"
+        Debug "Skipping test: php.ini not found, or PHP version empty"
+        Debug "php.ini: ${PHPINIFILE}"
+        Debug "version: ${PHPVERSION}"
     fi
     Register --test-no PHP-2368 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP register_globals option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PHP register_globals option"
-        FIND=`${EGREPBINARY} -i 'register_globals.*(on|yes|1)' ${PHPINIFILE} | ${GREPBINARY} -v '^;'`
+        FIND=$(${EGREPBINARY} -i 'register_globals.*(on|yes|1)' ${PHPINIFILE} | ${GREPBINARY} -v '^;')
         if [ ! "${FIND}" = "" ]; then
             Display --indent 4 --text "- Checking register_globals option" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "PHP option register_globals option is turned on, which can be a risk for variable value overwriting"
             ReportSuggestion ${TEST_NO} "Change the register_globals line to: register_globals = Off"
             LogText "Result: register_globals option is turned on, which can be a risk for variable value overwriting."
             AddHP 1 2
-          else
+        else
             Display --indent 4 --text "- Checking register_globals option" --result "${STATUS_OK}" --color GREEN
             LogText "Result: No 'register_globals' found. Most likely it is in disabled state (0, no, or off), which is the default nowadays and considered the safe value."
             ReportManual ${TEST_NO}:01
@@ -177,19 +179,19 @@
     Register --test-no PHP-2372 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP expose_php option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking expose_php option"
-        FIND=`${EGREPBINARY} -i 'expose_php.*(off|no|0)' ${PHPINIFILE} | ${GREPBINARY} -v '^;'`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${EGREPBINARY} -i 'expose_php.*(off|no|0)' ${PHPINIFILE} | ${GREPBINARY} -v '^;')
+        if [ -z "${FIND}" ]; then
             Display --indent 4 --text "- Checking expose_php option" --result "${STATUS_ON}" --color RED
             ReportWarning ${TEST_NO} "PHP option expose_php is possibly turned on, which can reveal useful information for attackers."
             ReportSuggestion ${TEST_NO} "Change the expose_php line to: expose_php = Off"
             Report "Result: expose_php option is turned on, which can expose useful information for an attacker"
             AddHP 1 2
-          else
+        else
             Display --indent 4 --text "- Checking expose_php option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'expose_php' in disabled state (0, no, or off)"
             AddHP 2 2
         fi
-        #YYY Check through all files
+        # TODO Check through all files
     fi
 #
 #################################################################################
@@ -207,7 +209,7 @@
             Report "Result: enable_dl option is turned on, which can be used to enable more modules dynamically and circumventing security controls"
             ReportSuggestion ${TEST_NO} "Change the enable_dl line to: enable_dl = Off, to disable dynamically loading new modules"
             AddHP 0 1
-          else
+        else
             Display --indent 4 --text "- Checking enable_dl option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'enable_dl' in disabled state (not present, 0, no, or off)"
             AddHP 2 2
@@ -223,18 +225,18 @@
     Register --test-no PHP-2376 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP allow_url_fopen option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PHP allow_url_fopen option"
-        FIND=`${EGREPBINARY} -i 'allow_url_fopen.*(off|no|0)' ${PHPINIFILE} | ${GREPBINARY} -v '^;'`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${EGREPBINARY} -i 'allow_url_fopen.*(off|no|0)' ${PHPINIFILE} | ${GREPBINARY} -v '^;')
+        if [ -z "${FIND}" ]; then
             Display --indent 4 --text "- Checking allow_url_fopen option" --result "${STATUS_ON}" --color YELLOW
             LogText "Result: allow_url_fopen option is turned on, which can be used for riskful downloads via PHP"
             ReportSuggestion ${TEST_NO} "Change the allow_url_fopen line to: allow_url_fopen = Off, to disable downloads via PHP"
             AddHP 0 1
-          else
+        else
             Display --indent 4 --text "- Checking allow_url_fopen option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'allow_url_fopen' in disabled state (0, no, or off)"
             AddHP 2 2
         fi
-        #YYY Check through all files
+        # TODO Check through all files
     fi
 #
 #################################################################################
@@ -242,17 +244,17 @@
     # Test        : PHP-2378
     # Description : Check PHP allow_url_include option
     # Notes       : Extend test to check all PHP files YYY
-    if [ ! "${PHPINIFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${PHPINIFILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PHP-2378 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP allow_url_include option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PHP allow_url_include option"
-        FIND=`${EGREPBINARY} -i 'allow_url_include.*(off|no|0)' ${PHPINIFILE} | ${GREPBINARY} -v '^;'`
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${EGREPBINARY} -i 'allow_url_include.*(off|no|0)' ${PHPINIFILE} | ${GREPBINARY} -v '^;')
+        if [ -z "${FIND}" ]; then
             Display --indent 4 --text "- Checking allow_url_include option" --result "${STATUS_ON}" --color YELLOW
             Report "Result: allow_url_include option is turned on, which can be used for riskful downloads via PHP"
             ReportSuggestion ${TEST_NO} "Change the allow_url_include line to: allow_url_include = Off, to disable downloads via PHP"
             AddHP 0 1
-          else
+        else
             Display --indent 4 --text "- Checking allow_url_include option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'allow_url_include' in disabled state (0, no, or off)"
             AddHP 2 2

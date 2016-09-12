@@ -14,6 +14,7 @@ Changes:
 * Detection of nftables improved
 * Replaced cut, sed, tr and others commands with binary variable (for forensics
   and future intrusion checking capabilities)
+* Swedish translation provided by Peter Carlsson
 
 
 Tests:

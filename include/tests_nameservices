@@ -657,6 +657,32 @@
 #
 #################################################################################
 #
+    # Test        : NAME-4408
+    # Description : Check localhost entry
+    if [ ! -z "${GETENTBINARY}" ]; then PREQS_MET="YES"; SKIPREASON="No getent binary"; else PREQS_MET="NO"; SKIPREASON=""; fi
+    Register --test-no NAME-4408 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check localhost entry"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Check server hostname not locally mapped in /etc/hosts"
+        FIND=$(${GETENTBINARY} hosts localhost | ${AWKBINARY} '{print $1}')
+        if [ "${FIND}" = "127.0.0.1" ]; then
+            LogText "Result: localhost mapped to 127.0.0.1"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost to IP)" --result "${STATUS_OK}" --color GREEN
+            report "localhost-mapped-to=${FIND}"
+        elif [ "${FIND}" = "::1" ]; then
+            LogText "Result: localhost mapped to ::1"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost to IP)" --result "${STATUS_OK}" --color GREEN
+            report "localhost-mapped-to=${FIND}"
+        else
+            LogText "Output: ${FIND}"
+            LogText "Result: this server hostname is not mapped to a local address"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost to IP)" --result "${STATUS_SUGGESTION}" --color YELLOW
+            LogText "Information: Ensure that localhost resolves back to 127.0.0.1 (and/or ::1)."
+            ReportSuggestion ${TEST_NO} "Split resolving between localhost and the hostname of the system" "/etc/hosts" "text:Check your localhost line"
+        fi
+    fi
+#
+#################################################################################
+#
 
 Report "name_cache_used=${NAME_CACHE_USED}"
 WaitForKeyPress

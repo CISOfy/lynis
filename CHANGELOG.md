@@ -28,6 +28,7 @@ Tests:
 * FIRE-4520 - New test to check for empty nftables ruleset
 * KRNL-5820 - Corrected function and style improvements
 * LOGG-2146 - Textual change
+* NAME-4408 - Check localhost to IP mapping
 * TIME-3104 - timedatectl test now detects NTP synchronization properly
 
 

@@ -73,7 +73,9 @@ Last years we reached multiple times the top 10 of the yearly ToolsWatch vote fo
 ### InfoWorld Bossies
 
 [Best of Open Source Software Awards 2015](http://www.idgenterprise.com/news/press-release/infoworld-announces-the-2015-best-of-open-source-software-awards/)
+[Best of Open Source Software Awards 2016](http://www.infoworld.com/article/3121251/open-source-tools/bossie-awards-2016-the-best-open-source-networking-and-security-software.html#slide13)
 
+* 2016 - Category Networking and Security
 * 2015 - Category Networking and Security
 
 ## Contribute

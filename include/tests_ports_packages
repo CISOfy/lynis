@@ -611,36 +611,32 @@
 #
     # Test        : PKGS-7381
     # Description : Check for vulnerable FreeBSD packages (with pkg)
-    if [ -x /usr/sbin/pkg -a -f /var/db/pkg/vuln.xml ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7381 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with pkg"
+    # TODO        : Update the repository first
+    if [ -x /usr/sbin/pkg -a -f /var/db/pkg/vuln.xml ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="pkg tool not available, or missing vulnerability database"; fi
+    Register --test-no PKGS-7381 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with pkg"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -x /usr/sbin/pkg ]; then
-            FIND=`/usr/sbin/pkg audit 2> /dev/null | ${GREPBINARY} 'problem(s) in your installed packages found' | ${GREPBINARY} -v '0 problem(s) in your installed packages found'`
-            PACKAGE_AUDIT_TOOL_FOUND=1
-            PACKAGE_AUDIT_TOOL="pkg audit"
-            if [ "${FIND}" = "" ]; then
-                LogText "Result: pkg audit results are clean"
-                Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_NONE}" --color GREEN
-              else
-                LogText "Result: ${FIND}"
+        COUNT=0
+        PACKAGE_AUDIT_TOOL_FOUND=1
+        PACKAGE_AUDIT_TOOL="pkg audit"
+        FIND=$(/usr/sbin/pkg audit -q 2> /dev/null)
+        if [ $? -eq 0 ]; then
+            LogText "Result: pkg audit results are clean"
+            Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_NONE}" --color GREEN
+        else
+            LogText "Result: ${FIND}"
+            if [ ! -z "${FIND}" ]; then
                 VULNERABLE_PACKAGES_FOUND=1
                 Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_FOUND}" --color YELLOW
-                ReportSuggestion ${TEST_NO} "Check output of pkg audit"
-                #Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_WARNING}" --color RED
-                #LogText "Result: pkg audit found one or more installed packages which are vulnerable."
-                #ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
-                #ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
-                #LogText "List of vulnerable packages/version:"
-                #for I in `/usr/sbin/pkg audit -F | ${GREPBINARY} "Affected package" | ${CUTBINARY} -d ' ' -f3 | ${SORTBINARY} -u`; do
-                #    Report "vulnerable_package[]=${I}"
-                #    LogText "Vulnerable package: ${I}"
-                #    # Decrease hardening points for every found vulnerable package
-                #    AddHP 1 2
-                #done
+                for ITEM in ${FIND}; do
+                    COUNT=$((COUNT + 1))
+                    Report "vulnerable_package[]=${ITEM}"
+                    LogText "Vulnerable package: ${ITEM}"
+                    AddHP 1 2
+                done
+                ReportWarning ${TEST_NO} "Found vulnerable packages" "pkg" "text:${COUNT} vulnerable packages}"
+            else
+                LogText "Result: found an exit code greater than zero, yet no output"
             fi
-          else
-            Display --indent 2 --text "- pkg audit not installed" --result "${STATUS_NOT_FOUND}" --color WHITE
-            LogText "Result: pkg audit not installed, skipping this vulnerability test."
         fi
     fi
 #

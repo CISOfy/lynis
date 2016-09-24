@@ -15,7 +15,7 @@ Changes:
 * Replaced cut, sed, tr and others commands with binary variable (for forensics
   and future intrusion checking capabilities)
 * Swedish translation provided by Peter Carlsson
-
+* Support for arch-audit to scan for presence of vulnerable packages on Arch Linux
 
 Tests:
 ------
@@ -29,6 +29,9 @@ Tests:
 * KRNL-5820 - Corrected function and style improvements
 * LOGG-2146 - Textual change
 * NAME-4408 - Check localhost to IP mapping
+* PKGS-7320 - Test for arch-audit tool
+* PKGS-7322 - Check vulnerable packages on Arch Linux
+* PKGS-7381 - Extended vulnerable package detection for FreeBSD
 * TIME-3104 - timedatectl test now detects NTP synchronization properly
 
 

@@ -277,6 +277,46 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7320
+    # Description : Check available of arch-audit
+    if [ "${OSNAME}" = "Arch Linux" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="Test only applies to Arch Linux"; fi
+    Register --test-no PKGS-7320 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking for arch-audit tooling"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -z "${ARCH_AUDIT_BINARY}" ]; then
+            LogText "Result: no arch-audit binary found"
+            AddHP 1 2
+            ReportSuggestion "${TEST_NO}" "Consider installing arch-audit to determine vulnerable packages" "arch-audit" "text:Install arch-audit"
+        else
+            LogText "Result: arch-audit binary found (${ARCH_AUDIT_BINARY})"
+            AddHP 3 3
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PKGS-7322
+    # Description : Discover vulnerable packages with arch-audit
+    if [ ! -z "${ARCH_AUDIT_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="arch-audit not found"; fi
+    Register --test-no PKGS-7322 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Discover vulnerable packages with arch-audit"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: checking arch-audit output for vulnerable packages"
+        FIND=$(${ARCH_AUDIT_BINARY} | sed 's/\.\..*$//' | sed 's/, //g' | sed 's/\(\["\|"\]\)//g' | sed 's/""/,/g' | awk '{ if($1=="Package") { print $2"|"$6"|"}}' | awk -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]}}' | sed 's/,/|cve=/' | sort | grep --color=auto "^[a-z]\+")
+        if [ -z "${FIND}" ]; then
+            LogText "Result: no vulnerable packages found with arch-audit"
+            AddHP 10 10
+        else
+            LogText "Result: found one or more vulnerable packages"
+            for ITEM in ${FIND}; do
+                LogText "Found line: ${ITEM}"
+                Report "vulnerable_package[]=${ITEM}"
+                AddHP 1 2
+            done
+            ReportWarning "${TEST_NO}" "Vulnerable packages found" "arch-audit" "text:Check output of arch-audit"
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7328
     # Description : Check installed packages with Zypper
     if [ ! "${ZYPPERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi

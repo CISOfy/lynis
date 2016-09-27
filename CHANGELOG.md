@@ -4,9 +4,9 @@ Lynis Changelog
 
 Lynis 2.3.4 (development version, not released yet)
 
-
 Changes:
-* Do not display when a new update is available when using the 'show' helper
+--------
+* Skip update message when using the 'show' helper
 * Instead of opening the log file, you can now use 'lynis show details' followed
   by the test ID. It will show the relevant section.
 * Several tests have extended log details
@@ -16,6 +16,7 @@ Changes:
   and future intrusion checking capabilities)
 * Swedish translation provided by Peter Carlsson
 * Support for arch-audit to scan for presence of vulnerable packages on Arch Linux
+* OS detection improved
 
 Tests:
 ------

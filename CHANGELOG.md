@@ -1,6 +1,20 @@
 Lynis Changelog
 ===============
 
+Lynis 2.3.5 (under development, not released yet)
+
+New:
+* New group "system integrity" added
+
+Changes:
+--------
+* Several new sysctl values have been added
+
+Tests:
+------
+* INSE-8050 - Test for insecure services on macOS
+
+---------------------------------------------------------------------------------
 
 Lynis 2.3.4 (2016-09-27)
 

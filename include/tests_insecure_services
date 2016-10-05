@@ -109,6 +109,29 @@
 #
 #################################################################################
 #
+    if [ ! -z "${LAUNCHCTL_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No launchctl binary on this system"; fi
+    Register --test-no INSE-8050 --os "MacOS" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight M --network NO --category security --description "Check for insecure services on macOS"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        TEST_SERVICES="com.apple.fingerd"
+        for ITEM in ${TEST_SERVICES}; do
+            if ${LAUNCHCTL_BINARY} print-enabled system | grep -sq ${ITEM}; then
+                Display --indent 2 --text "- $text" --result "${STATUS_NO}" --color RED
+                LogText "Result: found ${ITEM}, which is considered an insecure service"
+                AddSuggestion "${TEST_NO}" "Consider disabling service ${ITEM}" "launchctl" "-"
+                AddHP 0 1
+            else
+                Display --indent 2 --text "- $text" --result "${STATUS_OK}" --color GREEN
+                LogText "Result: $text, OK"
+                AddHP 1 1
+            fi
+        done
+    fi
+#
+#################################################################################
+#
+
+# To do:
+# - mark in report when a system was tested for any insecure services
 
 WaitForKeyPress
 

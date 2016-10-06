@@ -5,6 +5,7 @@ Lynis 2.3.5 (under development, not released yet)
 
 New:
 * New group "system integrity" added
+* Support for clamconf utility
 
 Changes:
 --------
@@ -13,6 +14,10 @@ Changes:
 Tests:
 ------
 * INSE-8050 - Test for insecure services on macOS
+
+Plugins (community and commercial):
+-----------------------------------
+* PLGN-4602 - Support for Clam definition check on macOS
 
 ---------------------------------------------------------------------------------
 

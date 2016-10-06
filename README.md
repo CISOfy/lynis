@@ -58,25 +58,20 @@ We participate in the badge program of the Linux Foundation. By clicking on the 
 This software is also available as part of an enterprise solution. It includes additional functionality (plugins, centralized system, reporting, dashboard), and support.
 
 ## Awards
-Last years we reached multiple times the top 10 of the yearly ToolsWatch vote for security tool of the year.
+Lynis is collecting some awards and we are proud of that.
 
-### ToolsWatch
+* 2013
+[![ToolsWatch Best Tools (sixth place)](https://www.toolswatch.org/badges/toptools/2013.svg)](https://www.toolswatch.org/2013/12/2013-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
-[![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2013.svg)](https://www.toolswatch.org/2013/12/2013-top-security-tools-as-voted-by-toolswatch-org-readers/)
-[![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2014.svg)](https://www.toolswatch.org/2015/01/2014-top-security-tools-as-voted-by-toolswatch-org-readers/)
-[![ToolsWatch Best Tools](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
+* 2014
+[![ToolsWatch Best Tools (third place)](https://www.toolswatch.org/badges/toptools/2014.svg)](https://www.toolswatch.org/2015/01/2014-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
-* 2015 - Second place!
-* 2014 - Third place!
-* 2013 - Sixth place
+* 2015
+[![ToolsWatch Best Tools (second place)](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
+[!Best of Open Source Software Awards 2015](http://www.idgenterprise.com/news/press-release/infoworld-announces-the-2015-best-of-open-source-software-awards/)
 
-### InfoWorld Bossies
-
-[Best of Open Source Software Awards 2015](http://www.idgenterprise.com/news/press-release/infoworld-announces-the-2015-best-of-open-source-software-awards/)
-[Best of Open Source Software Awards 2016](http://www.infoworld.com/article/3121251/open-source-tools/bossie-awards-2016-the-best-open-source-networking-and-security-software.html#slide13)
-
-* 2016 - Category Networking and Security
-* 2015 - Category Networking and Security
+* 2016
+[!Best of Open Source Software Awards 2016](http://www.infoworld.com/article/3121251/open-source-tools/bossie-awards-2016-the-best-open-source-networking-and-security-software.html#slide13)
 
 ## Contribute
 We love contributors. Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.

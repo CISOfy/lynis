@@ -6,6 +6,7 @@ Lynis 2.3.5 (under development, not released yet)
 New:
 * New group "system integrity" added
 * Support for clamconf utility
+* Chinese translation (language=cn)
 
 Changes:
 --------

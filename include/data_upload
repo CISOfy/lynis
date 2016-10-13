@@ -87,7 +87,14 @@
 
     # Check report file
     if [ -f ${REPORTFILE} ]; then
-        Output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
+
+        Output "${WHITE}Report file found.${NORMAL} Starting with content check."
+
+        FIND=$(${GREPBINARY} "finish=true" ${REPORTFILE})
+        if [ $? -gt 0 ]; then ExitFatal "The report is not complete, skipping upload"; fi
+
+        Output "${WHITE}Report file found.${NORMAL} Starting with connectivity check."
+
 
             if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
                 LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
@@ -208,6 +215,8 @@
             # Try to connect
             Output "Uploading data.."
             LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
+            LogText "Tip: try running ${CURLBINARY}${CURL_OPTIONS} --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}
+            LogText "Tip: to just retry an upload, use: lynis upload-only"
             UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" --data-urlencode "hostid2=${HOSTID2}" ${UPLOAD_URL} 2> /dev/null)
             EXITCODE=$?
             LogText "Exit code: ${EXITCODE}"
@@ -233,6 +242,7 @@
             fi
           else
             echo "${RED}Error${NORMAL}: No hostid and/or hostid2 found. Can not upload report file."
+            echo "Suggested command: lynis show hostids"
             # Quit
             ExitFatal
         fi

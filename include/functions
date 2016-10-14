@@ -881,11 +881,24 @@
                 ;;
 
                 "MacOS")
-                     FIND=`${IFCONFIGBINARY} en0 | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     FIND=$(${IFCONFIGBINARY} en0 | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                      if [ ! "${FIND}" = "" ]; then
-                         HOSTID=`echo ${FIND} | shasum | awk '{ print $1 }'`
+                         HOSTID=$(echo ${FIND} | shasum | awk '{ print $1 }')
                        else
                          ReportException "GetHostID" "No MAC address returned on Mac OS"
+                     fi
+                     LYNIS_HOSTID2_PART1=$(hostname -s)
+                     if [ ! -z "${LYNIS_HOSTID2_PART1}" ]; then
+                         LogText "Info: using hostname ${LYNIS_HOSTID2_PART1}"
+                         LYNIS_HOSTID2_PART2=$(sysctl -n kern.uuid 2> /dev/null)
+                         if [ ! -z "${LYNIS_HOSTID2_PART2}" ]; then
+                             LogText "Info: using UUID ${LYNIS_HOSTID2_PART2}"
+                         else
+                             LogText "Info: could not create HOSTID2 as kern.uuid sysctl key is missing"
+                         fi
+                         HOSTID2=$(echo "${LYNIS_HOSTID2_PART1}${LYNIS_HOSTID2_PART2}" | shasum -a 256 | awk '{ print $1 }')
+                     else
+                         LogText "Info: could not create HOSTID2 as hostname is missing"
                      fi
                 ;;
 
@@ -2078,7 +2091,7 @@
     ################################################################################
 
     Report() {
-        echo "$1" >> ${REPORTFILE}
+        if [ ${CREATE_REPORT_FILE} -eq 1 ]; then echo "$1" >> ${REPORTFILE}; fi
     }
 
 

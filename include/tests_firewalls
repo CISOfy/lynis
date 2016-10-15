@@ -190,29 +190,28 @@
 #
     # Test        : FIRE-4518
     # Description : Checking status of pf firewall components
-    Register --test-no FIRE-4518 --weight L --network NO --category security --description "Check pf firewall components"
+    # Notes       : Use /dev/pf as first detection method if pf is available
+    if [ ! -e /dev/pf ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No /dev/pf file"; fi
+    Register --test-no FIRE-4518 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check pf firewall components"
     if [ ${SKIPTEST} -eq 0 ]; then
-
         PFFOUND=0; PFLOGDFOUND=0
 
         # Check status with pfctl
         LogText "Test: checking pf status via pfctl"
         if [ ! -z "${PFCTLBINARY}" ]; then
             FIND=$(${PFCTLBINARY} -sa 2>&1 | ${GREPBINARY} "^Status" | ${HEADBINARY} -1 | ${AWKBINARY} '{ print $2 }')
-            if [ "${FIND}" = "Enabled" ]; then
+            if [ "${FIND}" = "Disabled" ]; then
+                if IsVerbose; then Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_DISABLED}" --color RED; fi
+                LogText "Result: pf is disabled"
+                AddHP 0 3
+            elif [ "${FIND}" = "Enabled" ]; then
                 Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_ENABLED}" --color GREEN
                 LogText "Result: pf is enabled"
                 PFFOUND=1
                 AddHP 3 3
             else
-                if [ "${FIND}" = "Disabled" ]; then
-                    Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_DISABLED}" --color RED
-                    LogText "Result: pf is disabled"
-                    AddHP 0 3
-                else
-                    Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_UNKNOWN}" --color YELLOW
-                    ReportException ${TEST_NO} "Unknown status of pf firewall"
-                fi
+                Display --indent 2 --text "- Checking pf status (pfctl)" --result "${STATUS_UNKNOWN}" --color YELLOW
+                ReportException ${TEST_NO} "Unknown status of pf firewall"
             fi
         fi
 

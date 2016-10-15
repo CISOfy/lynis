@@ -652,37 +652,39 @@
     # Description : Check for vulnerable FreeBSD packages (with pkg)
     # Notes       : Related vulnerability file is /var/db/pkg/vuln.xml
     # TODO        : Run this in any jail
-    if [ -x ${ROOTDIR}usr/sbin/pkg ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="pkg tool not available"; fi
+    if [ ! -z "${PKG_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="pkg tool not available"; fi
     Register --test-no PKGS-7381 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with pkg"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         PACKAGE_AUDIT_TOOL_FOUND=1
         PACKAGE_AUDIT_TOOL="pkg audit"
-        FIND=$(/usr/sbin/pkg audit > /dev/null 2>&1)
-        if [ $? -eq 0 ]; then
-            LogText "Result: pkg audit results are clean"
-            Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_NONE}" --color GREEN
-            AddHP 10 10
-        elif [ $? -eq 1 ]; then
-            if [ ! -z "${FIND}" ]; then
-                VULNERABLE_PACKAGES_FOUND=1
-                Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_FOUND}" --color YELLOW
-                for ITEM in ${FIND}; do
-                    COUNT=$((COUNT + 1))
-                    Report "vulnerable_package[]=${ITEM}"
-                    LogText "Vulnerable package: ${ITEM}"
-                    AddHP 1 2
-                done
-                ReportWarning ${TEST_NO} "Found vulnerable packages" "pkg" "text:${COUNT} vulnerable packages"
+        if [ -f ${ROOTDIR}var/db/pkg/vuln.xml ]; then
+            FIND=$(${PKG_BINARY} audit 2> /dev/null)
+            if [ $? -eq 0 ]; then
+                LogText "Result: pkg audit results are clean"
+                Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_NONE}" --color GREEN
+                AddHP 10 10
+            elif [ $? -eq 1 ]; then
+                if [ ! -z "${FIND}" ]; then
+                    VULNERABLE_PACKAGES_FOUND=1
+                    Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_FOUND}" --color YELLOW
+                    for ITEM in ${FIND}; do
+                        COUNT=$((COUNT + 1))
+                        Report "vulnerable_package[]=${ITEM}"
+                        LogText "Vulnerable package: ${ITEM}"
+                        AddHP 1 2
+                    done
+                    ReportWarning ${TEST_NO} "Found vulnerable packages" "pkg" "text:${COUNT} vulnerable packages"
+                else
+                    LogText "Result: found an exit code greater than zero, yet no output"
+                fi
             else
-                LogText "Result: found an exit code greater than zero, yet no output"
+                LogText "Result: exited with code $?"
+                ReportException "${TEST_NO}" "Found an unknown exit code for pkg audit. Please create an issue at ${PROJECT_SOURCE}"
             fi
-        elif [ $? -eq 65 ]; then
-            LogText "Result: exited with code 65, meaning there is no vulnerability database"
-            ReportWarning "${TEST_NO}" "No vulnerability database available" "pkg audit" "text:Run pkg audit -f"
         else
-            LogText "Result: exited with code $?"
-            ReportException "${TEST_NO}" "Found an unknown exit code for pkg audit. Please create an issue at ${PROJECT_SOURCE}"
+            LogText "Result: could not find vulnerability database"
+            ReportWarning "${TEST_NO}" "No vulnerability database available" "pkg audit" "text:Run pkg audit -f"
         fi
     fi
 #

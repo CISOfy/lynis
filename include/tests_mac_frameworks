@@ -50,39 +50,59 @@
     Register --test-no MACF-6208 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check if AppArmor is enabled"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! -z "${AASTATUSBINARY}" ]; then
-            # Checking AppArmor status
-            # 0 if apparmor is enabled and policy is loaded.
-            # 1 if apparmor is not enabled/loaded.
-            # 2 if apparmor is enabled but no policy is loaded.
-            # 3 if control files are not available
-            # 4 if apparmor status can't be read
-            FIND=$(${AASTATUSBINARY} > /dev/null; echo $?)
-            if [ ${FIND} -eq 0 ]; then
-                MAC_FRAMEWORK_ACTIVE=1
-                LogText "Result: AppArmor is enabled and a policy is loaded"
-                Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_ENABLED}" --color GREEN
-                Report "apparmor_enabled=1"
-                Report "apparmor_policy_loaded=1"
-            elif [ ${FIND} -eq 4 ]; then
-                LogText "Result: Can not determine status, most likely due to lacking permissions"
-                Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
-            elif [ ${FIND} -eq 3 ]; then
-                LogText "Result: Can not check control files"
-                Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
-            elif [ ${FIND} -eq 2 ]; then
-                LogText "Result: AppArmor is enabled, but no policy is loaded"
-                ReportSuggestion ${TEST_NO} "Load AppArmor policies"
-                Display --indent 4 --text "- Checking AppArmor status" --result "NON-ACTIVE" --color GREEN
-                Report "apparmor_enabled=1"
-                Report "apparmor_policy_loaded=0"
-            elif [ ${FIND} -eq 1 ]; then
-                LogText "Result: AppArmor is disabled"
-                Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_DISABLED}" --color YELLOW
-                Report "apparmor_enabled=0"
+            CAN_READ_FILE=0
+            FILE="/sys/kernel/security/apparmor/profiles"
+            if [ -f ${FILE} ]; then
+                FIND=$(${CAT_BINARY} ${FILE} 2> /dev/null)
+                if [ $? -eq 0 ]; then CAN_READ_FILE=1; fi
             else
-                Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
-                ReportException "${TEST_NO}:1" "Invalid or unknown AppArmor status detected"
+                LogText "File ${FILE} does not exist"
             fi
+            if [ ${CAN_READ_FILE} -eq 1 ]; then
+                LogText "Result: file ${FILE} is available and readable"
+                # Checking AppArmor status
+                # 0 if apparmor is enabled and policy is loaded.
+                # 1 if apparmor is not enabled/loaded.
+                # 2 if apparmor is enabled but no policy is loaded.
+                # 3 if control files are not available
+                # 4 if apparmor status can't be read
+                FIND=$(${AASTATUSBINARY} 2>&1 > /dev/null)
+                if [ $? -eq 0 ]; then
+                    MAC_FRAMEWORK_ACTIVE=1
+                    LogText "Result: AppArmor is enabled and a policy is loaded"
+                    Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_ENABLED}" --color GREEN
+                    Report "apparmor_enabled=1"
+                    Report "apparmor_policy_loaded=1"
+                    AddHP 3 3
+                elif [ $? -eq 4 ]; then
+                    LogText "Result: Can not determine status, most likely due to lacking permissions"
+                    Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
+                elif [ $? -eq 3 ]; then
+                    LogText "Result: Can not check control files"
+                    Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
+                elif [ $? -eq 2 ]; then
+                    LogText "Result: AppArmor is enabled, but no policy is loaded"
+                    ReportSuggestion ${TEST_NO} "Load AppArmor policies"
+                    Display --indent 4 --text "- Checking AppArmor status" --result "NON-ACTIVE" --color GREEN
+                    Report "apparmor_enabled=1"
+                    Report "apparmor_policy_loaded=0"
+                    AddHP 0 3
+                elif [ $? -eq 1 ]; then
+                    LogText "Result: AppArmor is disabled"
+                    Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_DISABLED}" --color YELLOW
+                    Report "apparmor_enabled=0"
+                    AddHP 0 3
+                else
+                    Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
+                    ReportException "${TEST_NO}:1" "Invalid or unknown AppArmor status detected"
+                fi
+            else
+                LogText "Result: could not find or read ${FILE}"
+                Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Check output of aa-status" "${FILE}" "text:Run aa-status"
+            fi
+        else
+            LogText "Result: no aa-status binary available"
         fi
     fi
 #

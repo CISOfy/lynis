@@ -360,19 +360,42 @@
     # Test        : FIRE-4532
     # Description : Check Application Firewall in Mac OS X
     if [ -x /usr/libexec/ApplicationFirewall/socketfilterfw ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no FIRE-4532 --weight L --os "MacOS" --preqs-met ${PREQS_MET} --network NO --category security --description "Check Mac OS X application firewall"
+    Register --test-no FIRE-4532 --weight L --os "MacOS" --preqs-met ${PREQS_MET} --network NO --category security --description "Check macOS application firewall"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2> /dev/null | ${GREPBINARY} "Firewall is enabled")
         if [ ! -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking Mac OS X: Application Firewall" --result "${STATUS_ENABLED}" --color GREEN
+            Display --indent 2 --text "- Checking macOS: Application Firewall" --result "${STATUS_ENABLED}" --color GREEN
             AddHP 3 3
-            LogText "Result: application firewall of Mac OS X is enabled"
+            LogText "Result: application firewall of macOS is enabled"
+            FIREWALL_ACTIVE=1
             APPLICATION_FIREWALL_ACTIVE=1
+            Report "firewall_software[]=macosx-app-fw"
             Report "app_fw[]=macosx-app-fw"
         else
-            Display --indent 2 --text "- Checking IPFW" --result "${STATUS_DISABLED}" --color YELLOW
+            if IsVerbose; Display --indent 2 --text "- Checking macOS: Application Firewall" --result "${STATUS_DISABLED}" --color YELLOW; fi
             AddHP 1 3
-            LogText "Result: application firewall of Mac OS X is disabled"
+            LogText "Result: application firewall of macOS is disabled"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4534
+    # Description : Check Little Snitch Daemon on macOS
+    Register --test-no FIRE-4534 --weight L --os "MacOS" --network NO --category security --description "Check for presence of Little Snitch on macOS"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! -z "${FIND}" ]; then
+            Display --indent 2 --text "- Checking Little Snitch Daemon" --result "${STATUS_ENABLED}" --color GREEN
+            AddHP 3 3
+            LogText "Result: little Snitch found"
+            FIREWALL_ACTIVE=1
+            APPLICATION_FIREWALL_ACTIVE=1
+            Report "app_fw[]=little-snitch"
+            Report "firewall_software[]=little-snitch"
+        else
+            if IsVerbose; then Display --indent 2 --text "- Checking Little Snitch Daemon" --result "${STATUS_DISABLED}" --color YELLOW; fi
+            AddHP 1 3
+            LogText "Result: could not find Little Snitch"
         fi
     fi
 #

@@ -650,19 +650,20 @@
 #
     # Test        : PKGS-7381
     # Description : Check for vulnerable FreeBSD packages (with pkg)
-    # TODO        : Update the repository first
-    if [ -x /usr/sbin/pkg -a -f /var/db/pkg/vuln.xml ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="pkg tool not available, or missing vulnerability database"; fi
+    # Notes       : Related vulnerability file is /var/db/pkg/vuln.xml
+    # TODO        : Run this in any jail
+    if [ -x /usr/sbin/pkg -a ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="pkg tool not available"; fi
     Register --test-no PKGS-7381 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with pkg"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         PACKAGE_AUDIT_TOOL_FOUND=1
         PACKAGE_AUDIT_TOOL="pkg audit"
-        FIND=$(/usr/sbin/pkg audit -q 2> /dev/null)
+        FIND=$(/usr/sbin/pkg audit >& /dev/null)
         if [ $? -eq 0 ]; then
             LogText "Result: pkg audit results are clean"
             Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_NONE}" --color GREEN
             AddHP 10 10
-        else
+        elif [ $? -eq 1 ]; then
             if [ ! -z "${FIND}" ]; then
                 VULNERABLE_PACKAGES_FOUND=1
                 Display --indent 2 --text "- Checking pkg audit to obtain vulnerable packages" --result "${STATUS_FOUND}" --color YELLOW
@@ -676,6 +677,10 @@
             else
                 LogText "Result: found an exit code greater than zero, yet no output"
             fi
+        elif [ $? -eq 65 ]; then
+            ReportWarning "${TEST_NO}" "No vulnerability database available" "pkg audit" "text:Run pkg audit -f"
+        else
+            ReportException "${TEST_NO}" "Found an unknown exit code for pkg audit. Please create an issue at ${PROJECT_SOURCE}"
         fi
     fi
 #

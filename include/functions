@@ -1085,7 +1085,7 @@
 
     IsContainer() {
         FOUND=0
-        if [ /proc/1/cgroups ]; then
+        if [ -e /proc/1/cgroups ]; then
             FIND=$(cat /proc/1/cgroups | grep -i docker)
             if [ $? -eq 0 ]; then
                 LogText "Result: found Docker in cgroups, so we are running in Docker container"
@@ -1368,18 +1368,22 @@
         fi
 
         # lshw
-        if [ "${SHORT}" = "" -a ${PRIVILEGED} -eq 1 ]; then
-            if [ -x /usr/bin/lshw ]; then
-                LogText "Test: trying to guess virtualization with lshw"
-                FIND=`lshw -quiet -class system 2> /dev/null | awk '{ if ($1=="product:") { print $2 }}'`
-                if [ ! "${FIND}" = "" ]; then
-                    LogText "Result: found ${FIND}"
-                    SHORT="${FIND}"
+        if [ "${SHORT}" = "" ]; then
+            if [ ${PRIVILEGED} -eq 1 ]; then
+                if [ -x /usr/bin/lshw ]; then
+                    LogText "Test: trying to guess virtualization with lshw"
+                    FIND=`lshw -quiet -class system 2> /dev/null | awk '{ if ($1=="product:") { print $2 }}'`
+                    if [ ! "${FIND}" = "" ]; then
+                        LogText "Result: found ${FIND}"
+                        SHORT="${FIND}"
+                    fi
+                 else
+                    LogText "Result: lshw not found"
                 fi
-              else
-                LogText "Result: lshw not found"
+            else
+                LogText "Result: skipped lshw test, as we are non-privileged and need more permissions to run lshw"
             fi
-          else
+        else
             LogText "Result: skipped lshw test, as we already found machine type"
         fi
 

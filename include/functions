@@ -50,6 +50,7 @@
 #    GetHostID                  Retrieve an unique ID for this host
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
+#    IsContainer                Determine if program runs in a container
 #    IsDebug                    Check if --debug is used
 #    IsDeveloperMode            Check if --developer is used
 #    IsDeveloperVersion         Check if program is a developer release
@@ -1072,6 +1073,31 @@
             echo "------------------------------------"
         fi
         LogText "Action: Performing plugin tests"
+    }
+
+
+    ################################################################################
+    # Name        : IsContainer()
+    # Description : Determine if we are running in a container
+    # Returns     : Exit code (0 = true, 1 = false)
+    #               CONTAINER_TYPE
+    ################################################################################
+
+    IsContainer() {
+        FOUND=0
+        if [ /proc/1/cgroups ]; then
+            FIND=$(cat /proc/1/cgroups | grep -i docker)
+            if [ $? -eq 0 ]; then
+                LogText "Result: found Docker in cgroups, so we are running in Docker container"
+                CONTAINER_TYPE="Docker"; FOUND=1
+                EXITCODE=0
+            fi
+        fi
+        if [ ${FOUND} -eq 0 ]; then
+            CONTAINER_TYPE=""
+            EXITCODE=1
+        fi
+        return ${EXITCODE}
     }
 
 

@@ -7,6 +7,14 @@ New:
 * New group "system integrity" added
 * Support for clamconf utility
 * Chinese translation (language=cn)
+* New command "upload-only" to upload just the data instead of a full audit
+* Enhanced support for macOS
+* HostID2 generation for macOS
+* Detection for pkg binary (FreeBSD)
+* New command: lynis show os
+* Show machine ID with 'lynis show hostids'
+* Show hardware, virtual machine, or container type with 'lynis show environment'
+* Support for CoreOS
 
 Changes:
 --------
@@ -14,10 +22,18 @@ Changes:
 
 Tests:
 ------
+* BOOT-5202 - Improve uptime detection for macOS and others
+* FIRE-4518 - Improve pf detection
+* FIRE-4530 - Don't show error on screen for missing IPFW sysctl key
+* FIRE-4534 - Check Little Snitch on macOS
 * INSE-8050 - Test for insecure services on macOS
+* MACF-6208 - Allow non-privileged execution and filter permission issues
+* MALW-3280 - Detection for Avast daemon on macOS
+* PKGS-7381 - Improve test for pkg audit on FreeBSD
 
 Plugins (community and commercial):
 -----------------------------------
+* PLGN-1430 - Gather installed software packages for macOS
 * PLGN-4602 - Support for Clam definition check on macOS
 
 ---------------------------------------------------------------------------------

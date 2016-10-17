@@ -1006,7 +1006,7 @@
                 for I in ${SSH_KEY_FILES}; do
                     if [ ${FOUND} -eq 0 ]; then
                         if [ -f /etc/ssh/${I} ]; then
-                            LogText "Result: found file ${I} in /etc/ssh"
+                            LogText "Result: found file ${I} in /etc/ssh, using that to create host identifier"
                             DATA_SSH=$(cat /etc/ssh/${I})
                             FOUND=1
                         fi
@@ -1016,7 +1016,18 @@
                 LogText "Result: no /etc/ssh directory found, skipping"
             fi
 
-            if [ ! "${DATA_SSH}" = "" ]; then
+            STRING_TO_HASH=""
+            if [ ${FOUND} -eq 1 -a ! -z "${DATA_SSH}" ]; then
+                LogText "Using SSH public key to create the second host identifier"
+                STRING_TO_HASH="${DATA_SSH}"
+            else
+                if [ ! -z "${MACHINEID}" ]; then
+                    LogText "Using the machine ID to create the second host identifier"
+                    STRING_TO_HASH="${MACHINEID}"
+                fi
+            fi
+            # Check if we have a string to turn into a host identifier
+            if [ ! -z "${STRING_TO_HASH}" ]; then
                 # Create hashes
                 if [ ! "${SHA256SUMBINARY}" = "" ]; then
                     HASH_SSH=$(echo ${DATA_SSH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
@@ -1029,7 +1040,7 @@
                 LogText "Hash (ssh): ${HASH_SSH}"
                 HOSTID2="${HASH_SSH}"
                 Report "hostid2=${HOSTID2}"
-             fi
+            fi
         fi
 
         # Show an exception if no HostID could be created, to ensure each system (and scan) has one

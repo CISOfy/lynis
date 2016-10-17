@@ -682,11 +682,12 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         FIND=""
+        UPTIME_IN_SECS=""
         case "${OS}" in
             Linux)
                 # Idle time, not real uptime
                 if [ -f /proc/uptime ]; then
-                    FIND=$(cat /proc/uptime | ${CUTBINARY} -d ' ' -f1 | ${CUTBINARY} -d '.' -f1)
+                    UPTIME_IN_SECS=$(cat /proc/uptime | ${CUTBINARY} -d ' ' -f1 | ${CUTBINARY} -d '.' -f1)
                 else
                     Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:1" "No uptime test available for this operating system (/proc/uptime missing)"
@@ -729,7 +730,7 @@
 
             Solaris)
                 if [ ! -z "${KSTATBINARY}" ]; then
-                    FIND=$(${KSTATBINARY} -p unix:0:system_misc:snaptime | ${GREPBINARY} "^unix" | ${AWKBINARY} '{print $2}' | ${CUTBINARY} -d "." -f1)
+                    UPTIME_IN_SECS=$(${KSTATBINARY} -p unix:0:system_misc:snaptime | ${GREPBINARY} "^unix" | ${AWKBINARY} '{print $2}' | ${CUTBINARY} -d "." -f1)
                 else
                     Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:2" "No uptime test available for this operating system (kstat missing)"
@@ -743,8 +744,7 @@
                 ReportException "${TEST_NO}:3" "No uptime test available yet for this operating system"
                 ;;
         esac
-        if [ ! -z "${FIND}" ]; then
-            UPTIME_IN_SECS="${FIND}"
+        if [ ! -z "${UPTIME_IN_SECS}" ]; then
             UPTIME_IN_DAYS=$((UPTIME_IN_SECS / 60 / 60 / 24))
             LogText "Uptime (in seconds): ${UPTIME_IN_SECS}"
             LogText "Uptime (in days): ${UPTIME_IN_DAYS}"

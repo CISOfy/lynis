@@ -693,17 +693,25 @@
                 fi
                 ;;
 
-             DragonFly|FreeBSD|MacOS)
+             DragonFly | FreeBSD | MacOS)
                 if [ ! -z "${SYSCTLBINARY}" ]; then
-                    FIND=$(${SYSCTLBINARY} kern.boottime | ${AWKBINARY} '{ print $5 }' | ${SEDBINARY} -e 's/,//' | ${GREPBINARY} "[0-9]")
+                    TIME_BOOT=$(${SYSCTLBINARY} kern.boottime | ${AWKBINARY} '{ print $5 }' | ${SEDBINARY} -e 's/,//' | ${GREPBINARY} "[0-9]")
+                    TIME_NOW=$(date "+%s")
+                    LogText "Boot time: ${TIME_BOOT}"
+                    LogText "Current time: ${TIME_NOW}"
+                    if [ ! -z "${TIME_BOOT}" -a ! -z "${TIME_NOW}" ]; then
+                        UPTIME_IN_SECS=$((TIME_NOW - TIME_BOOT))
+                    else
+                        ReportException "${TEST_NO}:5" "Most likely kern.boottime empty, unable to determine uptime"
+                    fi
                 else
                     Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:4" "No uptime test available for this operating system (sysctl missing)"
                 fi
                 ;;
 
-             NetBSD|OpenBSD)
-                if [ ! "${SYSCTLBINARY}" = "" ]; then
+             NetBSD | OpenBSD)
+                if [ ! -z "${SYSCTLBINARY}" ]; then
                     TIME_BOOT=$(${SYSCTLBINARY} -n kern.boottime)
                     TIME_NOW=$(date "+%s")
                     LogText "Boot time: ${TIME_BOOT}"

@@ -27,6 +27,7 @@
 #################################################################################
 #
     CRON_DIRS="/etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /var/spool/crontabs"
+    CHRONY_CONF_FILE=""
     NTP_DAEMON=""
     NTP_DAEMON_RUNNING=0
     NTP_CONFIG_FOUND=0
@@ -42,7 +43,7 @@
     # Test        : TIME-3104
     # Description : Check for a running NTP daemon
     if [ -f /sys/hypervisor/type ]; then
-        # Skip NTP tests if we are in a DomU xen instance YYY
+        # TODO: Skip NTP tests if we are in a DomU xen instance
         FIND=$(cat /sys/hypervisor/type)
         if [ "${FIND}" = "xen" ]; then PREQS_MET="NO"; else PREQS_MET="YES"; fi
     elif [ -f /sbin/sysctl ] && [ "`/sbin/sysctl -n security.jail.jailed 2>/dev/null || echo 0`" -eq 1 ]; then
@@ -57,12 +58,20 @@
         LogText "Test: Searching for a running NTP daemon or available client"
         FOUND=0
 
-        if [ -f /etc/chrony.conf ]; then
+        SEARCH_FILES="${ROOTDIR}etc/chrony.conf ${ROOTDIR}etc/chrony/chrony.conf"
+        for FILE in ${SEARCH_FILES}; do
+            if [ -f ${FILE} ]; then LogText "result: found chrony configuration: ${FILE}"; CHRONY_CONF_FILE="${FILE}"; fi
+        done
+        if [ ! -z "${CHRONY_CONF_FILE}" ]; then
             IsRunning chronyd
             if [ ${RUNNING} -eq 1 ]; then
                 FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="chronyd"
                 Display --indent 2 --text "- NTP daemon found: chronyd" --result "${STATUS_FOUND}" --color GREEN
+            else
+                LogText "Result: found chrony configuration, but no running daemon"
             fi
+        else
+            LogText "Result: no chrony configuration found"
         fi
 
         # Check time daemon (eg DragonFly BSD)

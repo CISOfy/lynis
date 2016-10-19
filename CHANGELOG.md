@@ -28,8 +28,9 @@ Tests:
 * FIRE-4534 - Check Little Snitch on macOS
 * INSE-8050 - Test for insecure services on macOS
 * MACF-6208 - Allow non-privileged execution and filter permission issues
-* MALW-3280 - Detection for Avast and Bitdefender daemons on macOS
+* MALW-3280 - Detection for Avast and Bitdefender daemon on macOS
 * PKGS-7381 - Improve test for pkg audit on FreeBSD
+* TIME-3104 - Chrony support extended
 
 Plugins (community and commercial):
 -----------------------------------

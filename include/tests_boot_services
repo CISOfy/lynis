@@ -362,13 +362,18 @@
                 Display --indent 2 --text "- Checking presence LILO" --result "${STATUS_OK}" --color GREEN
                 LogText "Checking password option LILO"
                 FIND=$(${EGREPBINARY} 'password[[:space:]]?=' ${LILOCONFFILE} | ${GREPBINARY} -v "^#")
-                if [ -z "${FIND}" ]; then
+                if [ -z "${FIND}" && $MACHINE_ROLE = "server" || "workstation" ]; then
                     Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color RED
-                    LogText "Result: no password set for LILO. Bootloader is unprotected to"
-                    LogText "dropping to single user mode or unauthorized access to devices/data."
+                    LogText "Result: no password set for LILO. Bootloader is unprotected to dropping to single user mode or unauthorized access to devices/data."
                     ReportSuggestion ${TEST_NO} "Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
                     ReportWarning ${TEST_NO} "No password set on LILO bootloader"
                     AddHP 0 2
+                elif [ -z "${FIND}" && $MACHINE_ROLE = "personal"]; then
++                   Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color yellow
++                   LogText "Result: no password set for LILO. Bootloader is unprotected to dropping to single user mode or unauthorized access to devices/data."
++                   ReportSuggestion ${TEST_NO} "No password set on LILO bootloader. Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
++                   AddHP 0 2
++               fi
                 else
                     Display --indent 4 --text "- Password option presence " --result "${STATUS_OK}" --color GREEN
                     LogText "Result: LILO password option set"
@@ -379,7 +384,6 @@
             fi
         else
             LogText "Result: LILO configuration file not found"
-        fi
     fi
 #
 #################################################################################

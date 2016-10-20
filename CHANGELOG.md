@@ -15,10 +15,12 @@ New:
 * Show machine ID with 'lynis show hostids'
 * Show hardware, virtual machine, or container type with 'lynis show environment'
 * Support for CoreOS
+* Added machine role "personal" and "workstation"
 
 Changes:
 --------
 * Several new sysctl values have been added
+* Removed machine role desktop
 
 Tests:
 ------
@@ -28,8 +30,15 @@ Tests:
 * FIRE-4534 - Check Little Snitch on macOS
 * INSE-8050 - Test for insecure services on macOS
 * MACF-6208 - Allow non-privileged execution and filter permission issues
-* MALW-3280 - Detection for Avast daemon on macOS
+<<<<<<< Updated upstream
+* MALW-3280 - Detection for Avast and Bitdefender daemon on macOS
+=======
+* MALW-3280 - Detection for Avast and Bitdefender daemons on macOS
+>>>>>>> Stashed changes
 * PKGS-7381 - Improve test for pkg audit on FreeBSD
+* TIME-3104 - Chrony support extended
+* BOOT-5139 - Test more lenient for personal machine role
+* HRDN-7230 - Personal machine role shows yellow if no malware scanners found
 
 Plugins (community and commercial):
 -----------------------------------

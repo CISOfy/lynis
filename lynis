@@ -70,7 +70,7 @@
         for I in ${tINCLUDE_TARGETS}; do
             if [ "${I}" = "./include" ]; then
                 if [ -d ${WORKDIR}/include ]; then INCLUDEDIR="${WORKDIR}/include"; fi
-            elif [ -d ${I} ]; then
+            elif [ -d ${I} -a -z "${INCLUDEDIR}" ]; then
                 INCLUDEDIR=${I}
             fi
         done
@@ -89,7 +89,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
         for I in ${tDB_TARGETS}; do
             if [ "${I}" = "./db" ]; then
                 if [ -d ${WORKDIR}/db ]; then DBDIR="${WORKDIR}/db"; fi
-            elif [ -d ${I} ]; then
+            elif [ -d ${I} -a -z "${DBDIR}" ]; then
                 DBDIR="${I}"
             fi
         done
@@ -116,7 +116,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     # Check user to determine file permissions later on. If we encounter Solaris, use related id binary instead
     if [ -x /usr/xpg4/bin/id ]; then
         MYID=$(/usr/xpg4/bin/id -u 2> /dev/null)
-    elif [ `uname` = "SunOS" ]; then
+    elif [ $(uname) = "SunOS" ]; then
         MYID=$(id | tr '=' ' ' | tr '(' ' ' | awk '{ print $2 }' 2> /dev/null)
     else
         MYID=$(id -u 2> /dev/null)
@@ -140,11 +140,11 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     SHOWPERMERROR=0
 
     for FILE in ${FILES_TO_CHECK}; do
-        PERMS=`ls -l ${INCLUDEDIR}/${FILE} | cut -c 2-10`
-        GROUPPERMS=`ls -l ${INCLUDEDIR}/${FILE} | cut -c 5-7`
-        GROUPOWNERID=`ls -n ${INCLUDEDIR}/${FILE} | awk '{ print $4 }'`
-        OWNER=`ls -l ${INCLUDEDIR}/${FILE} | awk -F" " '{ print $3 }'`
-        OWNERID=`ls -n ${INCLUDEDIR}/${FILE} | awk -F" " '{ print $3 }'`
+        PERMS=$(ls -l ${INCLUDEDIR}/${FILE} | cut -c 2-10)
+        GROUPPERMS=$(ls -l ${INCLUDEDIR}/${FILE} | cut -c 5-7)
+        GROUPOWNERID=$(ls -n ${INCLUDEDIR}/${FILE} | awk '{ print $4 }')
+        OWNER=$(ls -l ${INCLUDEDIR}/${FILE} | awk -F" " '{ print $3 }')
+        OWNERID=$(ls -n ${INCLUDEDIR}/${FILE} | awk -F" " '{ print $3 }')
 
         # Check permissions of include/X file (400, 600, 640, 644)
         if [ "${PERMS}" = "rwxrwxrwx" ]; then
@@ -164,7 +164,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
         fi
     done
 
-        if [ ${SHOWPERMERROR} -eq 1 ]; then
+    if [ ${SHOWPERMERROR} -eq 1 ]; then
             printf "%s" "
 
 [!] Change ownership of ${INCLUDEDIR}/${ISSUE_FILE} to 'root' or similar (found: ${ISSUE_OWNER} with UID ${ISSUE_OWNERID}).
@@ -172,7 +172,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     Command:
       # chown 0:0 ${INCLUDEDIR}/${ISSUE_FILE}
 "
-        fi
+    fi
 
     # Now if there is an issue with permissions, show it to the user and let them decide how to continue.
     if [ ${ISSUE} -eq 1 ]; then
@@ -226,7 +226,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 
     # Disable logging if no alternative was provided
     if [ ${PRIVILEGED} -eq 0 ]; then
-        if [ "${LOGFILE}" = "" ]; then
+        if [ -z "${LOGFILE}" ]; then
             # Try creating a log file in temporary directory
             if [ ! -f /tmp/lynis.log ]; then
                 touch /tmp/lynis.log
@@ -235,7 +235,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
                 LOGFILE="/tmp/lynis.log"
             fi
         fi
-        if [ "${REPORTFILE}" = "" ]; then
+        if [ -z "${REPORTFILE}" ]; then
             touch /tmp/lynis-report.dat
             if [ $? -eq 0 ]; then REPORTFILE="/tmp/lynis-report.dat"; else REPORTFILE="/dev/null"; fi
         fi
@@ -288,9 +288,9 @@ ${NORMAL}
     DiscoverProfiles
 
     # Initialize and check profile file, auditor name, log file and report file
-    if [ "${AUDITORNAME}" = "" ];       then AUDITORNAME="[Not Specified]"; fi
-    if [ "${LOGFILE}" = "" ];           then LOGFILE="/var/log/lynis.log"; fi
-    if [ "${REPORTFILE}" = "" ];        then REPORTFILE="/var/log/lynis-report.dat"; fi
+    if [ -z "${AUDITORNAME}" ];       then AUDITORNAME="[Not Specified]"; fi
+    if [ -z "${LOGFILE}" ];           then LOGFILE="/var/log/lynis.log"; fi
+    if [ -z "${REPORTFILE}" ];        then REPORTFILE="/var/log/lynis-report.dat"; fi
 #
 #################################################################################
 #
@@ -300,7 +300,7 @@ ${NORMAL}
 #
     # Decide where to write our PID file. For unprivileged users this will be in their home directory, or /tmp if their
     # home directory isn't set. For root it will be /var/run, or the current workign directory if /var/run doesn't exist.
-    MYHOMEDIR=`echo ~ 2> /dev/null`
+    MYHOMEDIR=$(echo ~ 2> /dev/null)
     if [ "${MYHOMEDIR}" = "" ]; then MYHOMEDIR="/tmp"; fi
 
     if [ ${PRIVILEGED} -eq 0 ]; then
@@ -342,11 +342,11 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
     fi
 
     # Ensure symlink attack is not possible, by confirming there is no symlink of the file already
-    OURPID=`echo $$`
+    OURPID=$(echo $$)
     if [ -L ${PIDFILE} ]; then
         echo "Found symlinked PID file (${PIDFILE}), quitting"
         ExitFatal
-      else
+    else
         # Create new PID file writable only by owner
         echo "${OURPID}" > ${PIDFILE}
         chmod 600 ${PIDFILE}
@@ -499,7 +499,7 @@ ${NORMAL}
     if [ ${CREATE_REPORT_FILE} -eq 1 ]; then echo "# ${PROGRAM_NAME} Report" > ${REPORTFILE}; fi
     Report "report_version_major=${REPORT_version_major}"
     Report "report_version_minor=${REPORT_version_minor}"
-    CDATE=`date "+%F %H:%M:%S"`
+    CDATE=$(date "+%F %H:%M:%S")
     Report "report_datetime_start=${CDATE}"
     Report "auditor=${AUDITORNAME}"
     Report "lynis_version=${PROGRAM_VERSION}"
@@ -513,7 +513,7 @@ ${NORMAL}
 
     Report "hostname=${HOSTNAME}"
 
-    if [ "${HOSTNAME}" = "" ]; then
+    if [ -z "${HOSTNAME}" ]; then
         HOSTNAME="no-hostname"
         LogText "Info: could not find a hostname, using 'no-hostname' instead"
         ReportSuggestion "LYNIS" "Check your hostname configuration" "hostname -s"
@@ -567,7 +567,7 @@ ${NORMAL}
         #LogText "Result: Searching for plugindir"
         tPLUGIN_TARGETS="/usr/local/lynis/plugins /usr/local/share/lynis/plugins /usr/share/lynis/plugins /etc/lynis/plugins ./plugins"
         for I in ${tPLUGIN_TARGETS}; do
-            if [ -d ${I} ]; then
+            if [ -d ${I} -a -z "${PLUGINDIR}" ]; then
                 PLUGINDIR=${I}
                 Debug "Result: found plugindir ${PLUGINDIR}"
             fi
@@ -577,7 +577,7 @@ ${NORMAL}
     fi
 
     # Drop out if our plugin directory can't be found
-    if [ ! -d ${PLUGINDIR} ]; then
+    if [ -z "${PLUGINDIR}" -o ! -d ${PLUGINDIR} ]; then
         echo "Fatal error: can't find plugin directory ${PLUGINDIR}"
         echo "Make sure to execute ${PROGRAM_NAME} from untarred directory or check your installation."
         exit 1
@@ -655,7 +655,7 @@ ${NORMAL}
     if [ ${SKIP_UPGRADE_TEST} -eq 1 ]; then
         LogText "Upgrade test skipped due profile option set (skip_upgrade_test)"
         PROGRAM_LV="${PROGRAM_AC}"
-      else
+    else
         CheckUpdates
     fi
     if [ "${PROGRAM_AC}" = "" -o "${PROGRAM_LV}" = "" ]; then
@@ -664,7 +664,7 @@ ${NORMAL}
         LogText "Info: to perform an automatic update check, outbound DNS connections should be allowed (TXT record)."
         # Set both to safe values
         PROGRAM_AC=0; PROGRAM_LV=0
-      else
+    else
         LogText "Current installed version  : ${PROGRAM_AC}"
         LogText "Latest stable version      : ${PROGRAM_LV}"
         if [ ${PROGRAM_LV} -gt ${PROGRAM_AC} ]; then
@@ -677,19 +677,19 @@ ${NORMAL}
                 ReportWarning "LYNIS" "Version of Lynis is very old and should be updated"
                 Report "lynis_update_available=1"
                 UPDATE_AVAILABLE=1
-              else
+            else
                 Display --indent 2 --text "- Program update status... " --result "UPDATE AVAILABLE" --color YELLOW
                 LogText "Result: newer ${PROGRAM_NAME} release available!"
                 ReportSuggestion "LYNIS" "Version of Lynis outdated, consider upgrading to the latest version"
                 Report "lynis_update_available=1"
                 UPDATE_AVAILABLE=1
             fi
-          else
+        else
             if [ ${UPDATE_CHECK_SKIPPED} -eq 0 ]; then
                 Display --indent 2 --text "- Program update status... " --result "NO UPDATE" --color GREEN
                 LogText "No ${PROGRAM_NAME} update available."
                 Report "lynis_update_available=0"
-              else
+            else
                 Display --indent 2 --text "- Program update status... " --result "SKIPPED" --color YELLOW
                 LogText "Update check skipped due to constraints (e.g. missing dig binary)"
                 Report "lynis_update_available=-1"
@@ -698,7 +698,7 @@ ${NORMAL}
     fi
 
     # Test for older releases, without testing via update mechanism
-    NOW=`date +%s`
+    NOW=$(date "+%s")
     OLD_RELEASE=0
     TIME_DIFFERENCE_CHECK=10368000 # 4 months
     RELEASE_PLUS_TIMEDIFF=$((${PROGRAM_RELEASE_TIMESTAMP} + ${TIME_DIFFERENCE_CHECK}))
@@ -771,7 +771,7 @@ ${NORMAL}
         LogText "Result: systemd is using systemd"
         HAS_SYSTEMD=1
         Report "systemd=1"
-      else
+    else
         LogText "Result: systemd not found, or partially"
         Report "systemd=0"
     fi
@@ -844,16 +844,16 @@ ${NORMAL}
                                     if [ ${PLUGIN_PHASE} -eq 1 ]; then Progress "]"; Progress --finish; fi
                                     LogTextBreak
                                     LogText "Result: ${FIND2} plugin (phase ${PLUGIN_PHASE}) finished"
-                                  else
+                                else
                                     LogText "Plugin ${FIND2}: Skipped (bad file permissions, should be 644, 640, 600 or 400)"
                                 fi
-                              else
+                            else
                                 LogText "Plugin ${FIND2}: Skipped for phase ${PLUGIN_PHASE} (no file found: ${PLUGINFILE})"
                             fi
-                          else
+                        else
                             LogText "Plugin ${FIND2}: Skipped (not enabled)"
                         fi
-                      else
+                    else
                         LogText "Skipping plugin file ${PLUGIN_FILE} (no valid plugin name found)"
                     fi
                 fi
@@ -867,7 +867,7 @@ ${NORMAL}
         if [ ${N_PLUGIN_ENABLED} -eq 0 ]; then
             Display --indent 2 --text "- ${GEN_PLUGINS_ENABLED}" --result "NONE" --color WHITE
             Report "plugins_enabled=0"
-          else
+        else
             Report "plugins_enabled=1"
         fi
     fi
@@ -881,13 +881,13 @@ ${NORMAL}
     if [ ! "${HOSTID}" = "-" -a ! "${HOSTID}" = "" -a ! "${HOSTID}" = "adc83b19e793491b1c6ea0fd8b46cd9f32e592fc" -a ! "${HOSTID}" = "6ef1338f520d075957424741d7ed35ab5966ae97" ]; then
         LogText "Info: found valid HostID ${HOSTID}"
         Report "hostid=${HOSTID}"
-      else
+    else
         LogText "Info: no HostID found or invalid one"
     fi
     if [ ! "${MACHINEID}" = "" ]; then
         LogText "Info: found a machine ID ${MACHINEID}"
         Report "machineid=${MACHINEID}"
-      else
+    else
         LogText "Info: no machine ID found"
     fi
 #
@@ -907,7 +907,7 @@ ${NORMAL}
                            insecure_services banners scheduling accounting time crypto virtualization containers \
                            mac_frameworks file_integrity tooling malware file_permissions homedirs \
                            kernel_hardening hardening"
-          else
+        else
             INCLUDE_TESTS="${TEST_GROUP_TO_CHECK}"
             LogText "Info: only performing tests from groups: ${TEST_GROUP_TO_CHECK}"
         fi
@@ -918,14 +918,14 @@ ${NORMAL}
             if [ -f ${INCLUDE_FILE} ]; then
                 if SafePerms ${INCLUDE_FILE}; then
                     . ${INCLUDE_FILE}
-                  else
+                else
                     LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 640, 600 or 400)"
                     ReportWarning "NONE" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
                     # Insert a section and warn user also on screen
                     InsertSection "General"
                     Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "SKIPPED" --color RED
                 fi
-              else
+            else
                 echo "Error: Can't find file (category: ${INCLUDE_TEST})"
             fi
         done
@@ -945,12 +945,12 @@ ${NORMAL}
                 Display --indent 2 --text "- Start custom tests... "
                 LogText "Result: file permissions fine, running custom tests"
                 . ${INCLUDEDIR}/tests_custom
-              else
+            else
                 LogText "Exception: skipping custom tests, file has bad permissions (should be 640, 600 or 400)"
                 ReportWarning "NONE" "Invalid permissions on custom tests file"
                 Display --indent 2 --text "- Running custom tests... " --result "WARNING" --color RED
             fi
-          else
+        else
             Display --indent 2 --text "- Running custom tests... " --result "NONE" --color WHITE
         fi
     fi
@@ -969,7 +969,7 @@ ${NORMAL}
                 LogText "Running helper tool ${HELPER} with params: ${HELPER_PARAMS}"
                 InsertPluginSection "Helper: ${HELPER}"
                 . ${INCLUDEDIR}/helper_${HELPER} ${HELPER_PARAMS}
-              else
+            else
                 echo "Error, could not find helper"
             fi
         fi
@@ -996,7 +996,7 @@ ${NORMAL}
 #
     # Store total performed tests
     Report "lynis_tests_done=${CTESTS_PERFORMED}"
-    CDATE=`date "+%F %H:%M:%S"`
+    CDATE=$(date "+%F %H:%M:%S")
     Report "report_datetime_end=${CDATE}"
 
     # Show report
@@ -1020,7 +1020,7 @@ ${NORMAL}
         if [ -f ${INCLUDEDIR}/data_upload ]; then
             SafePerms ${INCLUDEDIR}/data_upload
             . ${INCLUDEDIR}/data_upload
-          else
+        else
             echo "Fatal error: can't find upload_data script"
         fi
     fi
@@ -1038,10 +1038,10 @@ ${NORMAL}
         # Use exit code 78 if we found any warnings (and enabled)
         if [ ${ERROR_ON_WARNINGS} -eq 1 ]; then
             ExitCustom 78
-          else
+        else
             ExitClean
         fi
-      else
+    else
         ExitClean
     fi
 

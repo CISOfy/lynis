@@ -306,7 +306,15 @@
 
             "MacOS")
                 LogText "macOS real users output (ID = 0, or 500-599)"
-                FIND=$(dscacheutil -q user | grep -A 3 -B 2 -e uid:\ 5'[0-9][0-9]')
+                FIND_USERS=$(dscacheutil -q user | ${GREPBINARY} -A 3 -B 2 -e "^uid: 5[0-9][0-9]" | ${GREPBINARY} "^name: " | ${AWKBINARY} '{print $2}')
+                if [ ! -z "${FIND_USERS}" ]; then
+                    for FUSERNAME in ${FIND_USERS}; do
+                        FDETAILS=$(dscacheutil -q user -a name ${FUSERNAME} | ${GREPBINARY} "^uid: " | ${AWKBINARY} '{print $2}')
+                        FIND="${FDETAILS},${FUSERNAME} ${FIND}"
+                    done
+                else
+                    FIND=""
+                fi
             ;;
 
             "OpenBSD")
@@ -326,15 +334,17 @@
         esac
 
         # Check if we got any output
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             Display --indent 4 --text "Result: No users found/unknown result"
             LogText "Result: Querying of system users skipped"
             Display --indent 2 --text "- Query system users (non daemons)" --result "${STATUS_UNKNOWN}" --color YELLOW
         else
             Display --indent 2 --text "- Query system users (non daemons)" --result "${STATUS_DONE}" --color GREEN
             for I in ${FIND}; do
-                LogText "Real user: ${I}"
-                Report "real_user[]=${I}"
+                if [ -z "${I}" ]; then
+                    LogText "Real user: ${I}"
+                    Report "real_user[]=${I}"
+                fi
             done
         fi
     fi

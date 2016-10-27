@@ -274,8 +274,7 @@
     # Description : Query user accounts
     # Notes       : AIX: 100+
     #               HPUX: 100+
-    #               Mac OS X: needs to be improved (just reading passwd file is not enough)
-    #               (NOTE: macOS doesn't have any user info in /etc/passwd, users are managed with opendirectoryd)
+    #               macOS doesn't have any user info in /etc/passwd, users are managed with opendirectoryd)
     #               OpenBSD/NetBSD: unknown
     #               Arch Linux / CentOS / Ubuntu: 1000+
     Register --test-no AUTH-9234 --weight L --network NO --category security --description "Query user accounts"
@@ -286,12 +285,12 @@
         case ${OS} in
             "AIX")
                 LogText "AIX real users output (ID = 0, or 100+):"
-                FIND=`${AWKBINARY} -F: '($3 >= 100 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=$(${AWKBINARY} -F: '($3 >= 100 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
 
             "FreeBSD")
                 LogText "FreeBSD real users output (ID = 0, or 1000+, but not 65534):"
-                FIND=`${AWKBINARY} -F: '($3 >= 1000 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=$(${AWKBINARY} -F: '($3 >= 1000 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
 
             "Linux")
@@ -302,22 +301,24 @@
                 fi
                 if [ "${UID_MIN}" = "" ]; then UID_MIN="1000"; fi
                 LogText "Linux real users output (ID = 0, or ${UID_MIN}+, but not 65534):"
-                FIND=`${AWKBINARY} -v UID_MIN="${UID_MIN}" -F: '($3 >= UID_MIN && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=$(${AWKBINARY} -v UID_MIN="${UID_MIN}" -F: '($3 >= UID_MIN && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd)
+            ;;
+
+            "MacOS")
+                LogText "macOS real users output (ID = 0, or 500-599)"
+                FIND=$(dscacheutil -q user | grep -A 3 -B 2 -e uid:\ 5'[0-9][0-9]')
             ;;
 
             "OpenBSD")
                 LogText "OpenBSD real users output (ID = 0, or 1000-60000, but not 32767):"
-                FIND=`${AWKBINARY} -F: '($3 >= 1000 && $3 <= 60000 && $3 != 32767) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=$(${AWKBINARY} -F: '($3 >= 1000 && $3 <= 60000 && $3 != 32767) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
 
             "Solaris")
                 LogText "Solaris real users output (ID =0, or 100+, but not 60001/65534):"
-                FIND=`${AWKBINARY} -F: '($3 >= 100 && $3 != 60001 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd`
+                FIND=$(${AWKBINARY} -F: '($3 >= 100 && $3 != 60001 && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
-#            "macOS")
-#                LogText "macOS real users output (ID = 0, or 500-599)"
-#               #NOTE# The specific line for using dscacheutil is:
-#               # dscacheutil -q user | grep -A 3 -B 2 -e uid:\ 5'[0-9][0-9]'                
+
             *)
                 # Want to help improving Lynis? Determine what user IDs belong to normal user accounts
                 ReportException "${TEST_NO}:1" "Can not determine user accounts"
@@ -329,11 +330,11 @@
             Display --indent 4 --text "Result: No users found/unknown result"
             LogText "Result: Querying of system users skipped"
             Display --indent 2 --text "- Query system users (non daemons)" --result "${STATUS_UNKNOWN}" --color YELLOW
-          else
+        else
             Display --indent 2 --text "- Query system users (non daemons)" --result "${STATUS_DONE}" --color GREEN
             for I in ${FIND}; do
-              LogText "Real user: ${I}"
-              Report "real_user[]=${I}"
+                LogText "Real user: ${I}"
+                Report "real_user[]=${I}"
             done
         fi
     fi

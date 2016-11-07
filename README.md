@@ -60,25 +60,21 @@ This software component is also part of an enterprise solution. Same quality, ye
 ## Awards
 Lynis is collecting some awards and we are proud of that.
 
-* 2013
+### 2013
 [![ToolsWatch Best Tools (sixth place)](https://www.toolswatch.org/badges/toptools/2013.svg)](https://www.toolswatch.org/2013/12/2013-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
-* 2014
+### 2014
 [![ToolsWatch Best Tools (third place)](https://www.toolswatch.org/badges/toptools/2014.svg)](https://www.toolswatch.org/2015/01/2014-top-security-tools-as-voted-by-toolswatch-org-readers/)
 
-* 2015
+### 2015
 [![ToolsWatch Best Tools (second place)](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
-
 [Best of Open Source Software Awards 2015](http://www.idgenterprise.com/news/press-release/infoworld-announces-the-2015-best-of-open-source-software-awards/)
 
-* 2016
+### 2016
 [Best of Open Source Software Awards 2016](http://www.infoworld.com/article/3121251/open-source-tools/bossie-awards-2016-the-best-open-source-networking-and-security-software.html#slide13)
 
 ## Contribute
 We love contributors. Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
 More details can be found in the [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).
 
-You can also simply contribute to the project by 'starring' the project and show your appreciation.
-
-
-
+You can also simply contribute to the project by 'starring' the project and show your appreciation that way. Thanks!

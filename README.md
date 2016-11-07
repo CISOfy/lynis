@@ -47,7 +47,7 @@ Stable releases of Lynis are packaged and made available as RPM or DEB file. The
 ## Documentation
 Full documentation: https://cisofy.com/documentation/lynis/
 
-## Flexibility
+## Customization
 If you want to create your own tests, have a look at the [Lynis software development kit](https://github.com/CISOfy/lynis-sdk).
 
 ## Security
@@ -55,7 +55,7 @@ We participate in the badge program of the Linux Foundation. By clicking on the 
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
 
 ## Enterprise version
-This software is also available as part of an enterprise solution. It includes additional functionality (plugins, centralized system, reporting, dashboard), and support.
+This software component is also part of an enterprise solution. Same quality, yet with more functionality. Focus areas include compliance (PCI DSS, HIPAA, ISO27001, and others). The Enterprise version comes with a web interface and features a dashboard, hardening snippets, and an improvement plan.
 
 ## Awards
 Lynis is collecting some awards and we are proud of that.
@@ -68,10 +68,10 @@ Lynis is collecting some awards and we are proud of that.
 
 * 2015
 [![ToolsWatch Best Tools (second place)](https://www.toolswatch.org/badges/toptools/2015.svg)](https://www.toolswatch.org/2016/02/2015-top-security-tools-as-voted-by-toolswatch-org-readers/)
-[!Best of Open Source Software Awards 2015](http://www.idgenterprise.com/news/press-release/infoworld-announces-the-2015-best-of-open-source-software-awards/)
+[Best of Open Source Software Awards 2015](http://www.idgenterprise.com/news/press-release/infoworld-announces-the-2015-best-of-open-source-software-awards/)
 
 * 2016
-[!Best of Open Source Software Awards 2016](http://www.infoworld.com/article/3121251/open-source-tools/bossie-awards-2016-the-best-open-source-networking-and-security-software.html#slide13)
+[Best of Open Source Software Awards 2016](http://www.infoworld.com/article/3121251/open-source-tools/bossie-awards-2016-the-best-open-source-networking-and-security-software.html#slide13)
 
 ## Contribute
 We love contributors. Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.

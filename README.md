@@ -71,7 +71,7 @@ Full documentation: https://cisofy.com/documentation/lynis/.
 If you want to create your own tests, have a look at the [Lynis software development kit](https://github.com/CISOfy/lynis-sdk).
 
 ## Security
-We participate in the [CII best practices](https://bestpractices.coreinfrastructure.org/projects/96/badge) badge program of the Linux Foundation.
+We participate in the [CII best practices](https://bestpractices.coreinfrastructure.org/projects/96) badge program of the Linux Foundation.
 
 ## Awards
 Lynis is collecting some awards and we are proud of that.

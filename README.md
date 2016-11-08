@@ -42,11 +42,11 @@ Typical users of the software:
 
 1. Clone or download the project files (**no compilation nor installation** is required) ;
 
-       git@github.com:CISOfy/lynis.git
+        git clone git@github.com:CISOfy/lynis.git
        
 2. Execute: 
 
-       ./lynis audit system
+        ./lynis audit system
 
 If you want to run the software as `root`, we suggest changing the ownership of the files. Use `chown -R 0:0` to recursively alter the owner and group and set it to user ID `0` (`root`).
 

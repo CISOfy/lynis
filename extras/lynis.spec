@@ -4,7 +4,7 @@
 # -----------------
 #
 # This is a dummy file now. If you like to install the latest version as a
-# package, have a lookt at https://packages.cisofy.com
+# package, have a look at https://packages.cisofy.com
 #
 # Manual builds
 # -------------

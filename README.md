@@ -41,9 +41,9 @@ Typical users of the software:
 
 1. Clone or download the project files (**no compilation nor installation** is required) ;
 
-        git clone git@github.com:CISOfy/lynis.git
-       
-2. Execute: 
+        git clone https://github.com/CISOfy/lynis.git
+
+2. Execute:
 
         ./lynis audit system
 
@@ -56,7 +56,7 @@ Stable releases of Lynis are packaged and made available as RPM or DEB package. 
 
 ### Enterprise version
 
-This software component is also part of an enterprise solution. Same quality, yet with more functionality. 
+This software component is also part of an enterprise solution. Same quality, yet with more functionality.
 
 Focus areas include compliance (`PCI DSS`, `HIPAA`, `ISO27001`, and others). The Enterprise version comes with:
 * a web interface and features a dashboard ;
@@ -91,13 +91,13 @@ Lynis is collecting some awards and we are proud of that.
 
 ## Contribute
 
-> We love contributors. 
+> We love contributors.
 
 Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
 
 More details can be found in the [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).
 
-You can also simply contribute to the project by _starring_ the project and show your appreciation that way. 
+You can also simply contribute to the project by _starring_ the project and show your appreciation that way.
 
 Thanks!
 

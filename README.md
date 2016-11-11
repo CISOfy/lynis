@@ -41,7 +41,7 @@ Typical users of the software:
 
 1. Clone or download the project files (**no compilation nor installation** is required) ;
 
-        git clone git@github.com:CISOfy/lynis.git
+        git clone https://github.com/CISOfy/lynis
        
 2. Execute: 
 

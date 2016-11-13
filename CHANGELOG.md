@@ -6,7 +6,7 @@ Lynis 2.4.1 (not released yet, under development)
 Changes:
 * Generic code improvements
 * Improved the update check and display
-* Finish translation
+* Finish and Portuguese translation
 
 
 ---------------------------------------------------------------------------------

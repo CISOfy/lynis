@@ -7,7 +7,7 @@ Changes:
 * Generic code improvements
 * Improved the update check and display
 * Finish and Portuguese translation
-
+* Extended support and tests for DragonFlyBSD
 
 ---------------------------------------------------------------------------------
 

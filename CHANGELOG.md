@@ -9,6 +9,11 @@ Changes:
 * Finish and Portuguese translation
 * Extended support and tests for DragonFlyBSD
 
+Tests:
+------
+* KRNL-5788 - Remove exception and style improvements
+* KRNL-5830 - Improved logging
+
 ---------------------------------------------------------------------------------
 
 Lynis 2.4.0 (2016-10-27)

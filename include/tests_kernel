@@ -375,25 +375,24 @@
             LogText "Result: found /usr/bin/apt-cache"
             LogText "Test: checking readlink location of /vmlinuz"
             if [ -f /vmlinuz ]; then
-                FINDKERNFILE=`readlink -f /vmlinuz`
+                FINDKERNFILE=$(readlink -f /vmlinuz)
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
                 LogText "Test: checking package from dpkg -S"
-                FINDKERNEL=`dpkg -S ${FINDKERNFILE} 2> /dev/null | ${AWKBINARY} -F : '{print $1}'`
+                FINDKERNEL=$(dpkg -S ${FINDKERNFILE} 2> /dev/null | ${AWKBINARY} -F : '{print $1}')
                 LogText "Output: dpkg -S reported package ${FINDKERNEL}"
             elif [ -e /dev/grsec ]; then
-                FINDKERNEL=linux-image-`uname -r`
+                FINDKERNEL=linux-image-$(uname -r)
                 LogText "/vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
             else
                 LogText "This system is missing /vmlinuz.  Unable to check whether kernel is up-to-date."
-                ReportException "${TEST_NO}:00|Missing /vmlinuz"
-                ReportSuggestion ${TEST_NO} "Discover why /vmlinuz is missing. Consider manually re-linking."
+                ReportSuggestion ${TEST_NO} "Determine why /vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz"
             fi
             LogText "Test: Using apt-cache policy to determine if there is an update available"
-            FINDINST=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' '`
-            FINDCAND=`apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' '`
+            FINDINST=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
+            FINDCAND=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
             LogText "Kernel installed: ${FINDINST}"
             LogText "Kernel candidate: ${FINDCAND}"
-            if [ "${FINDINST}" = "" ]; then
+            if [ -z "${FINDINST}" ]; then
                 Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
                 LogText "Result: Exception occured, no output from apt-cache policy"
                 ReportException "${TEST_NO}:01"

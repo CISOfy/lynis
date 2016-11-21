@@ -56,6 +56,7 @@ These people made a significant impact to the development of Lynis:
 * Portuguese            - Dayvidson (GitHub)
 * Spanish               - Jesus Christian Cruz Acono, compermisos (GitHub)
 * Swedish               - Peter Carlsson, PCarlsson (GitHub)
+* Turkish               - Orhan Biyiklioglu, biyiklioglu (GitHub)
 
 
 Thanks to all people who contributed code and suggestions for over almost a decade!

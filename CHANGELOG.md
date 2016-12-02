@@ -8,6 +8,7 @@ Changes:
 * Improved the update check and display
 * Finish, Portuguese, and Turkish translation
 * Extended support and tests for DragonFlyBSD
+* Option to configure hostid and hostid2 in profile
 
 Tests:
 ------

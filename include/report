@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -29,8 +33,8 @@
     #
             # If no hardening has been found, set value to 1
             if [ ${HPPOINTS} -eq 0 ]; then HPPOINTS=1; HPTOTAL=100; fi
-            HPINDEX=`expr $HPPOINTS \* 100 / $HPTOTAL`
-            HPAOBLOCKS=`expr $HPPOINTS \* 20 / $HPTOTAL`
+            HPINDEX=$((HPPOINTS * 100 / HPTOTAL))
+            HPAOBLOCKS=$((HPPOINTS * 20 / HPTOTAL))
             # Set color related to rating
             if [ ${HPINDEX} -lt 50 ]; then
                 HPCOLOR="${RED}"
@@ -74,20 +78,20 @@
             esac
 
             HPGRAPH="[${HPCOLOR}${HPBLOCKS}${NORMAL}${HPEMPTY}]"
-            logtext "Hardening index : [${HPINDEX}] [${HPBLOCKS}${HPEMPTY}]"
-            logtext "Hardening strength: ${HIDESCRIPTION}"
+            LogText "Hardening index : [${HPINDEX}] [${HPBLOCKS}${HPEMPTY}]"
+            LogText "Hardening strength: ${HIDESCRIPTION}"
 
 
     # Only show overview if not running in quiet mode
     if [ ${QUIET} -eq 0 ]; then
         echo ""; echo "================================================================================"
-        echo ""; echo "  -[ ${WHITE}${PROGRAM_name} ${PROGRAM_version} Results${NORMAL} ]-"
+        echo ""; echo "  -[ ${WHITE}${PROGRAM_NAME} ${PROGRAM_VERSION} Results${NORMAL} ]-"
         echo "";
 
 
     if [ ${SHOW_REPORT} -eq 1 ]; then
 
-        logtextbreak
+        LogTextBreak
 
         #
         #################################################################################
@@ -96,28 +100,40 @@
         #
         #################################################################################
         #
-            if [ "${CONTROL_URL_PREPEND}" = "" ]; then CONTROL_URL_PREPEND="https://cisofy.com/controls/"; fi
+            if [ "${CONTROL_URL_PROTOCOL}" = "" ]; then CONTROL_URL_PROTOCOL="https"; fi
+            if [ "${CONTROL_URL_PREPEND}" = "" ]; then CONTROL_URL_PREPEND="cisofy.com/controls/"; fi
             if [ "${CONTROL_URL_APPEND}" = "" ]; then CONTROL_URL_APPEND="/"; fi
-            if [ "${CUSTOM_URL_PREPEND}" = "" ]; then CUSTOM_URL_PREPEND="https://your-domain.example.org/controls/"; fi
+            if [ "${CUSTOM_URL_PROTOCOL}" = "" ]; then CUSTOM_URL_PROTOCOL="https"; fi
+            if [ "${CUSTOM_URL_PREPEND}" = "" ]; then CUSTOM_URL_PREPEND="your-domain.example.org/controls/"; fi
             if [ "${CUSTOM_URL_APPEND}" = "" ]; then CUSTOM_URL_APPEND="/"; fi
 
             # Show warnings from logfile
-            SWARNINGS=`grep -i 'warning:' ${LOGFILE} | sed 's/ /!space!/g'`
-
-            if [ "${SWARNINGS}" = "" ]; then
-                echo "  ${OK}No warnings${NORMAL}"; echo ""
+            SWARNINGS=$(${GREPBINARY} -i 'warning:' ${LOGFILE} | sed 's/ /!space!/g')
+            if [ -z "${SWARNINGS}" ]; then
+                echo "  ${OK}Great, no warnings${NORMAL}"; echo ""
               else
                 echo "  ${WARNING}Warnings${NORMAL} (${TOTAL_WARNINGS}):"
                 echo "  ${WHITE}----------------------------${NORMAL}"
                 for WARNING in ${SWARNINGS}; do
-                    SHOWWARNING=`echo ${WARNING} | sed 's/!space!/ /g' | sed 's/^\[\(.*\)\] Warning: //' | sed 's/\[details:\(.*\)\] \[solution:\(.*\)\]//' | sed 's/test://'`
-                    ADDLINK=`echo ${WARNING} | sed 's/!space!/ /g' | sed 's/^\[\(.*\)\] Warning: \(.*\)\[test://' | sed 's/\]\(.*\)]//'`
-                    IS_CUSTOM=`echo ${ADDLINK} | grep "^CUST"`
-                    echo "  ${WHITE}- ${SHOWWARNING}${NORMAL}"
-                    if [ "${IS_CUSTOM}" = "" ]; then
-                        echo "      ${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}"
+                    SOLUTION=""
+                    SHOWWARNING=$(echo ${WARNING} | sed 's/!space!/ /g' | sed 's/^.* Warning: //' | sed 's/\[details:\(.*\)\] \[solution:\(.*\)\]//' | sed 's/test://')
+                    ADDLINK=$(echo ${WARNING} | sed 's/!space!/ /g' | sed 's/^.* Warning: \(.*\)\[test://' | sed 's/\]\(.*\)]//')
+                    DETAILS=$(echo ${WARNING} | sed 's/!space!/ /g' | sed 's/^.* Warning: \(.*\)\[details://' | sed 's/\]\(.*\)]//')
+                    SUGGESTION_PIECES=$(echo ${WARNING} | sed 's/\[/ [/g')
+                    for PIECE in ${SUGGESTION_PIECES}; do
+                        if [ -z "${SOLUTION}" ]; then
+                            SEARCH=$(echo ${PIECE} | grep "^\[solution:")
+                            if [ $? -eq 0 ]; then SOLUTION=$(echo ${SEARCH} | sed 's/!space!/ /g' | sed 's/solution://' | sed 's/text://' | tr -d '[]'); fi
+                        fi
+                    done
+                    IS_CUSTOM=$(echo ${ADDLINK} | grep "^CUST")
+                    echo "  ${RED}!${NORMAL} ${SHOWWARNING}"
+                    if [ ! "${DETAILS}" = "-" -a ! -z "${DETAILS}" ]; then echo "    - Details  : ${CYAN}${DETAILS}${NORMAL}"; fi
+                    if [ ${SHOW_REPORT_SOLUTION} -eq 1 -a ! "${SOLUTION}" = "-" ]; then echo "    - Solution : ${SOLUTION}"; fi
+                    if [ -z "${IS_CUSTOM}" ]; then
+                        echo "      ${CONTROL_URL_PROTOCOL}://${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}"
                       else
-                        echo "      ${CUSTOM_URL_PREPEND}${ADDLINK}${CUSTOM_URL_APPEND}"
+                        echo "      ${CUSTOM_URL_PROTOCOL}://${CUSTOM_URL_PREPEND}${ADDLINK}${CUSTOM_URL_APPEND}"
                     fi
                     echo ""
                 done
@@ -132,25 +148,37 @@
                 echo "  ${YELLOW}Suggestions${NORMAL} (${TOTAL_SUGGESTIONS}):"
                 echo "  ${WHITE}----------------------------${NORMAL}"
                 for SUGGESTION in ${SSUGGESTIONS}; do
-                    SHOWSUGGESTION=`echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^\[\(.*\)\] Suggestion: //' | sed 's/\[details:\(.*\)\] \[solution:\(.*\)\]//' | sed 's/test://'`
-                    ADDLINK=`echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^\[\(.*\)\] Suggestion: \(.*\)\[test://' | sed 's/\]\(.*\)]//'`
+                    SOLUTION=""
+                    SHOWSUGGESTION=$(echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^.* Suggestion: //' | sed 's/\[details:\(.*\)\] \[solution:\(.*\)\]//' | sed 's/test://')
+                    ADDLINK=$(echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^.* Suggestion: \(.*\)\[test://' | sed 's/\]\(.*\)]//')
+                    DETAILS=$(echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^.* Suggestion: \(.*\)\[details://' | sed 's/\]\(.*\)]//')
+                    SUGGESTION_PIECES=$(echo ${SUGGESTION} | sed 's/\[/ [/g')
+                    for PIECE in ${SUGGESTION_PIECES}; do
+                        if [ -z "${SOLUTION}" ]; then
+                            SEARCH=$(echo ${PIECE} | grep "^\[solution:")
+                            if [ $? -eq 0 ]; then SOLUTION=$(echo ${SEARCH} | sed 's/!space!/ /g' | sed 's/solution://' | sed 's/text://' | tr -d '[]'); fi
+                        fi
+                    done
                     IS_CUSTOM=`echo ${ADDLINK} | grep "^CUST"`
-                    echo "  - ${SHOWSUGGESTION}"
-                    if [ "${IS_CUSTOM}" = "" ]; then
-                        echo "      ${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}"
+                    echo "  ${YELLOW}*${NORMAL} ${SHOWSUGGESTION}"
+                    if [ ! "${DETAILS}" = "-" -a ! -z "${DETAILS}" ]; then echo "    - Details  : ${CYAN}${DETAILS}${NORMAL}"; fi
+                    if [ ${SHOW_REPORT_SOLUTION} -eq 1 -a ! "${SOLUTION}" = "-" ]; then echo "    - Solution : ${SOLUTION}"; fi
+                    if [ -z "${IS_CUSTOM}" ]; then
+                        echo "      ${GRAY}${CONTROL_URL_PROTOCOL}://${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}${NORMAL}"
                       else
-                        echo "      ${CUSTOM_URL_PREPEND}${ADDLINK}${CUSTOM_URL_APPEND}"
+                        echo "      ${GRAY}${CUSTOM_URL_PROTOCOL}://${CUSTOM_URL_PREPEND}${ADDLINK}${CUSTOM_URL_APPEND}${NORMAL}"
                     fi
+                    echo ""
                 done
-                echo ""
             fi
-
+            # Show tip on how to continue (next steps)
             if [ ! "${SWARNINGS}" = "" -o ! "${SSUGGESTIONS}" = "" ]; then
                 echo "  ${CYAN}Follow-up${NORMAL}:"
                 echo "  ${WHITE}----------------------------${NORMAL}"
-                echo "  ${WHITE}-${NORMAL} Check the logfile for more details (less $LOGFILE)"
+                echo "  ${WHITE}-${NORMAL} Show details of a test (lynis show details TEST-ID)"
+                echo "  ${WHITE}-${NORMAL} Check the logfile for all details (less ${LOGFILE})"
                 echo "  ${WHITE}-${NORMAL} Read security controls texts (https://cisofy.com)"
-                echo "  ${WHITE}-${NORMAL} Use --upload to upload data (Lynis Enterprise users)"
+                if [ ${UPLOAD_DATA} -eq 0 ]; then echo "  ${WHITE}-${NORMAL} Use --upload to upload data to central system (Lynis Enterprise users)"; fi
                 echo ""
             fi
             echo "================================================================================"
@@ -159,23 +187,27 @@
             echo ""
             echo "  ${CYAN}Hardening index${NORMAL} : ${WHITE}${HPINDEX}${NORMAL} ${HPGRAPH}"
             echo "  ${CYAN}Tests performed${NORMAL} : ${WHITE}${CTESTS_PERFORMED}${NORMAL}"
-            echo "  ${CYAN}Plugins enabled${NORMAL} : ${WHITE}${N_PLUGIN_ENABLED}${NORMAL}"
+            if [ ${SKIP_PLUGINS} -eq 0 ]; then echo "  ${CYAN}Plugins enabled${NORMAL} : ${WHITE}${N_PLUGIN_ENABLED}${NORMAL}"; fi
             echo ""
-            echo "  ${WHITE}Quick overview${NORMAL}:"
+            echo "  ${WHITE}Components${NORMAL}:"
             if [ ${FIREWALL_ACTIVE} -eq 1 ]; then FIREWALL="${GREEN}V"; else FIREWALL="${RED}X"; fi
             if [ ${MALWARE_SCANNER_INSTALLED} -eq 1 ]; then MALWARE="${GREEN}V"; else MALWARE="${RED}X"; fi
+            if [ ${IDS_IPS_TOOL_FOUND} -eq 1 ]; then IDSIPS="${GREEN}V"; else IDSIPS="${RED}X"; fi
 
-            echo "  - Firewall [${FIREWALL}${NORMAL}] - Malware scanner [${MALWARE}${NORMAL}]"
+            echo "  - Firewall               [${FIREWALL}${NORMAL}]"
+            #echo "  - Integrity monitoring   [${IDSIPS}${NORMAL}]"
+            #echo "  - Intrusion software     [${IDSIPS}${NORMAL}]"
+            echo "  - Malware scanner        [${MALWARE}${NORMAL}]"
 
             echo ""
             echo "  ${SECTION}Lynis Modules${NORMAL}:"
             if [ ${COMPLIANCE_TESTS_PERFORMED} -eq 1 ]; then
                 if [ ${COMPLIANCE_FINDINGS_FOUND} -eq 0 ]; then COMPLIANCE="${GREEN}V"; else COMPLIANCE="${RED}X"; fi
-              else COMPLIANCE="${YELLOW}NA";
+              else COMPLIANCE="${YELLOW}?";
             fi
-            echo "  - Compliance Status   [${COMPLIANCE}${NORMAL}]"
-            echo "  - Security Audit      [${GREEN}V${NORMAL}]"
-            echo "  - Vulnerability Scan  [${GREEN}V${NORMAL}]"
+            echo "  - Compliance Status      [${COMPLIANCE}${NORMAL}]"
+            echo "  - Security Audit         [${GREEN}V${NORMAL}]"
+            echo "  - Vulnerability Scan     [${GREEN}V${NORMAL}]"
             echo ""
             echo "  ${SECTION}Files${NORMAL}:"
             echo "  - Test and debug information      : ${WHITE}${LOGFILE}${NORMAL}"
@@ -183,8 +215,8 @@
             echo ""
             echo "================================================================================"
             if [ ${PROGRAM_LV} -gt ${PROGRAM_AC} ]; then
-                echo "  ${NOTICE}Notice: ${WHITE}${PROGRAM_name} update available${NORMAL}"
-                echo "  Current version : ${WHITE}${PROGRAM_AC}${NORMAL}    Latest version : ${WHITE}${PROGRAM_LV}${NORMAL}"
+                echo "  ${NOTICE}Notice: ${WHITE}${PROGRAM_NAME} ${GEN_UPDATE_AVAILABLE}${NORMAL}"
+                echo "  ${GEN_CURRENT_VERSION} : ${WHITE}${PROGRAM_AC}${NORMAL}    ${GEN_LATEST_VERSION} : ${WHITE}${PROGRAM_LV}${NORMAL}"
                 echo "================================================================================"
               else
                 ###########################################################################################
@@ -199,11 +231,11 @@
                     FIND=`${GREPBINARY} "^exception" ${REPORTFILE}`
                     if [ ! "${FIND}" = "" ]; then
                         echo ""
-                        echo "  ${RED}Exceptions found${NORMAL}"
-                        echo "  ${WHITE}Some exceptional events or information was found!${NORMAL}"
+                        echo "  ${RED}${NOTE_EXCEPTIONS_FOUND}${NORMAL}"
+                        echo "  ${WHITE}${NOTE_EXCEPTIONS_FOUND_DETAILED}!${NORMAL}"
                         echo ""
-                        echo "  ${CYAN}What to do:${NORMAL}"
-                        echo "  You can help improving Lynis by providing your /var/log/lynis.log file."
+                        echo "  ${CYAN}${GEN_WHAT_TO_DO}:${NORMAL}"
+                        echo "  ${TEXT_YOU_CAN_HELP_LOGFILE} (${LOGFILE})."
                         echo "  Go to https://cisofy.com/contact/ and send your file to the e-mail address listed"
                         echo ""
                         echo "================================================================================"
@@ -214,7 +246,7 @@
             # Display what tests are skipped in non-privileged scan for awareness
             if [ ${PENTESTINGMODE} -eq 1 -a ! "${SKIPPED_TESTS_ROOTONLY}" = "" ]; then
                 echo ""
-                echo "  ${PURPLE}Skipped tests due to non-privileged scan${NORMAL}"
+                echo "  ${PURPLE}${NOTE_SKIPPED_TESTS_NON_PRIVILEGED}${NORMAL}"
 
                 FIND=`echo ${SKIPPED_TESTS_ROOTONLY} | sed 's/ /:space:/g'`
                 # Split entries
@@ -228,25 +260,26 @@
                 echo "================================================================================"
             fi
 
-            echo ""; echo ""
+            echo ""
         fi
 
     fi
 
     # Report data, even if it is not displayed on screen
-        report "hardening_index=${HPINDEX}"
-
+    Report "hardening_index=${HPINDEX}"
 
     if [ ${QUIET} -eq 0 ]; then
-
-        echo "  ${PROGRAM_name} ${PROGRAM_version}"
-        echo "  Auditing, hardening and compliance for Linux, Mac OS and Unix systems"
+        echo "  ${WHITE}${PROGRAM_NAME}${NORMAL} ${PROGRAM_VERSION}"
         echo ""
-        echo "  ${PROGRAM_copyright}"
-        echo "  ${WHITE}${PROGRAM_extrainfo}${NORMAL}"
+        echo "  Auditing, system hardening, and compliance for UNIX-based systems"
+        echo "  (Linux, macOS, BSD, and others)"
+        echo ""
+        echo "  ${PROGRAM_COPYRIGHT}"
+        echo "  ${WHITE}${PROGRAM_EXTRAINFO}${NORMAL}"
+        echo ""
         echo "================================================================================"
     fi
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

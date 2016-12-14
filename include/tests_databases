@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael@rootkit.nl), The Netherlands
-# Web site: http://www.rootkit.nl
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -18,14 +22,12 @@
 #
 #################################################################################
 #
-    # Status of database processes
-    MYSQL_RUNNING=0
-    ORACLE_RUNNING=0
-    POSTGRESQL_RUNNING=0
     # Paths to DATADIR
-    sMYSQLDBPATHS="/var/lib/mysql"
+    sMYSQLDBPATHS="${ROOTDIR}var/lib/mysql"
     # Paths to my.cnf
-    sMYCNFLOCS="/etc/mysql/my.cnf /usr/etc/my.cnf"
+    sMYCNFLOCS="${ROOTDIR}etc/mysql/my.cnf ${ROOTDIR}usr/etc/my.cnf"
+    REDIS_CONFIGURATION_FILES=""
+    REDIS_CONFIGURATION_FOUND=0
 #
 #################################################################################
 #
@@ -33,16 +35,18 @@
 
     # Test        : DBS-1804
     # Description : Check if MySQL is being used
-    Register --test-no DBS-1804 --weight L --network NO --description "Checking active MySQL process"
+    Register --test-no DBS-1804 --weight L --network NO --category security --description "Checking active MySQL process"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${PSBINARY} ax | egrep "mysqld|mysqld_safe" | grep -v "grep"`
+        FIND=`${PSBINARY} ax | ${EGREPBINARY} "mysqld|mysqld_safe" | ${GREPBINARY} -v "grep"`
         if [ "${FIND}" = "" ]; then
-            Display --indent 2 --text "- MySQL process status" --result "NOT FOUND" --color WHITE
-            logtext "Result: MySQL process not active"
+            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- MySQL process status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
+            LogText "Result: MySQL process not active"
           else
-            Display --indent 2 --text "- MySQL process status" --result "FOUND" --color GREEN
-            logtext "Result: MySQL is active"
+            Display --indent 2 --text "- MySQL process status" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: MySQL is active"
             MYSQL_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
+            Report "mysql_running=${MYSQL_RUNNING}"
         fi
     fi
 #
@@ -50,7 +54,7 @@
 #
     # Test        : DBS-1808
     # Description : Check MySQL data directory
-    #Register --test-no DBS-1808 --weight L --network NO --description "Checking MySQL data directory"
+    #Register --test-no DBS-1808 --weight L --network NO --category security --description "Checking MySQL data directory"
     #if [ ${SKIPTEST} -eq 0 ]; then
     #fi
 #
@@ -58,7 +62,7 @@
 #
     # Test        : DBS-1812
     # Description : Check data directory permissions
-    #Register --test-no DBS-1812 --weight L --network NO --description "Checking MySQL data directory permissions"
+    #Register --test-no DBS-1812 --weight L --network NO --category security --description "Checking MySQL data directory permissions"
     #if [ ${SKIPTEST} -eq 0 ]; then
     #fi
 #
@@ -67,40 +71,40 @@
     # Test        : DBS-1816
     # Description : Check empty MySQL root password
     # Notes       : Only perform test when MySQL is running and client is available
-    if [ ! "${MYSQLCLIENTBINARY}" = "" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking MySQL root password"
+    if [ ! "${MYSQLCLIENTBINARY}" = "" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
+    Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking MySQL root password"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Trying to login to local MySQL server without password"
-        FIND=`${MYSQLCLIENTBINARY} -u root --password= --silent --batch --execute="" 2> /dev/null; echo $?`
+        LogText "Test: Trying to login to local MySQL server without password"
+        FIND=$(${MYSQLCLIENTBINARY} -u root --password= --silent --batch --execute="" 2> /dev/null; echo $?)
         if [ "${FIND}" = "0" ]; then
-            logtext "Result: Login succeeded, no MySQL root password set!"
-            ReportWarning ${TEST_NO} "H" "No MySQL root password set"
-            ReportSuggestion ${TEST_NO} "Use mysqladmin to set a MySQL root password (mysqladmin -u root -p password MYPASSWORD)"
-            Display --indent 4 --text "- Checking empty MySQL root password" --result WARNING --color RED
+            LogText "Result: Login succeeded, no MySQL root password set!"
+            ReportWarning ${TEST_NO} "No MySQL root password set"
+            Display --indent 4 --text "- Checking empty MySQL root password" --result "${STATUS_WARNING}" --color RED
             AddHP 0 5
-          else
-            logtext "Result: Login did not succeed, so a MySQL root password is set"
-            Display --indent 4 --text "- Checking MySQL root password" --result OK --color GREEN
+        else
+            LogText "Result: Login did not succeed, so a MySQL root password is set"
+            Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN
             AddHP 2 2
         fi
       else
-        logtext "Test skipped, MySQL daemon not running or no MySQL client available"
+        LogText "Test skipped, MySQL daemon not running or no MySQL client available"
     fi
 #
 #################################################################################
 #
     # Test        : DBS-1826
     # Description : Check if PostgreSQL is being used
-    Register --test-no DBS-1826 --weight L --network NO --description "Checking active PostgreSQL processes"
+    Register --test-no DBS-1826 --weight L --network NO --category security --description "Checking active PostgreSQL processes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${PSBINARY} ax | grep "postgres:" | grep -v "grep"`
-        if [ "${FIND}" = "" ]; then
-            Display --indent 2 --text "- PostgreSQL processes status" --result "NOT FOUND" --color WHITE
-            logtext "Result: PostgreSQL process not active"
-          else
-            Display --indent 2 --text "- PostgreSQL processes status" --result "FOUND" --color GREEN
-            logtext "Result: PostgreSQL is active"
+        if IsRunning "postgres:"; then
+            Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: PostgreSQL is active"
             POSTGRESQL_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
+            Report "postgresql_running=${POSTGRESQL_RUNNING}"
+        else
+            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
+            LogText "Result: PostgreSQL process not active"
         fi
     fi
 #
@@ -116,16 +120,18 @@
     #               arch: archiver (optional)
     #               ckpt: checkpoint (optional)
     #               reco: recovery (optional)
-    Register --test-no DBS-1840 --weight L --network NO --description "Checking active Oracle processes"
+    Register --test-no DBS-1840 --weight L --network NO --category security --description "Checking active Oracle processes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`${PSBINARY} ax | egrep "ora_pmon|ora_smon|tnslsnr" | grep -v "grep"`
+        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
         if [ "${FIND}" = "" ]; then
-            Display --indent 2 --text "- Oracle processes status" --result "NOT FOUND" --color WHITE
-            logtext "Result: Oracle process(es) not active"
-          else
-            Display --indent 2 --text "- Oracle processes status" --result "FOUND" --color GREEN
-            logtext "Result: Oracle is active"
+            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
+            LogText "Result: Oracle process(es) not active"
+        else
+            Display --indent 2 --text "- Oracle processes status" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: Oracle is active"
             ORACLE_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
+            Report "oracle_running=${ORACLE_RUNNING}"
         fi
     fi
 #
@@ -133,22 +139,190 @@
 #
     # Test        : DBS-1842
     # Description : Check Oracle home paths from oratab
-    #Register --test-no DBS-1842 --weight L --network NO --description "Checking Oracle home paths"
+    #Register --test-no DBS-1842 --weight L --network NO --category security --description "Checking Oracle home paths"
     #if [ ${SKIPTEST} -eq 0 ]; then
     # if [ -f /etc/oratab ]; then
-    #  FIND=`grep -v "#" /etc/oratab | awk -F: "{ print $2 }"`
+    #  FIND=`${GREPBINARY} -v "#" /etc/oratab | ${AWKBINARY} -F: "{ print $2 }"`
     # fi
     #fi
 #
 #################################################################################
 #
-report "mysql_running=${MYSQL_RUNNING}"
-report "oracle_running=${ORACLE_RUNNING}"
-report "postgresql_running=${POSTGRESQL_RUNNING}"
+    # Test        : DBS-1860
+    # Description : Checks if a DB2 instance is currently runnigng
+    Register --test-no DBS-1860 --weight L --network NO --category security --description "Checking active DB2 instances"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if IsRunning db2sysc; then
+            Display --indent 2 --text "- DB2 instance running" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: At least one DB2 instance is running"
+            DB2_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
+            Report "db2_running=${DB2_RUNNING}"
+        else
+            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- DB2 instance running" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
+            LogText "Result: No DB2 instances are running"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1880
+    # Description : Determine if redis is running
+    Register --test-no DBS-1880 --weight L --network NO --category security --description "Check for active Redis server"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if IsRunning redis-server; then
+            Display --indent 2 --text "- Redis (server) status" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: Redis is running"
+            REDIS_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
+            Report "redis_server_running=${REDIS_RUNNING}"
+        else
+            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Redis (server) status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
+            LogText "Result: No Redis processes are running"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1882
+    # Description : Determine Redis configuration
+    if [ ${REDIS_RUNNING} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running"; fi
+    Register --test-no DBS-1882 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        PATHS="${ROOTDIR}etc/redis ${ROOTDIR}usr/local/etc/redis"
+        FOUND=0
+        for DIR in ${PATHS}; do
+            LogText "Action: scanning directory (${DIR}) for Redis configuration files"
+            FILES=$(${LSBINARY} ${DIR}/*.conf 2> /dev/null)
+            if [ ! -z "${FILES}" ]; then
+                for CONFFILE in ${FILES}; do
+                    if FileIsReadable ${CONFFILE}; then
+                        LogText "Action: checking if ${CONFFILE} is a Sentinel configuration file"
+                        # Exclude Sentinel configuration file
+                        FIND=$(${GREPBINARY} "^sentinel " ${CONFFILE})
+                        if [ ! -z "${FIND}" ]; then
+                            LogText "Result: file is a Sentinel configuration file, skipping it"
+                        else
+                            LogText "Result: file is NOT a Sentinel configuration file. Now scanning if it is a Redis configuration file"
+                            FIND=$(${GREPBINARY} "Redis" ${CONFFILE})
+                            if [ ! -z "${FIND}" ]; then
+                                REDIS_CONFIGURATION_FILES="${REDIS_CONFIGURATION_FILES} ${CONFFILE}"
+                                REDIS_CONFIGURATION_FOUND=1
+                                LogText "Result: found a Redis configuration file (${CONFFILE})"
+                            else
+                                LogText "Result: this file does not look like a Redis file  (${CONFFILE})"
+                            fi
+                        fi
+                    else
+                        LogText "Could not read this file, so skipping it"
+                    fi
+                done
+            else
+                LogText "Result: no configuration files found in this directory"
+            fi
+        done
+        # Sort the list of discovered configuration files so we can make them unique
+        REDIS_CONFIGURATION_FILES=$(echo ${REDIS_CONFIGURATION_FILES} | ${SEDBINARY} 's/^ //' | ${TRBINARY} ' ' '\n' | ${SORTBINARY} | ${UNIQBINARY} | ${TRBINARY} '\n' ' ')
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if IsWorldReadable ${FILE}; then
+                LogText "Result: configuration file ${FILE} is world readable, this might leak sensitive information!"
+                ReportWarning "${TEST_NO}" "Redis configuration file ${FILE} is world readable and might leak sensitive details" "${FILE}" "Use chmod 640 to change file permissions"
+            else
+                LogText "Result: great, configuration file ${FILE} is not world readable"
+            fi
+        done
+        if [ ${REDIS_CONFIGURATION_FOUND} -eq 0 ]; then ReportException "${TEST_NO}" "Found Redis, but no configuration file. Report this if you know where it is located on your system."; fi
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1884
+    # Description : Determine Redis configuration option: requirepass
+    if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running, or no configuration file found"; fi
+    Register --test-no DBS-1884 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis: requirepass option configured"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if FileIsReadable ${FILE}; then
+                if SearchItem "^requirepass" "${FILE}" "--sensitive"; then
+                    LogText "Result: found 'requirepass' configured"
+                    AddHP 3 3
+                    Display --indent 4 --text "- Redis (requirepass configured)" --result "${STATUS_FOUND}" --color GREEN
+                    Report "redis_requirepass=1"
+                else
+                    AddHP 0 3
+                    Display --indent 4 --text "- Redis (requirepass configured)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    ReportSuggestion "${TEST_NO}" "Configure the 'requirepass' setting for Redis" "${FILE}" "text:configure 'requirepass' setting in ${FILE}"
+                    Report "redis_requirepass=0"
+                fi
+            else
+                LogText "Result: test skipped, as we can't read configuration file"
+            fi
+        done
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1886
+    # Description : Determine Redis configuration option: rename-command CONFIG
+    if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running, or no configuration found"; fi
+    Register --test-no DBS-1886 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis: rename-command CONFIG used"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if FileIsReadable ${FILE}; then
+                if SearchItem "^rename-command CONFIG" "${FILE}" "--sensitive"; then
+                    LogText "Result: found 'rename-command CONFIG' configured"
+                    AddHP 3 3
+                    Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_FOUND}" --color GREEN
+                    Report "redis_rename_command_config=1"
+                else
+                    AddHP 0 3
+                    Display --indent 4 --text "- Redis (rename of CONFIG command)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    ReportSuggestion "${TEST_NO}" "Use the 'rename-command CONFIG' setting for Redis" "${FILE}" "text:configure 'rename-command CONFIG' in ${FILE}"
+                    Report "redis_rename_command_config=0"
+                fi
+            else
+                LogText "Result: test skipped, as we can't read configuration file"
+            fi
+        done
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1888
+    # Description : Determine Redis configuration option: bind on localhost
+    if [ ${REDIS_RUNNING} -eq 1 -a ${REDIS_CONFIGURATION_FOUND} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running, or no configuration found"; fi
+    Register --test-no DBS-1888 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis: bind on localhost"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for FILE in ${REDIS_CONFIGURATION_FILES}; do
+            if FileIsReadable ${FILE}; then
+                if SearchItem "^bind (localhost|127\.)" "${FILE}" "--sensitive"; then
+                    LogText "Result: found 'bind on localhost' configured"
+                    AddHP 3 3
+                    Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_FOUND}" --color GREEN
+                    Report "redis_bind_localhost=1"
+                else
+                    AddHP 0 3
+                    Display --indent 4 --text "- Redis (bind on localhost)" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    ReportSuggestion "${TEST_NO}" "Use 'bind' setting to listen on localhost for Redis instance" "${FILE}" "text:configure 'bind localhost' in ${FILE}"
+                    Report "redis_bind_localhost=0"
+                fi
+            else
+                LogText "Result: test skipped, as we can't read configuration file"
+            fi
+        done
+    fi
+#
+#################################################################################
+#
+    if [ ${DATABASE_ENGINE_RUNNING} -eq 0 ]; then
+        Display --indent 4 --text "No database engines found"
+    fi
+#
+#################################################################################
+#
 
-wait_for_keypress
-
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen - www.rootkit.nl - The Netherlands
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -22,6 +26,7 @@
     SSH_DAEMON_CONFIG=""
     SSH_DAEMON_PORT=""
     SSH_DAEMON_RUNNING=0
+    SSH_DAEMON_OPTIONS_FILE=""
 #
 #################################################################################
 #
@@ -31,15 +36,19 @@
 #
     # Test        : SSH-7402
     # Description : Check for a running SSH daemon
-    Register --test-no SSH-7402 --weight L --network NO --description "Check for running SSH daemon"
+    Register --test-no SSH-7402 --weight L --network NO --category security --description "Check for running SSH daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Searching for a SSH daemon"
+        LogText "Test: Searching for a SSH daemon"
         IsRunning sshd
-        if [ ${RUNNING} -eq 1 ]; then
+        if [ ${RUNNING} -eq 1 ] || PortIsListening "TCP" 22; then
             SSH_DAEMON_RUNNING=1
-            Display --indent 2 --text "- Checking running SSH daemon" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_FOUND}" --color GREEN
+            # Store settings in a temporary file
+            CreateTempFile
+            SSH_DAEMON_OPTIONS_FILE="${TEMP_FILE}"
+            ${SSHDBINARY} -T 2> /dev/null > ${SSH_DAEMON_OPTIONS_FILE}
           else
-            Display --indent 2 --text "- Checking running SSH daemon" --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #
@@ -48,33 +57,33 @@
     # Test        : SSH-7404
     # Description : Determine SSH daemon configuration file location
     if [ ${SSH_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7404 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH daemon file location"
+    Register --test-no SSH-7404 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH daemon file location"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        logtext "Test: searching for sshd_config file"
+        LogText "Test: searching for sshd_config file"
         for I in ${SSH_DAEMON_CONFIG_LOCS}; do
             if [ -f "${I}/sshd_config" ]; then
-              logtext "Result: ${I}/sshd_config exists"
+              LogText "Result: ${I}/sshd_config exists"
               if [ ${FOUND} -eq 1 ]; then
                   ReportException "${TEST_NO}:01"
-                  logtext "Result: we already had found another sshd_config file. Using this new file then."
+                  LogText "Result: we already had found another sshd_config file. Using this new file then."
               fi
               FileIsReadable ${I}/sshd_config
               if [ ${CANREAD} -eq 1 ]; then
                   FOUND=1
                   SSH_DAEMON_CONFIG="${I}/sshd_config"
                 else
-                  logtext "Result: can not read ${I}/sshd_config file (no permission)"
+                  LogText "Result: can not read ${I}/sshd_config file (no permission)"
               fi
             fi
         done
         if [ "${SSH_DAEMON_CONFIG}" = "" ]; then
-            logtext "Result: No sshd configuration found"
-            Display --indent 4 --text "- Searching SSH configuration" --result "NOT FOUND" --color YELLOW
+            LogText "Result: No sshd configuration found"
+            Display --indent 4 --text "- Searching SSH configuration" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportException "${TEST_NO}:1" "SSH daemon is running, but no readable configuration file found"
           else
-            logtext "Result: using last found configuration file: ${SSH_DAEMON_CONFIG}"
-            Display --indent 4 --text "- Searching SSH configuration" --result FOUND --color GREEN
+            LogText "Result: using last found configuration file: ${SSH_DAEMON_CONFIG}"
+            Display --indent 4 --text "- Searching SSH configuration" --result "${STATUS_FOUND}" --color GREEN
         fi
     fi
 #
@@ -82,101 +91,144 @@
 #
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH defined options"
+    # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking all specific defined options in ${SSH_DAEMON_CONFIG}"
-        FIND=`grep -v "^#" ${SSH_DAEMON_CONFIG} | grep -v "^$" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g'`
-        for I in ${FIND}; do
-            I=`echo ${I} | sed 's/!space!/ /g'`
-            logtext "Found SSH option: ${I}"
+        LogText "Test: Checking specific defined options in ${SSH_DAEMON_OPTIONS_FILE}"
+        ## SSHOPTIONS scheme:
+        ##      <OptionName>:<ExpectedValue>,<MediumScoreValue>,<WeakValue>:<TestType>
+        ##
+        ##      Test types:
+        ##      (a) '='         -- equal to is better,
+        ##      (b) '<'         -- less or equal is better,
+        ##      (c) '>'         -- more or equal is better,
+        ##      (d) '!'         -- not equal is better.
+        ##
+        ##      Example:
+        ##      PermitRootLogin:NO,WITHOUT-PASSWORD,YES,:=
+        SSHOPS="AllowTcpForwarding:NO,LOCAL,YES:=\
+                ClientAliveCountMax:2,4,16:<\
+                ClientAliveInterval:300,600,900:<\
+                Compression:NO,DELAYED,YES:=\
+                FingerprintHash:SHA256,MD5,:=\
+                GatewayPorts:NO,,YES:=\
+                IgnoreRhosts:YES,,NO:=\
+                LoginGraceTime:120,240,480:<\
+                LogLevel:VERBOSE,INFO,:=\
+                MaxAuthTries:1,3,6:<\
+                MaxSessions:2,4,8:<\
+                PermitRootLogin:NO,WITHOUT-PASSWORD,YES:=\
+                PermitUserEnvironment:NO,,YES:=\
+                PermitTunnel:NO,,YES:=\
+                Port:,,22:!\
+                PrintLastLog:YES,,NO:=\
+                Protocol:2,,1:=\
+                StrictModes:YES,,NO:=\
+                TCPKeepAlive:NO,,YES:=\
+                UseDNS:NO,,YES:=\
+                UsePrivilegeSeparation:SANDBOX,YES,NO:=\
+                VerifyReverseMapping:YES,,NO:=\
+                X11Forwarding:NO,,YES:=\
+                AllowAgentForwarding:NO,,YES:="
+
+        # Disabled        MaxStartups:4,8,16:<\ (needs fixing)
+
+        # Go through our list of options
+        for I in ${SSHOPS}; do
+            OPTIONNAME=`echo ${I} | ${CUTBINARY} -d ':' -f1`
+            OPTIONNAME_LOWER=`echo ${I} | ${CUTBINARY} -d ':' -f1 | ${AWKBINARY} '{ print tolower($1) }'`
+            EXPECTEDVALUE=`echo ${I} | ${CUTBINARY} -d ':' -f2 | ${CUTBINARY} -d',' -f1`
+            MEDIUMSCOREDVALUE=`echo ${I} | ${CUTBINARY} -d ':' -f2 | ${CUTBINARY} -d',' -f2`
+            WEAKVALUE=`echo ${I} | ${CUTBINARY} -d ':' -f2 | ${CUTBINARY} -d',' -f3`
+            TESTTYPE=`echo ${I} | ${CUTBINARY} -d ':' -f3`
+            RESULT="NONE"
+
+            if ! SkipAtomicTest "${TEST_NO}:${OPTIONNAME_LOWER}"; then
+
+                # Get value and use the last occurrence
+                FOUNDVALUE=`${AWKBINARY} -v OPT="${OPTIONNAME_LOWER}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_OPTIONS_FILE} | tail -1`
+                LogText "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_OPTIONS_FILE}"
+
+                if [ ! "${FOUNDVALUE}" = "" ]; then
+                    LogText "Result: Option ${OPTIONNAME} found"
+                    LogText "Result: Option ${OPTIONNAME} value is ${FOUNDVALUE}"
+
+                    if [ "${TESTTYPE}" = "=" ]; then
+                        if [ "${FOUNDVALUE}" = "${EXPECTEDVALUE}" ]; then
+                            RESULT="GOOD"
+                        elif [ "${FOUNDVALUE}" = "${MEDIUMSCOREDVALUE}" ]; then
+                            RESULT="MIDSCORED"
+                        elif [ "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
+                            RESULT="WEAK"
+                        else
+                            RESULT="UNKNOWN"
+                        fi
+
+                    elif [ "${TESTTYPE}" = "<" ]; then
+                        if [ "${FOUNDVALUE}" -ge "${WEAKVALUE}" -o "${FOUNDVALUE}" -gt "${MEDIUMSCOREDVALUE}" ]; then
+                            RESULT="WEAK"
+                        elif [ "${FOUNDVALUE}" -le "${MEDIUMSCOREDVALUE}" -a "${FOUNDVALUE}" -gt "${EXPECTEDVALUE}" ]; then
+                            RESULT="MIDSCORED"
+                        elif [ "${FOUNDVALUE}" -le "${EXPECTEDVALUE}" ]; then
+                            RESULT="GOOD"
+                        else
+                            RESULT="UNKNOWN"
+                        fi
+
+                    elif [ "${TESTTYPE}" = ">" ]; then
+                        if [ "${FOUNDVALUE}" -le "${WEAKVALUE}" ]; then
+                            RESULT="WEAK"
+                        elif [ "${FOUNDVALUE}" -le "${WEAKVALUE}" -a "${FOUNDVALUE}" -ge "${MEDIUMSCOREDVALUE}" ]; then
+                            RESULT="MIDSCORED"
+                        elif [ "${FOUNDVALUE}" -ge "${EXPECTEDVALUE}" ]; then
+                            RESULT="GOOD"
+                        else
+                            RESULT="UNKNOWN"
+                        fi
+
+                    elif [ "${TESTTYPE}" = "!" ]; then
+                        if [ "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
+                            RESULT="WEAK"
+                        elif [ ! "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
+                            RESULT="GOOD"
+                        else
+                            RESULT="UNKNOWN"
+                        fi
+
+                    else
+                        RESULT="NONE"
+                    fi
+                fi
+
+                if [ "${RESULT}" = "GOOD" ]; then
+                    LogText "Result: SSH option ${OPTIONNAME} is configured very well"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_OK}" --color GREEN
+                    AddHP 3 3
+                elif [ "${RESULT}" = "MIDSCORED" ]; then
+                    LogText "Result: SSH option ${OPTIONNAME} is configured reasonably"
+                    ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
+                    ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
+                    AddHP 1 3
+                elif [ "${RESULT}" = "WEAK" ]; then
+                    LogText "Result: SSH option ${OPTIONNAME} is in a weak configuration state and should be fixed"
+                    ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
+                    ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
+                    AddHP 0 3
+                elif [ "${RESULT}" = "UNKNOWN" ]; then
+                    LogText "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
+                    Report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
+                else
+                    LogText "Result: Option ${OPTIONNAME} not found in output"
+                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_NOT_FOUND}" --color WHITE
+                fi
+              else
+                if IsVerbose; then Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "SKIPPED (via config)" --color WHITE; fi
+            fi
         done
-        Display --indent 4 --text "- Checking defined SSH options" --result "DONE" --color GREEN
-    fi
-#
-#################################################################################
-#
-    # Test        : SSH-7412
-    # Description : Check SSH PermitRootLogin option
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7412 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: PermitRootLogin"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: check PermitRootLogin option"
-        FIND=`awk '/^PermitRootLogin/ { print $2 }' ${SSH_DAEMON_CONFIG}`
-        if [ "${FIND}" = "yes" -o "${FIND}" = "YES" -o "${FIND}" = "Yes" ]; then
-            logtext "Result: PermitRootLogin is enabled, root can login directly"
-            Display --indent 4 --text "- SSH option: PermitRootLogin" --result WARNING --color RED
-            ReportWarning ${TEST_NO} "M" "Root can directly login via SSH"
-            AddHP 0 3
-          else
-            # YYY add test for DenyUsers root
-            if [ "${FIND}" = "no" -o "${FIND}" = "No" ]; then
-                logtext "Result: PermitRootLogin is disabled. Root can't login directly"
-                Display --indent 4 --text "- SSH option: PermitRootLogin" --result DISABLED --color GREEN
-                AddHP 3 3
-            elif [ "${FIND}" = "without-password" ]; then
-                # Check if password authentication is disabled for root user, so this option is used properly
-                logtext "Result: PermitRootLogin is disabled. Root can't login directly"
-                Display --indent 4 --text "- SSH option: PermitRootLogin (without-password)" --result OK --color GREEN
-                AddHP 3 3
-              else
-                logtext "Result: Value of PermitRootLogin is unknown (not defined)"
-                Display --indent 4 --text "- SSH option: PermitRootLogin" --result DEFAULT --color WHITE
-            fi
-        fi
-    fi
-#
-#################################################################################
-#
-    # Test        : SSH-7414
-    # Description : Check SSH Protocol option
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7414 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: Protocol"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: check allowed SSH protocol versions"
-        FIND=`awk '/^Protocol/ { print $2 }' ${SSH_DAEMON_CONFIG}`
-        if [ "${FIND}" = "1" -o "${FIND}" = "2,1" -o "${FIND}" = "1,2" ]; then
-            logtext "Result: Protocol option is set to allow SSH protocol version 1"
-            Display --indent 4 --text "- SSH option: Protocol" --result WARNING --color RED
-            ReportWarning ${TEST_NO} "M" "SSH protocol version 1 is allowed"
-            AddHP 0 3
-          else
-            if [ "${FIND}" = "2" ]; then
-                logtext "Result: only protocol 2 is allowed"
-                Display --indent 4 --text "- SSH option: Protocol" --result OK --color GREEN
-                AddHP 3 3
-              else
-                logtext "Result: value of Protocol is unknown (not defined)"
-                Display --indent 4 --text "- SSH option: Protocol" --result DEFAULT --color WHITE
-            fi
-        fi
-    fi
-#
-#################################################################################
-#
-    # Test        : SSH-7416
-    # Description : Check SSH StrictModes option
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7416 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: StrictModes"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Check configured StrictModes option"
-        FIND=`awk '/^StrictModes/ { print $2 }' ${SSH_DAEMON_CONFIG}`
-        if [ "${FIND}" = "no" -o "${FIND}" = "NO" -o "${FIND}" = "No" ]; then
-            logtext "Result: StrictModes option is set to 'no', which means file permissions are NOT checked"
-            Display --indent 4 --text "- SSH option: StrictModes" --result WARNING --color RED
-            ReportWarning ${TEST_NO} "M" "StrictModes is turned off"
-            ReportSuggestion ${TEST_NO} "Check StrictModes option in sshd_config"
-            AddHP 0 3
-          else
-            if [ "${FIND}" = "yes" -o "${FIND}" = "YES" -o "${FIND}" = "Yes" ]; then
-                logtext "Result: StrictModes active, file permissions are checked"
-                Display --indent 4 --text "- SSH option: StrictModes" --result OK --color GREEN
-                AddHP 3 3
-              else
-                logtext "Result: value of StrictModes is unknown (not defined)"
-                Display --indent 4 --text "- SSH option: StrictModes" --result DEFAULT --color WHITE
-            fi
-        fi
     fi
 #
 #################################################################################
@@ -184,37 +236,37 @@
     # Test        : SSH-7440
     # Description : AllowUsers / AllowGroups
     # Goal        : Check if only a specific amount of users/groups can log in to the system
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check SSH option: AllowUsers and AllowGroups"
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH option: AllowUsers and AllowGroups"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # AllowUsers
-        FIND=`egrep "^AllowUsers" ${SSH_DAEMON_CONFIG} | awk '{ print $2 }'`
+        FIND=`${EGREPBINARY} -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: AllowUsers set, with value ${FIND}"
-            Display --indent 4 --text "- SSH option: AllowUsers" --result FOUND --color GREEN
+            LogText "Result: AllowUsers set, with value ${FIND}"
+            Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
           else
-            logtext "Result: AllowUsers is not set"
-            Display --indent 4 --text "- SSH option: AllowUsers" --result "NOT FOUND" --color WHITE
+            LogText "Result: AllowUsers is not set"
+            Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
         # AllowGroups
-        FIND=`egrep "^AllowGroups" ${SSH_DAEMON_CONFIG} | awk '{ print $2 }'`
+        FIND=`${EGREPBINARY} -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }'`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: AllowUsers set ${FIND}"
-            Display --indent 4 --text "- SSH option: AllowGroups" --result FOUND --color GREEN
+            LogText "Result: AllowUsers set ${FIND}"
+            Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
           else
-            logtext "Result: AllowGroups is not set"
-            Display --indent 4 --text "- SSH option: AllowGroups" --result "NOT FOUND" --color WHITE
+            LogText "Result: AllowGroups is not set"
+            Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
         if [ ${FOUND} -eq 1 ]; then
-            logtext "Result: SSH is limited to a specific set of users, which is good"
+            LogText "Result: SSH is limited to a specific set of users, which is good"
             AddHP 2 2
           else
-            logtext "Result: SSH has no specific user or group limitation. Most likely all valid users can SSH to this machine."
+            LogText "Result: SSH has no specific user or group limitation. Most likely all valid users can SSH to this machine."
             AddHP 0 1
         fi
     fi
@@ -222,11 +274,11 @@
 #################################################################################
 #
 
-report "ssh_daemon_running=${SSH_DAEMON_RUNNING}"
-#report "ssh_daemon_port=${SSH_DAEMON_PORT}"
+Report "ssh_daemon_running=${SSH_DAEMON_RUNNING}"
+#Report "ssh_daemon_port=${SSH_DAEMON_PORT}"
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -44,20 +48,20 @@
 
     # Test        : SHLL-6202
     # Description : check all console TTYs in which root user can enter single user mode without password
-    Register --test-no SHLL-6202 --os FreeBSD --weight L --network NO --description "Check console TTYs"
+    Register --test-no SHLL-6202 --os FreeBSD --weight L --network NO --category security --description "Check console TTYs"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking console TTYs"
-        FIND=`egrep '^console' /etc/ttys | grep -v 'insecure'`
+        LogText "Test: Checking console TTYs"
+        FIND=`${EGREPBINARY} '^console' /etc/ttys | ${GREPBINARY} -v 'insecure'`
         if [ "${FIND}" = "" ]; then
-            Display --indent 2 --text "- Checking console TTYs" --result OK --color GREEN
-            logtext "Result: console is secured against single user mode without password."
+            Display --indent 2 --text "- Checking console TTYs" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: console is secured against single user mode without password."
           else
-            Display --indent 2 --text "- Checking console TTYs" --result WARNING --color RED
-            logtext "Result: Found insecure console in /etc/ttys. Single user mode login without password allowed!"
-            logtext "Output /etc/ttys:"
-            logtext "${FIND}"
-            ReportWarning ${TEST_NO} "M" "Found unprotected console in /etc/ttys"
-            logtext "Possible solution: Change the console line from 'secure' to 'insecure'."
+            Display --indent 2 --text "- Checking console TTYs" --result "${STATUS_WARNING}" --color RED
+            LogText "Result: Found insecure console in /etc/ttys. Single user mode login without password allowed!"
+            LogText "Output /etc/ttys:"
+            LogText "${FIND}"
+            ReportWarning ${TEST_NO} "Found unprotected console in /etc/ttys"
+            LogText "Possible solution: Change the console line from 'secure' to 'insecure'."
         fi
     fi
 #
@@ -65,29 +69,29 @@
 #
     # Test        : SHLL-6211
     # Description : which shells are available according /etc/shells
-    Register --test-no SHLL-6211 --weight L --network NO --description "Checking available and valid shells"
+    Register --test-no SHLL-6211 --weight L --network NO --category security --description "Checking available and valid shells"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Searching for /etc/shells"
+        LogText "Test: Searching for /etc/shells"
         if [ -f /etc/shells ]; then
-            logtext "Result: Found /etc/shells file"
-            logtext "Test: Reading available shells from /etc/shells"
-            SSHELLS=`grep "^/" /etc/shells`
+            LogText "Result: Found /etc/shells file"
+            LogText "Test: Reading available shells from /etc/shells"
+            SSHELLS=`${GREPBINARY} "^/" /etc/shells`
             CSSHELLS=0; CSSHELLS_ALL=0
             Display --indent 2 --text "- Checking shells from /etc/shells"
             for I in ${SSHELLS}; do
-                CSSHELLS_ALL=`expr ${CSSHELLS_ALL} + 1`
-                report "available_shell[]=${I}"
+                CSSHELLS_ALL=$((CSSHELLS_ALL + 1))
+                Report "available_shell[]=${I}"
                 # YYY add check for symlinked shells
                 if [ -f ${I} ]; then
-                    logtext "Found installed shell: ${I}"
-                    CSSHELLS=`expr ${CSSHELLS} + 1`
+                    LogText "Found installed shell: ${I}"
+                    CSSHELLS=$((CSSHELLS + 1))
                   else
-                    logtext "Shell ${I} not installed. Probably a dummy or non existing shell."
+                    LogText "Shell ${I} not installed. Probably a dummy or non existing shell."
                 fi
              done
             Display --indent 4 --text "Result: found ${CSSHELLS_ALL} shells (valid shells: ${CSSHELLS})."
           else
-            logtext "Result: /etc/shells not found, skipping test"
+            LogText "Result: /etc/shells not found, skipping test"
         fi
     fi
 #
@@ -95,119 +99,119 @@
 #
     # Test        : SHLL-6220
     # Description : check for idle session killing tools or settings
-    Register --test-no SHLL-6220 --weight L --network NO --description "Checking available and valid shells"
+    Register --test-no SHLL-6220 --weight L --network NO --category security --description "Checking available and valid shells"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Search for session timeout tools or settings in shell"
+        LogText "Test: Search for session timeout tools or settings in shell"
         IsRunning timeoutd
         if [ ${RUNNING} -eq 1 ]; then
             IDLE_TIMEOUT=1
-            logtext "Result: found timeoutd process to kill idle sesions"
-            report="session_timeout_method=timeout daemon"
+            LogText "Result: found timeoutd process to kill idle sesions"
+            Report="session_timeout_method=timeout daemon"
         fi
         IsRunning autolog
         if [ ${RUNNING} -eq 1 ]; then
             IDLE_TIMEOUT=1
-            logtext "Result: found autolog process to kill idle sesions"
-            report="session_timeout_method[]=autolog"
+            LogText "Result: found autolog process to kill idle sesions"
+            Report="session_timeout_method[]=autolog"
         fi
 
         if [ -f /etc/profile ]; then
             # Determine if we can find a TMOUT value
-            FIND=`grep 'TMOUT=' /etc/profile | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+            FIND=`${GREPBINARY} 'TMOUT=' /etc/profile | ${TRBINARY} -d ' ' | ${TRBINARY} -d '\t' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/export//' | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} -F= '{ print $2 }'`
             # Determine if the value is exported (with export, readonly, or typeset)
-            FIND2=`grep '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' /etc/profile | grep -v "^#" | sed 's/#.*//' | awk '{ print $1 }'`
+            FIND2=`${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' /etc/profile | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} '{ print $1 }'`
             if [ ! "${FIND}" = "" ]; then
                 N=0; IDLE_TIMEOUT=1
                 for I in ${FIND}; do
-                    logtext "Output: ${I}"
-                    report "session_timeout_value[]=${I}"
-                    N=`expr ${N} + 1`
+                    LogText "Output: ${I}"
+                    Report "session_timeout_value[]=${I}"
+                    N=$((N + 1))
                 done
                 if [ ${N} -eq 1 ]; then
-                    logtext "Result: found TMOUT value configured in /etc/profile"
+                    LogText "Result: found TMOUT value configured in /etc/profile"
                   else
-                    logtext "Result: found several TMOUT values configured in /etc/profile"
+                    LogText "Result: found several TMOUT values configured in /etc/profile"
                 fi
-                report "session_timeout_method[]=profile"
+                Report "session_timeout_method[]=profile"
               else
-                logtext "Result: could not find TMOUT setting in /etc/profile"
+                LogText "Result: could not find TMOUT setting in /etc/profile"
             fi
 
             if [ ! "${FIND2}" = "" ]; then
                 N=0;
                 for I in ${FIND2}; do
-                    logtext "Output: ${I}"
+                    LogText "Output: ${I}"
                     if [ "${I}" = "readonly" -o "${I}" = "typeset" ]; then
-                        N=`expr ${N} + 1`
+                        N=$((N + 1))
                     fi
                 done
                 if [ ${N} -gt 0 ]; then
-                    logtext "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
-                    report "session_timeout_set_readonly=1"
+                    LogText "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
+                    Report "session_timeout_set_readonly=1"
                   else
-                    logtext "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
-                    report "session_timeout_set_readonly=0"
+                    LogText "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
+                    Report "session_timeout_set_readonly=0"
                 fi
               else
-                logtext "Result: could not find export, readonly or typeset -r in /etc/profile"
+                LogText "Result: could not find export, readonly or typeset -r in /etc/profile"
             fi
           else
-            logtext "Result: skip /etc/profile test, file not available on this system"
+            LogText "Result: skip /etc/profile test, file not available on this system"
         fi
 
         if [ -d /etc/profile.d ]; then
             FIND=`ls /etc/profile.d/*.sh 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
                 # Determine if we can find a TMOUT value
-                FIND=`cat /etc/profile.d/*.sh 2> /dev/null | grep 'TMOUT=' | tr -d ' ' | tr -d '\t' | grep -v "^#" | sed 's/export//' | sed 's/#.*//' | awk -F= '{ print $2 }'`
+                FIND=`cat /etc/profile.d/*.sh 2> /dev/null | ${GREPBINARY} 'TMOUT=' | ${TRBINARY} -d ' ' | ${TRBINARY} -d '\t' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/export//' | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} -F= '{ print $2 }'`
                 # Determine if the value is exported (with export, readonly, or typeset)
-                FIND2=`cat /etc/profile.d/*.sh 2> /dev/null | grep '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | grep -v "^#" | sed 's/#.*//' | awk '{ print $1 }'`
+                FIND2=`cat /etc/profile.d/*.sh 2> /dev/null | ${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} '{ print $1 }'`
 
                 if [ ! "${FIND}" = "" ]; then
                     N=0; IDLE_TIMEOUT=1
                     for I in ${FIND}; do
-                        logtext "Output: ${I}"
-                        report "session_timeout_value[]=${I}"
-                        N=`expr ${N} + 1`
+                        LogText "Output: ${I}"
+                        Report "session_timeout_value[]=${I}"
+                        N=$((N + 1))
                     done
                     if [ ${N} -eq 1 ]; then
-                        logtext "Result: found TMOUT value configured in one of the files in /etc/profile.d directory"
+                        LogText "Result: found TMOUT value configured in one of the files in /etc/profile.d directory"
                       else
-                        logtext "Result: found several TMOUT values configured in one of the files in /etc/profile.d directory"
+                        LogText "Result: found several TMOUT values configured in one of the files in /etc/profile.d directory"
                     fi
-                    report "session_timeout_method[]=profile"
+                    Report "session_timeout_method[]=profile"
                   else
-                    logtext "Result: could not find TMOUT setting in /etc/profile.d/*.sh"
+                    LogText "Result: could not find TMOUT setting in /etc/profile.d/*.sh"
                 fi
                 # Check for readonly
                 if [ ! "${FIND2}" = "" ]; then
                     N=0;
                     for I in ${FIND2}; do
-                        logtext "Output: ${I}"
+                        LogText "Output: ${I}"
                         if [ "${I}" = "readonly" -o "${I}" = "typeset" ]; then
-                            N=`expr ${N} + 1`
+                            N=$((N + 1))
                         fi
                     done
                     if [ ${N} -gt 0 ]; then
-                        logtext "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
-                        report "session_timeout_set_readonly=1"
+                        LogText "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
+                        Report "session_timeout_set_readonly=1"
                       else
-                        logtext "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
-                        report "session_timeout_set_readonly=0"
+                        LogText "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
+                        Report "session_timeout_set_readonly=0"
                     fi
                   else
-                    logtext "Result: could not find export, readonly or typeset -r in /etc/profile"
+                    LogText "Result: could not find export, readonly or typeset -r in /etc/profile"
                 fi
             fi
           else
-            logtext "Result: skip /etc/profile.d directory test, directory not available on this system"
+            LogText "Result: skip /etc/profile.d directory test, directory not available on this system"
         fi
 
         if [ ${IDLE_TIMEOUT} -eq 1 ]; then
-            Display --indent 4 --text "- Session timeout settings/tools" --result "FOUND" --color GREEN
+            Display --indent 4 --text "- Session timeout settings/tools" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
           else
-            Display --indent 4 --text "- Session timeout settings/tools" --result "NONE" --color YELLOW
+            Display --indent 4 --text "- Session timeout settings/tools" --result "${STATUS_NONE}" --color YELLOW
             AddHP 1 3
         fi
     fi
@@ -217,7 +221,7 @@
     # Test        : SHLL-6230
     # Description : Check for umask values in shell configurations
     SHELL_CONFIG_FILES="/etc/bashrc /etc/bash.bashrc /etc/csh.cshrc /etc/profile"
-    Register --test-no SHLL-6230 --weight H --network NO --description "Perform umask check for shell configurations"
+    Register --test-no SHLL-6230 --weight H --network NO --category security --description "Perform umask check for shell configurations"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         HARDENING_POSSIBLE=0
@@ -225,27 +229,27 @@
         for FILE in ${SHELL_CONFIG_FILES}; do
             FIND=""
             if [ -f ${FILE} ]; then
-                logtext "Result: file ${FILE} exists"
+                LogText "Result: file ${FILE} exists"
                 FOUND=1
-                FIND=`grep umask ${FILE} | sed 's/^[ \t]*//g' | sed 's/#.*$//' | grep -v "^$" | awk '{ print $2 }'`
+                FIND=`${GREPBINARY} umask ${FILE} | ${SEDBINARY} 's/^[ \t]*//g' | ${SEDBINARY} 's/#.*$//' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ print $2 }'`
                 if [ "${FIND}" = "" ]; then
-                    logtext "Result: did not find umask configured in ${FILE}"
-                    Display --indent 4 --text "- Checking default umask in ${FILE}" --result NONE --color YELLOW
+                    LogText "Result: did not find umask configured in ${FILE}"
+                    Display --indent 4 --text "- Checking default umask in ${FILE}" --result "${STATUS_NONE}" --color YELLOW
                   else
                     for UMASKVALUE in ${FIND}; do
-                        logtext "Result: found umask ${UMASKVALUE} in ${FILE}"
+                        LogText "Result: found umask ${UMASKVALUE} in ${FILE}"
                         case ${UMASKVALUE} in
                             027|0027|077|0077)
-                                    logtext "Result: umask ${UMASKVALUE} is considered a properly hardened value"
+                                    LogText "Result: umask ${UMASKVALUE} is considered a properly hardened value"
                             ;;
                             *)
-                                    logtext "Result: umask ${UMASKVALUE} can be hardened "
+                                    LogText "Result: umask ${UMASKVALUE} can be hardened "
                                     HARDENING_POSSIBLE=1
                             ;;
                         esac
                     done
                     if [ ${HARDENING_POSSIBLE} -eq 0 ]; then
-                        Display --indent 4 --text "- Checking default umask in ${FILE}" --result OK --color GREEN
+                        Display --indent 4 --text "- Checking default umask in ${FILE}" --result "${STATUS_OK}" --color GREEN
                         AddHP 3 3
                       else
                         Display --indent 4 --text "- Checking default umask in ${FILE}" --result WEAK --color YELLOW
@@ -253,13 +257,13 @@
                     fi
                 fi
             else
-              logtext "Result: file ${FILE} not found"
+              LogText "Result: file ${FILE} not found"
             fi
         done
         #if [ ${FOUND} -eq 1 ]; then
         #    if [ ${HARDENING_POSSIBLE} -eq 0 ]; then
-        #        logtext "Result: all shell files found, contain a proper umask"
-        #        Display --indent 4 --text "- Default umask" --result OK --color GREEN
+        #        LogText "Result: all shell files found, contain a proper umask"
+        #        Display --indent 4 --text "- Default umask" --result "${STATUS_OK}" --color GREEN
         #    fi
         #fi
     fi
@@ -268,139 +272,142 @@
 #
     # Test        : SHLL-6290
     # Description : Check for Shellshock vulnerability
-    Register --test-no SHLL-6290 --weight H --network NO --description "Perform Shellshock vulnerability tests"
+    Register --test-no SHLL-6290 --weight H --network NO --category security --description "Perform Shellshock vulnerability tests"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
+        x=""
         #Display --indent 2 --text "- Testing for Shellshock vulnerability"
-        logtext "Test: Check if bash is in the list of shells."
+        LogText "Test: Check if bash is in the list of shells."
         if [ -f /etc/shells ]; then
-            logtext "Test: checking for bash shell in /etc/shells"
-            FIND=`egrep '(/usr)?(/local)?/bin/bash' /etc/shells | grep -v "^#" | head -1`
+            LogText "Test: checking for bash shell in /etc/shells"
+            FIND=`${EGREPBINARY} '(/usr)?(/local)?/bin/bash' /etc/shells | ${GREPBINARY} -v "^#" | head -1`
           else
-            logtext "Test: checking if bash is available via which command"
+            LogText "Test: checking if bash is available via which command"
             FIND=`which bash 2> /dev/null | head -1`
         fi
 
-        logtext "Result: command revealed ${FIND} as output"
+        LogText "Result: command revealed ${FIND} as output"
         if [ ! "${FIND}" = "" ]; then
             if [ -x "${FIND}" -a ! -L "${FIND}" ]; then
-                logtext "Result: found ${FIND} as a valid shell"
-                SHELLSHOCK_TMP=`mktemp /tmp/lynis-shellshock-test.XXXXXXXXXX` || exit 1
+                LogText "Result: found ${FIND} as a valid shell"
+                CreateTempFile || ExitFatal
+                SHELLSHOCK_TMP="${TEMP_FILE}"
 
                 # CVE-2014-6271
-                logtext "Test: Check for first exploit (CVE-2014-6271)"
-                echo "env 'x=() { :;}; echo vulnerable' 'BASH_FUNC_x()=() { :;}; echo vulnerable' bash -c \"echo test\" 2>&1 | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                LogText "Test: Check for first exploit (CVE-2014-6271)"
+                echo "env 'x=() { :;}; echo vulnerable' 'BASH_FUNC_x()=() { :;}; echo vulnerable' bash -c \"echo test\" 2>&1 | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
-                    logtext "Output: ${VULNERABLE}"
-                    logtext "Result: Vulnerable to original shellshock (CVE-2014-6271)"
-                    Display --indent 2 --text "- Shellshock: CVE-2014-6271 (original shellshocker)" --result "WARNING" --color RED
+                    LogText "Output: ${VULNERABLE}"
+                    LogText "Result: Vulnerable to original shellshock (CVE-2014-6271)"
+                    Display --indent 2 --text "- Shellshock: CVE-2014-6271 (original shellshocker)" --result "${STATUS_WARNING}" --color RED
                     FOUND=1
                   else
-                    logtext "Result: Not vulnerable to original shellshock (CVE-2014-6271)"
-                    #Display --indent 4 --text "- CVE-2014-6271 (original shellshocker)" --result "OK" --color GREEN
+                    LogText "Result: Not vulnerable to original shellshock (CVE-2014-6271)"
+                    #Display --indent 4 --text "- CVE-2014-6271 (original shellshocker)" --result "${STATUS_OK}" --color GREEN
                 fi
 
                 # CVE-2014-6277 (disabled, as this test was giving too much false positives)
 
                 # CVE-2014-6278
-                logtext "Test: Check for CVE-2014-6278"
-                echo "shellshocker='() { echo vulnerable; }' bash -c shellshocker 2>/dev/null | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                LogText "Test: Check for CVE-2014-6278"
+                echo "shellshocker='() { echo vulnerable; }' bash -c shellshocker 2>/dev/null | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
-                    logtext "Output: ${VULNERABLE}"
-                    logtext "Result: Vulnerable to CVE-2014-6278"
-                    Display --indent 2 --text "- Shellshock: CVE-2014-6278 (Florian's patch, lcamtuf bug #2)" --result "WARNING" --color RED
+                    LogText "Output: ${VULNERABLE}"
+                    LogText "Result: Vulnerable to CVE-2014-6278"
+                    Display --indent 2 --text "- Shellshock: CVE-2014-6278 (Florian's patch, lcamtuf bug #2)" --result "${STATUS_WARNING}" --color RED
                     FOUND=1
                   else
-                    logtext "Result: Not vulnerable to CVE-2014-6278"
-                    #Display --indent 4 --text "- CVE-2014-6278 (Florian's patch, lcamtuf bug #2)" --result "OK" --color GREEN
+                    LogText "Result: Not vulnerable to CVE-2014-6278"
+                    #Display --indent 4 --text "- CVE-2014-6278 (Florian's patch, lcamtuf bug #2)" --result "${STATUS_OK}" --color GREEN
                 fi
 
                 # CVE-2014-7169
-                logtext "Test: Check for taviso bug CVE-2014-7169"
-                echo "(cd /tmp; rm -f /tmp/echo; env X='() { (a)=>\' bash -c "echo echo nonvuln" 2>/dev/null; [[ \"\$(cat echo 2> /dev/null)\" == \"nonvuln\" ]] && echo \"vulnerable\" 2> /dev/null) | grep '   vulnerable'" > ${SHELLSHOCK_TMP}
+                LogText "Test: Check for taviso bug CVE-2014-7169"
+                echo "(cd /tmp; rm -f /tmp/echo; env X='() { (a)=>\' bash -c "echo echo nonvuln" 2>/dev/null; [[ \"\$(cat echo 2> /dev/null)\" == \"nonvuln\" ]] && echo \"vulnerable\" 2> /dev/null) | ${GREPBINARY} '   vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
-                    logtext "Output: ${VULNERABLE}"
-                    logtext "Result: Vulnerable to taviso bug (CVE-2014-7169)"
-                    Display --indent 2 --text "- Shellshock: CVE-2014-7169 (taviso bug)" --result "WARNING" --color RED
+                    LogText "Output: ${VULNERABLE}"
+                    LogText "Result: Vulnerable to taviso bug (CVE-2014-7169)"
+                    Display --indent 2 --text "- Shellshock: CVE-2014-7169 (taviso bug)" --result "${STATUS_WARNING}" --color RED
                     FOUND=1
                   else
-                    logtext "Result: Not vulnerable to taviso bug (CVE-2014-7169)"
-                    #Display --indent 4 --text "- CVE-2014-7169 (taviso bug)" --result "OK" --color GREEN
+                    LogText "Result: Not vulnerable to taviso bug (CVE-2014-7169)"
+                    #Display --indent 4 --text "- CVE-2014-7169 (taviso bug)" --result "${STATUS_OK}" --color GREEN
                 fi
 
                 # CVE-2014-7186
-                logtext "Test: Check for CVE-2014-7186"
-                echo "(bash -c 'true <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF' 2>/dev/null || echo \"vulnerable\") | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                LogText "Test: Check for CVE-2014-7186"
+                echo "(bash -c 'true <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF' 2>/dev/null || echo \"vulnerable\") | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
-                    logtext "Output: ${VULNERABLE}"
-                    logtext "Result: Vulnerable to CVE-2014-7186"
-                    Display --indent 2 --text "- Shellshock: CVE-2014-7186 redir_stack bug" --result "WARNING" --color RED
+                    LogText "Output: ${VULNERABLE}"
+                    LogText "Result: Vulnerable to CVE-2014-7186"
+                    Display --indent 2 --text "- Shellshock: CVE-2014-7186 redir_stack bug" --result "${STATUS_WARNING}" --color RED
                     FOUND=1
                   else
-                    logtext "Result: Not vulnerable to CVE-2014-7186"
-                    #Display --indent 4 --text "- CVE-2014-7186 redir_stack bug" --result "OK" --color GREEN
+                    LogText "Result: Not vulnerable to CVE-2014-7186"
+                    #Display --indent 4 --text "- CVE-2014-7186 redir_stack bug" --result "${STATUS_OK}" --color GREEN
                 fi
 
                 # CVE-2014-7187
-                logtext "Test: Check for CVE-2014-7187"
-                echo "((for x in {1..200}; do echo \"for x$x in ; do :\"; done; for x in {1..200}; do echo done; done) | bash || echo \"vulnerable\") | grep 'vulnerable'" > ${SHELLSHOCK_TMP}
+                LogText "Test: Check for CVE-2014-7187"
+                echo "((for x in {1..200}; do echo \"for x$x in ; do :\"; done; for x in {1..200}; do echo done; done) | bash || echo \"vulnerable\") | ${GREPBINARY} 'vulnerable'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
-                    logtext "Output: ${VULNERABLE}"
-                    logtext "Result: Vulnerable to CVE-2014-7187"
-                    Display --indent 2 --text "- Shellshock: CVE-2014-7187 nested loops off by one bug" --result "WARNING" --color RED
+                    LogText "Output: ${VULNERABLE}"
+                    LogText "Result: Vulnerable to CVE-2014-7187"
+                    Display --indent 2 --text "- Shellshock: CVE-2014-7187 nested loops off by one bug" --result "${STATUS_WARNING}" --color RED
                     FOUND=1
                   else
-                    logtext "Result: Not vulnerable to CVE-2014-7187"
-                    #Display --indent 4 --text "- CVE-2014-7187 nested loops off by one bug" --result "OK" --color GREEN
+                    LogText "Result: Not vulnerable to CVE-2014-7187"
+                    #Display --indent 4 --text "- CVE-2014-7187 nested loops off by one bug" --result "${STATUS_OK}" --color GREEN
                 fi
 
                 # CVE-2014-////
-                logtext "Test: Check for bug Exploit #3 - shellshocker.net (no CVE)"
-                echo "env X=' () { }; echo hello' bash -c 'date'| grep 'hello'" > ${SHELLSHOCK_TMP}
+                LogText "Test: Check for bug Exploit #3 - shellshocker.net (no CVE)"
+                echo "env X=' () { }; echo hello' bash -c 'date'| ${GREPBINARY} 'hello'" > ${SHELLSHOCK_TMP}
                 VULNERABLE=`${FIND} ${SHELLSHOCK_TMP} 2> /dev/null`
                 rm -f ${SHELLSHOCK_TMP}
                 if [ ! "${VULNERABLE}" = "" ]; then
-                    logtext "Output: ${VULNERABLE}"
-                    logtext "Result: Vulnerable to CVE-2014-//// (exploit #3 on shellshocker.net)"
-                    Display --indent 2 --text "- Shellshock: Exploit #3 on shellshocker.net (no CVE)" --result "WARNING" --color RED
+                    LogText "Output: ${VULNERABLE}"
+                    LogText "Result: Vulnerable to CVE-2014-//// (exploit #3 on shellshocker.net)"
+                    Display --indent 2 --text "- Shellshock: Exploit #3 on shellshocker.net (no CVE)" --result "${STATUS_WARNING}" --color RED
                     FOUND=1
                   else
-                    logtext "Result: Not vulnerable to exploit #3 on shellshocker.net (no CVE)"
-                    #Display --indent 4 --text "- Exploit#3 on shellshocker.net (no CVE)" --result "OK" --color GREEN
+                    LogText "Result: Not vulnerable to exploit #3 on shellshocker.net (no CVE)"
+                    #Display --indent 4 --text "- Exploit#3 on shellshocker.net (no CVE)" --result "${STATUS_OK}" --color GREEN
                 fi
               else
-                logtext "Result: bash binary found, but not executable, or it is symlinked"
+                LogText "Result: bash binary found, but not executable, or it is symlinked"
             fi
           else
-            logtext "Result: could not find bash to be a valid shell"
+            LogText "Result: could not find bash to be a valid shell"
         fi
 
         if [ ${FOUND} -eq 1 ]; then
-            ReportWarning ${TEST_NO} "H" "System vulnerable to Shellshock (bash)"
+            ReportWarning ${TEST_NO} "System vulnerable to Shellshock (bash)"
             AddHP 0 25
           else
             AddHP 5 5
         fi
+        unset x
     fi
 #
 #################################################################################
 #
 
-report "session_timeout_enabled=${IDLE_TIMEOUT}"
+Report "session_timeout_enabled=${IDLE_TIMEOUT}"
 
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, CISOfy - http://cisofy.com
+# Lynis - Copyright 2007-2016, CISOfy - http://cisofy.com

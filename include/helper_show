@@ -1,0 +1,451 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+######################################################################
+#
+# Helper program to share details
+#
+######################################################################
+#
+# How to use:
+# ------------
+# Run: lynis show <option>
+#
+######################################################################
+
+COMMANDS="audit show update upload-only"
+HELPERS="audit configure show update"
+OPTIONS="--auditor\n--check-all (-c)\n--config\n--cronjob (--cron)\n--debug\n--developer\n--help (-h)\n--license-key\n--log-file\n--manpage (--man)\n--no-colors --no-log\n--pentest\n--profile\n--plugins-dir\n--quiet (-q)\n--quick (-Q)\n--report-file\n--reverse-colors\n--tests\n--tests-from-category\n--tests-from-group\n--upload\n--verbose\n--version (-V)\n--wait"
+
+SHOW_ARGS="categories changelog commands dbdir details environment groups help hostids includedir language license logfile man options os pidfile plugindir profiles release releasedate report settings tests version workdir"
+SHOW_HELP="lynis show ${BROWN}categories${NORMAL}              (display test categories)
+lynis show ${BROWN}changelog${NORMAL} ${GRAY}[version]${NORMAL}     (release details)
+lynis show ${BROWN}commands${NORMAL}                (all available commands)
+lynis show ${BROWN}dbdir${NORMAL}                   (database directory)
+lynis show ${BROWN}details${NORMAL}                 (display test details from log file)
+lynis show ${BROWN}environment${NORMAL}             (hardware, virtual machine, or container type)
+lynis show ${BROWN}groups${NORMAL}                  (test groups)
+lynis show ${BROWN}help${NORMAL}                    (detailed information about arguments)
+lynis show ${BROWN}hostids${NORMAL}                 (unique IDs for this system)
+lynis show ${BROWN}includedir${NORMAL}              (include directory for tests and functions)
+lynis show ${BROWN}language${NORMAL}                (configured or detected language)
+lynis show ${BROWN}license${NORMAL}                 (license details)
+lynis show ${BROWN}logfile${NORMAL}                 (location of logfile)
+lynis show ${BROWN}man${NORMAL}                     (show help)
+lynis show ${BROWN}options${NORMAL}                 (available flags and options)
+lynis show ${BROWN}os${NORMAL}                      (operating system and version)
+lynis show ${BROWN}pidfile${NORMAL}                 (active file to stored process ID)
+lynis show ${BROWN}plugindir${NORMAL}               (directory with plugins)
+lynis show ${BROWN}profiles${NORMAL}                (discovered profiles)
+lynis show ${BROWN}release${NORMAL}                 (version)
+lynis show ${BROWN}releasedate${NORMAL}             (date of release)
+lynis show ${BROWN}report${NORMAL}                  (location of report data)
+lynis show ${BROWN}settings${NORMAL}                (display configured settings, ${WHITE}options:${NORMAL} ${CYAN}--brief --nocolors${NORMAL})
+lynis show ${BROWN}tests${NORMAL} ${GRAY}[test]${NORMAL}            (display information about one or more tests)
+lynis show ${BROWN}tests skipped${NORMAL}           (which tests to skip according profile)
+lynis show ${BROWN}version${NORMAL}                 (${PROGRAM_NAME} version)
+lynis show ${BROWN}workdir${NORMAL}                 (work directory)"
+
+AUDIT_ARGS="( dockerfile | system )"
+AUDIT_HELP="
+  ${WHITE}lynis audit <target>${NORMAL}
+
+  ${CYAN}audit dockerfile ${BROWN}<file>${NORMAL}
+
+  Perform security audit on a Docker build file
+  ${GRAY}Example:${NORMAL}
+    lynis audit dockerfile Dockerfile
+
+
+  ${CYAN}audit system ${GRAY}[options]${NORMAL}
+
+  Perform security system audit
+
+  ${GRAY}Examples:${NORMAL}
+    lynis audit system
+    lynis audit system --cronjob
+    lynis audit system --profile developer.prf
+    lynis audit system --quick
+
+
+  ${CYAN}audit system remote ${BROWN}<target> ${GRAY}[options]${NORMAL}
+
+  Perform security system audit on a remote target
+
+  ${GRAY}Examples:${NORMAL}
+    lynis audit system remote 192.168.1.100
+    lynis audit system remote 192.168.1.100 --no-colors
+
+"
+
+UPDATE_ARGS="info release"
+UPDATE_HELP="
+  ${CYAN}update info${NORMAL}
+
+  Check version information
+
+
+  ${CYAN}update release${NORMAL}
+
+  Perform update of release
+
+"
+
+UPLOAD_ONLY_HELP="
+  ${CYAN}update-only${NORMAL}
+
+  Perform just a data upload
+
+"
+
+SHOW_SETTINGS_ARGS="--brief --configured-only --nocolors"
+SHOW_TESTS_ARGS="skipped"
+
+COMMANDS_AUDIT_SYSTEM_USAGE="Usage: lynis audit system"
+COMMANDS_AUDIT_SYSTEM_FUNCTION="Function: performs a security audit of the system"
+
+if [ $# -gt 0 ]; then
+    case $1 in
+        "categories")
+            ViewCategories
+            ;;
+        "changelog")
+            # Allow providing a version
+            if [ $# -gt 1 ]; then
+                shift; SEARCH_VERSION="$1"
+            fi
+            CHANGELOG_PATHS="/usr/share/doc/${PROGRAM_NAME} /usr/share/doc/${PROGRAM_NAME}-${PROGRAM_VERSION} ."
+            CHANGELOG=""
+            if [ -z "${SEARCH_VERSION}" ]; then SEARCH_VERSION="${PROGRAM_VERSION}"; fi
+            STARTED=0
+            for FILEPATH in ${CHANGELOG_PATHS}; do
+                if [ -f ${FILEPATH}/CHANGELOG.md ]; then
+                    CHANGELOG="${FILEPATH}/CHANGELOG.md"
+                # Check also for gzipped changelog
+                elif [ -f ${FILEPATH}/changelog.gz ]; then
+                    ZCAT=$(which zcat 2> /dev/null)
+                    if [ ! -z "${ZCAT}" ]; then
+                        CreateTempFile
+                        CHANGELOG="${TEMP_FILE}"
+                        LogText "Result: found gzipped changelog in ${FILEPATH}"
+                        LogText "Action: Creating temporary file to store text"
+                        ${ZCAT} ${FILEPATH}/changelog.gz > ${CHANGELOG}
+                    else
+                        DisplayError "Could not find zcat utility to use on gzipped changelog"
+                    fi
+                fi
+                if [ ! -z "${CHANGELOG}" ]; then LogText "Result: found changelog file: ${CHANGELOG}"; break; fi
+            done
+            if [ ! -z "${CHANGELOG}" ]; then
+                SEARCH=$(egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}" ${CHANGELOG})
+                if [ $? -eq 0 ]; then
+                    while read -r LINE; do
+                        if [ ${STARTED} -eq 0 ]; then
+                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}")
+                            if [ $? -eq 0 ]; then STARTED=1; ${ECHOCMD} "${BOLD}${LINE}${NORMAL}"; fi
+                        else
+                            # Stop if we find the next Lynis version
+                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} [0-9]\.[0-9]\.[0-9]")
+                            if [ $? -eq 0 ]; then
+                                break
+                            else
+                                ${ECHOCMD} "${LINE}"
+                            fi
+                        fi
+                    done < ${CHANGELOG}
+                else
+                    DisplayError "Could not find this version in the changelog"
+                    ${ECHOCMD} ""
+                    ${ECHOCMD} "${HEADER}Usage:${NORMAL}"
+                    ${ECHOCMD} "$0 lynis show changelog [version]"
+                    ${ECHOCMD} ""
+                    ${ECHOCMD} "${HEADER}${PROGRAM_NAME} versions:${NORMAL}"
+                    SEARCH=$(egrep "^Lynis [0-9]\.[0-9]\.[0-9] " ${CHANGELOG} | awk '{print $2}' | sort -n)
+                    ${ECHOCMD} ${SEARCH}
+                    ExitFatal
+                fi
+            else
+                DisplayError "Could not find the changelog file (searched in ${CHANGELOG_PATHS})"
+                ExitFatal
+            fi
+            ;;
+        "commands")
+            if [ $# -eq 1 ]; then
+                ${ECHOCMD} "\n${WHITE}Commands:${NORMAL}"
+                for I in ${COMMANDS}; do
+                    ${ECHOCMD} "lynis ${CYAN}${I}${NORMAL}"
+                done
+                ${ECHOCMD} ""
+              else
+                shift
+                if [ $# -eq 1 ]; then
+                    case $1 in
+                        "audit") ${ECHOCMD} "${AUDIT_HELP}" ;;
+                        "show") ${ECHOCMD} "${SHOW_HELP}" ;;
+                        "update") ${ECHOCMD} "No help available yet" ;;
+                        *) DisplayError "Unknown argument for 'commands'"
+                    esac
+                  else
+                    shift
+                    case $1 in
+                        "dockerfile")
+                            ${ECHOCMD} "Usage: lynis audit dockerfile <file>"
+                        ;;
+                        "system")
+                            ${ECHOCMD} "${COMMANDS_AUDIT_SYSTEM_USAGE}\n${COMMANDS_AUDIT_SYSTEM_FUNCTION}\n"
+                        ;;
+                        *)
+                            DisplayError "Unknown argument '$1' for commands"
+                        ;;
+                    esac
+                fi
+            fi
+            ;;
+        "dbdir")
+            ${ECHOCMD} "${DBDIR}"
+            ;;
+        "details")
+            if [ -z "${LOGFILE}" ]; then DisplayError "Could not find log file to parse"; fi
+            if [ $# -eq 1 ]; then
+                DisplayError "This command needs a test ID (e.g. CORE-1000) to search for."
+              else
+                shift
+                if [ $# -eq 1 ]; then
+                    TESTID="$1"
+                    awk -v search="Performing test ID $TESTID" '$0 ~ search {++f;p=1}p&&f==1;/===---/{p=0}' ${LOGFILE}
+                fi
+            fi
+            ;;
+        "environment")
+            if [ -z "${CONTAINER_TYPE}" ]; then
+                ${ECHOCMD} "container=0"
+            else
+                ${ECHOCMD} "container=1"
+                ${ECHOCMD} "container-type=${CONTAINER_TYPE}"
+            fi
+            if [ ${ISVIRTUALMACHINE} -eq 1 ]; then
+                ${ECHOCMD} "virtual-machine=1"
+                ${ECHOCMD} "virtual-machine-type=${VMTYPE}"
+            else
+                ${ECHOCMD} "hardware=1"
+                ${ECHOCMD} "virtual-machine=0"
+            fi
+            ;;
+        "groups")
+            ViewGroups
+            ;;
+        "help" | "--help" | "-h")
+            if [ $# -eq 1 ]; then
+                ${ECHOCMD} "${PROGRAM_NAME} ${PROGRAM_VERSION} - Help"
+                ${ECHOCMD} "=========================="
+                ${ECHOCMD} ""
+                ${ECHOCMD} "${WHITE}Commands${NORMAL}:"
+                for I in ${COMMANDS}; do
+                    ${ECHOCMD} "${CYAN}${I}${NORMAL}"
+                done
+                ${ECHOCMD} ""
+                ${ECHOCMD} "Use 'lynis show help ${CYAN}<command>${NORMAL}' to see details"
+                ${ECHOCMD} ""; ${ECHOCMD} ""
+                ${ECHOCMD} "${WHITE}Options${NORMAL}:\n${GRAY}${OPTIONS}${NORMAL}"
+              else
+                shift
+                case $1 in
+                   "audit") ${ECHOCMD} "${AUDIT_HELP}" ;;
+                   "show") ${ECHOCMD} "${SHOW_HELP}" ;;
+                   "update") ${ECHOCMD} "${UPDATE_HELP}" ;;
+                   "upload-only") ${ECHOCMD} "${UPLOAD_ONLY_HELP}" ;;
+                   "?") ${ECHOCMD} "${SHOW_ARGS}" ;;
+                   *) ${ECHOCMD} "Unknown argument provided for lynis show help" ;;
+                esac
+            fi
+            ;;
+        "helpers")              for I in ${HELPERS}; do ${ECHOCMD} ${I}; done ;;
+        "hostids" | "hostid")
+            ${ECHOCMD} "hostid=${HOSTID}"
+            ${ECHOCMD} "hostid2=${HOSTID2}"
+            ${ECHOCMD} "machineid=${MACHINEID}"
+            ;;
+        "includedir")
+            ${ECHOCMD} "${INCLUDEDIR}"
+            ;;
+        "language")             ${ECHOCMD} "${LANGUAGE}" ;;
+        "license")              ${ECHOCMD} "${PROGRAM_LICENSE}" ;;
+        "logfile")              ${ECHOCMD} "${LOGFILE}" ;;
+        "man")                  ${ECHOCMD} "Use ./lynis --man or man lynis" ;;
+        "options")              ${ECHOCMD} "${OPTIONS}" ;;
+        "os")
+                                ${ECHOCMD} "OS=${OS}"
+                                ${ECHOCMD} "OS_NAME=${OS_NAME}"
+                                ${ECHOCMD} "OS_FULLNAME=${OS_FULLNAME}"
+                                ${ECHOCMD} "OS_VERSION=${OS_VERSION}"
+        ;;
+        "pidfile")              ${ECHOCMD} "${PIDFILE}" ;;
+        "profile" | "profiles") for I in ${PROFILES}; do ${ECHOCMD} ${I}; done ;;
+        "profiledir")           ${ECHOCMD} "${PROFILEDIR}" ;;
+        "plugindir")            ${ECHOCMD} "${PLUGINDIR}" ;;
+        "release")              ${ECHOCMD} "${PROGRAM_VERSION}-${PROGRAM_RELEASE_TYPE}" ;;
+        "releasedate")          ${ECHOCMD} "${PROGRAM_RELEASE_DATE}" ;;
+        "report")               ${ECHOCMD} "${REPORTFILE}" ;;
+        "settings")
+            BRIEF_OUTPUT=0
+            COLORED_OUTPUT=1
+            CONFIGURED_ONLY_OUTPUT=0
+            while [ $# -gt 1 ]; do
+                shift
+                case $1 in
+                   "--brief" | "--br") BRIEF_OUTPUT=1 ;;
+                   "--configured-only" | "--co") CONFIGURED_ONLY_OUTPUT=1 ;;
+                   "--nocolors" | "--no-colors" | "--nc") COLORED_OUTPUT=0; COLORS=0 ;;
+                   *)
+                       ${ECHOCMD} "${RED}Error${NORMAL}: Invalid argument provided to 'lynis show settings'\n\n"
+                       ${ECHOCMD} "Suggestions:"
+                       for I in ${SHOW_SETTINGS_ARGS}; do ${ECHOCMD} "lynis show settings ${I}"; done
+                       ExitFatal
+                   ;;
+                esac
+            done
+            if [ ${COLORED_OUTPUT} -eq 0 ]; then RemoveColors; fi
+            # Sort all settings and display them
+            SETTINGS=$(sort ${SETTINGS_FILE} | sed 's/ /:space:/g')
+            for LINE in ${SETTINGS}; do
+                SETTING=$(echo ${LINE} | awk -F';' '{print $1}')
+                VALUE=$(echo ${LINE} | awk -F';' '{print $2}')
+                DESCRIPTION=$(echo ${LINE} | awk -F';' '{print $3}' | sed 's/:space:/ /g')
+                if [ -z "${VALUE}" -a ${CONFIGURED_ONLY_OUTPUT} -eq 0 ]; then VALUE="${GRAY}[not configured]${NORMAL}"; fi
+                if [ ! -z "${VALUE}" ]; then
+                    if [ ${BRIEF_OUTPUT} -eq 0 ]; then ${ECHOCMD} "${GRAY}# ${DESCRIPTION}${NORMAL}"; fi
+                    ${ECHOCMD} "${WHITE}${SETTING}${NORMAL}=${CYAN}${VALUE}${NORMAL}"
+                    if [ ${BRIEF_OUTPUT} -eq 0 ]; then ${ECHOCMD} ""; fi
+                fi
+            done
+            if [ ${BRIEF_OUTPUT} -eq 0 -a ${CONFIGURED_ONLY_OUTPUT} -eq 0 -a ${COLORED_OUTPUT} -eq 1 ]; then
+                if [ ${COLORS} -eq 1 ]; then
+                    ${ECHOCMD} "# Add --brief to hide descriptions, --configured-only to show configured items only, or --nocolors to remove colors"
+                else
+                    ${ECHOCMD} "# Add --brief to hide descriptions, --configured-only to show configured items only"
+                fi
+            fi
+
+            ;;
+        "tests")
+            if [ $# -gt 1 ]; then
+                shift
+                case $1 in
+                    "skipped")
+                        if [ -z "${SKIP_TESTS}" ]; then
+                            ${ECHOCMD} "# ${CYAN}No tests are skipped (according profile)${NORMAL}"
+                        else
+                            ${ECHOCMD} "# Skipped tests (according profile)"
+                            ${ECHOCMD} "${SKIP_TESTS}"
+                        fi
+                    ;;
+                    *)
+                        if [ -f ${DBDIR}/tests.db ]; then
+                            SEARCH="$1"
+                            FIND=$(grep "^${SEARCH}" ${DBDIR}/tests.db | sed "s/ /:space:/g")
+                            if [ -z "${FIND}" ]; then
+                                ${ECHOCMD} "${WARNING}Error${NORMAL}: ${BOLD}Could not find this test in the database${NORMAL}\n\n"
+                                ExitFatal
+                            else
+                                for ITEM in ${FIND}; do
+                                    TEST_DESCRIPTION=$(echo ${ITEM} | sed "s/:space:/ /g" | awk -F: '{print $6}')
+                                    TEST=$(echo ${ITEM} | awk -F: '{print $1}')
+                                    TEST_TYPE=$(echo ${ITEM} | awk -F: '{print $2}')
+                                    TEST_CATEGORY=$(echo ${ITEM} | awk -F: '{print $3}')
+                                    TEST_GROUP=$(echo ${ITEM} | awk -F: '{print $4}')
+                                    TEST_OS=$(echo ${ITEM} | awk -F: '{print $5}')
+                                    TEST_SKIPPED=0
+                                    ${ECHOCMD} "${CYAN}${TEST}${NORMAL}"
+                                    ${ECHOCMD} "==================================="
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "${WHITE}Type:${NORMAL} ${TEST_TYPE}"
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "${WHITE}Description:${NORMAL}"
+                                    ${ECHOCMD} "${TEST_DESCRIPTION}"
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "${WHITE}Category:${NORMAL} ${TEST_CATEGORY}, ${WHITE}Group:${NORMAL} ${TEST_GROUP}"
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} "${WHITE}Test Execution:${NORMAL}"
+                                    if [ "${TEST_OS}" = "" ]; then
+                                        ${ECHOCMD} "  Operating System:    ${GREEN}Yes${NORMAL} (all systems)"
+                                    elif [ "${TEST_OS}" = "${OS}" ]; then
+                                        ${ECHOCMD} "  Operating System:    ${GREEN}Yes${NORMAL} (${TEST_OS} only)"
+                                    else
+                                        ${ECHOCMD} "  Operating System:    ${RED}No${NORMAL} (${TEST_OS} only)"
+                                        TEST_SKIPPED=1
+                                    fi
+                                    if [ -z "${SKIP_TESTS}" ]; then
+                                        ${ECHOCMD} "  Profile:             ${GREEN}Yes${NORMAL} (not configured)"
+                                    else
+                                        FIND=$(echo ${SKIP_TESTS} | egrep "${TEST}")
+                                        if [ -z "${FIND}" ]; then
+                                            ${ECHOCMD} "  Profile:             ${GREEN}Yes${NORMAL} (test not marked to be skipped)"
+                                        else
+                                            ${ECHOCMD} "  Profile:             ${RED}No${NORMAL} (marked test as to be skipped)"
+                                            TEST_SKIPPED=1
+                                        fi
+                                    fi
+                                    if [ ${TEST_SKIPPED} -eq 1 ]; then ${ECHOCMD} ""; ${ECHOCMD} "  This test will NOT be performed on this system"; fi
+
+                                    ${ECHOCMD} ""
+                                    ${ECHOCMD} ""
+
+                                done
+                            fi
+                        else
+                            ShowError "Can not find tests database"
+                            ${ECHOCMD} "The changelog might not be installed on your system. Details can be found at ${PROGRAM_SOURCE}."
+                            ExitFatal
+                        fi
+                    ;;
+                esac
+            else
+                if [ -f ${DBDIR}/tests.db ]; then
+                    ${ECHOCMD} "# Test       OS         Description"
+                    ${ECHOCMD} "# ======================================================================================"
+                    awk -F: '{ if ($1 !~ /^#/) printf("%-10s %-10s %s (%s)\n",$1,$5,$6,$3)}' ${DBDIR}/tests.db
+                else
+                    ShowError "Can not find tests database"
+                    ${ECHOCMD} "The changelog might not be installed on your system. Details can be found at ${PROGRAM_SOURCE}."
+                    ExitFatal
+                fi
+            fi
+            ;;
+        "version")              ${ECHOCMD} "${PROGRAM_VERSION}" ;;
+        "workdir")              ${ECHOCMD} "${WORKDIR}" ;;
+        "?")                    ${ECHOCMD} "${SHOW_ARGS}" ;;
+        *)                      ${ECHOCMD} "Unknown argument '${RED}$1${NORMAL}' for lynis show" ;;
+    esac
+  else
+    ${ECHOCMD} "\n  ${WHITE}Provide an additional argument${NORMAL}\n\n"
+    for I in ${SHOW_ARGS}; do
+        ${ECHOCMD} "    lynis show ${BROWN}${I}${NORMAL}"
+    done
+    ${ECHOCMD} "\n"
+
+    ${ECHOCMD} "Use '$0 show commands show' for extended help about the show command"
+fi
+
+
+ExitClean
+
+# More additions:
+# - categories
+# - workdir
+
+# The End

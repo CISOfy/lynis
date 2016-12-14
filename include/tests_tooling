@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -22,6 +26,11 @@
     PUPPET_MASTER_RUNNING=0
     SALT_MASTER_RUNNING=0
     SALT_MINION_RUNNING=0
+    IPS_TOOL_FOUND=0
+    FAIL2BAN_FOUND=0
+    FAIL2BAN_EMAIL=0
+    FAIL2BAN_SILENT=0
+    PERFORM_FAIL2BAN_TESTS=0
 #
 #################################################################################
 #
@@ -35,36 +44,36 @@
 #
     # Test        : TOOL-5002
     # Description : Check if automation tools are found
-    Register --test-no TOOL-5002 --weight L --network NO --description "Checking for automation tools"
+    Register --test-no TOOL-5002 --weight L --network NO --category security --description "Checking for automation tools"
     if [ ${SKIPTEST} -eq 0 ]; then
 
         Display --indent 2 --text "- Checking automation tooling"
 
         # Cfengine
         if [ ! "${CFAGENTBINARY}" = "" ]; then
-            logtext "Result: CFEngine (cfagent) is installed (${CFAGENTBINARY})"
+            LogText "Result: CFEngine (cfagent) is installed (${CFAGENTBINARY})"
             AUTOMATION_TOOL_FOUND=1
             CFENGINE_AGENT_FOUND=1
-            report "automation_tool_running[]=cf-agent"
-            Display --indent 4 --text "Found: Cfengine (cfagent)" --result FOUND --color GREEN
+            Report "automation_tool_running[]=cf-agent"
+            Display --indent 4 --text "Found: Cfengine (cfagent)" --result "${STATUS_FOUND}" --color GREEN
         fi
-        OTHER_CFENGINE_LOCATIONS="/var/cfengine/bin"
+        OTHER_CFENGINE_LOCATIONS="/var/cfengine/bin /var/rudder/cfengine-community/bin"
         for I in ${OTHER_CFENGINE_LOCATIONS}; do
             if [ -d ${I} ]; then
                 if [ -f ${I}/cf-agent ]; then
-                    logtext "Result: found CFEngine agent (cf-agent) in ${I}"
+                    LogText "Result: found CFEngine agent (cf-agent) in ${I}"
                     AUTOMATION_TOOL_FOUND=1
                     CFENGINE_AGENT_FOUND=1
-                    report "automation_tool_running[]=cf-agent"
-                    Display --indent 4 --text "Found: CFEngine (cf-agent)" --result FOUND --color GREEN
+                    Report "automation_tool_running[]=cf-agent"
+                    Display --indent 4 --text "Found: CFEngine (cf-agent)" --result "${STATUS_FOUND}" --color GREEN
                 fi
                 IsRunning "cf-server"
                 if [ ${RUNNING} -eq 1 ]; then
-                    logtext "Result: found CFEngine server"
+                    LogText "Result: found CFEngine server"
                     AUTOMATION_TOOL_FOUND=1
                     CFENGINE_SERVER_RUNNING=1
-                    report "automation_tool_running[]=cf-server"
-                    Display --indent 4 --text "Found: CFEngine (cf-server)" --result FOUND --color GREEN
+                    Report "automation_tool_running[]=cf-server"
+                    Display --indent 4 --text "Found: CFEngine (cf-server)" --result "${STATUS_FOUND}" --color GREEN
                 fi
             fi
         done
@@ -76,66 +85,223 @@
                 if [ -f ${I}/chef-client ]; then
                     CHEFCLIENTBINARY="${I}/chef-client"
                     AUTOMATION_TOOL_FOUND=1
-                    report "automation_tool_running[]=chef-client"
-                    Display --indent 4 --text "Found: Chef client (chef-client)" --result FOUND --color GREEN
-                    logtext "Result: found chef-client (chef client daemon) in ${I}"
+                    Report "automation_tool_running[]=chef-client"
+                    Display --indent 4 --text "Found: Chef client (chef-client)" --result "${STATUS_FOUND}" --color GREEN
+                    LogText "Result: found chef-client (chef client daemon) in ${I}"
                 fi
                 if [ -f ${I}/erchef ]; then
                     CHEFSERVERBINARY="${I}/erchef"
-                    logtext "Result: Chef Server (erchef) is installed (${CHEFSERVERBINARY})"
+                    LogText "Result: Chef Server (erchef) is installed (${CHEFSERVERBINARY})"
                     AUTOMATION_TOOL_FOUND=1
-                    report "automation_tool_running[]=chef-server"
-                    Display --indent 4 --text "Found: Chef Server (erchef)" --result FOUND --color GREEN
-                    logtext "Result: found erchef (chef server daemon) in ${I}"
+                    Report "automation_tool_running[]=chef-server"
+                    Display --indent 4 --text "Found: Chef Server (erchef)" --result "${STATUS_FOUND}" --color GREEN
+                    LogText "Result: found erchef (chef server daemon) in ${I}"
                 fi
             fi
         done
 
         # Puppet
         if [ ! "${PUPPETBINARY}" = "" ]; then
-            logtext "Result: Puppet is installed (${PUPPETBINARY})"
+            LogText "Result: Puppet is installed (${PUPPETBINARY})"
             AUTOMATION_TOOL_FOUND=1
-            report "automation_tool_running[]=puppet-agent"
-            Display --indent 4 --text "Found: Puppet (agent)" --result FOUND --color GREEN
+            Report "automation_tool_running[]=puppet-agent"
+            Display --indent 4 --text "Found: Puppet (agent)" --result "${STATUS_FOUND}" --color GREEN
         fi
         IsRunning "puppet master"
         if [ ${RUNNING} -eq 1 ]; then
-            logtext "Result: found puppet master"
+            LogText "Result: found puppet master"
             PUPPET_MASTER_RUNNING=1
-            report "automation_tool_running[]=puppet-master"
-            Display --indent 4 --text "Found: Puppet (master)" --result FOUND --color GREEN
+            Report "automation_tool_running[]=puppet-master"
+            Display --indent 4 --text "Found: Puppet (master)" --result "${STATUS_FOUND}" --color GREEN
         fi
 
         # SaltStack
         if [ ! "${SALTMINIONBINARY}" = "" ]; then
-            logtext "Result: SaltStack (salt-minion) is installed (${SALTMINIONBINARY})"
+            LogText "Result: SaltStack (salt-minion) is installed (${SALTMINIONBINARY})"
             AUTOMATION_TOOL_FOUND=1
             SALT_MINION_RUNNING=1
-            report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "Found: SaltStack minion (salt-minion)" --result FOUND --color GREEN
+            Report "automation_tool_running[]=saltstack-minion"
+            Display --indent 4 --text "Found: SaltStack minion (salt-minion)" --result "${STATUS_FOUND}" --color GREEN
         fi
         if [ ! "${SALTMASTERBINARY}" = "" ]; then
-            logtext "Result: SaltStack (salt-master) is installed (${SALTMASTERBINARY})"
+            LogText "Result: SaltStack (salt-master) is installed (${SALTMASTERBINARY})"
             AUTOMATION_TOOL_FOUND=1
             SALT_MASTER_RUNNING=1
-            report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "Found: SaltStack master (salt-master)" --result FOUND --color GREEN
+            Report "automation_tool_running[]=saltstack-minion"
+            Display --indent 4 --text "Found: SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
           else
             IsRunning "salt-master"
             if [ ${RUNNING} -eq 1 ]; then
-                logtext "Result: found SaltStack (master)"
+                LogText "Result: found SaltStack (master)"
                 AUTOMATION_TOOL_FOUND=1
                 SALT_MASTER_RUNNING=1
-                report "automation_tool_running[]=saltstack-master"
-                Display --indent 4 --text "Found: SaltStack (master)" --result FOUND --color GREEN
+                Report "automation_tool_running[]=saltstack-master"
+                Display --indent 4 --text "Found: SaltStack (master)" --result "${STATUS_FOUND}" --color GREEN
             fi
         fi
 
         if [ ${AUTOMATION_TOOL_FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Automation tooling" --result FOUND --color GREEN
+            Display --indent 2 --text "- Automation tooling" --result "${STATUS_FOUND}" --color GREEN
           else
-            Display --indent 2 --text "- Automation tooling" --result "NOT FOUND" --color YELLOW
+            Display --indent 2 --text "- Automation tooling" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Determine if automation tools are present for system management"
+        fi
+    fi
+#
+#################################################################################
+#
+# Intrusion Prevention tools
+#
+#################################################################################
+#
+    # Test        : TOOL-5102
+    # Description : Check for Fail2ban
+    Register --test-no TOOL-5102 --weight L --network NO --category security --description "Check for presence of Fail2ban"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # Fail2ban presence
+        if [ ! "${FAIL2BANBINARY}" = "" ]; then
+            FAIL2BAN_FOUND=1
+            IDS_IPS_TOOL_FOUND=1
+            LogText "Result: Fail2ban is installed (${FAIL2BANBINARY})"
+            Report "ids_ips_tooling[]=fail2ban"
+            Display --indent 2 --text "- Checking presence of Fail2ban" --result "${STATUS_FOUND}" --color GREEN
+          else
+            LogText "Result: Fail2ban not present (fail2ban-server not found)"
+        fi
+
+        # Fail2ban configuration
+        LogText "Checking Fail2ban configuration file"
+        if [ -f /etc/fail2ban/jail.local ]; then
+            FAIL2BAN_CONFIG="/etc/fail2ban/jail.local"
+        elif [ -f /etc/fail2ban/jail.conf ]; then
+            FAIL2BAN_CONFIG="/etc/fail2ban/jail.conf"
+        else
+            FAIL2BAN_CONFIG=""
+        fi
+
+        # Continue if tooling is available and configuration file found
+        if [ ${FAIL2BAN_FOUND} -eq 1 -a ! "${FAIL2BAN_CONFIG}" = "" ]; then
+            Report "fail2ban_config=${FAIL2BAN_CONFIG}"
+            FAIL2BANCLIENT=$(which fail2ban-client 2> /dev/null)
+            if [ ! -z "${FAIL2BANCLIENT}" ]; then PERFORM_FAIL2BAN_TESTS=1; fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-5104
+    # Description : Check for Fail2ban enabled tests
+    if [ ${PERFORM_FAIL2BAN_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no TOOL-5104 --weight L --network NO --preqs-met ${PREQS_MET} --category security --description "Enabled tests in Fail2ban"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(${FAIL2BANCLIENT} -d | ${TRBINARY} -d '[]' | ${TRBINARY} -d "'" | ${AWKBINARY} -F, '{ if ($1=="add") { print $2 }}' | ${TRBINARY} -d ' ')
+        if [ ! "${FIND}" = "" ]; then
+            for F2BSERVICE in ${FIND}; do
+                LogText "Result: service '${F2BSERVICE}' enabled"
+                Report "fail2ban_enabled_service[]=${F2BSERVICE}"
+            done
+            LogText "Result: found at least one enabled jail"
+            Display --indent 4 --text "- Checking Fail2ban jails" --result "${STATUS_ENABLED}" --color GREEN
+            AddHP 3 3
+        else
+            LogText "Result: Fail2ban installed but completely disabled"
+            Display --indent 4 --text "- Checking Fail2ban jails" --result "${STATUS_DISABLED}" --color RED
+            AddHP 0 5
+            ReportWarning "${TEST_NO}" "All jails in Fail2ban are disabled" "${FAIL2BAN_CONFIG}"
+        fi
+    fi
+#
+#################################################################################
+#
+    # These tests are temporarily disabled to split them up in different areas to check
+    #
+    #            LogText "Result: found configuration file (${FAIL2BAN_CONFIG})"
+    #
+    #            # Check email alert configuration
+    #            LogText "Test: checking for email actions within ${FAIL2BAN_CONFIG}"
+    #
+    #            FIND=`${EGREPBINARY} "^action = \%\(action_m.*\)s" ${FAIL2BAN_CONFIG}`
+    #            FIND2=`${EGREPBINARY} "^action = \%\(action_\)s" ${FAIL2BAN_CONFIG}`
+    #
+    #            if [ ! "${FIND}" = "" ]; then
+    #                FAIL2BAN_EMAIL=1
+    #                LogText "Result: found at least one jail which sends an email alert"
+    #            fi
+    #
+    #            if [ ! "${FIND2}" = "" ]; then
+    #                FAIL2BAN_SILENT=1
+    #                LogText "Result: found at least one jail which does NOT send an email alert"
+    #            fi
+    #
+    #            if [ ${FAIL2BAN_SILENT} -eq 0 ] && [ ${FAIL2BAN_EMAIL} -eq 0 ]; then
+    #                LogText "No registered actions found in ${FAIL2BAN_CONFIG}"
+    #                Display --indent 4 --text "- Checking Fail2ban actions" --result "${STATUS_NONE}" --color RED
+    #                ReportWarning "${TEST_NO}" "${FAIL2BAN_CONFIG}" "There are no actions configured for Fail2ban."
+    #                AddHP 0 3
+    #            fi
+    #
+    #            if [ ${FAIL2BAN_SILENT} -eq 0 ] && [ ${FAIL2BAN_EMAIL} -eq 1 ]; then
+    #                LogText "All actions in ${FAIL2BAN_CONFIG} are configured to send email alerts"
+    #                Display --indent 4 --text "- Checking Fail2ban actions" --result "${STATUS_OK}" --color GREEN
+    #                AddHP 3 3
+    #            fi
+    #
+    #            if [ ${FAIL2BAN_SILENT} -eq 1 ] && [ ${FAIL2BAN_EMAIL} -eq 1 ]; then
+    #                LogText "Some actions found in ${FAIL2BAN_CONFIG} are configured to send email alerts"
+    #                Display --indent 4 --text "- Checking Fail2ban actions" --result PARTIAL --color YELLOW
+    #                ReportSuggestion "${TEST_NO}" "Some Fail2ban jails are configured with non-notified actions.  Consider changing these to emailed alerts."
+    #                AddHP 2 3
+    #            fi
+    #
+    #            if [ ${FAIL2BAN_SILENT} -eq 1 ] && [ ${FAIL2BAN_EMAIL} -eq 0 ]; then
+    #                LogText "None of the actions found in ${FAIL2BAN_CONFIG} are configured to send email alerts"
+    #                Display --indent 4 --text "- Checking Fail2ban actions" --result "${STATUS_NONE}" --color YELLOW
+    #                ReportSuggestion "${TEST_NO}" "None of the Fail2ban jails are configured to send email notifications.  Consider changing these to emailed alerts."
+    #                AddHP 1 3
+    #            fi
+    #
+    #            # Check at least one enabled jail
+    #            LogText "Checking for enabled jails within ${FAIL2BAN_CONFIG}"
+    #
+    #
+    #
+    #            # Confirm at least one iptables chain for fail2ban
+    #
+    #            LogText "Checking for fail2ban iptables chains"
+    #
+    #            if [ ! "${IPTABLESBINARY}" = "" ]; then
+    #                CHECK_CHAINS=`${IPTABLESBINARY} -L 2>&1 | ${GREPBINARY} fail2ban`
+    #                if [ ! "${CHECK_CHAINS}" = "" ]; then
+    #                    LogText "Result: found at least one iptables chain for fail2ban"
+    #                    Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result "${STATUS_OK}" --color GREEN
+    #                  else
+    #                    LogText "Result: Fail2ban installed but iptables chain not present - fail2ban will not work"
+    #                    Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result "${STATUS_WARNING}" --color RED
+    #                    AddHP 0 3
+    #                    ReportSuggestion "${TEST_NO}" "Check config to see why iptables does not have a fail2ban chain" "${FAIL2BAN_CONFIG}"
+    #                fi
+    #            else
+    #                Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result "${STATUS_WARNING}" --color RED
+    #                ReportSuggestion "${TEST_NO}" "iptables doesn't seem to be installed; Fail2ban will not work. Remove Fail2ban or install iptables" "${FAIL2BAN_CONFIG}"
+    #            fi
+    #        fi
+    #    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-5190
+    # Description : Check for an IDS/IPS tool
+    Register --test-no TOOL-5190 --weight L --network NO --category security --description "Check presence of IDS/IPS tool"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        if [ ${IDS_IPS_TOOL_FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Checking for IDS/IPS tooling" --result "${STATUS_FOUND}" --color GREEN
+            AddHP 2 2
+          else
+            Display --indent 2 --text "- Checking for IDS/IPS tooling" --result "${STATUS_NONE}" --color YELLOW
+            #ReportSuggestion ${TEST_NO} "Install and configure automated intrusion detection/prevention tools"
+            AddHP 0 2
         fi
     fi
 #
@@ -150,10 +316,10 @@
 #
 #################################################################################
 #
-    report "automation_tool_present=${AUTOMATION_TOOL_FOUND}"
+    Report "automation_tool_present=${AUTOMATION_TOOL_FOUND}"
 
 
-    wait_for_keypress
+    WaitForKeyPress
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

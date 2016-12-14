@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -24,26 +28,24 @@
 #
     # Reset Apache status
     APACHE_INSTALLED=0
-    APACHE_MODULES_ENABLED_LOCS="/etc/apache2/mods-enabled"
-    APACHE_MODULES_LOCS="/etc/httpd/modules /opt/local/apache2/modules /usr/lib/apache2 /usr/lib/httpd/modules /usr/libexec/apache2 /usr/lib64/apache2 /usr/lib64/apache2/modules /usr/lib64/httpd/modules /usr/local/libexec/apache /usr/local/libexec/apache22"
+    APACHE_MODULES_ENABLED_LOCS="${ROOTDIR}etc/apache2/mods-enabled"
+    APACHE_MODULES_LOCS="${ROOTDIR}etc/httpd/modules ${ROOTDIR}opt/local/apache2/modules ${ROOTDIR}usr/lib/apache2 ${ROOTDIR}usr/lib/httpd/modules ${ROOTDIR}usr/libexec/apache2 ${ROOTDIR}usr/lib64/apache2 ${ROOTDIR}usr/lib64/apache2/modules ${ROOTDIR}usr/lib64/httpd/modules ${ROOTDIR}usr/local/libexec/apache ${ROOTDIR}usr/local/libexec/apache22"
     NGINX_RUNNING=0
-    NGINX_CONF_LOCS="/etc/nginx /usr/local/etc/nginx /usr/local/nginx/conf"
+    NGINX_CONF_LOCS="${ROOTDIR}etc/nginx ${ROOTDIR}usr/local/etc/nginx usr/local/nginx/conf"
     NGINX_CONF_LOCATION=""
+    NGINX_CONF_FILES=""
+    NGINX_CONF_FILES_ADDITIONS=""
 #
 #################################################################################
 #
-    sTEST_APACHE_TARGETS="/etc/apache /etc/apache2 /etc/httpd /usr/local/apache /usr/local/apache2 \
-                          /usr/local/etc/apache /usr/local/etc/apache2 /usr/local/etc/apache22 \
-                          /usr/pkg/etc/httpd /etc/sysconfig/apache2"
+    sTEST_APACHE_TARGETS="${ROOTDIR}etc/apache ${ROOTDIR}etc/apache2 ${ROOTDIR}etc/httpd ${ROOTDIR}usr/local/apache ${ROOTDIR}usr/local/apache2 \
+                          ${ROOTDIR}usr/local/etc/apache ${ROOTDIR}usr/local/etc/apache2 ${ROOTDIR}usr/local/etc/apache22 \
+                          ${ROOTDIR}usr/pkg/etc/httpd ${ROOTDIR}etc/sysconfig/apache2"
 
-    if [ "${OS}" = "AIX" ]; then
-        RANDOMSTRING1=`echo lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}')`; RANDOMSTRING2=`echo lynis2-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}')`
-        TMPFILE="/tmp/${RANDOMSTRING1}"; TMPFILE2="/tmp/${RANDOMSTRING2}"
-        echo "" > ${TMPFILE}; echo "" > ${TMPFILE2}
-      else
-        TMPFILE=`mktemp /tmp/lynis.XXXXXXXXXX` || exit 1
-        TMPFILE2=`mktemp /tmp/lynis2.XXXXXXXXXX` || exit 1
-    fi
+    CreateTempFile || ExitFatal
+    TMPFILE="${TEMP_FILE}"
+    CreateTempFile || ExitFatal
+    TMPFILE2="${TEMP_FILE}"
 #
 #################################################################################
 #
@@ -52,21 +54,24 @@
     # Notes       : Do not run on NetBSD, -v is unknown option for httpd binary
     #               On OpenBSD do not run /usr/sbin/httpd with -v: builtin non-Apache
     if [ ! "${OS}" = "NetBSD" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6622 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking Apache presence"
+    Register --test-no HTTP-6622 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Apache presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${OS}" = "OpenBSD" -a "${HTTPDBINARY}" = "/usr/sbin/httpd" ]; then HTTPDBINARY=""; fi
         if [ "${HTTPDBINARY}" = "" ]; then
-            Display --indent 2 --text "- Checking Apache" --result "NOT FOUND" --color WHITE
+            Display --indent 2 --text "- Checking Apache" --result "${STATUS_NOT_FOUND}" --color WHITE
           else
-            logtext "Test: Scanning for Apache binary"
-            IS_APACHE=`${HTTPDBINARY} -v 2> /dev/null | egrep '[aA]pache'`
+            LogText "Test: Scanning for Apache binary"
+            IS_APACHE=`${HTTPDBINARY} -v 2> /dev/null | ${EGREPBINARY} '[aA]pache'`
             if [ "${IS_APACHE}" = "" ]; then
-                logtext "Result: ${HTTPDBINARY} is not Apache"
+                LogText "Result: ${HTTPDBINARY} is not Apache"
                 Display --indent 2 --text "- Checking Apache (binary ${HTTPDBINARY})" --result "NO MATCH" --color WHITE
               else
-                Display --indent 2 --text "- Checking Apache (binary ${HTTPDBINARY})" --result "FOUND" --color GREEN
-                logtext "Result: ${HTTPDBINARY} seems to be Apache HTTP daemon"
+                Display --indent 2 --text "- Checking Apache (binary ${HTTPDBINARY})" --result "${STATUS_FOUND}" --color GREEN
+                LogText "Result: ${HTTPDBINARY} seems to be Apache HTTP daemon"
                 APACHE_INSTALLED=1
+                APACHE_VERSION=`${HTTPDBINARY} -v 2> /dev/null | ${GREPBINARY} "^Server version:" | ${AWKBINARY} '{ print $3 }' | ${AWKBINARY} -F/ '{ print $2 }'`
+                LogText "Apache version: ${APACHE_VERSION}"
+                Report "apache_version=${APACHE_VERSION}"
             fi
         fi
     fi
@@ -85,13 +90,13 @@
       else
         PREQS_MET="NO"
     fi
-    Register --test-no HTTP-6624 --preqs-met ${PREQS_MET} --weight L --network NO --description "Testing main Apache configuration file"
+    Register --test-no HTTP-6624 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Testing main Apache configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         APACHE_CONFIGFILE=""
-        APACHE_TEST=`${HTTPDBINARY} -V 2> /dev/null | grep "\-D SERVER_CONFIG_FILE=" | sed 's/[ ]-D SERVER_CONFIG_FILE=//' | tr -d '"' | tr -d ' ' | tr -d '[:cntrl:]'`
+        APACHE_TEST=`${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D SERVER_CONFIG_FILE=" | ${SEDBINARY} 's/[ ]-D SERVER_CONFIG_FILE=//' | ${TRBINARY} -d '"' | ${TRBINARY} -d ' ' | ${TRBINARY} -d '[:cntrl:]'`
 
         if [ "${APACHE_TEST}" = "" ]; then
-            logtext "Result: Can't find the configuration file, so skipping some Apache related tests"
+            LogText "Result: Can't find the configuration file, so skipping some Apache related tests"
           else
             # We found a possible match. Checking if it's valid filename. If not, we need to add a prefix
             if [ -f ${APACHE_TEST} ]; then
@@ -99,16 +104,16 @@
                 Display --indent 6 --text "Info: Configuration file found (${APACHE_CONFIGFILE})"
               else
                 # Probably the prefix is missing, so we are going to search that
-                APACHE_HTTPDROOT=`${HTTPDBINARY} -V 2> /dev/null | grep "\-D HTTPD_ROOT=" | sed 's/[ ]-D HTTPD_ROOT=//' | tr -d '"' | tr -d ' '`
+                APACHE_HTTPDROOT=`${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D HTTPD_ROOT=" | ${SEDBINARY} 's/[ ]-D HTTPD_ROOT=//' | ${TRBINARY} -d '"' | ${TRBINARY} -d ' '`
                 #echo "Apache root prefix: ${APACHE_HTTPDROOT}"
                 #echo "Complete path to configuration file: ${APACHE_HTTPDROOT}/${APACHE_TEST}"
                 APACHE_TESTFILE="${APACHE_HTTPDROOT}/${APACHE_TEST}"
                 if [ -f ${APACHE_TESTFILE} ]; then
                     APACHE_CONFIGFILE="${APACHE_TESTFILE}"
                     Display --indent 6 --text "Info: Configuration file found (${APACHE_CONFIGFILE})"
-                    logtext "Result: Configuration file found (${APACHE_CONFIGFILE})"
+                    LogText "Result: Configuration file found (${APACHE_CONFIGFILE})"
                   else
-                    logtext "Result: File or directory ${APACHE_CONFIGFILE} does not exist"
+                    LogText "Result: File or directory ${APACHE_CONFIGFILE} does not exist"
                     Display --indent 6 --text "[Notice] possible directory/file parts found, but still unsure what the real configuration file is. Skipping some Apache related tests"
                     ReportException "${TEST_NO}:1" "Found some unknown directory or file references in Apache configuration"
                 fi
@@ -121,7 +126,7 @@
     # Test        : HTTP-6626
     # Description : Testing other Apache configuration files
     if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6626 --preqs-met ${PREQS_MET} --weight L --network NO --description "Testing other Apache configuration file"
+    Register --test-no HTTP-6626 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Testing other Apache configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         #Display --indent 4 --text "- Searching Apache virtual hosts"
         for I in ${sTEST_APACHE_TARGETS}; do
@@ -132,33 +137,33 @@
 
         # Sort unsorted list, save it in temp file and then remove unsorted list
         if [ -f ${TMPFILE2} ]; then
-            sort -u ${TMPFILE2} >> ${TMPFILE}
+            ${SORTBINARY} -u ${TMPFILE2} >> ${TMPFILE}
             rm -f ${TMPFILE2}
         fi
         cVHOSTS=0; tVHOSTS=""
 
         # Check every configuration file
         for I in `cat ${TMPFILE}`; do
-            logtext "Apache config file: ${I}"
+            LogText "Apache config file: ${I}"
 
             FileIsReadable ${I}
             if [ ${CANREAD} -eq 1 ]; then
                 # Search Virtual Hosts
-                for J in `grep "ServerName" ${I} | grep -v "^#" | awk '{ if ($1=="ServerName") print $2 }'`; do
+                for J in `${GREPBINARY} "ServerName" ${I} | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ if ($1=="ServerName" && $2!="*" && $2!="default") print $2 }'`; do
                     if [ ! -z ${J} ]; then
                         tVHOSTS="${tVHOSTS} ${J}"
-                        cVHOSTS=`expr ${cVHOSTS} + 1`
+                        cVHOSTS=$((cVHOSTS + 1))
                     fi
                 done
                 # Search Server aliases
-                for J in `grep "ServerAlias" ${I} | grep -v "^#" | sed "s/.* ServerAlias//g" | sed "s/#.*//g"`; do
+                for J in $(${GREPBINARY} "ServerAlias" ${I} | ${GREPBINARY} -v "^#" | ${SEDBINARY} "s/\s*ServerAlias //g" | ${SEDBINARY} "s/#.*//g"); do
                     if [ ! -z ${J} ]; then
                         tVHOSTS="${tVHOSTS} ${J}"
-                        cVHOSTS=`expr ${cVHOSTS} + 1`
+                        cVHOSTS=$((cVHOSTS + 1))
                     fi
                 done
               else
-                logtext "Result: can not read configuration file with this user ID"
+                LogText "Result: can not read configuration file with this user ID"
                 ReportException "${TEST_NO}:1" "Can not read configuration file $I"
             fi
         done
@@ -166,13 +171,13 @@
         # Log all virtual hosts we found
             for J in ${tVHOSTS}; do
                 if [ ! -z ${J} ]; then
-                    logtext "Virtual host: ${J}"
-                    report "apache_vhost_name[]=${J}"
+                    LogText "Virtual host: ${J}"
+                    Report "apache_vhost_name[]=${J}"
                 fi
             done
 
         # Show number of vhosts if we found any
-        logtext "Result: found ${cVHOSTS} virtual hosts"
+        LogText "Result: found ${cVHOSTS} virtual hosts"
         if [ ${cVHOSTS} -gt 0 ]; then
             Display --indent 6 --text "Info: Found ${cVHOSTS} virtual hosts"
           else
@@ -191,7 +196,7 @@
     # Test        : HTTP-6628
     # Description : Testing other Apache configuration files
     #if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no HTTP-6628 --preqs-met ${PREQS_MET} --weight L --network NO --description "Testing other Apache configuration file"
+    #Register --test-no HTTP-6628 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Testing other Apache configuration file"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #    	        # Configuration specific tests
 #	        SERVERTOKENSFOUND=0
@@ -200,36 +205,36 @@
 #	        for APACHE_CONFIGFILE in ${APACHE_CONFIGFILES}; do
 #	            if [ -f ${APACHE_CONFIGFILE} ]; then
 #	        	# Check if option ServerTokens is configured
-#	        	SERVERTOKENSTEST=`grep ServerTokens ${APACHE_CONFIGFILE} | grep -v '^#'`
+#	        	SERVERTOKENSTEST=`${GREPBINARY} ServerTokens ${APACHE_CONFIGFILE} | ${GREPBINARY} -v '^#'`
 #	        	if [ ! "${SERVERTOKENSTEST}" = "" ]; then
-#	    		    Display --indent 4 --text "- Checking option ServerTokens" --result FOUND --color WHITE
-#	        	    SERVERTOKENSTEST=`echo ${SERVERTOKENSTEST} | sed 's/ServerTokens//' | tr -d ' '`
-#	    		    logtext "Option ServerTokens found: ${SERVERTOKENSTEST}"
-#	    		    SERVERTOKENSEXPECTED=`grep 'apache' ${PROFILE} | grep 'ServerTokens' | cut -d ':' -f3`
+#	    		    Display --indent 4 --text "- Checking option ServerTokens" --result "${STATUS_FOUND}" --color WHITE
+#	        	    SERVERTOKENSTEST=`echo ${SERVERTOKENSTEST} | ${SEDBINARY} 's/ServerTokens//' | ${TRBINARY} -d ' '`
+#	    		    LogText "Option ServerTokens found: ${SERVERTOKENSTEST}"
+#	    		    SERVERTOKENSEXPECTED=`${GREPBINARY} 'apache' ${PROFILE} | ${GREPBINARY} 'ServerTokens' | ${CUTBINARY} -d ':' -f3`
 #	    		    if [ "${SERVERTOKENSEXPECTED}" = "${SERVERTOKENSTEST}" ]; then
-#	    		        logtext "Result: Value from configuration file yielded the same output as in template"
+#	    		        LogText "Result: Value from configuration file yielded the same output as in template"
 #	    		        SERVERTOKENSFOUND=1
 #	    	              else
-#	    		        logtext "Result: Value of ServerTokens within active configuration is different than from used template."
-#	    		        logtext "Found: ${SERVERTOKENSTEST}"
-#	    		        logtext "Expected: ${SERVERTOKENSEXPECTED}"
+#	    		        LogText "Result: Value of ServerTokens within active configuration is different than from used template."
+#	    		        LogText "Found: ${SERVERTOKENSTEST}"
+#	    		        LogText "Expected: ${SERVERTOKENSEXPECTED}"
 #	    		    fi
 #	    	          else
-#	        	    Display --indent 4 --text "- Checking option ServerTokens" --result "NOT FOUND" --color WHITE
+#	        	    Display --indent 4 --text "- Checking option ServerTokens" --result "${STATUS_NOT_FOUND}" --color WHITE
 #	        	fi
 #
 #    		    else
 #    		      # File does not exist, skipping
-#    		      logtext "File ${APACHE_CONFIGFILE} does not exist, so skipping tests on this file"
+#    		      LogText "File ${APACHE_CONFIGFILE} does not exist, so skipping tests on this file"
 #    	      fi
 #    	    done
 #
 #    	    # Display results from checks
 #    	    if [ ${SERVERTOKENSFOUND} -eq 1 ]; then
-#        	Display --indent 6 --text "- Value of ServerTokens" --result OK --color GREEN
+#        	Display --indent 6 --text "- Value of ServerTokens" --result "${STATUS_OK}" --color GREEN
 #    	      else
-#    	        Display --indent 6 --text "- Value of ServerTokens" --result WARNING --color RED
-#        	ReportWarning ${TEST_NO} "M" "Value of 'ServerTokens' in Apache config is different than template"
+#    	        Display --indent 6 --text "- Value of ServerTokens" --result "${STATUS_WARNING}" --color RED
+#        	ReportWarning ${TEST_NO} "Value of 'ServerTokens' in Apache config is different than template"
 #    	    fi
 #           fi
 #        fi
@@ -241,17 +246,17 @@
     # Test        : HTTP-6630
     # Description : Search for all loaded modules
     #if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no HTTP-6630 --preqs-met ${PREQS_MET} --weight L --network NO --description "Determining all loaded Apache modules"
+    #Register --test-no HTTP-6630 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining all loaded Apache modules"
     #if [ ${SKIPTEST} -eq 0 ]; then
         # Testing Debian style
-        #logtext "Test: searching loaded/enabled Apache modules"
-        #apachectl -t -D DUMP_MODULES 2>&1 | egrep -v "(Loaded Modules|Syntax OK)" | sed 's/(\(shared\|static\))//' | sed 's/ //'
+        #LogText "Test: searching loaded/enabled Apache modules"
+        #apachectl -t -D DUMP_MODULES 2>&1 | ${EGREPBINARY} -v "(Loaded Modules|Syntax OK)" | ${SEDBINARY} 's/(\(shared\|static\))//' | ${SEDBINARY} 's/ //'
         #for I in ${APACHE_MODULES_ENABLED_LOCS}; do
-            #logtext "Test: checking ${I}"
+            #LogText "Test: checking ${I}"
             #if [ -d ${I} ]; then
-                #FIND=`grep -r LoadModule ${I}/* | grep -v "^#" | awk '{ print $2":"$3 }'`
+                #FIND=`${GREPBINARY} -r LoadModule ${I}/* | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2":"$3 }'`
               #else
-                #logtext "Result: ${I} does not exist"
+                #LogText "Result: ${I} does not exist"
             #fi
         #done
     #fi
@@ -261,26 +266,26 @@
     # Test        : HTTP-6632
     # Description : Search for available Apache modules
     if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6632 --preqs-met ${PREQS_MET} --weight L --network NO --description "Determining all available Apache modules"
+    Register --test-no HTTP-6632 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining all available Apache modules"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: searching available Apache modules"
+        LogText "Test: searching available Apache modules"
         N=0
         for I in ${APACHE_MODULES_LOCS}; do
             DirectoryExists ${I}
             if [ ${DIRECTORY_FOUND} -eq 1 ]; then
-                FIND=`find ${I} -name mod_* -print | sort`
+                FIND=$(find ${I} -name "mod_*" -print | sort)
                 for J in ${FIND}; do
-                    report "apache_module[]=${J}"
-                    logtext "Result: found Apache module ${J}"
-                    N=`expr ${N} + 1`
+                    Report "apache_module[]=${J}"
+                    LogText "Result: found Apache module ${J}"
+                    N=$((N + 1))
                 done
             fi
         done
         if [ ${N} -eq 0 ]; then
-            Display --indent 4 --text "* Loadable modules" --result "NONE" --color WHITE
+            Display --indent 4 --text "* Loadable modules" --result "${STATUS_NONE}" --color WHITE
             ReportException "${TEST_NO}:1" "No loadable Apache modules found"
           else
-            Display --indent 4 --text "* Loadable modules" --result "FOUND" --color GREEN
+            Display --indent 4 --text "* Loadable modules" --result "${STATUS_FOUND}" --color GREEN
             Display --indent 8 --text "- Found ${N} loadable modules"
         fi
     fi
@@ -290,15 +295,15 @@
     # Test        : HTTP-6640
     # Description : Search for special Apache modules: evasive
     if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6640 --preqs-met ${PREQS_MET} --weight L --network NO --description "Determining existence of specific Apache modules"
+    Register --test-no HTTP-6640 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining existence of specific Apache modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check modules, module
         CheckItem "apache_module" "/mod_evasive([0-9][0-9])?.so"
         if [ ${ITEM_FOUND} -eq 1 ]; then
-            Display --indent 10 --text "mod_evasive: anti-DoS/brute force" --result FOUND --color GREEN
+            Display --indent 10 --text "mod_evasive: anti-DoS/brute force" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
           else
-            Display --indent 10 --text "mod_evasive: anti-DoS/brute force" --result "NOT FOUND" --color WHITE
+            Display --indent 10 --text "mod_evasive: anti-DoS/brute force" --result "${STATUS_NOT_FOUND}" --color WHITE
             AddHP 2 3
             ReportSuggestion ${TEST_NO} "Install Apache mod_evasive to guard webserver against DoS/brute force attempts"
         fi
@@ -309,15 +314,15 @@
     # Test        : HTTP-6641
     # Description : Search for special Apache modules: Quality of Service
     if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6641 --preqs-met ${PREQS_MET} --weight L --network NO --description "Determining existence of specific Apache modules"
+    Register --test-no HTTP-6641 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining existence of specific Apache modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check modules, module
         CheckItem "apache_module" "/mod_qos.so"
         if [ ${ITEM_FOUND} -eq 1 ]; then
-            Display --indent 10 --text "mod_qos: anti-Slowloris" --result FOUND --color GREEN
+            Display --indent 10 --text "mod_qos: anti-Slowloris" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
           else
-            Display --indent 10 --text "mod_qos: anti-Slowloris" --result "NOT FOUND" --color WHITE
+            Display --indent 10 --text "mod_qos: anti-Slowloris" --result "${STATUS_NOT_FOUND}" --color WHITE
             AddHP 2 3
             ReportSuggestion ${TEST_NO} "Install Apache mod_qos to guard webserver against Slowloris attacks"
         fi
@@ -327,35 +332,36 @@
 #
     # Test        : HTTP-6642
     # Description : Search for special Apache modules: Spamhaus
-    if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6642 --preqs-met ${PREQS_MET} --weight L --network NO --description "Determining existence of specific Apache modules"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        # Check modules, module
-        CheckItem "apache_module" "/mod_spamhaus.so"
-        if [ ${ITEM_FOUND} -eq 1 ]; then
-            Display --indent 10 --text "mod_spamhaus: anti-spam (spamhaus)" --result FOUND --color GREEN
-            AddHP 3 3
-          else
-            Display --indent 10 --text "mod_spamhaus: anti-spam (spamhaus)" --result "NOT FOUND" --color WHITE
-            AddHP 2 3
-            ReportSuggestion ${TEST_NO} "Install Apache mod_spamhaus to guard webserver against spammers"
-        fi
-    fi
+    # Notes       : This test is outdated
+    #if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #Register --test-no HTTP-6642 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining existence of specific Apache modules"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    #    # Check modules, module
+    #    CheckItem "apache_module" "/mod_spamhaus.so"
+    #    if [ ${ITEM_FOUND} -eq 1 ]; then
+    #        Display --indent 10 --text "mod_spamhaus: anti-spam (spamhaus)" --result "${STATUS_FOUND}" --color GREEN
+    #        AddHP 3 3
+    #      else
+    #        Display --indent 10 --text "mod_spamhaus: anti-spam (spamhaus)" --result "${STATUS_NOT_FOUND}" --color WHITE
+    #        AddHP 2 3
+    #        ReportSuggestion ${TEST_NO} "Install Apache mod_spamhaus to guard webserver against spammers"
+    #    fi
+    #fi
 #
 #################################################################################
 #
     # Test        : HTTP-6643
     # Description : Search for special Apache modules: security
     if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6643 --preqs-met ${PREQS_MET} --weight L --network NO --description "Determining existence of specific Apache modules"
+    Register --test-no HTTP-6643 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining existence of specific Apache modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check modules, module
         CheckItem "apache_module" "/mod_security2.so"
         if [ ${ITEM_FOUND} -eq 1 ]; then
-            Display --indent 10 --text "ModSecurity: web application firewall" --result FOUND --color GREEN
+            Display --indent 10 --text "ModSecurity: web application firewall" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
           else
-            Display --indent 10 --text "ModSecurity: web application firewall" --result "NOT FOUND" --color WHITE
+            Display --indent 10 --text "ModSecurity: web application firewall" --result "${STATUS_NOT_FOUND}" --color WHITE
             AddHP 2 3
             ReportSuggestion ${TEST_NO} "Install Apache modsecurity to guard webserver against web application attacks"
         fi
@@ -371,17 +377,18 @@
 #
     # Test        : HTTP-6702
     # Description : Search for nginx process
-    Register --test-no HTTP-6702 --weight L --network NO --description "Check nginx process"
+    Register --test-no HTTP-6702 --weight L --network NO --category security --description "Check nginx process"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: searching running nginx process"
-        FIND=`${PSBINARY} ax | grep "/nginx" | grep "master" | grep -v "grep"`
+        LogText "Test: searching running nginx process"
+        FIND=`${PSBINARY} ax | ${GREPBINARY} "/nginx" | ${GREPBINARY} "master" | ${GREPBINARY} -v "grep"`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Result: found running nginx process(es)"
-            Display --indent 2 --text "- Checking nginx" --result FOUND --color GREEN
+            LogText "Result: found running nginx process(es)"
+            Display --indent 2 --text "- Checking nginx" --result "${STATUS_FOUND}" --color GREEN
             NGINX_RUNNING=1
+            Report "nginx_running=1"
           else
-            logtext "Result: no running nginx process found"
-            Display --indent 2 --text "- Checking nginx" --result "NOT FOUND" --color WHITE
+            LogText "Result: no running nginx process found"
+            Display --indent 2 --text "- Checking nginx" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #
@@ -390,22 +397,23 @@
     # Test        : HTTP-6704
     # Description : Search for nginx configuration file
     if [ ${NGINX_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6704 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check nginx configuration file"
+    Register --test-no HTTP-6704 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nginx configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: searching nginx configuration file"
+        LogText "Test: searching nginx configuration file"
         for I in ${NGINX_CONF_LOCS}; do
             if [ -f ${I}/nginx.conf ]; then
                 NGINX_CONF_LOCATION="${I}/nginx.conf"
-                logtext "Found file ${NGINX_CONF_LOCATION}"
+                LogText "Found file ${NGINX_CONF_LOCATION}"
+                NGINX_CONF_FILES="${I}/nginx.conf"
             fi
         done
         if [ ! "${NGINX_CONF_LOCATION}" = "" ]; then
-            logtext "Result: found nginx configuration file"
-            report "nginx_main_conf_file=${NGINX_CONF_LOCATION}"
-            Display --indent 4 --text "- Searching nginx configuration file" --result FOUND --color GREEN
+            LogText "Result: found nginx configuration file"
+            Report "nginx_main_conf_file=${NGINX_CONF_LOCATION}"
+            Display --indent 4 --text "- Searching nginx configuration file" --result "${STATUS_FOUND}" --color GREEN
           else
-            logtext "Result: no nginx configuration file found"
-            Display --indent 2 --text "- Searching nginx configuration file" --result "NOT FOUND" --color WHITE
+            LogText "Result: no nginx configuration file found"
+            Display --indent 2 --text "- Searching nginx configuration file" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #
@@ -415,44 +423,45 @@
     # Description : Search for includes within nginx configuration file
     # Notes       : Daemon nginx should be running, nginx.conf should be found
     if [ ${NGINX_RUNNING} -eq 1 -a ! "${NGINX_CONF_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6706 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for additional nginx configuration files"
+    Register --test-no HTTP-6706 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for additional nginx configuration files"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Remove temp file
         if [ ! "${TMPFILE}" = "" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
         N=0
-        sed -e 's/^[ 	]*//' ${NGINX_CONF_LOCATION} | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}
+        ${SEDBINARY} -e 's/^[ 	]*//' ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "^$" | ${SEDBINARY} 's/[	]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/  / /g' >> ${TMPFILE}
         # Search for included configuration files (may include directories and wild cards)
-        FIND=`grep "include" ${NGINX_CONF_LOCATION} | ${AWKBINARY} '{ if ($1=="include") { print $2 }}' | sed 's/;$//g'`
+        FIND=`${GREPBINARY} "include" ${NGINX_CONF_LOCATION} | ${AWKBINARY} '{ if ($1=="include") { print $2 }}' | ${SEDBINARY} 's/;$//g'`
         for I in ${FIND}; do
             FIND2=`${LSBINARY} ${I} 2>/dev/null`
             for J in ${FIND2}; do
-              # Ensure that we are parsing normal files
-              if [ -f ${J} ]; then
-                  N=`expr ${N} + 1`
-                  logtext "Result: found Nginx configuration file ${J}"
-                  report "nginx_sub_conf_file=${J}"
-                  FileIsReadable ${J}
-                  if [ ${CANREAD} -eq 1 ]; then
-                      FIND3=`sed -e 's/^[ 	]*//' ${J} | grep -v "^#" | grep -v "^$" | sed 's/[	]/ /g' | sed 's/  / /g' | sed 's/  / /g' >> ${TMPFILE}`
-                    else
-                      ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
-                  fi
-              fi
+                # Ensure that we are parsing normal files
+                if [ -f ${J} ]; then
+                    N=$((N + 1))
+                    LogText "Result: found Nginx configuration file ${J}"
+                    Report "nginx_sub_conf_file[]=${J}"
+                        FileIsReadable ${J}
+                        if [ ${CANREAD} -eq 1 ]; then
+                            NGINX_CONF_FILES="${NGINX_CONF_FILES} ${J}"
+                            FIND3=`sed -e 's/^[ 	]*//' ${J} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "^$" | ${SEDBINARY} 's/[	]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/  / /g' >> ${TMPFILE}`
+                        else
+                            ReportException "${TEST_NO}:1" "Can not parse file ${J}, as it is not readable"
+                        fi
+                fi
             done
         done
 
         # Sort all discovered configuration lines and store unique ones. Also strip out the mime types configured in nginx
-        SORTFILE=`sort -u ${TMPFILE} | sed 's/ /:space:/g' | egrep -v "(application|audio|image|text|video)/" | egrep -v "({|})"`
+        SORTFILE=`${SORTBINARY} -u ${TMPFILE} | ${SEDBINARY} 's/ /:space:/g' | ${EGREPBINARY} -v "(application|audio|image|text|video)/" | ${EGREPBINARY} -v "({|})"`
         for I in ${SORTFILE}; do
-            I=`echo ${I} | sed 's/:space:/ /g'`
-            report "nginx_config_option=${I}";
+            I=`echo ${I} | ${SEDBINARY} 's/:space:/ /g'`
+            Report "nginx_config_option[]=${I}";
         done
 
         # Remove unsorted file for next tests
         if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi
 
         if [ ${N} -eq 0 ]; then
-            logtext "Result: no nginx include statements found"
+            LogText "Result: no nginx include statements found"
           else
             Display --indent 6 --text "- Found nginx includes" --result "${N} FOUND" --color GREEN
         fi
@@ -463,12 +472,39 @@
     # Test        : HTTP-6708
     # Description : Check discovered nginx configuration settings for further hardering
     # Notes       : Daemon of nginx should be running, nginx.conf should be found
-    if [ ${NGINX_RUNNING} -eq 1 -a "${NGINX_CONF_LOCATION}" != "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6708 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check discovered nginx configuration settings"
+    if [ ${NGINX_RUNNING} -eq 1 -a ! "${NGINX_CONF_FILES}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no HTTP-6708 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check discovered nginx configuration settings"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: start parsing all discovered nginx options"
+        LogText "Test: start parsing all discovered nginx options"
         Display --indent 4 --text "- Parsing configuration options"
-        ParseNginx
+        for I in ${NGINX_CONF_FILES}; do
+            FILENAME=$(echo ${I} | ${AWKBINARY} -F/ '{print $NF}')
+            if [ ! "${FILENAME}" = "mime.types" ]; then
+                if FileIsReadable ${I}; then
+                    Display --indent 8 --text "- ${I}"
+                    ParseNginx ${I}
+                else
+                    Display --indent 8 --text "- ${I}" --result "SKIPPED (NOT READABLE)" --color YELLOW
+                fi
+            else
+                LogText "Result: this configuration file is skipped, as it contains usually no interesting details"
+            fi
+        done
+        if [ ! -z "${NGINX_CONF_FILES_ADDITIONS}" ]; then
+            for I in ${NGINX_CONF_FILES_ADDITIONS}; do
+                FILENAME=$(echo ${I} | ${AWKBINARY} -F/ '{print $NF}')
+                if [ ! "${FILENAME}" = "mime.types" ]; then
+                    if FileIsReadable ${I}; then
+                        Display --indent 8 --text "- ${I}"
+                        ParseNginx ${I}
+                    else
+                        Display --indent 8 --text "- ${I}" --result "SKIPPED (NOT READABLE)" --color YELLOW
+                    fi
+                else
+                    LogText "Result: this configuration file is skipped, as it contains usually no interesting details"
+                fi
+            done
+        fi
     fi
 #
 #################################################################################
@@ -477,50 +513,50 @@
     # Description : Check SSL configuration of nginx
     # Notes       : Daemon of nginx should be running, nginx.conf should be found
     if [ ${NGINX_RUNNING} -eq 1 -a "${NGINX_CONF_LOCATION}" != "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6710 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check nginx SSL configuration settings"
+    Register --test-no HTTP-6710 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nginx SSL configuration settings"
     if [ ${SKIPTEST} -eq 0 ]; then
         NGINX_SSL_SUGGESTION=0
         if [ ${NGINX_SSL_ON} -eq 1 ]; then
-            logtext "Result: SSL is configured in nginx on one or more virtual hosts"
-            Display --indent 6 --text "- SSL configured" --result "YES" --color GREEN
+            LogText "Result: SSL is configured in nginx on one or more virtual hosts"
+            Display --indent 6 --text "- SSL configured" --result "${STATUS_YES}" --color GREEN
             AddHP 5 5
             # Cipher tests
             if [ ${NGINX_SSL_CIPHERS} -eq 1 ]; then
-                Display --indent 8 --text "- Ciphers configured" --result "YES" --color GREEN
+                Display --indent 8 --text "- Ciphers configured" --result "${STATUS_YES}" --color GREEN
               else
-                Display --indent 8 --text "- Ciphers configured" --result "NO" --color RED
+                Display --indent 8 --text "- Ciphers configured" --result "${STATUS_NO}" --color RED
                 NGINX_SSL_SUGGESTION=1
             fi
 
             if [ ${NGINX_SSL_PREFER_SERVER_CIPHERS} -eq 1 ]; then
-                Display --indent 8 --text "- Prefer server ciphers" --result "YES" --color GREEN
+                Display --indent 8 --text "- Prefer server ciphers" --result "${STATUS_YES}" --color GREEN
               else
-                Display --indent 8 --text "- Prefer server ciphers" --result "NO" --color RED
+                Display --indent 8 --text "- Prefer server ciphers" --result "${STATUS_NO}" --color RED
                 NGINX_SSL_SUGGESTION=1
             fi
 
             if [ ${NGINX_SSL_PROTOCOLS} -eq 1 ]; then
-                Display --indent 8 --text "- Protocols configured" --result "YES" --color GREEN
-                FIND=`${GREPBINARY} "ssl_protocols" ${NGINX_CONF_LOCATION} | ${GREPBINARY} "SSLv[12]"`
-                if [ "${FIND}" = "" ]; then
-                    Display --indent 10 --text "- Insecure protocols found" --result "NO" --color GREEN
+                Display --indent 8 --text "- Protocols configured" --result "${STATUS_YES}" --color GREEN
+                if [ ${NGINX_WEAK_SSL_PROTOCOL_FOUND} -eq 0 ]; then
+                    Display --indent 10 --text "- Insecure protocols found" --result "${STATUS_NO}" --color GREEN
                   else
-                    Display --indent 10 --text "- Insecure protocols found" --result "YES" --color RED
+                    Display --indent 10 --text "- Insecure protocols found" --result "${STATUS_YES}" --color RED
+                    ReportSuggestion "${TEST_NO}" "Disable weak protocol in nginx configuration"
                 fi
               else
-                Display --indent 8 --text "- Protocols configured" --result "NO" --color RED
+                Display --indent 8 --text "- Protocols configured" --result "${STATUS_NO}" --color RED
                 NGINX_SSL_SUGGESTION=1
             fi
 
           else
-            logtext "Result: No SSL configuration found"
-            Display --indent 6 --text "- SSL configured" --result "NO" --color RED
-            NGINX_SSL_SUGGESTION=1
+            LogText "Result: No SSL configuration found"
+            Display --indent 6 --text "- SSL configured" --result "${STATUS_NO}" --color RED
+            ReportSuggestion ${TEST_NO} "Add HTTPS to nginx virtual hosts for enhanced protection of sensitive data and privacy"
             AddHP 1 5
         fi
         if [ ${NGINX_SSL_SUGGESTION} -eq 1 ]; then
-            logtext "Result: one or more parts of the nginx configuration could be enhanced regarding SSL"
-            ReportSuggestion ${TEST_NO} "Configure SSL in nginx for protection of sensitive data and privacy"
+            LogText "Result: one or more parts of the nginx configuration could be enhanced regarding SSL"
+            ReportSuggestion "${TEST_NO}" "Change the HTTPS and SSL settings for enhanced protection of sensitive data and privacy"
         fi
     fi
 #
@@ -530,7 +566,7 @@
     # Description : Check logging configuration of nginx
     # Notes       : Daemon of nginx should be running, nginx.conf should be found
     if [ ${NGINX_RUNNING} -eq 1 -a "${NGINX_CONF_LOCATION}" != "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6712 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check nginx access logging"
+    Register --test-no HTTP-6712 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nginx access logging"
     if [ ${SKIPTEST} -eq 0 ]; then
         NGINX_LOG_SUGGESTION=0
         Display --indent 6 --text "- Checking log file configuration"
@@ -538,19 +574,19 @@
         # Check for missing access log
         if [ ${NGINX_ACCESS_LOG_MISSING} -eq 1 ]; then
             NGINX_LOG_SUGGESTION=1
-            Display --indent 8 --text "- Missing log files (access_log)" --result "YES" --color RED
+            Display --indent 8 --text "- Missing log files (access_log)" --result "${STATUS_YES}" --color RED
           else
-            Display --indent 8 --text "- Missing log files (access_log)" --result "NO" --color GREEN
+            Display --indent 8 --text "- Missing log files (access_log)" --result "${STATUS_NO}" --color GREEN
         fi
         # Access log disabled
         if [ ${NGINX_ACCESS_LOG_DISABLED} -eq 1 ]; then
             NGINX_LOG_SUGGESTION=1
-            logtext "Result: found one or more virtual hosts which have their access log disabled"
-            Display --indent 8 --text "- Disabled access logging" --result "YES" --color RED
+            LogText "Result: found one or more virtual hosts which have their access log disabled"
+            Display --indent 8 --text "- Disabled access logging" --result "${STATUS_YES}" --color RED
             AddHP 2 3
           else
-            logtext "Result: no virtual hosts found which have their access log disabled"
-            Display --indent 8 --text "- Disabled access logging" --result "NO" --color GREEN
+            LogText "Result: no virtual hosts found which have their access log disabled"
+            Display --indent 8 --text "- Disabled access logging" --result "${STATUS_NO}" --color GREEN
             AddHP 3 3
         fi
         # Report suggestion
@@ -564,15 +600,15 @@
     # Test        : HTTP-6714
     # Description : Check missing error logs in nginx
     if [ ${NGINX_RUNNING} -eq 1 -a "${NGINX_CONF_LOCATION}" != "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6714 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for missing error logs in nginx"
+    Register --test-no HTTP-6714 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for missing error logs in nginx"
     if [ ${SKIPTEST} -eq 0 ]; then
         NGINX_LOG_SUGGESTION=0
         # Check for missing access log
         if [ ${NGINX_ERROR_LOG_MISSING} -eq 1 ]; then
             NGINX_LOG_SUGGESTION=1
-            Display --indent 8 --text "- Missing log files (error_log)" --result "YES" --color RED
+            Display --indent 8 --text "- Missing log files (error_log)" --result "${STATUS_YES}" --color RED
           else
-            Display --indent 8 --text "- Missing log files (error_log)" --result "NO" --color GREEN
+            Display --indent 8 --text "- Missing log files (error_log)" --result "${STATUS_NO}" --color GREEN
         fi
         # Report suggestion
         if [ ${NGINX_LOG_SUGGESTION} -eq 1 ]; then
@@ -585,18 +621,18 @@
     # Test        : HTTP-6716
     # Description : Check debug mode on error log in nginx
     if [ ${NGINX_RUNNING} -eq 1 -a "${NGINX_CONF_LOCATION}" != "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6716 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for debug mode on error log in nginx"
+    Register --test-no HTTP-6716 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for debug mode on error log in nginx"
     if [ ${SKIPTEST} -eq 0 ]; then
         NGINX_LOG_SUGGESTION=0
         # Access log in debug mode
         if [ ${NGINX_ERROR_LOG_DEBUG} -eq 1 ]; then
             NGINX_LOG_SUGGESTION=1
-            logtext "Result: found one or more virtual hosts which have their error log in debug mode"
-            Display --indent 8 --text "- Debugging mode on error_log" --result "YES" --color RED
+            LogText "Result: found one or more virtual hosts which have their error log in debug mode"
+            Display --indent 8 --text "- Debugging mode on error_log" --result "${STATUS_YES}" --color RED
             AddHP 2 3
           else
-            logtext "Result: no virtual hosts found which have their access log disabled"
-            Display --indent 8 --text "- Debugging mode on error_log" --result "NO" --color GREEN
+            LogText "Result: no virtual hosts found which have their access log disabled"
+            Display --indent 8 --text "- Debugging mode on error_log" --result "${STATUS_NO}" --color GREEN
             AddHP 3 3
         fi
         # Report suggestion
@@ -611,20 +647,20 @@
     # Description : Check if nginx is running as a reverse proxy
     # Notes       : aliases are not counted yet (YYY)
 #    if [ ${NGINX_RUNNING} -eq 1 -a ! "${NGINX_CONF_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no HTTP-67xx --preqs-met ${PREQS_MET} --weight L --network NO --description "Check nginx virtual hosts"
+#    Register --test-no HTTP-67xx --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nginx virtual hosts"
 #    if [ ${SKIPTEST} -eq 0 ]; then
 #	N=0
-#	logtext "Test: searching proxy_pass statement in configuration file ${NGINX_CONF_LOCATION}"
-#	FIND=`grep "proxy_pass" ${NGINX_CONF_LOCATION} | grep -v "#" | sed 's/proxy_pass//g' | tr -d ';'`
+#	LogText "Test: searching proxy_pass statement in configuration file ${NGINX_CONF_LOCATION}"
+#	FIND=`${GREPBINARY} "proxy_pass" ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "#" | ${SEDBINARY} 's/proxy_pass//g' | ${TRBINARY} -d ';'`
 #	for I in ${FIND}; do
-#	    logtext "Found reverse proxy configuration for: ${I}"
-#	    N=`expr ${N} + 1`
+#	    LogText "Found reverse proxy configuration for: ${I}"
+#	    N=$((N + 1))
 #	done
 #	if [ ${N} -eq 0 ]; then
-#	    logtext "Result: no reverse proxying functionality found"
-#	    Display --indent 4 --text "- Searching reverse proxy functionality" --result "NOT FOUND" --color WHITE
+#	    LogText "Result: no reverse proxying functionality found"
+#	    Display --indent 4 --text "- Searching reverse proxy functionality" --result "${STATUS_NOT_FOUND}" --color WHITE
 #	  else
-#	    logtext "Result: found ${N} addresses for which nginx will be a reverse proxy"
+#	    LogText "Result: found ${N} addresses for which nginx will be a reverse proxy"
 #           Display --indent 4 --text "- Searching reverse proxy functionality" --result "${N} FOUND" --color GREEN
 #	fi
 #    fi
@@ -635,22 +671,22 @@
     # Description : Search for nginx virtual hosts
     # Notes       : Test if not aware yet of included configuration files
 #    if [ ${NGINX_RUNNING} -eq 1 -a ! "${NGINX_CONF_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no HTTP-67xx --preqs-met ${PREQS_MET} --weight L --network NO --description "Check nginx virtual hosts"
+#    Register --test-no HTTP-67xx --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nginx virtual hosts"
 #    if [ ${SKIPTEST} -eq 0 ]; then
 #	N=0
-#	logtext "Test: searching nginx virtual hosts"
-#	FIND=`grep "server_name" ${NGINX_CONF_LOCATION} | grep -v "#" | sed 's/server_name//g' | tr -d ';'`
+#	LogText "Test: searching nginx virtual hosts"
+#	FIND=`${GREPBINARY} "server_name" ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "#" | ${SEDBINARY} 's/server_name//g' | ${TRBINARY} -d ';'`
 #	for I in ${FIND}; do
 #	    if [ "${I}" = "_" ]; then I="Default virtual host"; fi
-#	    logtext "Found virtual host: ${I}"
-#	    report "nginx_vhost_name[]=${I}"
-#	    N=`expr ${N} + 1`
+#	    LogText "Found virtual host: ${I}"
+#	    Report "nginx_vhost_name[]=${I}"
+#	    N=$((N + 1))
 #	done
 #	if [ ${N} -eq 0 ]; then
-#	    logtext "Result: no virtual hosts found"
-#	    Display --indent 4 --text "- Searching virtual hosts" --result "NOT FOUND" --color WHITE
+#	    LogText "Result: no virtual hosts found"
+#	    Display --indent 4 --text "- Searching virtual hosts" --result "${STATUS_NOT_FOUND}" --color WHITE
 #	  else
-#	    logtext "Result: found ${N} virtual hosts"
+#	    LogText "Result: found ${N} virtual hosts"
 #            Display --indent 4 --text "- Searching virtual hosts" --result "${N} FOUND" --color GREEN
 #	fi
 #    fi
@@ -660,31 +696,32 @@
     # Test        : HTTP-6720
     # Description : Search for Nginx log files
     if [ ${NGINX_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no HTTP-6720 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check Nginx log files"
+    Register --test-no HTTP-6720 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Nginx log files"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking directories for files with log file definitions"
-        for I in ${NGINX_CONF_LOCS}; do
-            logtext "Test: Checking ${I}"
-            if [ -d ${I} ]; then
-                logtext "Result: Directory ${I} exists, so will be used as search path"
-                FIND=`find ${I} -type f -exec grep access_log \{\} \; | grep -v "#" | awk '{ if($1=="access_log") { print $2 } }' | sed 's/;$//g' | sort -u`
-                if [ "${FIND}" = "" ]; then
-                    logtext "Result: no log files found"
-                  else
-                    logtext "Result: found one or more log files"
-                    for I in ${FIND}; do
-                      if [ -f ${I} ]; then
-                        logtext "Found log file: ${I}"
-                        report "log_file=${I}"
-                      else
-                        logtext "Found non existing log file: ${I}"
-                      fi
+        LogText "Test: Checking directories for files with log file definitions"
+        for DIR in ${NGINX_CONF_LOCS}; do
+            LogText "Test: Checking ${DIR}"
+            if [ -d ${DIR} ]; then
+                LogText "Result: Directory ${DIR} exists, so will be used as search path"
+                FIND=$(find ${DIR} -type f -exec ${GREPBINARY} access_log \{\} \; | ${GREPBINARY} -v "#" | ${AWKBINARY} '{ if($1=="access_log") { print $2 } }' | ${SEDBINARY} 's/;$//g' | ${SORTBINARY} -u)
+                if [ -z "${FIND}" ]; then
+                    LogText "Result: no log files found"
+                else
+                    LogText "Result: found one or more log files"
+                    for FILE in ${FIND}; do
+                        if [ -f ${FILE} ]; then
+                            LogText "Found log file: ${FILE}"
+                            Report "log_file=${FILE}"
+                        else
+                            LogText "Found non existing log file: ${FILE}"
+                        fi
                     done
                 fi
-              else
-                  logtext "Result: directory ${I} not found, skipping search in this directory."
-              fi
+            else
+                LogText "Result: directory ${DIR} not found, skipping search in this directory."
+            fi
         done
+        unset DIR; unset FILE; unset FIND
     fi
 #
 #################################################################################
@@ -700,8 +737,8 @@
     if [ ! "${TMPFILE2}" = "" ]; then if [ -f ${TMPFILE2} ]; then rm -f ${TMPFILE2}; fi; fi
 
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

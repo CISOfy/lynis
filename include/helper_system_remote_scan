@@ -1,0 +1,85 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+######################################################################
+#
+# Helper program to perform a remote scan
+#
+######################################################################
+#
+# Options:
+# ---------
+# 1) lynis update info     - Show version information (external)
+# 2) lynis update release  - Check and install new release (internal)
+#
+# How to use:
+# ------------
+# Run option 1 to know about current and latest release information.
+# Run option 2 to query internal server for possible upgrade of Lynis.
+#
+# Steps for updating to new release:
+# 1) Run Lynis with: lynis update release
+# 2) Lynis will use this helper and check the profile
+# 3) The configured web server will be queried (lynis-latest-version)
+# 4) The contents of this file will be compared with a local file
+# 5) If there is a difference, download package
+# 6) Check paths and extract files
+# 7) Quit program
+#
+# Suggested documentation if you want to use this functionality:
+# https://cisofy.com/documentation/lynis/upgrading/
+#
+######################################################################
+
+    # Enable screen output again
+    QUIET=0
+
+    SCP_BINARY=`which scp 2> /dev/null`
+    SSH_BINARY=`which ssh 2> /dev/null`
+    if [ "${SCP_BINARY}" = "" ]; then echo "Could not find scp binary"; ExitFatal; fi
+    if [ "${SSH_BINARY}" = "" ]; then echo "Could not find ssh binary"; ExitFatal; fi
+
+    LYNIS_TARBALL="lynis-remote.tar.gz"
+    echo ""
+    echo  "  ${BLUE}* ${WHITE}Step 1${NORMAL}: ${CYAN}Create tarball${NORMAL}"
+    printf "%s\n\n" "    mkdir -p ./files && cd .. && tar czf ./lynis/files/${LYNIS_TARBALL} --exclude=files/${LYNIS_TARBALL} ./lynis && cd lynis"
+
+    echo "  ${BLUE}* ${WHITE}Step 2${NORMAL}: ${CYAN}Copy tarball to target ${REMOTE_TARGET}${NORMAL}"
+    LYNIS_TARBALL="./files/lynis-remote.tar.gz"
+    printf "%s\n\n" "    scp -q ${LYNIS_TARBALL} ${REMOTE_TARGET}:~/tmp-lynis-remote.tgz"
+    #if [ $? -gt 0 ]; then echo "Could not copy tarball to target"; ExitFatal; fi
+
+    echo "  ${BLUE}* ${WHITE}Step 3${NORMAL}: ${CYAN}Execute audit command${NORMAL}"
+
+    printf "%s\n\n" "    ssh ${REMOTE_TARGET} \"mkdir -p ~/tmp-lynis && cd ~/tmp-lynis && tar xzf ../tmp-lynis-remote.tgz && rm ../tmp-lynis-remote.tgz && cd lynis && ${REMOTE_COMMAND}\""
+    #if [ $? -gt 1 ]; then echo "Could not perform remote audit"; ExitFatal; fi
+
+    echo "  ${BLUE}* ${WHITE}Step 4${NORMAL}: ${CYAN}Clean up directory${NORMAL}"
+    printf "%s\n\n" "    ssh ${REMOTE_TARGET} rm -rf ~/tmp-lynis"
+
+    echo "  ${BLUE}* ${WHITE}Step 5${NORMAL}: ${CYAN}Retrieve log and report${NORMAL}"
+    printf "%s\n" "    scp -q ${REMOTE_TARGET}:/tmp/lynis.log ./files/${REMOTE_TARGET}-lynis.log"
+    printf "%s\n\n" "    scp -q ${REMOTE_TARGET}:/tmp/lynis-report.dat ./files/${REMOTE_TARGET}-lynis-report.dat"
+
+    echo "  ${BLUE}* ${WHITE}Step 6${NORMAL}: ${CYAN}Clean up tmp files (when using non-privileged account)${NORMAL}"
+    printf "%s\n\n" "    ssh ${REMOTE_TARGET} rm /tmp/lynis.log /tmp/lynis-report.dat"
+
+    # No more Lynis output
+    QUIET=1
+
+# The End

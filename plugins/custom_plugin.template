@@ -1,11 +1,12 @@
 #!/bin/sh
+
 # -------------------------- CUT THIS SECTION ---------------------------
-#  This is a template to create a personal plugin
+#  This is a template to create a customized plugin
 #
 #  Each plugin should at least have several variables defined with the
 #  prefix PLUGIN_* (see below)
 #
-#  To add a section header, use the InsertSection function (see below)
+#  If you want to learn what functions you can use, check include/functions
 #
 # -------------------------- CUT THIS SECTION ---------------------------
 
@@ -19,43 +20,59 @@
 # PLUGIN_NAME=[plugin_name]
 # PLUGIN_REQUIRED_TESTS=
 #-----------------------------------------------------
-#########################################################################
-#
-#
 #
 #########################################################################
 #
-# Add custom section to screen output
-#    InsertSection "Personal Plugin"
+    # Add custom section to screen output
+    InsertSection "Custom Plugin"
 #
 #################################################################################
 #
-    # Test        : CUS-0000
-    # Description : check for an ordinary directory!
+    # Test        : CUST-0001
+    # Description : We show some lines on the screen
+
+    # Register our first custom test
+    # We consider it to be a lightweight test (no heavy IO, or long searches), no network connection needed
+    Register --test-no CUST-0001 --weight L --network NO --description "A test case for colors and text display"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # The Display function makes it easy to show something on screen, with colors.
+        # --indent  defines amount of spaces
+        # --text    text to be displayed on screen
+        # --result  text at end of line
+        # --color   color of result text
+        Display --indent 2 --text "- Checking if everything is OK..." --result OK --color GREEN
+        Display --indent 4 --text "This shows one level deeper " --result NOTICE --color YELLOW
+        Display --indent 6 --text "And even deeper" --result WARNING --color RED
+
+        # Show a warning on screen and in the report. We can specify a detail and how to solve it.
+        ReportWarning "${TEST_NO}" "Something was wrong and should be fixed" "/etc/motd" "text:Change your motd"
+        ReportSuggestion "${TEST_NO}" "Check if this process is running" "apache" "url:https://cisofy.com/support/"
+    fi
+#
+#################################################################################
+#
 
     # First check if OPENSSLBINARY is known as a prerequisite for this test.
     if [ ! -z "${OPENSSLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CUS-0000 --preqs-met ${PREQS_MET} --weight L --network NO --description "Description of custom test"
-
-    # Just do check without any prerequisites
-    Register --test-no CUS-0000 --weight L --network NO --description "Description of custom test"
+    Register --test-no CUST-0001 --preqs-met ${PREQS_MET} --weight M --network NO --description "Description of custom test"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUNDPROBLEM=0
+        DIR="/my/path"
+        LogText "Test: we are going to check if we can find a particular directory (${DIR})"
         # Check if a directory exists
-        if [ -d /my/path ]; then
-                logtext "Result: log entry for easier debugging or additional information"
-              else
-                FOUNDPROBLEM=1
-                logtext "Result: problem found!"
-                ReportWarning ${TEST_NO} "M" "This is a test warning line"
+        if [ -d ${DIR} ]; then
+            LogText "Result: log entry for easier debugging or additional information"
+          else
+            FOUNDPROBLEM=1
+            LogText "Result: directory ${DIR} was not found!"
+            ReportWarning "${TEST_NO}" "This is a test warning line" "${DIR}" "text:Create directory ${DIR}"
         fi
 
         if [ ${FOUNDPROBLEM} -eq 0 ]; then
-            Display --indent 2 --text "- Checking xxx..." --result OK --color GREEN
+            Display --indent 2 --text "- Checking if everything is OK..." --result OK --color GREEN
           else
-            Display --indent 2 --text "- Checking xxx..." --result WARNING --color RED
+            Display --indent 2 --text "- Checking if everything is OK..." --result WARNING --color RED
             ReportSuggestion ${TEST_NO} "This is a suggestion"
-            ReportWarning ${TEST_NO} "M" "This is a medium level warning"
         fi
     fi
 #

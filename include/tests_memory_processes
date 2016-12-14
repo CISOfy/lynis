@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -18,25 +22,25 @@
 #
 #################################################################################
 #
-    InsertSection "Memory and processes"
+    InsertSection "${SECTION_MEMORY_AND_PROCESSES}"
 #
 #################################################################################
 #
     # Test        : PROC-3602
     # Description : Query /proc/meminfo
-    Register --test-no PROC-3602 --os Linux --weight L --network NO --description "Checking /proc/meminfo for memory details"
+    Register --test-no PROC-3602 --os Linux --weight L --network NO --category security --description "Checking /proc/meminfo for memory details"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /proc/meminfo ]; then
-            logtext "Result: found /proc/meminfo"
-            Display --indent 2 --text "- Checking /proc/meminfo" --result FOUND --color GREEN
-            FIND=`awk '/^MemTotal/ { print $2, $3 }' /proc/meminfo`
-            MEMORY_SIZE=`echo ${FIND} | awk '{ print $1 }'`
-            MEMORY_UNITS=`echo ${FIND} | awk '{ print $2 }'`
-            logtext "Result: Found ${MEMORY_SIZE} ${MEMORY_UNITS} memory"
-            report "memory_size=${MEMORY_SIZE}"
-            report "memory_units=${MEMORY_UNITS}"
-          else
-            logtext "Result: /proc/meminfo file not found on this system"
+            LogText "Result: found /proc/meminfo"
+            Display --indent 2 --text "- Checking /proc/meminfo" --result "${STATUS_FOUND}" --color GREEN
+            FIND=$(${AWKBINARY} '/^MemTotal/ { print $2, $3 }' /proc/meminfo)
+            MEMORY_SIZE=$(echo ${FIND} | ${AWKBINARY} '{ print $1 }')
+            MEMORY_UNITS=$(echo ${FIND} | ${AWKBINARY} '{ print $2 }')
+            LogText "Result: Found ${MEMORY_SIZE} ${MEMORY_UNITS} memory"
+            Report "memory_size=${MEMORY_SIZE}"
+            Report "memory_units=${MEMORY_UNITS}"
+        else
+            LogText "Result: /proc/meminfo file not found on this system"
         fi
     fi
 #
@@ -44,19 +48,20 @@
 #
     # Test        : PROC-3604
     # Description : Query /proc/meminfo
-    Register --test-no PROC-3604 --os Solaris --weight L --network NO --description "Query prtconf for memory details"
+    # Notes       : TODO - prtconf replacement
+    Register --test-no PROC-3604 --os Solaris --weight L --network NO --category security --description "Query prtconf for memory details"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Searching /usr/sbin/prtconf"
+        LogText "Test: Searching /usr/sbin/prtconf"
         if [ -x /usr/sbin/prtconf ]; then
-            Display --indent 2 --text "- Querying prtconf for installed memory" --result DONE --color GREEN
-            MEMORY_SIZE=`/usr/sbin/prtconf | grep "^Memory size:" | cut -d ' ' -f3`
-            MEMORY_UNITS=`/usr/sbin/prtconf | grep "^Memory size:" | cut -d ' ' -f4`
-            logtext "Result: Found ${MEMORY_SIZE} ${MEMORY_UNITS} memory"
-            report "memory_size=${MEMORY_SIZE}"
-            report "memory_units=${MEMORY_UNITS}"
-          else
-            Display --indent 2 --text "- Querying prtconf for installed memory" --result SKIPPED --color WHITE
-            logtext "Result: /usr/sbin/prtconf not found"
+            Display --indent 2 --text "- Querying prtconf for installed memory" --result "${STATUS_DONE}" --color GREEN
+            MEMORY_SIZE=$(/usr/sbin/prtconf | ${GREPBINARY} "^Memory size:" | ${CUTBINARY} -d ' ' -f3)
+            MEMORY_UNITS=$(/usr/sbin/prtconf | ${GREPBINARY} "^Memory size:" | ${CUTBINARY} -d ' ' -f4)
+            LogText "Result: Found ${MEMORY_SIZE} ${MEMORY_UNITS} memory"
+            Report "memory_size=${MEMORY_SIZE}"
+            Report "memory_units=${MEMORY_UNITS}"
+        else
+            Display --indent 2 --text "- Querying prtconf for installed memory" --result "${STATUS_SKIPPED}" --color WHITE
+            LogText "Result: /usr/sbin/prtconf not found"
         fi
     fi
 #
@@ -66,20 +71,20 @@
     # Description : Searching for dead and zombie processes
     # Notes       : Don't perform test on Solaris
     if [ ! "${OS}" = "Solaris" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PROC-3612 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check dead or zombie processes"
+    Register --test-no PROC-3612 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check dead or zombie processes"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${OS}" = "AIX" ]; then
-            FIND=`${PSBINARY} -Ae -o pid,wchan,stat,comm | awk '{ if ($3 ~ /Z|X/) print $1 }' | xargs`
-          else
-            FIND=`${PSBINARY} x -o pid,wchan,stat,comm | awk '{ if ($3 ~ /Z|X/) print $1 }' | xargs`
+            FIND=$(${PSBINARY} -Ae -o pid,stat,comm | ${AWKBINARY} '{ if ($2 ~ /Z|X/) print $1 }' | ${XARGSBINARY})
+        else
+            FIND=$(${PSBINARY} x -o pid,stat,comm | ${AWKBINARY} '{ if ($2 ~ /Z|X/) print $1 }' | ${XARGSBINARY})
         fi
-        if [ "${FIND}" = "" ]; then
-            logtext "Result: no zombie processes found"
-            Display --indent 2 --text "- Searching for dead/zombie processes" --result OK --color GREEN
-          else
-            logtext "Result: found one or more dead or zombie processes"
-            logtext "Output: PIDs ${FIND}"
-            Display --indent 2 --text "- Searching for dead/zombie processes" --result WARNING --color RED
+        if [ -z "${FIND}" ]; then
+            LogText "Result: no zombie processes found"
+            Display --indent 2 --text "- Searching for dead/zombie processes" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: found one or more dead or zombie processes"
+            LogText "Output: PIDs ${FIND}"
+            Display --indent 2 --text "- Searching for dead/zombie processes" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion ${TEST_NO} "Check the output of ps for dead or zombie processes"
         fi
     fi
@@ -90,21 +95,21 @@
     # Description : Searching for heavy IO based waiting processes
     # Notes       : Don't perform test on Solaris
     if [ ! "${OS}" = "Solaris" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PROC-3614 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check heavy IO waiting based processes"
+    Register --test-no PROC-3614 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check heavy IO waiting based processes"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${OS}" = "AIX" ]; then
-            FIND=`${PSBINARY} -Ae -o pid,wchan,stat,comm | awk '{ if ($3=="D") print $1 }' | xargs`
-          else
-            FIND=`${PSBINARY} x -o pid,wchan,stat,comm | awk '{ if ($3=="D") print $1 }' | xargs`
+            FIND=$(${PSBINARY} -Ae -o pid,stat,comm | ${AWKBINARY} '{ if ($2=="D") print $1 }' | ${XARGSBINARY})
+        else
+            FIND=$(${PSBINARY} x -o pid,stat,comm | ${AWKBINARY} '{ if ($2=="D") print $1 }' | ${XARGSBINARY})
         fi
-        if [ "${FIND}" = "" ]; then
-            logtext "Result: No processes were waiting for IO requests to be handled first"
-            Display --indent 2 --text "- Searching for IO waiting processes" --result OK --color GREEN
-          else
-            logtext "Result: found one or more processes which were waiting to get IO requests handled first"
-            logtext "More info: processes which show up with the status flag 'D' are often stuck, until a disk IO event finished. This can happen for example with network storage, where the connection or protocol settings are not logtext well configured."
-            logtext "Output: PIDs ${FIND}"
-            Display --indent 2 --text "- Searching for IO waiting processes" --result WARNING --color RED
+        if [ -z "${FIND}" ]; then
+            LogText "Result: No processes were waiting for IO requests to be handled first"
+            Display --indent 2 --text "- Searching for IO waiting processes" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: found one or more processes which were waiting to get IO requests handled first"
+            LogText "More info: processes which show up with the status flag 'D' are often stuck, until a disk IO event finished. This can happen for example with network storage, where the connection or protocol settings are not logtext well configured."
+            LogText "Output: PIDs ${FIND}"
+            Display --indent 2 --text "- Searching for IO waiting processes" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion ${TEST_NO} "Check process listing for processes waiting for IO requests"
         fi
     fi
@@ -112,8 +117,8 @@
 #################################################################################
 #
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

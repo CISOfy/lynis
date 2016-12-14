@@ -1,0 +1,56 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+    AIDECONFIG=""
+    CSF_CONFIG="${ROOTDIR}etc/csf/csf.conf"
+    FILE_INT_TOOL=""
+    FILE_INT_TOOL_FOUND=0     # Boolean, file integrity tool found
+#
+#################################################################################
+#
+    InsertSection "Software: file integrity"
+    Display --indent 2 --text "- Checking file integrity tools"
+#
+#################################################################################
+#
+    if [ -x "/usr/bin/csrutil" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; SKIPREASON="No CSrutil binary found"; fi
+    Register --test-no SINT-7010 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight H --network NO --category security --description "System Integrity Status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Most tests use the "if-then-else". If something is true, take one step, otherwise the other.
+        if /usr/bin/csrutil status|grep -sq enabled ; then
+            Display --indent 2 --text "- System Integrity Protectioni (status)" --result "${STATUS_OK}" --color GREEN
+            Report "system_integrity_tool[]=mac-sip"
+            LogText "Result: SIP enabled, OK"
+            AddHP 3 3
+        else
+            Display --indent 2 --text "- System Integrity Protection (status)" --result "${STATUS_NO}" --color RED
+            LogText "Result: SIP disabled, BAD"
+            AddHP 0 3
+            # TODO: add suggestion
+        fi
+    fi
+
+#
+#################################################################################
+#
+    WaitForKeyPress
+#
+#================================================================================
+# Lynis - Copyright 2007-2016 Michael Boelen, CISOfy - https://cisofy.com

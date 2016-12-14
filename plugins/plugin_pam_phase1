@@ -24,13 +24,12 @@
         FOUNDPROBLEM=0
         # Check if the PAM directory structure exists
         if [ -d ${PAM_DIRECTORY} ]; then
-                logtext "Result: /etc/pam.d exists"
+                LogText "Result: /etc/pam.d exists"
                 FIND_FILES=`find ${PAM_DIRECTORY} -type f -print`
                 # First check /etc/pam.conf if it exists.
                 #if [ -f /etc/pam.conf ]; then FIND="/etc/pam.conf ${FIND}"; fi
                 for PAM_FILE in ${FIND_FILES}; do
-                    #echo ""
-                    logtext "Now checking PAM file ${PAM_FILE}"
+                    LogText "Now checking PAM file ${PAM_FILE}"
                     while read line; do
                         # Strip empty lines, commented lines, tabs, line breaks (\), then finally remove all double spaces
                         LINE=`echo $line | grep -v "^#" | grep -v "^$" | tr '\011' ' ' | sed 's/\\\n/ /' | sed 's/  / /g' | sed 's/ #\(.*\)$//'`
@@ -45,7 +44,7 @@
                             case ${PAM_TYPE} in
                                 "@include")
                                     FILE=`echo ${LINE} | awk '{ print $2 }'`
-                                    logtext "Result: Found @include. Does include PAM settings from file ${FILE} (which is individually processed)"
+                                    Debug "Result: Found @include in ${PAM_FILE}. Does include PAM settings from file ${FILE} (which is individually processed)"
                                 ;;
                                 "account")
                                     PARSELINE=1
@@ -60,7 +59,7 @@
                                     PARSELINE=1
                                 ;;
                                 *)
-                                    logtext "Exception: Unknown PAM type found"
+                                    LogText "Exception: Unknown PAM type found (${PAM_TYPE})"
                                 ;;
                             esac
                             if [ ${PARSELINE} -eq 1 ]; then
@@ -68,7 +67,7 @@
                                 if [ ! "${MULTIPLE_OPTIONS}" = "" ]; then
                                     # Needs more parsing, depending on the options found
                                     PAM_CONTROL_OPTIONS=`echo ${LINE} | sed "s/^.*\[//" | sed "s/\].*$//"`
-                                    logtext "Result: Found brackets in line, indicating multiple options for control flags: ${PAM_CONTROL_OPTIONS}"
+                                    LogText "Result: Found brackets in line, indicating multiple options for control flags: ${PAM_CONTROL_OPTIONS}"
                                     LINE=`echo ${LINE} | sed "s/ \[.*\] / other /"`
                                 fi
                                 PAM_MODULE=`echo ${LINE} | awk '{ print $3 }'`
@@ -76,20 +75,21 @@
                                 PAM_CONTROL_FLAG=`echo ${LINE} | awk '{ print $2 }'`
                                 case ${PAM_CONTROL_FLAG} in
                                         "optional"|"required"|"requisite"|"sufficient")
-                                            Debug "Found a common control flag: ${PAM_CONTROL_FLAG} for ${PAM_MODULE}"
+                                            #Debug "Found a common control flag: ${PAM_CONTROL_FLAG} for ${PAM_MODULE}"
+                                            X=0 # do nothing
                                         ;;
                                         "other")
-                                            logtext "Result: brackets used, ignoring control flags"
+                                            LogText "Result: brackets used, ignoring control flags"
                                         ;;
                                         *)
-                                            logtext "Unknown control flag found (${PAM_CONTROL_FLAG})"
+                                            LogText "Unknown control flag found (${PAM_CONTROL_FLAG})"
                                         ;;
                                 esac
                                 if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
-                                    logtext "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) with options ${PAM_MODULE_OPTIONS}"
+                                    LogText "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) with options ${PAM_MODULE_OPTIONS}"
                                   else
                                     PAM_MODULE_OPTIONS="-"
-                                    logtext "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) without options configured"
+                                    LogText "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) without options configured"
                                 fi
 
                                 PAM_MODULE_NAME=`echo ${PAM_MODULE} | sed 's/.so$//'`
@@ -124,18 +124,18 @@
                                     # Google Authenticator / YubiKey
                                     # Common to find it only enabled for SSH
                                     pam_google_authenticator | pam_yubico)
-                                        logtext "Result: found pam_google_authenticator"
+                                        LogText "Result: found pam_google_authenticator"
                                         if [ "${PAM_CONTROL_FLAG}" = "required" ]; then
                                             PAM_2F_AUTH_ENABLED=1
                                             PAM_2F_AUTH_REQUIRED=1
-                                            report "authentication_2f_provider[]=${PAM_MODULE_NAME}"
-                                            report "authentication_2f_service[]=${PAM_SERVICE}"
+                                            Report "authentication_2f_provider[]=${PAM_MODULE_NAME}"
+                                            Report "authentication_2f_service[]=${PAM_SERVICE}"
                                         elif -o "${PAM_CONTROL_FLAG}" = "sufficient" ]; then
                                             PAM_2F_AUTH_ENABLED=1
-                                            report "authentication_2f_provider[]=${PAM_MODULE_NAME}"
-                                            report "authentication_2f_service[]=${PAM_SERVICE}"
+                                            Report "authentication_2f_provider[]=${PAM_MODULE_NAME}"
+                                            Report "authentication_2f_service[]=${PAM_SERVICE}"
                                         else
-                                            logtext "exception: found 2F authenticator enabled with uncommon control flag: ${PAM_CONTROL_FLAG}"
+                                            LogText "exception: found 2F authenticator enabled with uncommon control flag: ${PAM_CONTROL_FLAG}"
                                         fi
                                     ;;
                                     pam_group) ;;
@@ -153,7 +153,7 @@
 
                                     # Password history - Can be configured via pam_unix or pam_pwhistory
                                     pam_pwhistory)
-                                        logtext "Result: found ${PAM_MODULE} module (password history)"
+                                        LogText "Result: found ${PAM_MODULE} module (password history)"
                                         # set default for having pam_pwhistory enabled
                                         PAM_PASSWORD_PWHISTORY_ENABLED=1
                                         if [ "${PAM_PASSWORD_PWHISTORY_AMOUNT}" = "" ]; then PAM_PASSWORD_PWHISTORY_AMOUNT=10; fi
@@ -164,7 +164,7 @@
                                                 CREDITS_CONFIGURED=0
                                                 case ${OPTION} in
                                                     remember)
-                                                        logtext "Result: password history (remember) configured for pam_pwhistory"
+                                                        LogText "Result: password history (remember) configured for pam_pwhistory"
                                                         DigitsOnly ${VALUE}
                                                         PAM_PASSWORD_PWHISTORY_AMOUNT=${VALUE}
                                                         Debug "Found password history enabled with module ${PAM_MODULE_NAME} and password amount ${PAM_PASSWORD_PWHISTORY_AMOUNT}"
@@ -185,7 +185,7 @@
 
                                     # Password history - Can be configured via pam_unix or pam_pwhistory
                                     pam_unix)
-                                        logtext "Result: found ${PAM_MODULE} module (generic)"
+                                        LogText "Result: found ${PAM_MODULE} module (generic)"
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
                                             for I in ${PAM_MODULE_OPTIONS}; do
                                                 OPTION=`echo ${I} | awk -F= '{ print $1 }'`
@@ -193,7 +193,7 @@
                                                 CREDITS_CONFIGURED=0
                                                 case ${OPTION} in
                                                     remember)
-                                                        logtext "Result: password history configured for pam_unix"
+                                                        LogText "Result: password history configured for pam_unix"
                                                         DigitsOnly ${VALUE}
                                                         PAM_PASSWORD_UXHISTORY_AMOUNT=${VALUE}
                                                         PAM_PASSWORD_UXHISTORY_ENABLED=1
@@ -211,7 +211,7 @@
 
                                     # Password strength testing
                                     pam_cracklib | pam_pwquality)
-                                        logtext "Result: found module ${PAM_MODULE} for password strength testing"
+                                        LogText "Result: found module ${PAM_MODULE} for password strength testing"
 
                                         # Set default values
                                         if [ "${CREDITS_D_PASSWORD}" = "" ]; then CREDITS_D_PASSWORD=1; fi
@@ -233,19 +233,19 @@
                                                 case ${OPTION} in
                                                     minlen)
                                                         # Minimum length (remove 1 if credits are configured, at later stage in function)
-                                                        logtext "Result: minlen configured"
+                                                        LogText "Result: minlen configured"
                                                         DigitsOnly ${VALUE}
                                                         MIN_PASSWORD_LENGTH=${VALUE}
                                                     ;;
                                                     retry)
                                                         # Maximum password retry
-                                                        logtext "Result: Max password Retry configured"
+                                                        LogText "Result: Max password Retry configured"
                                                         DigitsOnly ${VALUE}
                                                         MAX_PASSWORD_RETRY=${VALUE}
                                                     ;;
                                                     minclass)
                                                         # Minimum number of class required out of upper, lower, digit and oters
-                                                        logtext "Result: Min number of password class is configured"
+                                                        LogText "Result: Min number of password class is configured"
                                                         MIN_PASSWORD_CLASS=${VALUE}
                                                     ;;
                                                     dcredit)
@@ -261,7 +261,7 @@
                                                         CREDITS_U_PASSWORD=${VALUE}
                                                     ;;
                                                     *)
-                                                        logtext "Result: unknown option found: ${OPTION} with value ${VALUE}"
+                                                        LogText "Result: unknown option found: ${OPTION} with value ${VALUE}"
                                                     ;;
                                                 esac
                                             done
@@ -270,8 +270,8 @@
 
                                     pam_tally | pam_tally2)
                                         if [ "${PAM_CONTROL_FLAG}" = "required" ]; then
-                                            logtext "Result: found a required module for countering brute force cracking attempts"
-                                            report "pam_auth_brute_force_protection_module[]=${PAM_MODULE_NAME}"
+                                            LogText "Result: found a required module for countering brute force cracking attempts"
+                                            Report "pam_auth_brute_force_protection_module[]=${PAM_MODULE_NAME}"
                                             PAM_AUTH_BRUTE_FORCE_PROTECTION=1
                                         fi
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
@@ -290,10 +290,10 @@
                                         fi
                                     ;;
                                     "-")
-                                        logtext "NOTE: this module is not parsed, as it uses an unknown control flag or type"
+                                        LogText "NOTE: this module is not parsed, as it uses an unknown control flag or type"
                                     ;;
                                     *)
-                                        logtext "Result: found pluggable authentication module ${PAM_MODULE}, which is unknown"
+                                        LogText "Result: found pluggable authentication module ${PAM_MODULE}, which is unknown"
                                     ;;
                                 esac
                             fi
@@ -319,115 +319,115 @@
 # pam_cracklib or pam_pwquality is used
 # In that case, the file should be owned by root, with 440/640/660 permissions
 
-logtext "[PAM] PAM 2F authentication enabled: ${PAM_2F_AUTH_ENABLED}"
-report "authentication_two_factor_enabled=${PAM_2F_AUTH_ENABLED}"
+LogText "[PAM] PAM 2F authentication enabled: ${PAM_2F_AUTH_ENABLED}"
+Report "authentication_two_factor_enabled=${PAM_2F_AUTH_ENABLED}"
 
-logtext "[PAM] PAM 2F authentication required: ${PAM_2F_AUTH_REQUIRED}"
-report "authentication_two_factor_required=${PAM_2F_AUTH_ENABLED}"
+LogText "[PAM] PAM 2F authentication required: ${PAM_2F_AUTH_REQUIRED}"
+Report "authentication_two_factor_required=${PAM_2F_AUTH_ENABLED}"
 
 if [ ! "${AUTH_UNLOCK_TIME}" = "-1" ]; then
-    logtext "[PAM] Authentication unlock time: ${AUTH_UNLOCK_TIME}"
-    report "authentication_unlock_time=${AUTH_UNLOCK_TIME}"
+    LogText "[PAM] Authentication unlock time: ${AUTH_UNLOCK_TIME}"
+    Report "authentication_unlock_time=${AUTH_UNLOCK_TIME}"
   else
-    logtext "[PAM] Authentication unlock time: not configured"
+    LogText "[PAM] Authentication unlock time: not configured"
 fi
 
-logtext "[PAM] Password brute force protection: ${PAM_AUTH_BRUTE_FORCE_PROTECTION}"
+LogText "[PAM] Password brute force protection: ${PAM_AUTH_BRUTE_FORCE_PROTECTION}"
 
 if [ ${PAM_AUTH_BRUTE_FORCE_PROTECTION} -eq 1 ]; then
-    report "authentication_brute_force_protection=1"
+    Report "authentication_brute_force_protection=1"
 fi
 
 if [ ! "${MIN_PASSWORD_LENGTH}" = "-1" ]; then
-    logtext "[PAM] Minimum password length: ${MIN_PASSWORD_LENGTH}"
-    report "minimum_password_length=${MIN_PASSWORD_LENGTH}"
+    LogText "[PAM] Minimum password length: ${MIN_PASSWORD_LENGTH}"
+    Report "minimum_password_length=${MIN_PASSWORD_LENGTH}"
   else
-    logtext "[PAM] Minimum password length: not configured"
+    LogText "[PAM] Minimum password length: not configured"
 fi
 
-logtext "[PAM] Password strength testing enabled: ${PAM_PASSWORD_STRENGTH_TESTED}"
+LogText "[PAM] Password strength testing enabled: ${PAM_PASSWORD_STRENGTH_TESTED}"
 if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
-    report "password_strength_tested=1"
+    Report "password_strength_tested=1"
 
         if [ ${CREDITS_D_PASSWORD} -ge 1 -a ${CREDITS_L_PASSWORD} -ge 1 -a ${CREDITS_O_PASSWORD} -ge 1 -a ${CREDITS_U_PASSWORD} -ge 1 ]; then
                 # Show how many password class are required out of 4
-                logtext "[PAM] Minimum password class out of 4: ${MIN_PASSWORD_CLASS}"
-                report "min_password_class=${MIN_PASSWORD_CLASS}"
+                LogText "[PAM] Minimum password class out of 4: ${MIN_PASSWORD_CLASS}"
+                Report "min_password_class=${MIN_PASSWORD_CLASS}"
         else
-                logtext "[PAM] Minimum password class setting of ${MIN_PASSWORD_CLASS} out of 4 is ignored since at least 1 class are forced"
-                report "min_password_class=ignored"
+                LogText "[PAM] Minimum password class setting of ${MIN_PASSWORD_CLASS} out of 4 is ignored since at least 1 class are forced"
+                Report "min_password_class=ignored"
         fi
 
         # Digits
         if [ ${CREDITS_D_PASSWORD} -lt 0 ]; then
                 CREDITS_D_PASSWORD=`echo ${CREDITS_D_PASSWORD} | cut -b 2-`
-                logtext "[PAM] Minimum number of Digital characters required: ${CREDITS_D_PASSWORD}"
-                report "password_min_digital_required=${CREDITS_D_PASSWORD}"
+                LogText "[PAM] Minimum number of Digital characters required: ${CREDITS_D_PASSWORD}"
+                Report "password_min_digital_required=${CREDITS_D_PASSWORD}"
         elif [ ${CREDITS_D_PASSWORD} -ge 0 ]; then
-                logtext "[PAM] Maximum credit for Digital characters: ${CREDITS_D_PASSWORD}"
-                report "password_max_digital_credit=${CREDITS_D_PASSWORD}"
+                LogText "[PAM] Maximum credit for Digital characters: ${CREDITS_D_PASSWORD}"
+                Report "password_max_digital_credit=${CREDITS_D_PASSWORD}"
         fi
 
         # Lowercase
         if [ ${CREDITS_L_PASSWORD} -lt 0 ]; then
                 CREDITS_L_PASSWORD=`echo ${CREDITS_L_PASSWORD} | cut -b 2-`
-                logtext "[PAM] Minimum number of Lowercase characters required: ${CREDITS_L_PASSWORD}"
-                report "password_min_l_required=${CREDITS_L_PASSWORD}"
+                LogText "[PAM] Minimum number of Lowercase characters required: ${CREDITS_L_PASSWORD}"
+                Report "password_min_l_required=${CREDITS_L_PASSWORD}"
         elif [ ${CREDITS_L_PASSWORD} -ge 0 ]; then
-                logtext "[PAM] Maximum credit for Lowercase characters: ${CREDITS_L_PASSWORD}"
-                report "password_max_l_credit=${CREDITS_L_PASSWORD}"
+                LogText "[PAM] Maximum credit for Lowercase characters: ${CREDITS_L_PASSWORD}"
+                Report "password_max_l_credit=${CREDITS_L_PASSWORD}"
         fi
 
         # Other characters
         if [ ${CREDITS_O_PASSWORD} -lt 0 ]; then
                 CREDITS_O_PASSWORD=`echo ${CREDITS_O_PASSWORD} | cut -b 2-`
-                logtext "[PAM] Minimum number of Other characters required: ${CREDITS_O_PASSWORD}"
-                report "password_min_other_required=${CREDITS_O_PASSWORD}"
+                LogText "[PAM] Minimum number of Other characters required: ${CREDITS_O_PASSWORD}"
+                Report "password_min_other_required=${CREDITS_O_PASSWORD}"
         elif [ ${CREDITS_O_PASSWORD} -ge 0 ]; then
-                logtext "[PAM] Maximum credit for Other characters: ${CREDITS_O_PASSWORD}"
-                report "password_max_other_credit=${CREDITS_O_PASSWORD}"
+                LogText "[PAM] Maximum credit for Other characters: ${CREDITS_O_PASSWORD}"
+                Report "password_max_other_credit=${CREDITS_O_PASSWORD}"
         fi
 
         # Uppercase
         if [ ${CREDITS_U_PASSWORD} -lt 0 ]; then
                 CREDITS_U_PASSWORD=`echo ${CREDITS_U_PASSWORD} | cut -b 2-`
-                logtext "[PAM] Minimum number of Uppercase characters required: ${CREDITS_U_PASSWORD}"
-                report "password_min_u_required=${CREDITS_U_PASSWORD}"
+                LogText "[PAM] Minimum number of Uppercase characters required: ${CREDITS_U_PASSWORD}"
+                Report "password_min_u_required=${CREDITS_U_PASSWORD}"
         elif [ ${CREDITS_U_PASSWORD} -ge 0 ]; then
-                logtext "[PAM] Maximum credit for Uppercase characters: ${CREDITS_U_PASSWORD}"
-                report "password_max_u_credit=${CREDITS_U_PASSWORD}"
+                LogText "[PAM] Maximum credit for Uppercase characters: ${CREDITS_U_PASSWORD}"
+                Report "password_max_u_credit=${CREDITS_U_PASSWORD}"
         fi
 fi
 
 # Show how many retries are allowed to change password
 if [ ! "${MAX_PASSWORD_RETRY}" = "" ]; then
-    logtext "[PAM] Password maximum retry: ${MAX_PASSWORD_RETRY}"
-    report "max_password_retry=${MAX_PASSWORD_RETRY}"
+    LogText "[PAM] Password maximum retry: ${MAX_PASSWORD_RETRY}"
+    Report "max_password_retry=${MAX_PASSWORD_RETRY}"
   else
-    logtext "[PAM] Password maximum retry: Not configured"
+    LogText "[PAM] Password maximum retry: Not configured"
 fi
 
 # If auditd is running, but pam_loginuid not, events might not be properly logged
 if [ ${AUDITD_RUNNING} -eq 1 ]; then
     if [ ${PAM_LOGINUID_FOUND} -eq 0 ]; then
-        report "pam_issue[]=pam_loginuid is missing"
+        Report "pam_issue[]=pam_loginuid is missing"
     fi
 fi
 
 if [ ${PAM_PASSWORD_PWHISTORY_ENABLED} -eq 1 ]; then
-    logtext "[PAM] Password history with pam_pwhistory enabled: ${PAM_PASSWORD_PWHISTORY_ENABLED}"
-    logtext "[PAM] Password history with pam_pwhistory amount: ${PAM_PASSWORD_PWHISTORY_AMOUNT}"
-    report "password_history_amount=${PAM_PASSWORD_PWHISTORY_AMOUNT}"
+    LogText "[PAM] Password history with pam_pwhistory enabled: ${PAM_PASSWORD_PWHISTORY_ENABLED}"
+    LogText "[PAM] Password history with pam_pwhistory amount: ${PAM_PASSWORD_PWHISTORY_AMOUNT}"
+    Report "password_history_amount=${PAM_PASSWORD_PWHISTORY_AMOUNT}"
 else
-    logtext "[PAM] Password history with pam_pwhistory IS NOT enabled"
+    LogText "[PAM] Password history with pam_pwhistory IS NOT enabled"
 fi
 
 if [ ${PAM_PASSWORD_UXHISTORY_ENABLED} -eq 1 ]; then
-    logtext "[PAM] Password history with pam_unix enabled: ${PAM_PASSWORD_UXHISTORY_ENABLED}"
-    logtext "[PAM] Password history with pam_unix amount: ${PAM_PASSWORD_UXHISTORY_AMOUNT}"
-    report "password_history_amount=${PAM_PASSWORD_UXHISTORY_AMOUNT}"
+    LogText "[PAM] Password history with pam_unix enabled: ${PAM_PASSWORD_UXHISTORY_ENABLED}"
+    LogText "[PAM] Password history with pam_unix amount: ${PAM_PASSWORD_UXHISTORY_AMOUNT}"
+    Report "password_history_amount=${PAM_PASSWORD_UXHISTORY_AMOUNT}"
 else
-    logtext "[PAM] Password history with pam_unix IS NOT enabled"
+    LogText "[PAM] Password history with pam_unix IS NOT enabled"
 fi
 
 

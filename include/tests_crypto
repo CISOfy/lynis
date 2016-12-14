@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen (michael.boelen@cisofy.com), CISOfy
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -25,48 +29,62 @@
     # Test        : CRYP-7902
     # Description : check for expired SSL certificates
     if [ ! -z "${OPENSSLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CRYP-7902 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check expire date of SSL certificates"
+    Register --test-no CRYP-7902 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check expire date of SSL certificates"
     if [ ${SKIPTEST} -eq 0 ]; then
+        COUNT_TOTAL=0
         FOUNDPROBLEM=0
-        # Check profile for paths to check
-        sSSL_PATHS=`grep "^ssl:certificates:" ${PROFILE} | cut -d ':' -f3`
-        for I in ${sSSL_PATHS}; do
-            if [ -d ${I} ]; then
-                FileIsReadable ${I}
+        sSSL_PATHS=$(echo ${SSL_CERTIFICATE_PATHS} | ${SEDBINARY} 's/:/ /g')
+        sSSL_PATHS=$(echo ${sSSL_PATHS} | ${SEDBINARY} 's/^ //' | ${TRBINARY} " " "\n" | ${SORTBINARY} | uniq | ${TRBINARY} "\n" " ")
+        LogText "Paths to scan: ${sSSL_PATHS}"
+
+        for DIR in ${sSSL_PATHS}; do
+            COUNT_DIR=0
+            if [ -d ${DIR} ]; then
+                FileIsReadable ${DIR}
                 if [ ${CANREAD} -eq 1 ]; then
-                    logtext "Result: found directory ${I}"
+                    LogText "Result: found directory ${DIR}"
                     # Search for CRT files
-                    sFINDCRTS=`find ${I} -name "*.crt" -type f -print 2> /dev/null`
-                    for J in ${sFINDCRTS}; do
-                        FileIsReadable ${J}
-                        if [ ${CANREAD} -eq 1 ]; then
-                            logtext "Test: checking certificate ${J}"
-                            # Check certificate where 'end date' has been expired
-                            FIND=`${OPENSSLBINARY} x509 -noout -checkend 0 -in ${J} -enddate > /dev/null ; echo $?`
-                            if [ "${FIND}" = "0" ]; then
-                                logtext "Result: certificate ${J} seems to be correct and still valid"
-                                report "valid_certificate[]=${J}|unknown entity|"
-                              else
-                                FOUNDPROBLEM=1
-                                logtext "Result: certificate ${J} has been expired"
-                                report "expired_certificate[]=${J}|unknown entity|"
+                    sFINDCRTS=$(${FINDBINARY} ${DIR} -name "*.crt" -type f -print 2> /dev/null)
+                    if [ ! -z "${sFINDCRTS}" ]; then
+                        for FILE in ${sFINDCRTS}; do
+                            FileIsReadable ${FILE}
+                            if [ ${CANREAD} -eq 1 ]; then
+                                COUNT_DIR=$((COUNT_DIR + 1))
+                                LogText "Test: checking certificate ${FILE}"
+                                # Check certificate where 'end date' has been expired
+                                EXIT_CODE=$(${OPENSSLBINARY} x509 -noout -checkend 0 -in ${FILE} -enddate > /dev/null ; echo $?)
+                                CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in ${FILE} 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
+                                CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in ${FILE} 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
+                                Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
+                                if [ "${EXIT_CODE}" = "0" ]; then
+                                    LogText "Result: certificate ${FILE} seems to be correct and still valid"
+                                else
+                                    FOUNDPROBLEM=1
+                                    LogText "Result: certificate ${FILE} has been expired"
+                                fi
+                            else
+                                LogText "Result: can not read file ${FILE} (no permission)"
                             fi
-                          else
-                            logtext "Result: can not read file ${J} (no permission)"
-                        fi
-                    done
-                  else
-                    logtext "Result: can not read path ${I} (no permission)"
+                        done
+                    else
+                        LogText "Result: no certificates found in directory ${DIR}"
+                    fi
+                else
+                    LogText "Result: can not read path ${DIR} (no permission)"
                 fi
-              else
-                logtext "Result: SSL path ${I} does not exist"
+            else
+                LogText "Result: SSL path ${DIR} does not exist"
             fi
+            COUNT_TOTAL=$((COUNT_TOTAL + COUNT_DIR))
+            LogText "Result: found ${COUNT_DIR} certificates in ${DIR}"
         done
+        Report "certificates=${COUNT_TOTAL}"
+        LogText "Result: found a total of ${COUNT_TOTAL} certificates"
 
         if [ ${FOUNDPROBLEM} -eq 0 ]; then
-            Display --indent 2 --text "- Checking for expired SSL certificates" --result NONE --color GREEN
-          else
-            Display --indent 2 --text "- Checking for expired SSL certificates" --result FOUND --color RED
+            Display --indent 2 --text "- Checking for expired SSL certificates" --result "${STATUS_NONE}" --color GREEN
+        else
+            Display --indent 2 --text "- Checking for expired SSL certificates" --result "${STATUS_FOUND}" --color RED
             ReportSuggestion ${TEST_NO} "Check available certificates for expiration"
         fi
     fi
@@ -74,8 +92,8 @@
 #################################################################################
 #
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

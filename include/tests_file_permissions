@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -24,36 +28,38 @@
 #
     # Test        : FILE-7524
     # Description : Perform file permissions check
-    Register --test-no FILE-7524 --weight L --network NO --description "Perform file permissions check"
+    Register --test-no FILE-7524 --weight L --network NO --category security --description "Perform file permissions check"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Starting file permissions check"
-        logtext "Test: Checking file permissions"
-        logtext "Using profile ${PROFILE} for baseline."
-        FIND=`egrep '^permfile:|^permdir:' ${PROFILE} | cut -d: -f2`
-        for I in ${FIND}; do
-            logtext "Checking ${I}"
-            CheckFilePermissions ${I}
-            logtext "  Expected permissions: ${PROFILEVALUE}"
-            logtext "  Actual permissions: ${FILEVALUE}"
-            logtext "  Result: $PERMS"
-            if [ "${PERMS}" = "FILE_NOT_FOUND" ]; then
-                Display --indent 4 --text "${I}" --result "NOT FOUND" --color WHITE
-              elif [ "${PERMS}" = "OK" ]; then
-                Display --indent 4 --text "${I}" --result OK --color GREEN
-              elif [ "${PERMS}" = "BAD" ]; then
-                Display --indent 4 --text "${I}" --result WARNING --color RED
-                ReportWarning ${TEST_NO} "M" "Incorrect permissions for file ${I}"
-              else
-                logtext "UNKNOWN status for file"
-          fi
+        LogText "Test: Checking file permissions"
+        for PROFILE in ${PROFILES}; do
+            LogText "Using profile ${PROFILE} for baseline."
+            FIND=$(${EGREPBINARY} '^permfile:|^permdir:' ${PROFILE} | ${CUTBINARY} -d: -f2)
+            for I in ${FIND}; do
+                LogText "Checking ${I}"
+                CheckFilePermissions ${I}
+                LogText "  Expected permissions: ${PROFILEVALUE}"
+                LogText "  Actual permissions: ${FILEVALUE}"
+                LogText "  Result: $PERMS"
+                if [ "${PERMS}" = "FILE_NOT_FOUND" ]; then
+                    Display --indent 4 --text "${I}" --result "${STATUS_NOT_FOUND}" --color WHITE
+                elif [ "${PERMS}" = "OK" ]; then
+                    Display --indent 4 --text "${I}" --result "${STATUS_OK}" --color GREEN
+                elif [ "${PERMS}" = "BAD" ]; then
+                    Display --indent 4 --text "${I}" --result "${STATUS_WARNING}" --color RED
+                    ReportWarning ${TEST_NO} "Incorrect permissions for file ${I}"
+                else
+                    LogText "UNKNOWN status for file"
+                fi
+            done
         done
     fi
 #
 #################################################################################
 #
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2016, CISOfy - https://cisofy.com

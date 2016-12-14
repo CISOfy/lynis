@@ -5,8 +5,12 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2015, Michael Boelen, CISOfy (michael.boelen@cisofy.com)
-# Web site: https://cisofy.com
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
 # welcome to redistribute it under the terms of the GNU General Public License.
@@ -23,10 +27,10 @@
 #################################################################################
 #
     BIND_RUNNING=0
-    BIND_CONFIG_LOCS="/etc /etc/bind /usr/local/etc"
-    BIND_CONFIG_LOCATIONS=""
+    BIND_CONFIG_LOCS="${ROOTDIR}etc ${ROOTDIR}etc/bind ${ROOTDIR}usr/local/etc ${ROOTDIR}usr/local/etc/namedb"
+    BIND_CONFIG_LOCATION=""
     POWERDNS_RUNNING=0
-    POWERDNS_CONFIG_LOCS="/etc/powerdns /usr/local/etc"
+    POWERDNS_CONFIG_LOCS="${ROOTDIR}etc/powerdns ${ROOTDIR}usr/local/etc"
     POWERDNS_AUTH_CONFIG_LOCATION=""
     POWERDNS_AUTH_MASTER=0
     POWERDNS_AUTH_SLAVE=0
@@ -37,20 +41,20 @@
 #
     # Test        : NAME-4016
     # Description : Check main domain (domain <domain name> in /etc/resolv.conf)
-    Register --test-no NAME-4016 --weight L --network NO --description "Check /etc/resolv.conf default domain"
+    Register --test-no NAME-4016 --weight L --network NO --category security --description "Check /etc/resolv.conf default domain"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: check /etc/resolv.conf for default domain"
-        if [ -f /etc/resolv.conf ]; then
-            logtext "Result: /etc/resolv.conf found"
-            FIND=`awk '/^domain/ { print $2 }' /etc/resolv.conf`
-            if [ "${FIND}" = "" ]; then
-                logtext "Result: no default domain found"
-                Display --indent 2 --text "- Checking default DNS search domain" --result NONE --color WHITE
-              else
-                logtext "Result: found default domain"
-                logtext "Output: ${FIND}"
-                report "resolv_conf_domain=${FIND}"
-                Display --indent 2 --text "- Checking default DNS search domain" --result FOUND --color GREEN
+        LogText "Test: check ${ROOTDIR}etc/resolv.conf for default domain"
+        if [ -f ${ROOTDIR}etc/resolv.conf ]; then
+            LogText "Result: ${ROOTDIR}etc/resolv.conf found"
+            FIND=$(${AWKBINARY} '/^domain/ { print $2 }' ${ROOTDIR}etc/resolv.conf)
+            if [ -z "${FIND}" ]; then
+                LogText "Result: no default domain found"
+                if IsVerbose; then Display --indent 2 --text "- Checking default DNS search domain" --result "${STATUS_NONE}" --color WHITE; fi
+            else
+                LogText "Result: found default domain"
+                LogText "Output: ${FIND}"
+                Report "resolv_conf_domain=${FIND}"
+                Display --indent 2 --text "- Checking default DNS search domain" --result "${STATUS_FOUND}" --color GREEN
                 RESOLV_DOMAINNAME="${FIND}"
             fi
         fi
@@ -61,72 +65,72 @@
     # Test        : NAME-4018
     # Description : Check search domains in /etc/resolv.conf
     # Notes       : Maximum of one search keyword is allowed in /etc/resolv.conf
-    Register --test-no NAME-4018 --weight L --network NO --description "Check /etc/resolv.conf search domains"
+    Register --test-no NAME-4018 --weight L --network NO --category security --description "Check /etc/resolv.conf search domains"
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
-        logtext "Test: check /etc/resolv.conf for search domains"
-        if [ -f /etc/resolv.conf ]; then
-            logtext "Result: /etc/resolv.conf found"
-            FIND=`awk '/^search/ { print $2 }' /etc/resolv.conf`
-            if [ "${FIND}" = "" ]; then
-                logtext "Result: no search domains found, default domain is being used"
-              else
+        LogText "Test: check ${ROOTDIR}etc/resolv.conf for search domains"
+        if [ -f ${ROOTDIR}etc/resolv.conf ]; then
+            LogText "Result: ${ROOTDIR}etc/resolv.conf found"
+            FIND=$(${AWKBINARY} '/^search/ { print $2 }' ${ROOTDIR}etc/resolv.conf)
+            if [ -z "${FIND}" ]; then
+                LogText "Result: no search domains found, default domain is being used"
+            else
                 for I in ${FIND}; do
-                    logtext "Found search domain: ${I}"
-                    report "resolv_conf_search_domain[]=${I}"
-                    N=`expr ${N} + 1`
+                    LogText "Found search domain: ${I}"
+                    Report "resolv_conf_search_domain[]=${I}"
+                    N=$((N + 1))
                 done
                 # Warn if we have more than 6 search domains, which is maximum in most resolvers
                 if [ ${N} -gt 6 ]; then
-                    logtext "Result: Found ${N} search domains"
-                    Display --indent 2 --text "- Checking search domains" --result WARNING --color YELLOW
-                    ReportWarning ${TEST_NO} "L" "Found more than 6 search domains, which is usually more than the maximum allowed number in most resolvers"
-                  else
-                    logtext "Result: Found ${N} search domains"
-                    Display --indent 2 --text "- Checking search domains" --result FOUND --color GREEN
+                    LogText "Result: Found ${N} search domains"
+                    Display --indent 2 --text "- Checking search domains" --result "${STATUS_WARNING}" --color YELLOW
+                    ReportWarning ${TEST_NO} "Found more than 6 search domains, which is usually more than the maximum allowed number in most resolvers"
+                else
+                    LogText "Result: Found ${N} search domains"
+                    Display --indent 2 --text "- Checking search domains" --result "${STATUS_FOUND}" --color GREEN
                 fi
             fi
-          else
-            logtext "Result: /etc/resolv.conf does not exist, skipping test"
-            Display --indent 2 --text "- Checking search domains" --result "NOT FOUND" --color YELLOW
+        else
+            LogText "Result: ${ROOTDIR}etc/resolv.conf does not exist, skipping test"
+            Display --indent 2 --text "- Checking search domains" --result "${STATUS_NOT_FOUND}" --color YELLOW
         fi
 
         # Check amount of search domains (max 1)
-            FIND=`grep -c "^search" /etc/resolv.conf`
-            if [ ! "${FIND}" = "0" -a ! "${FIND}" = "1" ]; then
-                logtext "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"
-                Display --indent 4 --text "- Checking search domains lines" --result "CONFIG ERROR" --color YELLOW
-                ReportWarning ${TEST_NO} "L" "Found more than 1 search lines in /etc/resolv.conf, which is probably a misconfiguration"
-              else
-                logtext "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"
-            fi
+        FIND=$(${GREPBINARY} -c "^search" ${ROOTDIR}etc/resolv.conf)
+        if [ ! "${FIND}" = "0" -a ! "${FIND}" = "1" ]; then
+            LogText "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"
+            Display --indent 4 --text "- Checking search domains lines" --result "CONFIG ERROR" --color YELLOW
+            ReportWarning ${TEST_NO} "Found more than 1 search lines in /etc/resolv.conf, which is probably a misconfiguration"
+        else
+            LogText "Result: found ${FIND} line(s) with a search statement (expecting less than 2 lines)"
+        fi
     fi
 #
 #################################################################################
 #
     # Test        : NAME-4020
     # Description : Check non default resolv.conf options
-    Register --test-no NAME-4020 --weight L --network NO --description "Check non default options"
+    Register --test-no NAME-4020 --weight L --network NO --category security --description "Check non default options"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: check /etc/resolv.conf for non default options"
-        if [ -f /etc/resolv.conf ]; then
-            logtext "Result: /etc/resolv.conf found"
-            FIND=`grep "^options" /etc/resolv.conf | awk '{ print $2 }'`
+        LogText "Test: check ${ROOTDIR}etc/resolv.conf for non default options"
+        if [ -f ${ROOTDIR}etc/resolv.conf ]; then
+            LogText "Result: ${ROOTDIR}etc/resolv.conf found"
+            FIND=$(${GREPBINARY} "^options" ${ROOTDIR}etc/resolv.conf | ${AWKBINARY} '{ print $2 }')
             if [ "${FIND}" = "" ]; then
-                logtext "Result: no specific other options configured in /etc/resolv.conf"
-                Display --indent 2 --text "- Checking /etc/resolv.conf options" --result "NONE" --color WHITE
-              else
+                LogText "Result: no specific other options configured in /etc/resolv.conf"
+                if IsVerbose; then Display --indent 2 --text "- Checking /etc/resolv.conf options" --result "${STATUS_NONE}" --color WHITE; fi
+            else
                 for I in ${FIND}; do
-                    logtext "Found option: ${I}"
-                    report "resolv_conf_option[]=${I}"
+                    LogText "Found option: ${I}"
+                    Report "resolv_conf_option[]=${I}"
                     #rotate --> add performance tune point
                     #timeout <3 --> add performe tune point
                 done
-                Display --indent 2 --text "- Checking /etc/resolv.conf options" --result "FOUND" --color GREEN
+                Display --indent 2 --text "- Checking /etc/resolv.conf options" --result "${STATUS_FOUND}" --color GREEN
             fi
-          else
-            logtext "Result: /etc/resolv.conf not found, test skipped"
-            Display --indent 2 --text "- Checking /etc/resolv.conf options" --result "NOT FOUND" --color YELLOW
+        else
+            LogText "Result: /etc/resolv.conf not found, test skipped"
+            Display --indent 2 --text "- Checking /etc/resolv.conf options" --result "${STATUS_NOT_FOUND}" --color YELLOW
         fi
     fi
 #
@@ -134,11 +138,11 @@
 #
     # Test        : NAME-4024
     # Description : Check Solaris uname -n output
-    Register --test-no NAME-4024 --os Solaris --weight L --network NO --description "Solaris uname -n output"
+    Register --test-no NAME-4024 --os Solaris --weight L --network NO --category security --description "Solaris uname -n output"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=`uname -n`
-        logtext "Result: 'uname -n' returned ${FIND}"
-        Display --indent 2 --text "- Checking uname -n output" --result DONE --color GREEN
+        FIND=$(${UNAMEBINARY} -n)
+        LogText "Result: 'uname -n' returned ${FIND}"
+        Display --indent 2 --text "- Checking uname -n output" --result "${STATUS_DONE}" --color GREEN
     fi
 #
 #################################################################################
@@ -146,16 +150,16 @@
     # Test        : NAME-4026
     # Description : Check Solaris /etc/nodename
     # Notes       : If a system is standalone, /etc/nodename should contain a system name only, not FQDN
-    Register --test-no NAME-4026 --os Solaris --weight L --network NO --description "Check /etc/nodename"
+    Register --test-no NAME-4026 --os Solaris --weight L --network NO --category security --description "Check /etc/nodename"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: checking /etc/nodename"
+        LogText "Test: checking /etc/nodename"
         if [ -f /etc/nodename ]; then
-            logtext "Result: file /etc/nodename exists"
+            LogText "Result: file /etc/nodename exists"
             FIND=`cat /etc/nodename`
-            logtext "Output: ${FIND}"
-            Display --indent 2 --text "- Checking /etc/nodename" --result "DONE" --color GREEN
-          else
-            logtext "Result: file /etc/nodename could not be found"
+            LogText "Output: ${FIND}"
+            Display --indent 2 --text "- Checking /etc/nodename" --result "${STATUS_DONE}" --color GREEN
+        else
+            LogText "Result: file /etc/nodename could not be found"
             Display --indent 2 --text "- Checking /etc/nodename" --result "NONE FOUND" --color YELLOW
         fi
     fi
@@ -164,58 +168,57 @@
 #
     # Test        : NAME-4028
     # Description : Check DNS domain name
-    # To Do       : grep ^DOMAINNAME /etc/conf.d/domainname (remove "'s)
-    Register --test-no NAME-4028 --weight L --network NO --description "Check domain name"
+    # To Do       : ${GREPBINARY} ^DOMAINNAME /etc/conf.d/domainname (remove "'s)
+    Register --test-no NAME-4028 --weight L --network NO --category security --description "Check domain name"
     if [ ${SKIPTEST} -eq 0 ]; then
         DOMAINNAME=""
         # NIS
-        #logtext "Test: Checking file /etc/domainname"
+        #LogText "Test: Checking file /etc/domainname"
         #if [ -f /etc/domainname ]; then
-        #    logtext "Result: file /etc/domainname exists"
+        #    LogText "Result: file /etc/domainname exists"
         #    FIND2=`cat /etc/domainname`
         #        if [ ! "${FIND}" = "" ]; then
-        #        logtext "Found domain name: ${FIND}"
+        #        LogText "Found domain name: ${FIND}"
         #        DOMAINNAME="${FIND}"
         #      else
-        #        logtext "Result: no domain name found in file"
+        #        LogText "Result: no domain name found in file"
         #    fi
         #  else
-        #    logtext "Result: file /etc/domainname does not exist"
+        #    LogText "Result: file /etc/domainname does not exist"
         #fi
 
-        logtext "Test: Checking if dnsdomainname command is available"
-        if [ ! "${DNSDOMAINNAMEBINARY}" = "" ]; then
-            FIND2=`${DNSDOMAINNAMEBINARY} 2> /dev/null`
+        LogText "Test: Checking if dnsdomainname command is available"
+        if [ ! -z "${DNSDOMAINNAMEBINARY}" ]; then
+            FIND2=$(${DNSDOMAINNAMEBINARY} 2> /dev/null)
             if [ ! "${FIND2}" = "" ]; then
-                logtext "Result: dnsdomainname command returned a value"
-                logtext "Found domain name: ${FIND2}"
+                LogText "Result: dnsdomainname command returned a value"
+                LogText "Found domain name: ${FIND2}"
                 DOMAINNAME="${FIND2}"
-              else
-                logtext "Result: dnsdomainname command returned no value"
+            else
+                LogText "Result: dnsdomainname command returned no value"
             fi
-          else
-            logtext "Result: dnsdomainname binary not found, skip specific test"
+        else
+            LogText "Result: dnsdomainname binary not found, skip specific test"
         fi
 
         # If files and commands can't be found, use defined value from resolv.conf
-        if [ "${DOMAINNAME}" = "" ]; then
-            if [ ! "${RESOLV_DOMAINNAME}" = "" ]; then
-                logtext "Result: using domain name from /etc/resolv.conf"
+        if [ -z "${DOMAINNAME}" ]; then
+            if [ ! -z "${RESOLV_DOMAINNAME}" ]; then
+                LogText "Result: using domain name from ${ROOTDIR}etc/resolv.conf"
                 DOMAINNAME=${RESOLV_DOMAINNAME}
-              else
-                logtext "Result: using domain name from FQDN hostname"
-                #DOMAINNAME=${FQDN#${HOSTNAME}.}
-                DOMAINNAME=`echo ${FQDN} | cut -d . -f2-`
+            else
+                LogText "Result: using domain name from FQDN hostname (${FQDN})"
+                DOMAINNAME=$(echo ${FQDN} | ${AWKBINARY} -F. '{print $2}')
             fi
         fi
 
-        if [ ! "${DOMAINNAME}" = "" ]; then
-            logtext "Result: found domain name"
-            report "domainname=${DOMAINNAME}"
-            Display --indent 2 --text "- Searching DNS domain name" --result "FOUND" --color GREEN
+        if [ ! -z "${DOMAINNAME}" ]; then
+            LogText "Result: found domain name"
+            Report "domainname=${DOMAINNAME}"
+            Display --indent 2 --text "- Searching DNS domain name" --result "${STATUS_FOUND}" --color GREEN
             Display --indent 6 --text "Domain name: ${DOMAINNAME}"
-          else
-            Display --indent 2 --text "- Searching DNS domain name" --result "UNKNOWN" --color YELLOW
+        else
+            Display --indent 2 --text "- Searching DNS domain name" --result "${STATUS_UNKNOWN}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Check DNS configuration for the dns domain name"
         fi
     fi
@@ -224,17 +227,17 @@
 #
     # Test        : NAME-4032
     # Description : Check name service caching daemon (NSCD) status
-    Register --test-no NAME-4032 --weight L --network NO --description "Check nscd status"
+    Register --test-no NAME-4032 --weight L --network NO --category security --description "Check nscd status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: checking nscd status"
+        LogText "Test: checking nscd status"
         IsRunning nscd
         if [ ${RUNNING} -eq 1 ]; then
             NAME_CACHE_USED=1
-            logtext "Result: nscd is running"
-            Display --indent 2 --text "- Checking nscd status" --result RUNNING --color GREEN
-          else
-            logtext "Result: nscd is not running"
-            Display --indent 2 --text "- Checking nscd status" --result "NOT FOUND" --color WHITE
+            LogText "Result: nscd is running"
+            Display --indent 2 --text "- Checking nscd status" --result "${STATUS_RUNNING}" --color GREEN
+        else
+            LogText "Result: nscd is not running"
+            if IsVerbose; then Display --indent 2 --text "- Checking nscd status" --result "${STATUS_NOT_FOUND}" --color WHITE; fi
         fi
     fi
 #
@@ -242,19 +245,19 @@
 #
     # Test        : NAME-4034
     # Description : Check name service caching daemon (Unbound) status
-    Register --test-no NAME-4034 --weight L --network NO --description "Check Unbound status"
+    Register --test-no NAME-4034 --weight L --network NO --category security --description "Check Unbound status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: checking Unbound (unbound) status"
+        LogText "Test: checking Unbound (unbound) status"
         IsRunning unbound
         if [ ${RUNNING} -eq 1 ]; then
             UNBOUND_RUNNING=1
             NAME_CACHE_USED=1
-            logtext "Result: Unbound daemon is running"
-            Display --indent 2 --text "- Checking Unbound status" --result RUNNING --color GREEN
-          else
-            logtext "Result: Unbound daemon is not running"
-            Display --indent 2 --text "- Checking Unbound status" --result "NOT FOUND" --color WHITE
-       fi
+            LogText "Result: Unbound daemon is running"
+            Display --indent 2 --text "- Checking Unbound status" --result "${STATUS_RUNNING}" --color GREEN
+        else
+            LogText "Result: Unbound daemon is not running"
+            if IsVerbose; then Display --indent 2 --text "- Checking Unbound status" --result "${STATUS_NOT_FOUND}" --color WHITE; fi
+        fi
     fi
 #
 #################################################################################
@@ -262,24 +265,24 @@
     # Test        : NAME-4036
     # Description : Checking Unbound configuration file
     if [ ${UNBOUND_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4036 --preqs-met ${PREQS_MET}  --weight L --network NO --description "Check Unbound configuration file"
+    Register --test-no NAME-4036 --preqs-met ${PREQS_MET}  --weight L --network NO --category security --description "Check Unbound configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=`which unbound-checkconf`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Test: running unbound-checkconf"
+            LogText "Test: running unbound-checkconf"
             # Don't capture any output, just gather exit code (0 is fine, otherwise bad)
             FIND=`unbound-checkconf > /dev/null 2>&1`
             if [ $? -eq 0 ]; then
                 UNBOUND_CONFIG_OK=1
-                logtext "Result: Configuration is fine"
-                Display --indent 2 --text "- Checking configuration file" --result OK --color GREEN
-              else
-                logtext "Result: Unbound daemon is not running"
+                LogText "Result: Configuration is fine"
+                Display --indent 2 --text "- Checking configuration file" --result "${STATUS_OK}" --color GREEN
+            else
+                LogText "Result: Unbound daemon is not running"
                 Display --indent 2 --text "- Checking configuration file" --result "NOT OK" --color YELLOW
-                ReportWarning "${TEST_NO}" "L" "Found Unbound configuration file issues (run unbound-checkconf)"
+                ReportWarning "${TEST_NO}" "Found Unbound configuration file issues (run unbound-checkconf)"
             fi
           else
-            logtext "Result: skipped, can't find unbound-checkconf utility"
+            LogText "Result: skipped, can't find unbound-checkconf utility"
         fi
     fi
 #
@@ -287,17 +290,17 @@
 #
     # Test        : NAME-4202
     # Description : Check if BIND is running
-    Register --test-no NAME-4202 --weight L --network NO --description "Check BIND status"
+    Register --test-no NAME-4202 --weight L --network NO --category security --description "Check BIND status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking for running BIND instance"
+        LogText "Test: Checking for running BIND instance"
         IsRunning named
         if [ ${RUNNING} -eq 1 ]; then
-            logtext "Result: found BIND process"
-            Display --indent 2 --text "- Checking BIND status" --result "FOUND" --color GREEN
+            LogText "Result: found BIND process"
+            Display --indent 2 --text "- Checking BIND status" --result "${STATUS_FOUND}" --color GREEN
             BIND_RUNNING=1
-          else
-            logtext "Result: BIND not running"
-            Display --indent 2 --text "- Checking BIND status" --result "NOT FOUND" --color WHITE
+        else
+            LogText "Result: BIND not running"
+            if IsVerbose; then Display --indent 2 --text "- Checking BIND status" --result "${STATUS_NOT_FOUND}" --color WHITE; fi
         fi
     fi
 #
@@ -306,19 +309,19 @@
     # Test        : NAME-4204
     # Description : Check configuration file of BIND
     if [ ${BIND_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4204 --preqs-met ${PREQS_MET} --weight L --network NO --description "Search BIND configuration file"
+    Register --test-no NAME-4204 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Search BIND configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Search BIND configuration file"
+        LogText "Test: Search BIND configuration file"
         for I in ${BIND_CONFIG_LOCS}; do
             if [ -f ${I}/named.conf ]; then
                 BIND_CONFIG_LOCATION="${I}/named.conf"
-                logtext "Result: found configuration file (${BIND_CONFIG_LOCATION})"
+                LogText "Result: found configuration file (${BIND_CONFIG_LOCATION})"
             fi
         done
-        if [ ! "${BIND_CONFIG_LOCATION}" = "" ]; then
-            Display --indent 4 --text "- Checking BIND configuration file" --result "FOUND" --color GREEN
-          else
-            Display --indent 4 --text "- Checking BIND configuration file" --result "NOT FOUND" --color YELLOW
+        if [ ! -z "${BIND_CONFIG_LOCATION}" ]; then
+            Display --indent 4 --text "- Checking BIND configuration file" --result "${STATUS_FOUND}" --color GREEN
+        else
+            Display --indent 4 --text "- Checking BIND configuration file" --result "${STATUS_NOT_FOUND}" --color YELLOW
         fi
     fi
 #
@@ -327,22 +330,22 @@
     # Test        : NAME-4206
     # Description : Check BIND configuration file consistency
     if [ ${BIND_RUNNING} -eq 1 -a ! "${BIND_CONFIG_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4206 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check BIND configuration consistency"
+    Register --test-no NAME-4206 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check BIND configuration consistency"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: searching for named-checkconf binary"
+        LogText "Test: searching for named-checkconf binary"
         if [ ! "${NAMEDCHECKCONFBINARY}" = "" ]; then
-            logtext "Result: named-checkconf is installed"
+            LogText "Result: named-checkconf is installed"
             FIND=`${NAMEDCHECKCONFBINARY} ${BIND_CONFIG_LOCATION}; echo $?`
             if [ "${FIND}" = "0" ]; then
-                logtext "Result: configuration file ${BIND_CONFIG_LOCATION} seems to be fine"
-                Display --indent 4 --text "- Checking BIND configuration consistency" --result "OK" --color GREEN
+                LogText "Result: configuration file ${BIND_CONFIG_LOCATION} seems to be fine"
+                Display --indent 4 --text "- Checking BIND configuration consistency" --result "${STATUS_OK}" --color GREEN
               else
-                logtext "Result: possible errors found in ${BIND_CONFIG_LOCATION}"
-                Display --indent 4 --text "- Checking BIND configuration consistency" --result WARNING --color RED
+                LogText "Result: possible errors found in ${BIND_CONFIG_LOCATION}"
+                Display --indent 4 --text "- Checking BIND configuration consistency" --result "${STATUS_WARNING}" --color RED
                 ReportWarning ${TEST_NO} "Errors discovered in BIND configuration file"
             fi
           else
-            logtext "Result: named-checkconf not found, skipping test"
+            LogText "Result: named-checkconf not found, skipping test"
         fi
     fi
 #
@@ -350,7 +353,7 @@
 #
     # Test        : NAME-4208
     # Description : Check DNS server type (master, slave, caching, forwarding)
-    #Register --test-no NAME-4050 --weight L --network NO --description "Check nscd status"
+    #Register --test-no NAME-4050 --weight L --network NO --category security --description "Check nscd status"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #
 #################################################################################
@@ -358,18 +361,18 @@
     # Test        : NAME-4210
     # Description : Check if we can determine useful information from banner
     if [ ${BIND_RUNNING} -eq 1 -a ! "${BIND_CONFIG_LOCATION}" = "" -a ! "${DIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4210 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check DNS banner"
+    Register --test-no NAME-4210 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check DNS banner"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Trying to determine version from banner"
-        FIND=`${DIGBINARY} @localhost version.bind chaos txt | grep "^version.bind" | grep TXT | egrep "[0-9].[0-9].[0-9]*"`
+        LogText "Test: Trying to determine version from banner"
+        FIND=`${DIGBINARY} @localhost version.bind chaos txt | ${GREPBINARY} "^version.bind" | ${GREPBINARY} TXT | ${EGREPBINARY} "[0-9].[0-9].[0-9]*"`
         if [ "${FIND}" = "" ]; then
-            logtext "Result: no useful information in banner found"
-            Display --indent 4 --text "- Checking BIND version in banner" --result "OK" --color GREEN
+            LogText "Result: no useful information in banner found"
+            Display --indent 4 --text "- Checking BIND version in banner" --result "${STATUS_OK}" --color GREEN
             AddHP 2 2
-          else
-            logtext "Result: possible BIND version available in version banner"
-            Display --indent 4 --text "- Checking BIND version in banner" --result WARNING --color RED
-            ReportWarning ${TEST_NO} "M" "Found BIND version in banner"
+        else
+            LogText "Result: possible BIND version available in version banner"
+            Display --indent 4 --text "- Checking BIND version in banner" --result "${STATUS_WARNING}" --color RED
+            ReportWarning ${TEST_NO} "Found BIND version in banner"
             ReportSuggestion ${TEST_NO} "The version in BIND can be masked by defining 'version none' in the configuration file"
             AddHP 0 2
         fi
@@ -380,37 +383,37 @@
     # Test        : NAME-4212
     # Description : Check version option in BIND configuration
     #if [ ${BIND_RUNNING} -eq 1 -a ! "${BIND_CONFIG_LOCATION}" = "" -a ! "${DIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no NAME-4212 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check version setting in configuration"
+    #Register --test-no NAME-4212 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check version setting in configuration"
 #
 #################################################################################
 #
     # Test        : NAME-4220
     # Description : Check if we can perform a zone transfer of primary domain
-    #Register --test-no NAME-4220 --weight L --network NO --description "Check zone transfer"
+    #Register --test-no NAME-4220 --weight L --network NO --category security --description "Check zone transfer"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #
 #################################################################################
 #
     # Test        : NAME-4222
     # Description : Check if we can perform a zone transfer of PTR (of primary domain)
-    #Register --test-no NAME-4222 --weight L --network NO --description "Check zone transfer"
+    #Register --test-no NAME-4222 --weight L --network NO --category security --description "Check zone transfer"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #
 #################################################################################
 #
     # Test        : NAME-4230
     # Description : Check if PowerDNS is running
-    Register --test-no NAME-4230 --weight L --network NO --description "Check PowerDNS status"
+    Register --test-no NAME-4230 --weight L --network NO --category security --description "Check PowerDNS status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking for running PowerDNS instance"
+        LogText "Test: Checking for running PowerDNS instance"
         IsRunning pdns_server
         if [ ${RUNNING} -eq 1 ]; then
-            logtext "Result: found PowerDNS process"
-            Display --indent 2 --text "- Checking PowerDNS status" --result "RUNNING" --color GREEN
+            LogText "Result: found PowerDNS process"
+            Display --indent 2 --text "- Checking PowerDNS status" --result "${STATUS_RUNNING}" --color GREEN
             POWERDNS_RUNNING=1
           else
-            logtext "Result: PowerDNS not running"
-            Display --indent 2 --text "- Checking PowerDNS status" --result "NOT FOUND" --color WHITE
+            LogText "Result: PowerDNS not running"
+            if IsVerbose; then Display --indent 2 --text "- Checking PowerDNS status" --result "${STATUS_NOT_FOUND}" --color WHITE; fi
         fi
     fi
 #
@@ -419,19 +422,19 @@
     # Test        : NAME-4232
     # Description : Check PowerDNS configuration file
     if [ ${POWERDNS_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4232 --preqs-met ${PREQS_MET} --weight L --network NO --description "Search PowerDNS configuration file"
+    Register --test-no NAME-4232 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Search PowerDNS configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Search PowerDNS configuration file"
+        LogText "Test: Search PowerDNS configuration file"
         for I in ${POWERDNS_CONFIG_LOCS}; do
             if [ -f ${I}/pdns.conf ]; then
                 POWERDNS_AUTH_CONFIG_LOCATION="${I}/pdns.conf"
-                logtext "Result: found configuration file (${POWERDNS_AUTH_CONFIG_LOCATION})"
+                LogText "Result: found configuration file (${POWERDNS_AUTH_CONFIG_LOCATION})"
             fi
         done
         if [ ! "${POWERDNS_AUTH_CONFIG_LOCATION}" = "" ]; then
-            Display --indent 4 --text "- Checking PowerDNS configuration file" --result "FOUND" --color GREEN
-          else
-            Display --indent 4 --text "- Checking PowerDNS configuration file" --result "NOT FOUND" --color YELLOW
+            Display --indent 4 --text "- Checking PowerDNS configuration file" --result "${STATUS_FOUND}" --color GREEN
+        else
+            Display --indent 4 --text "- Checking PowerDNS configuration file" --result "${STATUS_NOT_FOUND}" --color YELLOW
         fi
     fi
 #
@@ -440,7 +443,7 @@
 #    # Test        : NAME-4234
 #    # Description : Check PowerDNS configuration file consistency
 #    if [ ${POWERDNS_RUNNING} -eq 1 -a ! "${POWERDNS_AUTH_CONFIG_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-#    Register --test-no NAME-4234 --weight L --network NO --description "Check PowerDNS configuration consistency"
+#    Register --test-no NAME-4234 --weight L --network NO --category security --description "Check PowerDNS configuration consistency"
 #    if [ ${SKIPTEST} -eq 0 ]; then
 #    fi
 #
@@ -449,18 +452,18 @@
     # Test        : NAME-4236
     # Description : Check PowerDNS server backends
     if [ ${POWERDNS_RUNNING} -eq 1 -a ! "${POWERDNS_AUTH_CONFIG_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4236 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PowerDNS backends"
+    Register --test-no NAME-4236 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PowerDNS backends"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking for PowerDNS backends"
-        FIND=`awk -F= '/^launch/ { print $2 }' ${POWERDNS_AUTH_CONFIG_LOCATION}`
-        if [ ! "${FIND}" = "" ]; then
+        LogText "Test: Checking for PowerDNS backends"
+        FIND=$(${AWKBINARY} -F= '/^launch/ { print $2 }' ${POWERDNS_AUTH_CONFIG_LOCATION})
+        if [ ! -z "${FIND}" ]; then
             for I in ${FIND}; do
-                logtext "Found backend: ${I}"
+                LogText "Found backend: ${I}"
             done
-            Display --indent 4 --text "- Checking PowerDNS backends" --result "FOUND" --color GREEN
-          else
-            logtext "Result: no PowerDNS backends found"
-            Display --indent 4 --text "- Checking PowerDNS backends" --result "NOT FOUND" --color YELLOW
+            Display --indent 4 --text "- Checking PowerDNS backends" --result "${STATUS_FOUND}" --color GREEN
+        else
+            LogText "Result: no PowerDNS backends found"
+            Display --indent 4 --text "- Checking PowerDNS backends" --result "${STATUS_NOT_FOUND}" --color YELLOW
         fi
     fi
 #
@@ -468,27 +471,27 @@
 #
     # Test        : NAME-4238
     # Description : Check PowerDNS authoritive status
-    if [ ${POWERDNS_RUNNING} -eq 1 -a ! "${POWERDNS_AUTH_CONFIG_LOCATION}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4238 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PowerDNS authoritive status"
+    if [ ${POWERDNS_RUNNING} -eq 1 -a ! -z "${POWERDNS_AUTH_CONFIG_LOCATION}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no NAME-4238 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PowerDNS authoritive status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking for PowerDNS master status"
-        FIND=`grep "^master=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
-        if [ ! "${FIND}" = "" ]; then
-            logtext "Found master=yes in configuration file"
+        LogText "Test: Checking for PowerDNS master status"
+        FIND=$(${GREPBINARY} "^master=yes" ${POWERDNS_AUTH_CONFIG_LOCATION})
+        if [ ! -z "${FIND}" ]; then
+            LogText "Found master=yes in configuration file"
             Display --indent 4 --text "- PowerDNS authoritive master: YES"
             POWERDNS_AUTH_MASTER=1
-          else
-            logtext "Result: most likely not master (no master=yes)"
+        else
+            LogText "Result: most likely not master (no master=yes)"
             Display --indent 4 --text "- PowerDNS authoritive master: NO"
         fi
-        logtext "Test: Checking for PowerDNS slave status"
-        FIND=`grep "^slave=yes" ${POWERDNS_AUTH_CONFIG_LOCATION}`
-        if [ ! "${FIND}" = "" ]; then
-            logtext "Found slave=yes in configuration file"
+        LogText "Test: Checking for PowerDNS slave status"
+        FIND=$(${GREPBINARY} "^slave=yes" ${POWERDNS_AUTH_CONFIG_LOCATION})
+        if [ ! -z "${FIND}" ]; then
+            LogText "Found slave=yes in configuration file"
             Display --indent 4 --text "- PowerDNS authoritive slave: YES"
             POWERDNS_AUTH_SLAVE=1
-          else
-            logtext "Result: most likely not slave (no slave=yes)"
+        else
+            LogText "Result: most likely not slave (no slave=yes)"
             Display --indent 4 --text "- PowerDNS authoritive slave: NO"
         fi
     fi
@@ -497,18 +500,24 @@
 #
     # Test        : NAME-4302
     # Description : Check NIS ypbind daemon status
-    Register --test-no NAME-4304 --weight L --network NO --description "Check NIS ypbind status"
+    Register --test-no NAME-4304 --weight L --network NO --category security --description "Check NIS ypbind status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking status of ypbind daemon"
+        LogText "Test: Checking status of ypbind daemon"
         IsRunning ypbind
         if [ ${RUNNING} -eq 1 ]; then
-            logtext "Result: ypbind is running"
-            Display --indent 2 --text "- Checking ypbind status" --result "FOUND" --color GREEN
+            LogText "Result: ypbind is running"
+            Display --indent 2 --text "- Checking ypbind status" --result "${STATUS_FOUND}" --color GREEN
             YPBIND_RUNNING=1
-            ReportSuggestion "Disable the usage of NIS/NIS+ and use an alternative like LDAP or Kerberos instead"
+            IsRunning ypldap
+            if [ ${RUNNING} -eq 1 ]; then
+                LogText "Result: ypldap is running"
+                Display --indent 2 --text "- Checking ypldap status" --result "${STATUS_FOUND}" --color GREEN
+            else
+                ReportSuggestion "Disable the usage of NIS/NIS+ and use an alternative like LDAP or Kerberos instead"
+            fi
           else
-            logtext "Result: ypbind is not active"
-            Display --indent 2 --text "- Checking ypbind status" --result "NOT FOUND" --color WHITE
+            LogText "Result: ypbind is not active"
+            if IsVerbose; then Display --indent 2 --text "- Checking ypbind status" --result "${STATUS_NOT_FOUND}" --color WHITE; fi
         fi
     fi
 #
@@ -518,110 +527,108 @@
     # Description : Check NIS domain
     # Notes       : FreeBSD: sysctl kern.domainname
     if [ ${YPBIND_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4306 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check NIS domain"
+    Register --test-no NAME-4306 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NIS domain"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Checking `domainname` for NIS domain value"
-        FIND=`${DOMAINNAMEBINARY} | grep -v "(none)"`
-        if [ ! "${FIND}" = "" ]; then
-            logtext "Value: ${FIND}"
+        LogText "Test: Checking `domainname` for NIS domain value"
+        FIND=$(${DOMAINNAMEBINARY} | ${GREPBINARY} -v "(none)")
+        if [ ! -z "${FIND}" ]; then
+            LogText "Value: ${FIND}"
             NISDOMAIN="${FIND}"
-          else
-            logtext "Result: no NIS domain found in command output"
+        else
+            LogText "Result: no NIS domain found in command output"
         fi
         # Solaris / Linux style
-        logtext "Test: Checking file /etc/defaultdomain"
-        if [ -f /etc/defaultdomain ]; then
-            logtext "Result: file /etc/defaultdomain exists"
-            FIND2=`cat /etc/defaultdomain`
-            if [ ! "${FIND2}" = "" ]; then
-                logtext "Output: ${FIND2}"
+        LogText "Test: Checking file ${ROOTDIR}etc/defaultdomain"
+        if [ -f ${ROOTDIR}etc/defaultdomain ]; then
+            LogText "Result: file ${ROOTDIR}etc/defaultdomain exists"
+            FIND2=`cat ${ROOTDIR}etc/defaultdomain`
+            if [ ! -z "${FIND2}" ]; then
+                LogText "Output: ${FIND2}"
                 NISDOMAIN="${FIND2}"
-              else
-                logtext "Result: no NIS domain found in file"
+            else
+                LogText "Result: no NIS domain found in file"
             fi
         fi
         # Red Hat style
-        logtext "Test: checking /etc/sysconfig/network"
-        if [ -f /etc/sysconfig/network ]; then
-            logtext "Result: file /etc/sysconfig/network exists"
-            logtext "Test: checking NISDOMAIN value in file"
-            FIND3=`grep "^NISDOMAIN" /etc/sysconfig/network | awk -F= '{ print $2 }' | sed 's/"//g'`
-            if [ ! "${FIND3}" = "" ]; then
-                logtext "Found NIS domain: ${FIND3}"
+        LogText "Test: checking ${ROOTDIR}etc/sysconfig/network"
+        if [ -f ${ROOTDIR}etc/sysconfig/network ]; then
+            LogText "Result: file ${ROOTDIR}etc/sysconfig/network exists"
+            LogText "Test: checking NISDOMAIN value in file"
+            FIND3=$(${GREPBINARY} "^NISDOMAIN" ${ROOTDIR}etc/sysconfig/network | ${AWKBINARY} -F= '{ print $2 }' | ${SEDBINARY} 's/"//g')
+            if [ ! -z "${FIND3}" ]; then
+                LogText "Found NIS domain: ${FIND3}"
                 NISDOMAIN="${FIND3}"
-              else
-                logtext "Result: No NIS domain found in file"
+            else
+                LogText "Result: No NIS domain found in file"
             fi
-          else
-            logtext "Result: file /etc/sysconfig/network does not exist"
+        else
+            LogText "Result: file ${ROOTDIR}etc/sysconfig/network does not exist"
         fi
 
         if [ ! "${SYSCTLBINARY}" = "" ]; then
             # Check sysctl (e.g. FreeBSD)
-            logtext "Test: checking sysctl for kern.domainname"
-            FIND=`${SYSCTLBINARY} -a 2>&1 | grep "^kern.domainname" | awk -F: '{ print $2 }' | sed 's/ //g' | grep -v "^$"`
+            LogText "Test: checking sysctl for kern.domainname"
+            FIND=$(${SYSCTLBINARY} -a 2>&1 | ${GREPBINARY} "^kern.domainname" | ${AWKBINARY} -F: '{ print $2 }' | ${SEDBINARY} 's/ //g' | ${GREPBINARY} -v "^$")
             if [ ! "${FIND}" = "" ]; then
-                logtext "Result: found NIS domain via sysctl"
+                LogText "Result: found NIS domain via sysctl"
                 NISDOMAIN="${FIND}"
             fi
         fi
         # Check if we found any NIS domain
-        if [ ! "${NISDOMAIN}" = "" ]; then
-            logtext "Found NIS domain: ${NISDOMAIN}"
-            report "nisdomain=${NISDOMAIN}"
-            Display --indent 4 --text "- Checking NIS domain" --result "FOUND" --color GREEN
-          else
-            logtext "Result: No NIS domain found"
-            Display --indent 4 --text "- Checking NIS domain" --result "UNKNOWN" --color YELLOW
+        if [ ! -z "${NISDOMAIN}" ]; then
+            LogText "Found NIS domain: ${NISDOMAIN}"
+            Report "nisdomain=${NISDOMAIN}"
+            Display --indent 4 --text "- Checking NIS domain" --result "${STATUS_FOUND}" --color GREEN
+        else
+            LogText "Result: No NIS domain found"
+            Display --indent 4 --text "- Checking NIS domain" --result "${STATUS_UNKNOWN}" --color YELLOW
         fi
     fi
 #
 #################################################################################
 #
-    if [ -f /etc/hosts ]; then
-      Display --indent 2 --text "- Checking /etc/hosts"
-    fi
+    if [ -f ${ROOTDIR}etc/hosts ]; then Display --indent 2 --text "- Checking ${ROOTDIR}etc/hosts"; fi
 
     # Test        : NAME-4402
     # Description : Check /etc/hosts configuration
-    Register --test-no NAME-4402 --weight L --network NO --description "Check duplicate line in /etc/hosts"
+    Register --test-no NAME-4402 --weight L --network NO --category security --description "Check duplicate line in /etc/hosts"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: check duplicate line in /etc/hosts"
-        if [ -f /etc/hosts ]; then
-            sFIND=`egrep -v '^(#|$)' /etc/hosts | awk '{ print $1, $2 }' | sort | uniq -d`
+        LogText "Test: check duplicate line in ${ROOTDIR}etc/hosts"
+        if [ -f ${ROOTDIR}etc/hosts ]; then
+            sFIND=$(${EGREPBINARY} -v '^(#|$)' ${ROOTDIR}etc/hosts | ${AWKBINARY} '{ print $1, $2 }' | ${SORTBINARY} | ${UNIQBINARY} -d)
             if [ "${sFIND}" = "" ]; then
-                logtext "Result: OK, no duplicate lines found"
-                Display --indent 4 --text "- Checking /etc/hosts (duplicates)" --result OK --color GREEN
-              else
-                logtext "Found duplicate line: ${sFIND}"
-                logtext "Result: found duplicate line"
-                Display --indent 4 --text "- Checking /etc/hosts (duplicates)" --result SUGGESTION --color YELLOW
-                ReportSuggestion "${TEST_NO}" "Remove duplicate lines in /etc/hosts"
+                LogText "Result: OK, no duplicate lines found"
+                Display --indent 4 --text "- Checking ${ROOTDIR}etc/hosts (duplicates)" --result "${STATUS_OK}" --color GREEN
+            else
+                LogText "Found duplicate line: ${sFIND}"
+                LogText "Result: found duplicate line"
+                Display --indent 4 --text "- Checking ${ROOTDIR}etc/hosts (duplicates)" --result "${STATUS_SUGGESTION}" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Remove duplicate lines in ${ROOTDIR}etc/hosts"
             fi
         else
-          logtext "Result: /etc/hosts not found, test skipped"
-          Display --indent 4 --text "Searching duplicate line" --result "SKIPPED" --color YELLOW
+          LogText "Result: ${ROOTDIR}etc/hosts not found, test skipped"
+          Display --indent 4 --text "Searching duplicate line" --result "${STATUS_SKIPPED}" --color YELLOW
         fi
-     fi
+    fi
 #
 #################################################################################
 #
     # Test        : NAME-4404
     # Description : Check /etc/hosts contains an entry for this server name
     if [ ! "${HOSTNAME}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4404 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check /etc/hosts contains an entry for this server name"
+    Register --test-no NAME-4404 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check /etc/hosts contains an entry for this server name"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Check /etc/hosts contains an entry for this server name"
+        LogText "Test: Check /etc/hosts contains an entry for this server name"
         if [ -f /etc/hosts ]; then
-            sFIND=`egrep -v '^(#|$|^::1\s|localhost)' /etc/hosts | grep ${HOSTNAME}`
+            sFIND=$(${EGREPBINARY} -v '^(#|$|^::1\s|localhost)' /etc/hosts | ${GREPBINARY} -i ${HOSTNAME})
             if [ "${sFIND}" != "" ]; then
-                logtext "Result: Found entry for ${HOSTNAME} in /etc/hosts"
-                Display --indent 4 --text "- Checking /etc/hosts (hostname)" --result OK --color GREEN
+                LogText "Result: Found entry for ${HOSTNAME} in /etc/hosts"
+                Display --indent 4 --text "- Checking /etc/hosts (hostname)" --result "${STATUS_OK}" --color GREEN
               else
-                logtext "Result: No entry found for ${HOSTNAME} in /etc/hosts"
-                Display --indent 4 --text "- Checking /etc/hosts (hostname)" --result SUGGESTION --color YELLOW
+                LogText "Result: No entry found for ${HOSTNAME} in /etc/hosts"
+                Display --indent 4 --text "- Checking /etc/hosts (hostname)" --result "${STATUS_SUGGESTION}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Add the IP name and FQDN to /etc/hosts for proper name resolving"
-                logtext "Risk: No entry for the server name [hostname] in /etc/hosts may cause unexpected performance problems for local connections"
+                LogText "Risk: No entry for the server name [hostname] in /etc/hosts may cause unexpected performance problems for local connections"
             fi
          fi
      fi
@@ -631,27 +638,58 @@
     # Test        : NAME-4406
     # Description : Check server hostname mapping
     if [ ! "${HOSTNAME}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NAME-4406 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check server hostname mapping"
+    Register --test-no NAME-4406 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check server hostname mapping"
     if [ ${SKIPTEST} -eq 0 ]; then
-        logtext "Test: Check server hostname not locally mapped in /etc/hosts"
-        sFIND=`egrep -v '^(#|$)' /etc/hosts | egrep '(localhost|^::1\s)' | grep -w ${HOSTNAME}`
-        if  [ ! "${sFIND}" = "" ]; then
-          logtext "Result: Found this server hostname mapped to a local address"
-          Display --indent 4 --text "- Checking /etc/hosts (localhost)" --result SUGGESTION --color YELLOW
-          logtext "Information: Linking the hostname to the localhost entry may break some resolving. Split resolving so that localhost resolves back to 127.0.0.1 (and ::1) and the hostname of the machine to the real IP address on the network interface."
-          ReportSuggestion ${TEST_NO} "Split resolving between localhost and the hostname of the system"
+        LogText "Test: Check server hostname not locally mapped in /etc/hosts"
+        sFIND=`${EGREPBINARY} -v '^(#|$)' /etc/hosts | ${EGREPBINARY} '^(localhost|::1)\s' | ${GREPBINARY} -w ${HOSTNAME}`
+        if [ ! "${sFIND}" = "" ]; then
+            LogText "Result: Found this server hostname mapped to a local address"
+            LogText "Output: ${sFIND}"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost)" --result "${STATUS_SUGGESTION}" --color YELLOW
+            LogText "Information: Linking the hostname to the localhost entry may break some resolving. Split resolving so that localhost resolves back to 127.0.0.1 (and ::1) and the hostname of the machine to the real IP address on the network interface."
+            ReportSuggestion ${TEST_NO} "Split resolving between localhost and the hostname of the system"
         else
-          logtext "Result: this server hostname is not mapped to a local address"
-          Display --indent 4 --text "- Checking /etc/hosts (localhost)" --result OK --color GREEN
+            LogText "Result: this server hostname is not mapped to a local address"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost)" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : NAME-4408
+    # Description : Check localhost entry
+    if [ ! -z "${GETENT_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON="No getent binary"; else PREQS_MET="NO"; SKIPREASON=""; fi
+    Register --test-no NAME-4408 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check localhost entry"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Check server hostname not locally mapped in /etc/hosts"
+        FIND=$(${GETENT_BINARY} hosts localhost | ${AWKBINARY} '{print $1}' | ${SORTBINARY} | ${TRBINARY} -d '\n')
+        if [ "${FIND}" = "127.0.0.1" ]; then
+            LogText "Result: localhost mapped to 127.0.0.1"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost to IP)" --result "${STATUS_OK}" --color GREEN
+            report "localhost-mapped-to=${FIND}"
+        elif [ "${FIND}" = "::1" ]; then
+            LogText "Result: localhost mapped to ::1"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost to IP)" --result "${STATUS_OK}" --color GREEN
+            report "localhost-mapped-to=${FIND}"
+        elif [ "${FIND}" = "127.0.0.1::1" ]; then
+            LogText "Result: localhost mapped to 127.0.0.1 and ::1"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost to IP)" --result "${STATUS_OK}" --color GREEN
+            report "localhost-mapped-to=${FIND}"
+        else
+            LogText "Output: ${FIND}"
+            LogText "Result: this server hostname is not mapped to a local address"
+            Display --indent 4 --text "- Checking /etc/hosts (localhost to IP)" --result "${STATUS_SUGGESTION}" --color YELLOW
+            LogText "Information: Ensure that localhost resolves back to 127.0.0.1 (and/or ::1)."
+            ReportSuggestion ${TEST_NO} "Split resolving between localhost and the hostname of the system" "/etc/hosts" "text:Check your localhost line"
         fi
     fi
 #
 #################################################################################
 #
 
-report ="name_cache_used=${NAME_CACHE_USED}"
-wait_for_keypress
+Report "name_cache_used=${NAME_CACHE_USED}"
+WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2015, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

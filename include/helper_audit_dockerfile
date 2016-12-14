@@ -1,5 +1,23 @@
 #!/bin/sh
 
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+
 if [ $# -eq 0 ]; then
 
     Display --indent 2 --text "${RED}Error: ${WHITE}Provide URL or file${NORMAL}"
@@ -8,7 +26,8 @@ if [ $# -eq 0 ]; then
   else
     FILE=`echo $1 | egrep "^http|https"`
     if [ ! "${FILE}" = "" ] ; then
-        TMP_FILE=`mktemp /tmp/audit.XXXXXXXX`
+        CreateTempFile
+        TMP_FILE="${TEMP_FILE}"
         Display --indent 2 --text "Downloading URL ${FILE} with wget"
         wget -o ${TMP_FILE} ${FILE}
         if [ $? -gt 0 ]; then
@@ -52,16 +71,16 @@ fi
 
         case ${IMAGE} in
             "debian")
-                logtext "Image = Debian based"
+                LogText "Image = Debian based"
                 PKGMGR="apt"
                 ;;
 
             "fedora*")
-                logtext "  Image = Fedora based"
+                LogText "  Image = Fedora based"
                 PKGMGR="yum"
                 ;;
             "ubuntu")
-                logtext "  Image = Ubuntu based"
+                LogText "  Image = Ubuntu based"
                 PKGMGR="apt"
                 ;;
             *)
@@ -78,7 +97,7 @@ InsertSection "Basics"
 
     FIND=`egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g'`
     if [ "${FIND}" = "" ]; then
-        ReportWarning "dockerfile" "L" "No maintainer found. Unclear who created this file."
+        ReportWarning "dockerfile" "No maintainer found. Unclear who created this file."
       else
         MAINTAINER=`echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}'`
         Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
@@ -94,20 +113,20 @@ InsertSection "Basics"
     "apt")
         FIND=`egrep "apt-get(.*) install" ${AUDIT_FILE}`
         if [ ! "${FIND}" = "" ]; then
-            logtext "Found installation via apt-get"
+            LogText "Found installation via apt-get"
           else
-            logtext "No installations found via apt-get"
+            LogText "No installations found via apt-get"
         fi
         ;;
     *)
-        logtext "Unknown package manager"
+        LogText "Unknown package manager"
     ;;
     esac
 
     FIND=`egrep " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#"`
     if [ ! "${FIND}" = "" ]; then
-        ReportWarning "dockerfile" "L" "Possible development utilities found, which is not advised for production environment"
-        logtext "Details: ${FIND}"
+        ReportWarning "dockerfile" "Possible development utilities found, which is not advised for production environment"
+        LogText "Details: ${FIND}"
     fi
 
     # SSH
@@ -123,14 +142,14 @@ InsertSection "Basics"
 
     FILE_DOWNLOAD=0
 
-    logtext "Checking usage of cURL"
+    LogText "Checking usage of cURL"
     FIND_CURL=`grep curl ${AUDIT_FILE}`
-    if [ ! "${FIND_WGET}" = "" ]; then
+    if [ ! "${FIND_CURL}" = "" ]; then
         Display --indent 4 --text "Download tool" --result "curl"
         FILE_DOWNLOAD=1
     fi
 
-    logtext "Checking usage of wget"
+    LogText "Checking usage of wget"
     FIND_WGET=`grep wget ${AUDIT_FILE}`
     if [ ! "${FIND_WGET}" = "" ]; then
         Display --indent 4 --text "Download tool" --result "wget"
@@ -141,8 +160,8 @@ InsertSection "Basics"
     FIND=`grep "^ADD http" ${AUDIT_FILE}`
     if [ ! "${FIND}" = "" ]; then
         FILE_DOWNLOAD=1
-        ReportWarning "dockerfile" "L" "Found download of file via ADD. Unclear if the integrity of this file is checked, or file is signed"
-        logtext "Details: ${FIND}"
+        ReportWarning "dockerfile" "Found download of file via ADD. Unclear if the integrity of this file is checked, or file is signed"
+        LogText "Details: ${FIND}"
     fi
 
     if [ ${FILE_DOWNLOAD} -eq 1 ]; then
@@ -174,18 +193,17 @@ InsertSection "Basics"
 
     FIND=`grep -i "chmod 777" ${AUDIT_FILE}`
     if [ ! "${FIND}" = "" ]; then
-        ReportWarning "dockerfile" "L" "Warning: chmod 777 found"
+        ReportWarning "dockerfile" "Warning: chmod 777 found"
     fi
 #
 ##################################################################################################
 #
 
-
-# Removing temp file
-logtext "Action: Removing temporary file ${TMP_FILE}"
-        if [ -f ${TMP_FILE} ]; then
-                rm -f ${TMP_FILE}
-            fi
+    # Removing temp file
+    LogText "Action: Removing temporary file ${TMP_FILE}"
+    if [ -f ${TMP_FILE} ]; then
+        rm -f ${TMP_FILE}
+    fi
 
 
 # The End

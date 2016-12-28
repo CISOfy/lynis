@@ -1,0 +1,110 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2013-2016, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+######################################################################
+#
+# Helper program to configure Lynis
+#
+######################################################################
+#
+# How to use:
+# ------------
+#
+# Run:
+#   lynis configure settings quick
+#   lynis configure settings quick=yes:debug=yes
+#
+######################################################################
+
+    CONFIGURE_CRONJOB=0
+    CONFIGURE_SETTINGS=0
+
+    # Check configure mode
+    if [ "${HELPER_PARAMS}" = "" ]; then
+        ${ECHOCMD} "${YELLOW}Provide one or more configuration settings${NORMAL}"
+        ${ECHOCMD} ""
+        ${ECHOCMD} "Examples:"
+        ${ECHOCMD} "  $0 configure cronjob"
+        ${ECHOCMD} ""
+        ${ECHOCMD} "  $0 configure settings quick"
+        ${ECHOCMD} "  $0 configure settings debug:developer-mode:quick"
+        ${ECHOCMD} "  $0 configure settings debug=yes:developer-mode=no:quick=yes"
+        ${ECHOCMD} ""
+        ExitClean
+    elif [ "$1" = "cronjob" ]; then
+        CONFIGURE_CRONJOB=1
+    elif [ "$1" = "settings" ]; then
+        CONFIGURE_SETTINGS=1
+    fi
+
+
+    # Perform activities depending on requested task
+    if [ ${CONFIGURE_CRONJOB} -eq 1 ]; then
+
+        ${ECHOCMD} "Automatic configuration for cronjobs is not implemented yet."
+        ExitClean
+
+    elif [ ${CONFIGURE_SETTINGS} -eq 1 ]; then
+
+        # Determine where profiles are stored
+        if [ -z "${PROFILEDIR}" ]; then
+            ${ECHOCMD} "Can not configure Lynis, as profile directory is unknown"
+            ExitFatal
+        fi
+        if [ -z "${CUSTOM_PROFILE}" ]; then
+            ${ECHOCMD} "No custom profile found yet."
+            ${ECHOCMD} "Suggestion: create one with 'touch custom.prf' or 'touch /etc/lynis/custom.prf'"
+            ExitFatal
+        fi
+
+        FIND=$(echo ${HELPER_PARAMERS} | grep " ")
+        if [ ! "${FIND}" = "" ]; then ${ECHOCMD} "Found invalid character (space) in configuration string"; ExitFatal; fi
+
+        CONFIGURE_SETTINGS=$(echo $2 | sed 's/:/ /g')
+        for I in ${CONFIGURE_SETTINGS}; do
+            SETTING=$(echo ${I} | awk -F= '{print $1}')
+            VALUE=$(echo ${I} | awk -F= '{print $2}')
+            if [ "${VALUE}" = "" ]; then
+                ${ECHOCMD} "Profile:          ${CUSTOM_PROFILE}"
+                Debug "Did not find a value configured on the command line for setting ${SETTING}"
+                #read VALUE
+                else
+                  Debug "Setting '${SETTING}' should be configured with value '${VALUE}'"
+                  FIND=$(grep "^${SETTING}" ${CUSTOM_PROFILE})
+                  if [ "${FIND}" = "" ]; then
+                      ${ECHOCMD} "Configuring setting '${CYAN}${SETTING}${NORMAL}'"
+                      echo "${SETTING}=${VALUE}" >> ${CUSTOM_PROFILE}
+                      if [ $? -eq 0 ]; then ${ECHOCMD} "${GREEN}Setting changed${NORMAL}"; fi
+                    else
+                      ${ECHOCMD} "${YELLOW}Notice${NORMAL}: Setting '${CYAN}${SETTING}${NORMAL}' was already configured (not changed)${NORMAL}"
+                      ${ECHOCMD} "        Current value: ${WHITE}${FIND}${NORMAL}"
+                      ${ECHOCMD} ""
+                  fi
+            fi
+            # Now check if value is in line with expected type (boolean, integer, string)
+            # =To be implemented=
+        done
+        ${ECHOCMD} ""
+        ${ECHOCMD} ""
+        ExitClean
+
+    fi
+
+    ExitClean
+
+# The End

@@ -30,35 +30,72 @@
     # Description : Check sysctl parameters
     # Sysctl      : net.ipv4.icmp_ingore_bogus_error_responses (=1)
     if [ ! "${SYSCTL_READKEY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no KRNL-6000 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check sysctl key pairs in scan profile"
+    Register --test-no KRNL-6000 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check sysctl key pairs in scan profile"
     if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        DATA_TO_SCAN=""
         N=0
         Display --indent 2 --text "- Comparing sysctl key pairs with scan profile"
-        FIND=`grep "^sysctl:" ${PROFILE} | sed 's/ /:space:/g'`
-        for I in ${FIND}; do
-            tFINDkey=`echo ${I} | awk -F: '{ print $2 }'`
-            tFINDexpvalue=`echo ${I} | awk -F: '{ print $3 }'`
-            tFINDhp=`echo ${I} | awk -F: '{ print $4 }' | grep "[0-9]"`
-            tFINDdesc=`echo ${I} | awk -F: '{ print $5 }' | sed 's/:space:/ /g'`
-            tFINDcurvalue=`${SYSCTL_READKEY} ${tFINDkey} 2> /dev/null`
+
+        # First scan optional profiles only (ignore default and custom)
+        for PROFILE in ${PROFILES}; do
+            FILE=$(echo ${PROFILE} | ${AWKBINARY} -F/ '{print $NF}')
+            if [ ! "${FILE}" = "default.prf" -a ! "${FILE}" = "custom.prf" ]; then
+                FIND=$(${GREPBINARY} "^config-data=sysctl;" ${PROFILE} | ${SEDBINARY} 's/ /-space-/g')
+                DATA_TO_SCAN="${DATA_TO_SCAN} ${FIND}"
+            fi
+        done
+
+        # Scan custom profile
+        if [ ! -z "${CUSTOM_PROFILE}" ]; then
+            FIND=$(${GREPBINARY} "^config-data=sysctl;" ${CUSTOM_PROFILE} | ${SEDBINARY} 's/ /-space-/g')
+            for LINE in ${FIND}; do
+                SYSCTLKEY=$(echo ${LINE} | ${AWKBINARY} -F\; '{ print $2 }')
+                HAS_KEY=$(echo ${DATA_TO_SCAN} | ${GREPBINARY} ";${SYSCTLKEY};")
+                if [ $? -gt 0 ]; then DATA_TO_SCAN="${DATA_TO_SCAN} ${LINE}"; fi
+            done
+        fi
+
+        # Last, use data from default profile
+        if [ ! -z "${DEFAULT_PROFILE}" ]; then
+            FIND=$(${GREPBINARY} "^config-data=sysctl;" ${DEFAULT_PROFILE} | ${SEDBINARY} 's/ /-space-/g')
+            for LINE in ${FIND}; do
+                SYSCTLKEY=$(echo ${LINE} | ${AWKBINARY} -F\; '{ print $2 }')
+                HAS_KEY=$(echo ${DATA_TO_SCAN} | ${GREPBINARY} ";${SYSCTLKEY};")
+                if [ $? -gt 0 ]; then DATA_TO_SCAN="${DATA_TO_SCAN} ${LINE}"; fi
+            done
+        fi
+
+        # Sort the results
+        DATA_TO_SCAN=$(echo ${DATA_TO_SCAN} | ${TRBINARY} ' ' '\n' | sort)
+
+        for I in ${DATA_TO_SCAN}; do
+            tFINDkey=$(echo ${I} | ${AWKBINARY} -F\; '{ print $2 }')
+            tFINDexpvalue=$(echo ${I} | ${AWKBINARY} -F\; '{ print $3 }')
+            tFINDhp=$(echo ${I} | ${AWKBINARY} -F\; '{ print $4 }' | ${GREPBINARY} "[0-9]")
+            tFINDdesc=$(echo ${I} | ${AWKBINARY} -F\; '{ print $5 }' | ${SEDBINARY} 's/-space-/ /g')
+            tFINDcurvalue=$(${SYSCTL_READKEY} ${tFINDkey} 2> /dev/null)
             if [ ! "${tFINDcurvalue}" = "" ]; then
                 if [ "${tFINDexpvalue}" = "${tFINDcurvalue}" ]; then
                     LogText "Result: sysctl key ${tFINDkey} contains equal expected and current value (${tFINDexpvalue})"
-                    Display --indent 4 --text "- ${tFINDkey} (exp: ${tFINDexpvalue})" --result OK --color GREEN
+                    Display --indent 4 --text "- ${tFINDkey} (exp: ${tFINDexpvalue})" --result "${STATUS_OK}" --color GREEN
                     AddHP ${tFINDhp} ${tFINDhp}
-                  else
+                else
                     LogText "Result: sysctl key ${tFINDkey} has a different value than expected in scan profile. Expected=${tFINDexpvalue}, Real=${tFINDcurvalue}"
                     Display --indent 4 --text "- ${tFINDkey} (exp: ${tFINDexpvalue})" --result DIFFERENT --color RED
                     AddHP 0 ${tFINDhp}
-                    N=1
+                    FOUND=1
+                    N=$((N + 1))
+                    ReportDetails --test "${TEST_NO}" --service "sysctl" --field "${tFINDkey}" --value "${tFINDcurvalue}" --preferredvalue "${tFINDexpvalue}" --description "${tFINDdesc}"
                 fi
-              else
+            else
                 LogText "Result: key ${tFINDkey} does not exist on this machine"
             fi
         done
 
         # Add suggestion if one or more sysctls have a different value than scan profile
-        if [ ${N} -eq 1 ]; then
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: found ${N} keys that can use tuning, according scan profile"
             ReportSuggestion ${TEST_NO} "One or more sysctl values differ from the scan profile and could be tweaked"
         fi
     fi
@@ -66,7 +103,7 @@
 #################################################################################
 #
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================

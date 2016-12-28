@@ -30,15 +30,15 @@
 #
     # Test        : STRG-1840
     # Description : Check for disabled USB storage
-    Register --test-no STRG-1840 --os Linux --weight L --network NO --description "Check if USB storage is disabled"
+    Register --test-no STRG-1840 --os Linux --weight L --network NO --category security --description "Check if USB storage is disabled"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: Checking USB storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
         if [ -d /etc/modprobe.d ]; then
             FIND=`ls /etc/modprobe.d/* 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
-                FIND=`egrep -r "install usb[-_]storage /bin/(false|true)" /etc/modprobe.d/* | grep -v "#"`
-                FIND2=`egrep -r "^blacklist usb[-_]storage" /etc/modprobe.d/*`
+                FIND=`${EGREPBINARY} -r "install usb[-_]storage /bin/(false|true)" /etc/modprobe.d/* | ${GREPBINARY} -v "#"`
+                FIND2=`${EGREPBINARY} -r "^blacklist usb[-_]storage" /etc/modprobe.d/*`
                 if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
                     FOUND=1
                     LogText "Result: found usb-storage driver in disabled state (blacklisted)"
@@ -48,7 +48,7 @@
             fi
         fi
         if [ -f /etc/modprobe.conf ]; then
-            FIND=`egrep "install usb[-_]storage /bin/(false|true)" /etc/modprobe.conf | grep "usb-storage" | grep -v "#"`
+            FIND=`${EGREPBINARY} "install usb[-_]storage /bin/(false|true)" /etc/modprobe.conf | ${GREPBINARY} "usb-storage" | ${GREPBINARY} -v "#"`
             if [ ! "${FIND}" = "" ]; then
                 FOUND=1
                 LogText "Result: found usb-storage driver in disabled state"
@@ -61,7 +61,7 @@
             AddHP 2 3
           else
             LogText "Result: usb-storage driver is disabled"
-            Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "DISABLED" --color GREEN
+            Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "${STATUS_DISABLED}" --color GREEN
             AddHP 3 3
         fi
     fi
@@ -70,7 +70,7 @@
 #
     # Test        : STRG-1842
     # Description : Check USB authorizations
-    Register --test-no STRG-1842 --os Linux --weight L --network NO --description "Check USB authorizations"
+    Register --test-no STRG-1842 --os Linux --weight L --network NO --category security --description "Check USB authorizations"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking USB devices authorization to connect to the system"
         FOUND=0
@@ -80,24 +80,24 @@
                 if [ `cat "${device}/authorized_default"` -eq 1 ]; then
                     FOUND=1
                     LogText "Test: ${device} is authorized by default"
-                    report "usb_authorized_default_device[]=${device}"
+                    Report "usb_authorized_default_device[]=${device}"
                 elif [ `cat "${device}/authorized"` -eq 1 ]; then
                     FOUND=1
                     LogText "Test: ${device} is authorized currently"
-                    report "usb_authorized_device[]=${device}"
+                    Report "usb_authorized_device[]=${device}"
                 fi
             fi
         done
 
         if [ ${FOUND} -eq 1 ]; then
             LogText "Result: Some USB devices are authorized by default (or temporary) to connect to the system"
-            Display --indent 2 --text "- Checking USB devices authorization" --result "ENABLED" --color YELLOW
+            Display --indent 2 --text "- Checking USB devices authorization" --result "${STATUS_ENABLED}" --color YELLOW
             # To-Be-Added: create documentation and enable the suggestion
             #ReportSuggestion ${TEST_NO} "Disable USB devices authorization, to prevent unauthorized storage or data theft"
             AddHP 0 3
         else
             LogText "Result: None USB devices are authorized by default (or temporary) to connect to the system"
-            Display --indent 2 --text "- Checking USB devices authorization" --result "DISABLED" --color GREEN
+            Display --indent 2 --text "- Checking USB devices authorization" --result "${STATUS_DISABLED}" --color GREEN
             AddHP 3 3
         fi
     fi
@@ -107,15 +107,15 @@
     # Test        : STRG-1846
     # Description : Check for disabled firewire storage
     # Explanation : Best option is to use the install function, or else drivers can still be loaded manually
-    Register --test-no STRG-1846 --os Linux --weight L --network NO --description "Check if firewire storage is disabled"
+    Register --test-no STRG-1846 --os Linux --weight L --network NO --category security --description "Check if firewire storage is disabled"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: Checking firewire storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
         if [ -d /etc/modprobe.d ]; then
             FIND=`ls /etc/modprobe.d/* 2> /dev/null`
             if [ ! "${FIND}" = "" ]; then
-                FIND1=`egrep "blacklist (ohci1394|firewire[-_]ohci|firewire-core)" /etc/modprobe.d/* | grep -v "#"`
-                FIND2=`egrep "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" /etc/modprobe.d/* | grep -v "#"`
+                FIND1=`${EGREPBINARY} "blacklist (ohci1394|firewire[-_]ohci|firewire-core)" /etc/modprobe.d/* | ${GREPBINARY} -v "#"`
+                FIND2=`${EGREPBINARY} "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" /etc/modprobe.d/* | ${GREPBINARY} -v "#"`
                 if [ ! "${FIND1}" = "" -o ! "${FIND2}" = "" ]; then
                     FOUND=1
                     LogText "Result: found firewire ohci driver in disabled state"
@@ -125,8 +125,8 @@
             fi
         fi
         if [ -f /etc/modprobe.conf ]; then
-            FIND1=`egrep -r "blacklist (ohci1394|firewire[-_]ohci|firewire-core)" /etc/modprobe.conf | grep -v "#"`
-            FIND2=`egrep -r "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" /etc/modprobe.conf | grep -v "#"`
+            FIND1=`${EGREPBINARY} -r "blacklist (ohci1394|firewire[-_]ohci|firewire-core)" /etc/modprobe.conf | ${GREPBINARY} -v "#"`
+            FIND2=`${EGREPBINARY} -r "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" /etc/modprobe.conf | ${GREPBINARY} -v "#"`
             if [ ! "${FIND1}" = "" -o ! "${FIND2}" = "" ]; then
                 FOUND=1
                 LogText "Result: found firewire ohci driver in disabled state"
@@ -141,7 +141,7 @@
             AddHP 2 3
           else
             LogText "Result: firewire ohci driver is disabled"
-            Display --indent 2 --text "- Checking firewire ohci driver (modprobe config)" --result "DISABLED" --color GREEN
+            Display --indent 2 --text "- Checking firewire ohci driver (modprobe config)" --result "${STATUS_DISABLED}" --color GREEN
             AddHP 3 3
         fi
     fi
@@ -149,7 +149,7 @@
 #################################################################################
 #
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================

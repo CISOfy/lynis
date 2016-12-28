@@ -27,22 +27,22 @@
 #################################################################################
 #
     INETD_ACTIVE=0
-    INETD_CONFIG_FILE="/etc/inetd.conf"
+    INETD_CONFIG_FILE="${ROOTDIR}etc/inetd.conf"
 #
 #################################################################################
 #
     # Test        : INSE-8002
     # Description : Check for inetd status
-    Register --test-no INSE-8002 --weight L --network NO --description "Check for enabled inet daemon"
+    Register --test-no INSE-8002 --weight L --network NO --category security --description "Check for enabled inet daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check running processes
         LogText "Test: Searching for active inet daemon"
         IsRunning inetd
         if [ ${RUNNING} -eq 1 ]; then
             LogText "Result: inetd is running"
-            Display --indent 2 --text "- Checking inetd status" --result ACTIVE --color GREEN
+            Display --indent 2 --text "- Checking inetd status" --result "ACTIVE" --color GREEN
             INETD_ACTIVE=1
-          else
+        else
             LogText "Result: inetd is NOT running"
             Display --indent 2 --text "- Checking inetd status" --result "NOT ACTIVE" --color GREEN
         fi
@@ -53,16 +53,16 @@
     # Test        : INSE-8004
     # Description : Check for inetd configuration file
     if [ ${INETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no INSE-8004 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for enabled inet daemon"
+    Register --test-no INSE-8004 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for enabled inet daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check configuration file
         LogText "Test: Searching for file ${INETD_CONFIG_FILE}"
         if [ -f ${INETD_CONFIG_FILE} ]; then
             LogText "Result: ${INETD_CONFIG_FILE} exists"
-            Display --indent 4 --text "- Checking inetd.conf" --result FOUND --color WHITE
-          else
+            Display --indent 4 --text "- Checking inetd.conf" --result "${STATUS_FOUND}" --color WHITE
+        else
             LogText "Result: ${INETD_CONFIG_FILE} does not exist"
-            Display --indent 4 --text "- Checking inetd.conf" --result "NOT FOUND" --color WHITE
+            Display --indent 4 --text "- Checking inetd.conf" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #
@@ -71,16 +71,18 @@
     # Test        : INSE-8006
     # Description : Check for inetd configuration file contents if inetd is NOT active
     if [ ${INETD_ACTIVE} -eq 0 -a -f ${INETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no INSE-8006 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check configuration of inetd when disabled"
+    Register --test-no INSE-8006 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check configuration of inetd when disabled"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if any service is enabled in /etc/inetd.conf (inetd is not active, see test 8002)
         LogText "Test: check if all services are disabled if inetd is disabled"
-        FIND=`grep -v "^#" ${INETD_CONFIG_FILE} | grep -v "^$"`
-        if [ "${FIND}" = "" ]; then
-            Display --indent 4 --text "- Checking inetd.conf services" --result OK --color GREEN
-          else
-            Display --indent 4 --text "- Checking inetd.conf services" --result SUGGESTION --color YELLOW
-            ReportSuggestion ${TEST_NO} "Although inetd is not running, make sure no services are enabled in ${INETD_CONFIG_FILE}"
+        FIND=$(${GREPBINARY} -v "^#" ${INETD_CONFIG_FILE} | ${GREPBINARY} -v "^$")
+        if [ -z "${FIND}" ]; then
+            LogText "Result: no services found in ${INETD_CONFIG_FILE}"
+            Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: found services in inetd, even though inetd is not running"
+            Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Although inetd is not running, make sure no services are enabled in ${INETD_CONFIG_FILE}, or remove inetd service"
         fi
     fi
 #
@@ -89,17 +91,17 @@
     # Test        : INSE-8016
     # Description : Check for telnet enabled via inetd
     if [ ${INETD_ACTIVE} -eq 1 -a -f ${INETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no INSE-8016 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for telnet via inetd"
+    Register --test-no INSE-8016 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for telnet via inetd"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking telnet presence in inetd configuration"
-        FIND=`grep "^telnet" ${INETD_CONFIG_FILE}`
+        FIND=$(${GREPBINARY} "^telnet" ${INETD_CONFIG_FILE})
         if [ "${FIND}" = "" ]; then
             LogText "Result: telnet not enabled in ${INETD_CONFIG_FILE}"
-            Display --indent 2 --text "- Checking inetd (telnet)" --result "NOT FOUND" --color GREEN
+            Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_NOT_FOUND}" --color GREEN
             AddHP 3 3
-          else
+        else
             LogText "Result: telnet enabled in ${INETD_CONFIG_FILE}"
-            Display --indent 2 --text "- Checking inetd (telnet)" --result WARNING --color RED
+            Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion "${TEST_NO}" "Disable telnet in inetd configuration and use SSH instead"
             AddHP 1 3
         fi
@@ -107,8 +109,31 @@
 #
 #################################################################################
 #
+    if [ ! -z "${LAUNCHCTL_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No launchctl binary on this system"; fi
+    Register --test-no INSE-8050 --os "macOS" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight M --network NO --category security --description "Check for insecure services on macOS"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        TEST_SERVICES="com.apple.fingerd"
+        for ITEM in ${TEST_SERVICES}; do
+            if ${LAUNCHCTL_BINARY} print-enabled system | grep -sq ${ITEM}; then
+                Display --indent 2 --text "- $text" --result "${STATUS_NO}" --color RED
+                LogText "Result: found ${ITEM}, which is considered an insecure service"
+                AddSuggestion "${TEST_NO}" "Consider disabling service ${ITEM}" "launchctl" "-"
+                AddHP 0 1
+            else
+                Display --indent 2 --text "- $text" --result "${STATUS_OK}" --color GREEN
+                LogText "Result: $text, OK"
+                AddHP 1 1
+            fi
+        done
+    fi
+#
+#################################################################################
+#
 
-wait_for_keypress
+# To do:
+# - mark in report when a system was tested for any insecure services
+
+WaitForKeyPress
 
 #
 #================================================================================

@@ -22,7 +22,6 @@
 #
 #################################################################################
 #
-
     # Check number of parameters submitted (at least one is needed)
     PARAMCOUNT=$#
     while [ $# -ge 1 ]; do
@@ -32,29 +31,61 @@
                 CHECK_BINARIES=0
                 RUN_HELPERS=1
                 HELPER="audit"
-                RUN_PLUGINS=0
+                SKIP_PLUGINS=1
                 RUN_TESTS=0
-                if [ ! $2 = "" ]; then
+                if [ $# -gt 1 ]; then
                     case $2 in
                         "dockerfile")
                             if [ "$3" = "" ]; then
                                 echo "${RED}Error: ${WHITE}Missing file name or URL${NORMAL}"
-                                echo "Example: lynis audit dockerfile /root/Dockerfile"
+                                echo "Example: $0 audit dockerfile /root/Dockerfile"
                                 ExitFatal
                               else
                                 shift; shift
-                                HELPER_PARAMS="$1 $2 $3"
+                                HELPER_PARAMS="$1"
                                 HELPER="audit_dockerfile"
                                 break
                             fi
                         ;;
                         "system")
+                            if [ $# -gt 2 ]; then
+                                if [ "$3" = "remote" ]; then
+                                    shift
+                                    if [ "$3" = "" ]; then
+                                        echo "${RED}Error: ${WHITE}Missing remote location${NORMAL}"
+                                        echo "Example: $0 audit system remote 192.168.1.100"
+                                        ExitFatal
+                                      else
+                                        REMOTE_TARGET="$3"
+                                        shift; shift; shift  # shift out first three arguments
+                                        EXTRA_PARAMS=""
+                                        if [ ! "$1" = "" ]; then EXTRA_PARAMS=" $@"; fi
+                                        # --quick is added to be non-interactive
+                                        REMOTE_COMMAND="./lynis audit system --quick${EXTRA_PARAMS}"
+                                        echo ""
+                                        echo "  How to perform a remote scan:"
+                                        echo "  ============================="
+                                        echo "  Target  : ${REMOTE_TARGET}"
+                                        echo "  Command : ${REMOTE_COMMAND}"
+                                        HELPER="system_remote_scan"
+                                        HELPER_PARAMS="$@"
+                                        CHECK_BINARIES=0
+                                        QUIET=1
+                                        RUN_HELPERS=1
+                                        SKIP_PLUGINS=1
+                                        RUN_TESTS=0
+                                        SHOW_PROGRAM_DETAILS=0
+                                        break
+                                    fi
+                                fi
+                            fi
+                            CHECK=1
                             CHECK_BINARIES=1
                             HELPER=""
-                            RUN_PLUGINS=1
+                            SKIP_PLUGINS=0
                             RUN_TESTS=1
                             shift
-                            #break
+
                         ;;
                     esac
                   else
@@ -65,221 +96,326 @@
                     echo "lynis audit system"
                     ExitFatal
                 fi
-                #break
             ;;
 
-            # Helpers first
+            # Configure Lynis
+            configure)
+                CHECK_BINARIES=0
+                RUN_HELPERS=1
+                QUIET=1
+                SKIP_PLUGINS=1
+                RUN_TESTS=0
+                SHOW_PROGRAM_DETAILS=0
+                if [ $# -gt 0 ]; then shift; fi
+                HELPER="configure"
+                HELPER_PARAMS="$@"
+                break
+            ;;
+
+            # Show Lynis details
+            show)
+                CHECK_BINARIES=0
+                HELPER="show"
+                LOGTEXT=0
+                QUIET=1
+                RUN_HELPERS=1
+                RUN_TESTS=0
+                RUN_UPDATE_CHECK=0
+                SKIP_PLUGINS=1
+                SHOW_PROGRAM_DETAILS=0
+                SHOW_TOOL_TIPS=0
+                shift; HELPER_PARAMS="$@"
+                break
+            ;;
+
             update)
                 CHECK_BINARIES=0
                 RUN_HELPERS=1
                 HELPER="update"
-                RUN_PLUGINS=0
+                QUIET=1
+                SKIP_PLUGINS=1
                 RUN_TESTS=0
+                RUN_UPDATE_CHECK=0
                 SHOW_PROGRAM_DETAILS=0
-                if [ ! $2 = "" ]; then
+                SHOW_TOOL_TIPS=0
+                if [ $# -gt 1 ]; then
                     shift
-                    HELPER_PARAMS="$1 $2"
+                    HELPER_PARAMS="$1"
                     break
-                  else
+                else
                     echo "${RED}Error: ${WHITE}Need a target for update${NORMAL}"
                     echo " "
                     echo "Examples:"
+                    echo "lynis update check"
                     echo "lynis update info"
                     echo "lynis update release"
                     ExitFatal
                 fi
             ;;
 
-          # Assign auditor to report
-          --auditor)
-             shift
-             AUDITORNAME=$1
-          ;;
+            # Perform just the upload
+            "upload-only" | "only-upload")
+                CHECK_BINARIES=1
+                CREATE_REPORT_FILE=0
+                #QUIET=1
+                LOGTEXT=0
+                RUN_HELPERS=0
+                RUN_TESTS=0
+                RUN_UPDATE_CHECK=0
+                SKIP_PLUGINS=1
+                SHOW_REPORT=0
+                SHOW_TOOL_TIPS=0
+                SHOW_PROGRAM_DETAILS=0
+                UPLOAD_DATA=1
+                if [ $# -gt 1 ]; then echo "No other parameters or options are allowed when using 'upload-only' command"; ExitFatal; fi
+            ;;
 
-          # Perform tests
-          -c | --check-all | --checkall)
-             CHECK=1
-          ;;
+            # Assign auditor to report
+            --auditor)
+                shift
+                AUDITORNAME=$1
+            ;;
 
-          # Show settings file
-          --config)
-              SHOW_SETTINGS_FILE=1
-          ;;
+            # Binary directories (useful for incident response)
+            --bindirs | --bin-dirs)
+                if [ $# -gt 1 ]; then
+                    shift
+                    DIRS="$1"
+                    for DIR in $1; do
+                        if [ ! -d ${DIR} ]; then
+                            echo "Invalid bindir '${DIR}' provided (does not exist)"
+                            exit 1
+                        fi
+                    done
+                    BIN_PATHS="${DIRS}"
+                else
+                    echo "Need one or more directories (e.g. \"/mnt/cert/bin /mnt/cert/sbin\")"
+                    exit 1
+                fi
+            ;;
 
-          # Cronjob support
-          --cronjob | --cron)
-             CRONJOB=1;
-             # Use some defaults (-c, -Q, no colors)
-             CHECK=1; QUICKMODE=1; NEVERBREAK=1
-             # Get rid of the colors
-             NORMAL=""; WARNING=""; SECTION=""; NOTICE=""; OK=""; BAD=""; CYAN=""; MAGENTA=""; PURPLE=""; YELLOW=""; WHITE=""; GREEN=""; RED=""
-          ;;
+            # Perform tests (deprecated, use audit system)
+            --check-all | --checkall | -c)
+                DisplayToolTip "Usage of option -c is deprecated. Please use: lynis audit system [options]"
+                CHECK=1
+            ;;
 
-          # Perform tests with additional debugging information on screen
-          --debug)
-              DEBUG=1
-          ;;
+            # Cronjob support
+            --cron-job | --cronjob | --cron)
+                CRONJOB=1
+                CHECK=1; QUICKMODE=1; COLORS=0; NEVERBREAK=1 # Use some defaults (-c, -Q, no colors)
+                RemoveColors
+            ;;
 
-          # Display all available options with short alias
-          --dump-options | --dumpoptions)
-              OPTIONS="--auditor
-                       --check-all_(-c) --config --cronjob_(--cron)
-                       --debug
-                       --help_(-h)
-                       --info
-                       --license-key --log-file
-                       --manpage_(--man)
-                       --no-colors --no-log
-                       --pentest --profile --plugins-dir
-                       --quiet_(-q) --quick_(-Q)
-                       --report-file --reverse-colors
-                       --tests --tests-category
-                       --upload
-                       --version_(-V) --view-categories"
-              for I in ${OPTIONS}; do
-                  echo "${I}" | tr '_' ' '
-              done
-              ExitClean
-          ;;
-          # View help
-          --help | -h)
-              VIEWHELP=1
-          ;;
+            # Perform tests with additional debugging information on screen
+            --debug)
+                DEBUG=1
+            ;;
 
-          # View program/database information
-          --check-update | --check-updates | --info)
-              echo "This option is deprecated"
-              echo "Use: lynis update info"
-              ExitClean
-          ;;
+            # Developer mode (more details when creating tests)
+            --developer)
+                DEVELOPER_MODE=1
+            ;;
 
-          # License key for Lynis Enterprise
-          --license-key)
-             shift
-             LICENSE_KEY=$1
-          ;;
+            # Display all available options with short alias
+            --dump-options | --dumpoptions)
+                OPTIONS="--auditor
+                         --check-all_(-c) --config --cronjob_(--cron)
+                         --debug
+                         --help_(-h)
+                         --info
+                         --license-key --log-file
+                         --manpage_(--man)
+                         --no-colors --no-log
+                         --pentest --profile --plugins-dir
+                         --quiet_(-q) --quick_(-Q)
+                         --report-file --reverse-colors
+                         --tests
+                         --upload
+                         --version_(-V)"
+                for I in ${OPTIONS}; do
+                    echo "${I}" | tr '_' ' '
+                done
+                ExitClean
+            ;;
 
-          # Adjust default logfile location
-          --logfile | --log-file)
-             shift
-             LOGFILE=$1
-          ;;
+            # View help
+            --help | -h | "-?")
+                VIEWHELP=1
+            ;;
 
-          # Don't use colors
-          --no-colors | --nocolors)
-              NORMAL=""; WARNING=""; SECTION=""; NOTICE=""; OK=""; BAD=""; CYAN=""; MAGENTA=""; PURPLE=""; YELLOW=""; WHITE=""; GREEN=""; RED=""
-          ;;
+            # View program/database information
+            --check-update | --check-updates | --info)
+                echo "This option is deprecated"
+                echo "Use: lynis update info"
+                ExitClean
+            ;;
 
-          # Disable logging
-          --no-log | --nolog)
-             LOGFILE="/dev/null"
-          ;;
+            # License key for Lynis Enterprise
+            --license-key)
+                shift
+                LICENSE_KEY=$1
+            ;;
 
-          --pentest | --pen-test)
-             PENTESTINGMODE=1
-          ;;
+            # Adjust default logfile location
+            --logfile | --log-file)
+                shift
+                LOGFILE=$1
+            ;;
 
-          # Define a custom profile file
-          --profile)
-             shift
-             PROFILE=$1
-          ;;
+            # Don't use colors
+            --no-colors | --nocolors)
+                COLORS=0
+                RemoveColors
+            ;;
 
-          # Define a custom plugin directory
-          --plugin-dir | --plugins-dir)
-             shift
-             PLUGINDIR=$1
-             LASTCHAR=`echo $1 | awk '{ print substr($0, length($0))}'`
-             if [ "${LASTCHAR}" = "/" ]; then
-                 echo "${RED}Error:${WHITE} plugin directory path should not end with a slash${NORMAL}"
-                 ExitCustom 65
-             fi
-             if [ ! -d ${PLUGINDIR} ]; then
-                 echo "${RED}Error:${WHITE} invalid plugin directory ${PLUGINDIR}${NORMAL}"
-                 ExitCustom 66
-             fi
-          ;;
+            # Disable logging
+            --no-log | --nolog)
+                LOGFILE="/dev/null"
+            ;;
 
-          # Quiet mode
-          -q | --quiet)
-             QUIET=1
-             # Run non-interactive
-             QUICKMODE=1
-          ;;
+            --pen-test | --pentest)
+                PENTESTINGMODE=1
+            ;;
 
-          # Non-interactive mode
-          -Q | --quick)
-             QUICKMODE=1
-          ;;
+            # Define a custom profile file
+            --profile)
+                shift
+                SEARCH_PROFILES=$1
+            ;;
 
-          # Define alternative report file
-          --report-file)
-              shift
-              REPORTFILE=$1
-          ;;
+            # Define a custom plugin directory
+            --plugindir | --plugin-dir | --plugins-dir)
+                shift
+                PLUGINDIR=$1
+                LASTCHAR=`echo $1 | awk '{ print substr($0, length($0))}'`
+                if [ "${LASTCHAR}" = "/" ]; then
+                    echo "${RED}Error:${WHITE} plugin directory path should not end with a slash${NORMAL}"
+                    ExitCustom 65
+                fi
+                if [ ! -d ${PLUGINDIR} ]; then
+                    echo "${RED}Error:${WHITE} invalid plugin directory ${PLUGINDIR}${NORMAL}"
+                    ExitCustom 66
+                fi
+            ;;
 
-          # Strip the colors which aren't clearly visible on light backgrounds
-          --reverse-colors)
-              #NORMAL="";
-              SECTION="${NORMAL}";
-              NOTICE="${NORMAL}";
-              #OK="";
-              #BAD="";
-              CYAN="${NORMAL}";
-              GREEN="${NORMAL}";
-              YELLOW="${NORMAL}";
-              WHITE="${NORMAL}";
-              PURPLE="${NORMAL}";
-              #GREEN="";
-              #RED=""
-          ;;
+            # Quiet mode
+            --quiet | -q)
+                QUIET=1
+                QUICKMODE=1 # Run non-interactive
+            ;;
 
-          # Only scan these tests
-          --tests)
-              shift
-              TESTS_TO_PERFORM=$1
-          ;;
+            # Non-interactive mode
+            --quick | -Q)
+                QUICKMODE=1
+            ;;
 
-          # Scan one or more categories only
-          --tests-category)
-              shift
-              TESTS_CATEGORY_TO_PERFORM=$1
-          ;;
+            # Define alternative report file
+            --report-file)
+                shift
+                REPORTFILE=$1
+            ;;
 
-          # Lynis Enterprise: upload data to central node
-          --upload)
-              UPLOAD_DATA=1
-          ;;
+            # Strip the colors which aren't clearly visible on light backgrounds
+            --reverse-colors)
+                BLUE="${NORMAL}";
+                SECTION="${NORMAL}";
+                NOTICE="${NORMAL}";
+                CYAN="${NORMAL}";
+                GREEN="${NORMAL}";
+                YELLOW="${NORMAL}";
+                WHITE="${NORMAL}";
+                PURPLE="${NORMAL}";
+            ;;
 
-          # Version number
-          -V | --version)
-             echo "${PROGRAM_version}"
-             exit 0
-          ;;
+            # Root directory (useful for forensics)
+            --rootdir | --root-dir)
+                if [ $# -gt 1 ]; then
+                    shift
+                    if [ -d $1 ]; then
+                        ROOTDIR="$1"
+                    else
+                        echo "Invalid rootdir provided (does not exist)"
+                        exit 1
+                    fi
+                else
+                    echo "Need a root directory (e.g. /mnt/forensics)"
+                    exit 1
+                fi
+            ;;
 
-          --view-categories | --list-categories | --show-categories)
-             ViewCategories
-             exit 0
-          ;;
+            # Skip execution of plugins
+            --skip-plugins | --no-plugins)
+                SKIP_PLUGINS=1
+            ;;
 
-          # View man page
-          --view-manpage | --man | --manpage)
-             if [ -f lynis.8 ]; then
-                 nroff -man lynis.8
-                 exit 0
-               else
-                 echo "Error: man page file not found (lynis.8)"
-                 echo "If you are running an installed version of Lynis, use 'man lynis'"
-                 exit 1
-             fi
-          ;;
+            # Only scan these tests
+            --tests)
+                shift
+                TESTS_TO_PERFORM=$1
+            ;;
 
-          # Drop out when using wrong option(s)
-          *)
-              # Wrong option used, we bail out later
-              WRONGOPTION=1
-              WRONGOPTION_value=$1
-          ;;
+            # Scan one or more tests from just one category (e.g. security)
+            --tests-from-category)
+                shift
+                TEST_CATEGORY_TO_CHECK=$1
+            ;;
+
+            # Scan one or more tests from just on group
+            --tests-from-group | --tests-from-groups | --test-from-group | --test-from-group)
+                shift
+                TEST_GROUP_TO_CHECK=$1
+            ;;
+
+            # Lynis Enterprise: upload data to central node
+            --upload)
+                UPLOAD_DATA=1
+            ;;
+
+            --verbose)
+                VERBOSE=1
+            ;;
+
+            # Version number
+            --version | -V)
+                echo "${PROGRAM_VERSION}"
+                exit 0
+            ;;
+
+            # View man page
+            --view-manpage | --man-page | --manpage | --man)
+                if [ -f lynis.8 ]; then
+                    nroff -man lynis.8
+                    exit 0
+                  else
+                    echo "Error: man page file not found (lynis.8)"
+                    echo "If you are running an installed version of Lynis, use 'man lynis'"
+                    exit 1
+                fi
+            ;;
+
+            --wait)
+                QUICKMODE=0
+            ;;
+
+            # Warnings
+            --warnings-only | --show-warnings-only)
+                SHOW_WARNINGS_ONLY=1
+                QUICKMODE=1
+                QUIET=1
+            ;;
+
+            --tests-category | --tests-categories | --view-categories | --list-categories | --show-categories)
+                echo "Error: Deprecated option ($1)"
+                exit 1
+            ;;
+
+            # Drop out when using wrong option(s)
+            *)
+                # Wrong option used, we bail out later
+                WRONGOPTION=1
+                WRONGOPTION_value=$1
+            ;;
 
         esac
         shift

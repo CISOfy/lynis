@@ -26,31 +26,34 @@
 #
 #################################################################################
 #
+    DOCKER_CONTAINERS_RUNNING=0
+    DOCKER_CONTAINERS_TOTAL=0
     DOCKER_FILE_PERMISSIONS_WARNINGS=0
+    RUN_DOCKER_TESTS=0
 #
 #################################################################################
 #
     # Test        : CONT-8004
     # Description : Query running Solaris zones
     if [ -x /usr/sbin/zoneadm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CONT-8004 --os Solaris --weight L --network NO --description "Query running Solaris zones"
+    Register --test-no CONT-8004 --os Solaris --weight L --network NO --category security --description "Query running Solaris zones"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: query zoneadm to list all running zones"
-        FIND=`/usr/sbin/zoneadm list -p | awk -F: '{ if ($2!="global") print $0 }'`
-        if [ ! "${FIND}" = "" ]; then
+        FIND=$(/usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }')
+        if [ ! -z "${FIND}" ]; then
             N=0
             for I in ${FIND}; do
-                N=`expr ${N} + 1`
-                ZONEID=`echo ${I} | cut -d ':' -f1`
-                ZONENAME=`echo ${I} | cut -d ':' -f2`
+                N=$((N + 1))
+                ZONEID=$(echo ${I} | ${CUTBINARY} -d ':' -f1)
+                ZONENAME=$(echo ${I} | ${CUTBINARY} -d ':' -f2)
                 LogText "Result: found zone ${ZONENAME} (running)"
                 Report "solaris_running_zone[]=${ZONENAME} [id:${ZONEID}]"
             done
             LogText "Result: total of ${N} running zones"
             Display --indent 2 --text "- Checking Solaris Zones" --result "FOUND ${N} zones" --color GREEN
-          else
+        else
             LogText "Result: no running zones found"
-            Display --indent 2 --text "- Checking Solaris Zones" --result NONE --color WHITE
+            Display --indent 2 --text "- Checking Solaris Zones" --result "${STATUS_NONE}" --color WHITE
         fi
     fi
 #
@@ -59,13 +62,13 @@
     # Test        : CONT-1906
     # Description : Query running Xen zones
     #if [ -x /usr/bin/xm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no CONT-1906 --weight L --network NO --description "Query Xen guests"
+    #Register --test-no CONT-1906 --weight L --network NO --category security --description "Query Xen guests"
     #if [ ${SKIPTEST} -eq 0 ]; then
         # Show Xen guests
-        #FIND=`xm list | awk '$1 != "Name|Domain-0" {print $1","$2}'`
+        #FIND=`xm list | ${AWKBINARY} '$1 != "Name|Domain-0" {print $1","$2}'`
         #for I in ${FIND}; do
-            #XENGUESTNAME=`echo ${I} | cut -d ':' -f1`
-            #XENGUESTID=`echo ${I} | cut -d ':' -f2`
+            #XENGUESTNAME=`echo ${I} | ${CUTBINARY} -d ':' -f1`
+            #XENGUESTID=`echo ${I} | ${CUTBINARY} -d ':' -f2`
             #LogText "Result: found Xen guest ${XENGUESTNAME} (ID: ${XENGUESTID})"
         #done
     #fi
@@ -74,15 +77,16 @@
 #
     # Test        : CONT-8102
     # Description : Checking Docker daemon status and basic information for later tests
-    Register --test-no CONT-8102 --weight L --network NO --description "Checking Docker status and information"
+    Register --test-no CONT-8102 --weight L --network NO --category security --description "Checking Docker status and information"
     if [ ${SKIPTEST} -eq 0 ]; then
         IsRunning "docker -d"
         if [ ${RUNNING} -eq 1 ]; then
             LogText "Result: found Docker daemon running"
             Report "docker_daemon_running=1"
             DOCKER_DAEMON_RUNNING=1
+            RUN_DOCKER_TESTS=1
             Display --indent 4 --text "- Docker"
-            Display --indent 6 --text "- Docker daemon" --result RUNNING --color GREEN
+            Display --indent 6 --text "- Docker daemon" --result "${STATUS_RUNNING}" --color GREEN
         fi
     fi
 #
@@ -91,25 +95,31 @@
     # Test        : CONT-8104
     # Description : Checking Docker info for any warnings
     # Notes       : Hardening points are awarded, as usually warnings are the result of missing controls to restrict boundaries like memory
-    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CONT-8104 --preqs-met ${PREQS_MET} --weight L --network NO --description "Checking Docker info for any warnings"
+    if [ ! -z "${DOCKERBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8104 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Docker info for any warnings"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         LogText "Test: Check for any warnings"
-        FIND=`${DOCKERBINARY} info 2>&1 | grep "^WARNING:" | cut -d " " -f 2- | sed 's/ /:space:/g'`
+        FIND=$(${DOCKERBINARY} version 2>&1)
+        if [ $? -gt 0 ]; then
+            Display --indent 8 --text "- Docker status" --result "${STATUS_ERROR}" --color RED
+            LogText "Result: disabling further Docker tests as docker version gave exit code other than zero (0)"
+            RUN_DOCKER_TESTS=0
+        fi
+        FIND=$(${DOCKERBINARY} info 2>&1 | ${GREPBINARY} "^WARNING:" | ${CUTBINARY} -d " " -f 2- | ${SEDBINARY} 's/ /:space:/g')
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found warning(s) in output"
             for I in ${FIND}; do
-                J=`echo ${I} | sed 's/:space:/ /g'`
+                J=$(echo ${I} | ${SEDBINARY} 's/:space:/ /g')
                 LogText "Output: ${J}"
-                COUNT=`expr ${COUNT} + 1`
+                COUNT=$((COUNT + 1))
             done
-            Display --indent 8 --text "- Docker info output (warnings)" --result "${COUNT}" --color RED
+            Display --indent 8 --text "- Docker info output (warnings)" --result "${COUNT}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Run 'docker info' to see warnings applicable to Docker daemon"
             AddHP 3 4
-          else
+        else
             LogText "Result: no warnings found from 'docker info' output"
-            Display --indent 8 --text "- Docker info output (warnings)" --result "NONE" --color GREEN
+            Display --indent 8 --text "- Docker info output (warnings)" --result "${STATUS_NONE}" --color GREEN
             AddHP 1 1
         fi
     fi
@@ -119,50 +129,60 @@
     # Test        : CONT-8106
     # Description : Checking Docker containers (basic stats)
     # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
-    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather basic stats from Docker"
+    if [ ! -z "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Gather basic stats from Docker"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 6 --text "- Containers"
 
         # Check total of containers
         LogText "Test: checking total amount of Docker containers"
-        DOCKER_CONTAINERS_TOTAL=`${DOCKERBINARY} info 2> /dev/null | grep "^Containers: " | awk '{ print $2 }'`
+        DOCKER_CONTAINERS_TOTAL=$(${DOCKERBINARY} info 2> /dev/null | ${GREPBINARY} "^Containers: " | ${AWKBINARY} '{ print $2 }')
         if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
             DOCKER_CONTAINERS_TOTAL=0
         fi
+
         LogText "Result: docker info shows ${DOCKER_CONTAINERS_TOTAL} containers"
-        DOCKER_CONTAINERS_TOTAL2=`${DOCKERBINARY} ps -a 2> /dev/null | grep -v "CONTAINER" | wc -l`
+        DOCKER_CONTAINERS_TOTAL2=$(${DOCKERBINARY} ps -a 2> /dev/null | ${GREPBINARY} -c -v "CONTAINER")
         LogText "Result: docker ps -a shows ${DOCKER_CONTAINERS_TOTAL2} containers"
         if [ ! "${DOCKER_CONTAINERS_TOTAL}" = "${DOCKER_CONTAINERS_TOTAL2}" ]; then
             LogText "Result: difference detected, which is unexpected"
             ReportSuggestion "${TEST_NO}" "Test output of both 'docker ps -a' and 'docker info', to determine why they report a different amount of containers"
-            Display --indent 8 --text "- Total containers" --result "UNKNOWN" --color RED
-          else
+            Display --indent 8 --text "- Total containers" --result "${STATUS_UNKNOWN}" --color RED
+        else
             Display --indent 8 --text "- Total containers" --result "${DOCKER_CONTAINERS_TOTAL}" --color WHITE
         fi
 
         # Check running instances
-        DOCKER_CONTAINERS_RUNNING=`${DOCKERBINARY} ps 2> /dev/null | grep -v "CONTAINER" | wc -l`
-        Display --indent 8 --text "- Running containers" --result "${DOCKER_CONTAINERS_RUNNING}" --color GREEN
+        DOCKER_CONTAINERS_RUNNING=$(${DOCKERBINARY} ps 2> /dev/null | ${GREPBINARY} -c -v "CONTAINER")
         if [ ${DOCKER_CONTAINERS_RUNNING} -gt 0 ]; then
+            Display --indent 10 --text "- Running containers" --result "${DOCKER_CONTAINERS_RUNNING}" --color GREEN
             LogText "Result: ${DOCKER_CONTAINERS_RUNNING} containers are currently active"
             Report "docker_containers_running=${DOCKER_CONTAINERS_RUNNING}"
-          else
+        else
             LogText "Result: no active containers"
             Report "docker_containers_running=0"
         fi
-
+    fi
+#
+#################################################################################
+#
+    # Test        : CONT-8107
+    # Description : Checking Docker number of unused containers
+    # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
+    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8107 --preqs-met ${PREQS_MET} --weight L --network NO --category performance --description "Check number of Docker containers"
+    if [ ${SKIPTEST} -eq 0 ]; then
         # Check if there aren't too many unused containers on the system
         if [ ${DOCKER_CONTAINERS_TOTAL} -gt 0 ]; then
-            DOCKER_CONTAINERS_UNUSED=`expr ${DOCKER_CONTAINERS_TOTAL} - ${DOCKER_CONTAINERS_RUNNING}`
+            DOCKER_CONTAINERS_UNUSED=$((DOCKER_CONTAINERS_TOTAL - DOCKER_CONTAINERS_RUNNING))
             if [ ${DOCKER_CONTAINERS_UNUSED} -gt 10 ]; then
                 ReportSuggestion "${TEST_NO}" "More than 10 unused containers found on the system. Clean up old containers by using output of 'docker ps -a' command"
                 Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color RED
                 AddHP 0 2
-              else
-               LogText "Result: found ${DOCKER_CONTAINERS_UNUSED} unused containers"
-               Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color YELLOW
-               AddHP 1 1
+            else
+                LogText "Result: found ${DOCKER_CONTAINERS_UNUSED} unused containers"
+                Display --indent 8 --text "- Unused containers" --result "${DOCKER_CONTAINERS_UNUSED}" --color YELLOW
+                AddHP 1 1
             fi
         fi
     fi
@@ -172,28 +192,28 @@
     # Test        : CONT-8108
     # Description : Checking Docker file permissions
     # Notes       : /var/run/docker.sock - Usually root as owner, docker as group - should not be world writable
-    if [ ! "${DOCKERBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CONT-8108 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check file permissions for Docker files"
+    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CONT-8108 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check file permissions for Docker files"
     if [ ${SKIPTEST} -eq 0 ]; then
         NOT_WORLD_WRITABLE="/var/run/docker.sock"
-        for I in ${NOT_WORLD_WRITABLE}; do
-            LogText "Test: Check ${I}"
-            if [ -f ${I} ]; then
-                LogText "Result: file ${I} found, permissions will be tested"
-                if IsWorldWritable ${I}; then
+        for FILE in ${NOT_WORLD_WRITABLE}; do
+            LogText "Test: Check ${FILE}"
+            if [ -f ${FILE} ]; then
+                LogText "Result: file ${FILE} found, permissions will be tested"
+                if IsWorldWritable ${FILE}; then
                     LogText "Result: file is writable by others, which is a security risk (e.g. privilege escalation)"
-                    ReportWarning "${TEST_NO}" "Docker file is world writable" "${I}" "-"
-                    DOCKER_FILE_PERMISSIONS_WARNINGS=`expr ${DOCKER_FILE_PERMISSIONS_WARNINGS} + 1`
-                  else
-                    LogText "Result: file is not writable by others, which is fine"
+                    ReportWarning "${TEST_NO}" "Docker file is world writable" "${FILE}" "-"
+                    DOCKER_FILE_PERMISSIONS_WARNINGS=$((DOCKER_FILE_PERMISSIONS_WARNINGS + 1))
+                else
+                    LogText "Result: file ${FILE} is not writable by others, which is fine"
                 fi
             fi
         done
         if [ ${DOCKER_FILE_PERMISSIONS_WARNINGS} -gt 0 ]; then
-            Display --indent 4 --text "- File permissions" --result WARNINGS --color YELLOW
+            Display --indent 4 --text "- File permissions" --result "${STATUS_WARNING}"S --color YELLOW
             AddHP 0 5
-          else
-            Display --indent 4 --text "- File permissions" --result OK --color GREEN
+        else
+            Display --indent 4 --text "- File permissions" --result "${STATUS_OK}" --color GREEN
             AddHP 5 5
         fi
     fi
@@ -201,7 +221,7 @@
 #################################################################################
 #
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================

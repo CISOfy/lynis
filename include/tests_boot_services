@@ -37,20 +37,21 @@
     # Test        : BOOT-5102
     # Description : Check for AIX boot device
     # Notes       : The AIX bootstrap is called as software ROS. Bootstrap contains IPL (Initial Program loader)
-    Register --test-no BOOT-5102 --os AIX --weight L --network NO --root-only YES --description "Check for AIX boot device"
+    #               TODO - binary detection of bootinfo and replace with variable
+    Register --test-no BOOT-5102 --os AIX --weight L --network NO --root-only YES --category security --description "Check for AIX boot device"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
         LogText "Test: Query bootinfo for AIX boot device"
         if [ -x /usr/sbin/bootinfo ]; then
-            FIND=`/usr/sbin/bootinfo -b`
-            if [ ! "${FIND}" = "" ]; then
+            FIND=$(/usr/sbin/bootinfo -b)
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: found boot device ${FIND}"
-                Display --indent 2 --text "- Checking boot device (bootinfo)" --result FOUND --color GREEN
+                Display --indent 2 --text "- Checking boot device (bootinfo)" --result "${STATUS_FOUND}" --color GREEN
                 BOOT_LOADER="ROS"
                 BOOT_LOADER_FOUND=1
-              else
+            else
                 LogText "Result: no data received from bootinfo, most likely boot device not found"
-                #Display --indent 4 --text "- Checking boot device (bootinfo)" --result "NOT FOUND" --color YELLOW
+                #Display --indent 4 --text "- Checking boot device (bootinfo)" --result "${STATUS_NOT_FOUND}" --color YELLOW
                 #ReportSuggestion ${TEST_NO}  "Only use root (not sudo account) to query properly boot device"
             fi
         fi
@@ -64,15 +65,15 @@
     # initscripts     - Used by Arch before
     # systemd         - Common option with more Linux distros implementing it
     # upstart         - Used by Debian/Ubuntu
-    Register --test-no BOOT-5104 --weight L --network NO --description "Determine service manager"
+    Register --test-no BOOT-5104 --weight L --network NO --category security --description "Determine service manager"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FILENAME=`awk '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
+                    FILENAME=`${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
                     LogText "Result: cmdline found = ${FILENAME}"
-                    ISFILE=`echo ${FILENAME} | grep "^/"`
+                    ISFILE=`echo ${FILENAME} | ${GREPBINARY} "^/"`
                     if [ ! "${ISFILE}" = "" ]; then
                         if [ -L ${ISFILE} ]; then
                             ShowSymlinkPath ${ISFILE}
@@ -84,7 +85,7 @@
                         fi
                     fi
                     if [ ! "${FILENAME}" = "" ]; then
-                        SHORTNAME=`echo ${FILENAME} | awk -F/ '{ print $NF }'`
+                        SHORTNAME=`echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }'`
                         LogText "Found: ${SHORTNAME}"
                         case ${SHORTNAME} in
                             "init")
@@ -97,7 +98,7 @@
                                 SERVICE_MANAGER="upstart"
                             ;;
                             *)
-                                CONTAINS_SYSTEMD=`echo ${SHORTNAME} | grep "systemd"`
+                                CONTAINS_SYSTEMD=`echo ${SHORTNAME} | ${GREPBINARY} "systemd"`
                                 if [ ! "${CONTAINS_SYSTEMD}" = "" ]; then
                                     SERVICE_MANAGER="systemd"
                                 else
@@ -117,7 +118,7 @@
                 fi
             ;;
             "DragonFly"|"NetBSD"|"FreeBSD")
-                if [ -x /sbin/init -a -d /etc/rc.d -a -f /etc/rc ]; then
+                if [ -x /sbin/init -a -d ${ROOTDIR}etc/rc.d -a -f ${ROOTDIR}etc/rc ]; then
                     SERVICE_MANAGER="bsdrc"
                 fi
             ;;
@@ -126,8 +127,8 @@
         esac
         LogText "Result: service manager found = ${SERVICE_MANAGER}"
         if [ "${SERVICE_MANAGER}" = "" -o "${SERVICE_MANAGER}" = "unknown" ]; then
-            Display --indent 2 --text "- Service Manager" --result "UNKNOWN" --color YELLOW
-          else
+            Display --indent 2 --text "- Service Manager" --result "${STATUS_UNKNOWN}" --color YELLOW
+        else
             Display --indent 2 --text "- Service Manager" --result "${SERVICE_MANAGER}" --color GREEN
         fi
     fi
@@ -135,13 +136,27 @@
 #################################################################################
 #
     # Test        : BOOT-5106
-    # Description : Check if boot.efi is found on Mac OS X
-    Register --test-no BOOT-5106 --os "MacOS" --weight L --network NO --root-only YES --description "Check EFI boot file on Mac OS X"
+    # Description : Check if boot.efi is found on macOS/macOS
+    Register --test-no BOOT-5106 --os "macOS" --weight L --network NO --root-only YES --category security --description "Check EFI boot file on Mac OS X/macOS"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FileExists /System/Library/CoreServices/boot.efi
+        FileExists ${ROOTDIR}System/Library/CoreServices/boot.efi
         if [ ${FILE_FOUND} -eq 1 ]; then
-            LogText "Result: found Mac OS X boot.efi file"
-            BOOT_LOADER="MacOS-boot-EFI"
+            LogText "Result: found macOS/Mac OS X boot.efi file"
+            BOOT_LOADER="macOS-boot-EFI"
+            BOOT_LOADER_FOUND=1
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : BOOT-5108
+    # Description : Check for Syslinux
+    Register --test-no BOOT-5108 --os "Linux" --weight L --network NO --root-only YES --category security --description "Check Syslinux as bootloader"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FileExists ${ROOTDIR}boot/syslinux/syslinux.cfg
+        if [ ${FILE_FOUND} -eq 1 ]; then
+            LogText "Result: found Syslinux"
+            BOOT_LOADER="Syslinux"
             BOOT_LOADER_FOUND=1
         fi
     fi
@@ -150,7 +165,7 @@
 #
     # Test        : BOOT-5116
     # Description : Check if system is booted in UEFI mode
-    Register --test-no BOOT-5116 --weight L --network NO --root-only YES --description "Check if system is booted in UEFI mode"
+    Register --test-no BOOT-5116 --weight L --network NO --root-only YES --category security --description "Check if system is booted in UEFI mode"
     if [ ${SKIPTEST} -eq 0 ]; then
         UEFI_TESTS_PERFORMED=0
         case ${OS} in
@@ -158,50 +173,51 @@
                 UEFI_TESTS_PERFORMED=1
                 # Check if UEFI is available in this boot
                 LogText "Test: checking if UEFI is used"
-                if [ -d /sys/firmware/efi ]; then
+                if [ -d ${ROOTDIR}sys/firmware/efi ]; then
                     LogText "Result: system booted in UEFI mode"
                     UEFI_BOOTED=1
-                  else
+                else
                     LogText "Result: UEFI not used, can't find /sys/firmware/efi directory"
                 fi
 
                 # Test if Secure Boot is enabled
                 LogText "Test: determine if Secure Boot is used"
-                if [ -d /sys/firmware/efi/efivars ]; then
-                    FIND=`ls /sys/firmware/efi/efivars/SecureBoot-* 2> /dev/null`
-                    if [ ! "${FIND}" = "" ]; then
-                        for I in ${FIND}; do
-                            LogText "Test: checking file ${I}"
-                            J=`od -An -t u1 ${I} | awk '{ print $5 }'`
+                if [ -d ${ROOTDIR}sys/firmware/efi/efivars ]; then
+                    FIND=$(${LSBINARY} ${ROOTDIR}sys/firmware/efi/efivars/SecureBoot-* 2> /dev/null)
+                    if [ ! -z "${FIND}" ]; then
+                        for FILE in ${FIND}; do
+                            LogText "Test: checking file ${FILE}"
+                            # TODO: add detection for od
+                            J=$(od -An -t u1 ${FILE} | ${AWKBINARY} '{ print $5 }')
                             if [ "${J}" = "1" ]; then
                                 LogText "Result: found SecureBoot file with enabled status"
                                 UEFI_BOOTED_SECURE=1
-                              else
-                                LogText "Result: system not booted with Secure Boot (status 0 in file ${I})"
+                            else
+                                LogText "Result: system not booted with Secure Boot (status 0 in file ${FILE})"
                             fi
                         done
                     fi
-                  else
+                else
                     LogText "Result: system not booted with Secure Boot (no SecureBoot file found)"
                 fi
             ;;
-            #MacOS)
-            # Mac OS ioreg -l -p IODeviceTree | grep firmware-abi
+            #macOS)
+            # TODO: macOS ioreg -l -p IODeviceTree | ${GREPBINARY} firmware-abi
             #;;
             *)
                 LogText "Result: no test implemented yet to test for UEFI on this platform"
             ;;
         esac
         if [ ${UEFI_BOOTED} -eq 1 ]; then
-            Display --indent 2 --text "- Checking UEFI boot" --result ENABLED --color GREEN
+            Display --indent 2 --text "- Checking UEFI boot" --result "${STATUS_ENABLED}" --color GREEN
             if [ ${UEFI_BOOTED_SECURE} -eq 1 ]; then
-                Display --indent 2 --text "- Checking Secure Boot" --result ENABLED --color GREEN
-              else
-                Display --indent 2 --text "- Checking Secure Boot" --result DISABLED --color YELLOW
+                Display --indent 2 --text "- Checking Secure Boot" --result "${STATUS_ENABLED}" --color GREEN
+            else
+                Display --indent 2 --text "- Checking Secure Boot" --result "${STATUS_DISABLED}" --color YELLOW
             fi
-          else
+        else
             if [ ${UEFI_TESTS_PERFORMED} -eq 1 ]; then
-                Display --indent 2 --text "- Checking UEFI boot" --result DISABLED --color GREEN
+                Display --indent 2 --text "- Checking UEFI boot" --result "${STATUS_DISABLED}" --color WHITE
             fi
         fi
     fi
@@ -210,7 +226,7 @@
 #
     # Test        : BOOT-5121
     # Description : Check for GRUB boot loader
-    Register --test-no BOOT-5121 --weight L --network NO --description "Check for GRUB boot loader presence"
+    Register --test-no BOOT-5121 --weight L --network NO --category security --description "Check for GRUB boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
         FOUND=0
@@ -220,7 +236,7 @@
             BOOT_LOADER="GRUB"
             BOOT_LOADER_FOUND=1
             GRUB_VERSION=1
-            Display --indent 2 --text "- Checking presence GRUB" --result "OK" --color GREEN
+            Display --indent 2 --text "- Checking presence GRUB" --result "${STATUS_OK}" --color GREEN
             if [ -f /boot/grub/grub.conf ]; then GRUBCONFFILE="/boot/grub/grub.conf"; else GRUBCONFFILE="/boot/grub/menu.lst"; fi
         fi
 
@@ -230,7 +246,7 @@
             BOOT_LOADER="GRUB2"
             BOOT_LOADER_FOUND=1
             GRUB_VERSION=2
-            Display --indent 2 --text "- Checking presence GRUB2" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking presence GRUB2" --result "${STATUS_FOUND}" --color GREEN
             if [ -f /boot/grub/grub.cfg ]; then
                 GRUBCONFFILE="/boot/grub/grub.cfg"
             elif [ -f /boot/grub2/grub.cfg ]; then
@@ -240,8 +256,9 @@
         fi
 
         # Some OSes like Gentoo do not have /boot mounted by default
+        # TODO: root directory and rewrite ls statement
         if [ -d /boot ]; then
-            if [ "`ls /boot/* 2> /dev/null`" = "" -a ! "${GRUB2INSTALLBINARY}" = "" ]; then
+            if [ "`ls /boot/* 2> /dev/null`" = "" -a ! -z "${GRUB2INSTALLBINARY}" ]; then
                 BOOT_LOADER_FOUND=1
                 LogText "Result: found empty /boot, however with GRUB2 binary installed. Best guess is that GRUB2 is actually installed, but /boot not mounted"
                 Display --indent 2 --text "- Checking presence GRUB2" --result "POSSIBLE MATCH" --color YELLOW
@@ -259,35 +276,36 @@
     # Test        : BOOT-5122
     # Description : Check for GRUB boot loader configuration
     if [ ! "${GRUBCONFFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no BOOT-5122 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for GRUB boot password"
+    Register --test-no BOOT-5122 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for GRUB boot password"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Found file ${GRUBCONFFILE}, proceeding with tests."
         FileIsReadable ${GRUBCONFFILE}
         if [ ${CANREAD} -eq 1 ]; then
-            FIND=`grep 'password --md5' ${GRUBCONFFILE} | grep -v '^#'`
-            FIND2=`grep 'password --encrypted' ${GRUBCONFFILE} | grep -v '^#'`
-            FIND3=`grep 'set superusers' ${GRUBCONFFILE} | grep -v '^#'`
-            FIND4=`grep 'password_pbkdf2' ${GRUBCONFFILE} | grep -v '^#'`
-            # GRUB1: MD5 or SHA1
-            if [ ! "${FIND}" = "" -o ! "${FIND2}" = "" ]; then
+            FIND=$(${GREPBINARY} 'password --md5' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
+            FIND2=$(${GREPBINARY} 'password --encrypted' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
+            FIND3=$(${GREPBINARY} 'set superusers' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
+            FIND4=$(${GREPBINARY} 'password_pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
+            FIND5=$(${GREPBINARY} 'grub.pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
+            # GRUB1: Password should be set (MD5 or SHA1)
+            if [ ! -z "${FIND}" -o ! -z "${FIND2}" ]; then
                 FOUND=1
-              # GRUB2: Superusers and password should be defined
-              elif [ ! "${FIND3}" = "" -a ! "${FIND4}" = "" ]; then
-                FOUND=1
+            # GRUB2: Superusers AND password should be defined
+            elif [ ! -z "${FIND3}" ]; then
+                if [ ! -z "${FIND4}" -o ! -z "${FIND5}" ]; then FOUND=1; fi
             fi
             if [ ${FOUND} -eq 1 ]; then
-                Display --indent 4 --text "- Checking for password protection" --result OK --color GREEN
+                Display --indent 4 --text "- Checking for password protection" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: GRUB has password protection."
                 AddHP 4 4
-              else
-                Display --indent 4 --text "- Checking for password protection" --result WARNING --color RED
+            else
+                Display --indent 4 --text "- Checking for password protection" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Didn't find hashed password line in GRUB boot file!"
                 ReportSuggestion ${TEST_NO} "Set a password on GRUB bootloader to prevent altering boot configuration (e.g. boot in single user mode without password)"
                 AddHP 0 2
             fi
-          else
-                LogText "Result: Can not read ${GRUBCONFFILE} (no permission)"
+        else
+            LogText "Result: Can not read ${GRUBCONFFILE} (no permission)"
         fi
     fi
 #
@@ -295,16 +313,33 @@
 #
     # Test        : BOOT-5124
     # Description : Check for FreeBSD boot loader
-    Register --test-no BOOT-5124 --os FreeBSD --weight L --network NO --description "Check for FreeBSD boot loader presence"
+    Register --test-no BOOT-5124 --os FreeBSD --weight L --network NO --category security --description "Check for FreeBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
-        if [ -f /boot/boot1 -a -f /boot/boot2 -a -f /boot/loader ]; then
-            LogText "Result: found boot1, boot2 and loader files in /boot"
-            Display --indent 2 --text "- Checking presence FreeBSD loader" --result FOUND --color GREEN
+        if [ -f ${ROOTDIR}boot/boot1 -a -f ${ROOTDIR}boot/boot2 -a -f ${ROOTDIR}boot/loader ]; then
+            LogText "Result: found boot1, boot2 and loader files in ${ROOTDIR}boot"
+            Display --indent 2 --text "- Checking presence FreeBSD loader" --result "${STATUS_FOUND}" --color GREEN
             BOOT_LOADER="FreeBSD"
             BOOT_LOADER_FOUND=1
-          else
-            LogText "Result: Not all expected files found in /boot"
+        else
+            LogText "Result: Not all expected files found in ${ROOTDIR}boot"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : BOOT-5261
+    # Description : Check for DragonFly boot loader
+    Register --test-no BOOT-5261 --os DragonFly --weight L --network NO --category security --description "Check for DragonFly boot loader presence"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
+        if [ -f ${ROOTDIR}boot/boot1 -a -f ${ROOTDIR}boot/boot2 -a -f ${ROOTDIR}boot/loader ]; then
+            LogText "Result: found boot1, boot2 and loader files in ${ROOTDIR}boot"
+            Display --indent 2 --text "- Checking presence DragonFly loader" --result "${STATUS_FOUND}" --color GREEN
+            BOOT_LOADER="DragonFly"
+            BOOT_LOADER_FOUND=1
+        else
+            LogText "Result: Not all expected files found in ${ROOTDIR}boot"
         fi
     fi
 #
@@ -312,15 +347,15 @@
 #
     # Test        : BOOT-5126
     # Description : Check for NetBSD boot loader
-    Register --test-no BOOT-5126 --os NetBSD --weight L --network NO --description "Check for NetBSD boot loader presence"
+    Register --test-no BOOT-5126 --os NetBSD --weight L --network NO --category security --description "Check for NetBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
-        if [ -f /boot.${HARDWARE} -o -f /boot -o -f /ofwboot ]; then
+        if [ -f ${ROOTDIR}boot.${HARDWARE} -o -f ${ROOTDIR}boot -o -f ${ROOTDIR}ofwboot ]; then
             LogText "Result: found NetBSD secondary bootstrap"
-            Display --indent 2 --text "- Checking presence NetBSD loader" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking presence NetBSD loader" --result "${STATUS_FOUND}" --color GREEN
             BOOT_LOADER="NetBSD"
             BOOT_LOADER_FOUND=1
-          else
+        else
             LogText "Result: NetBSD secondary bootstrap not found"
             ReportException "${TEST_NO}:1" "No boot loader found on NetBSD"
         fi
@@ -331,35 +366,43 @@
     # Test        : BOOT-5139
     # Description : Check for LILO boot loader
     # Notes       : password= or password =
-    Register --test-no BOOT-5139 --weight L --network NO --description "Check for LILO boot loader presence"
+    Register --test-no BOOT-5139 --weight L --network NO --category security --description "Check for LILO boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
-        LILOCONFFILE="/etc/lilo.conf"
+        LILOCONFFILE="${ROOTDIR}etc/lilo.conf"
         LogText "Test: checking for presence LILO configuration file"
         if [ -f ${LILOCONFFILE} ]; then
             FileIsReadable ${LILOCONFFILE}
             if [ ${CANREAD} -eq 1 ]; then
                 BOOT_LOADER="LILO"
                 BOOT_LOADER_FOUND=1
-                Display --indent 2 --text "- Checking presence LILO" --result "OK" --color GREEN
+                Display --indent 2 --text "- Checking presence LILO" --result "${STATUS_OK}" --color GREEN
                 LogText "Checking password option LILO"
-                FIND=`${EGREPBINARY} 'password[[:space:]]?=' ${LILOCONFFILE} | grep -v "^#"`
-                if [ "${FIND}" = "" ]; then
-                    Display --indent 4 --text "- Password option presence " --result "WARNING" --color RED
-                    LogText "Result: no password set for LILO. Bootloader is unprotected to"
-                    LogText "dropping to single user mode or unauthorized access to devices/data."
-                    ReportSuggestion ${TEST_NO} "Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
-                    ReportWarning ${TEST_NO} "M" "No password set on LILO bootloader"
-                    AddHP 0 2
-                  else
-                    Display --indent 4 --text "- Password option presence " --result "OK" --color GREEN
+                FIND=$(${EGREPBINARY} 'password[[:space:]]?=' ${LILOCONFFILE} | ${GREPBINARY} -v "^#")
+                if [ -z "${FIND}" ]; then
+                    if [ "${MACHINE_ROLE}" = "server" -o "${MACHINE_ROLE}" = "workstation" ]; then
+                        Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color RED
+                        LogText "Result: no password set for LILO. Bootloader is unprotected to dropping to single user mode or unauthorized access to devices/data."
+                        ReportSuggestion ${TEST_NO} "Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
+                        ReportWarning ${TEST_NO} "No password set on LILO bootloader"
+                        AddHP 0 2
+                    elif [ "${MACHINE_ROLE}" = "personal"]; then
+                        Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color yellow
+                        LogText "Result: no password set for LILO. Bootloader is unprotected to dropping to single user mode or unauthorized access to devices/data."
+                        ReportSuggestion ${TEST_NO} "No password set on LILO bootloader. Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
+                        AddHP 1 2
+                    else
+                        LogText "Result: no password set for LILO, with unknown machine role"
+                    fi
+                else
+                    Display --indent 4 --text "- Password option presence " --result "${STATUS_OK}" --color GREEN
                     LogText "Result: LILO password option set"
                     AddHP 4 4
                 fi
-              else
+            else
                 LogText "Result: can not read ${LILOCONFFILE} (no permission)"
             fi
-          else
+        else
             LogText "Result: LILO configuration file not found"
         fi
     fi
@@ -368,12 +411,12 @@
 #
     # Test        : BOOT-5142
     # Description : Check for SILO boot loader
-    Register --test-no BOOT-5142 --weight L --network NO --description "Check SPARC Improved boot loader (SILO)"
+    Register --test-no BOOT-5142 --weight L --network NO --category security --description "Check SPARC Improved boot loader (SILO)"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
         if [ -f /etc/silo.conf ]; then
             LogText "Result: Found SILO configuration file (/etc/silo.conf)"
-            Display --indent 2 --text "- Checking boot loader SILO" --result FOUND --color GREEN
+            Display --indent 2 --text "- Checking boot loader SILO" --result "${STATUS_FOUND}" --color GREEN
             BOOT_LOADER="SILO"
             BOOT_LOADER_FOUND=1
           else
@@ -383,38 +426,18 @@
 #
 #################################################################################
 #
-    # Test        : BOOT-5144
-    # Description : Check for SILO boot loader consistency
-    # Notes       : To be tested on Gentoo
-#    Register --test-no BOOT-5144 --weight L --network NO --description "Check SPARC Improved boot loader (SILO)"
-#    if [ ${SKIPTEST} -eq 0 ]; then
-#        if [ -f /etc/silo.conf -a -x /sbin/silo ]; then
-#            FIND=`/sbin/silo | grep "appears to be valid"`
-#            if [ ! "${FIND}" = "" ]; then
-#                LogText "Result: Found SILO configuration file (/etc/silo.conf)"
-#                Display --indent 6 --text "- Checking SILO consistency" --result OK --color GREEN
-#              else
-#                LogText "Result: no positive result received from silo binary"
-#                ReportWarning ${TEST_NO} "Possible issue with boot loader (SILO)"
-#                Display --indent 6 --text "- Checking SILO consistency" --result WARNING --color RED
-#            fi
-#        fi
-#    fi
-#
-#################################################################################
-#
     # Test        : BOOT-5155
     # Description : Check for YABOOT boot loader
-    Register --test-no BOOT-5155 --weight L --network NO --description "Check for YABOOT boot loader configuration file"
+    Register --test-no BOOT-5155 --weight L --network NO --category security --description "Check for YABOOT boot loader configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
         LogText "Test: Check for /etc/yaboot.conf"
         if [ -f /etc/yaboot.conf ]; then
             LogText "Result: Found YABOOT configuration file (/etc/yaboot.conf)"
-            Display --indent 4 --text "- Checking boot loader YABOOT" --result FOUND --color GREEN
+            Display --indent 4 --text "- Checking boot loader YABOOT" --result "${STATUS_FOUND}" --color GREEN
             BOOT_LOADER="YABOOT"
             BOOT_LOADER_FOUND=1
-          else
+        else
             LogText "Result: no YABOOT configuration file found."
         fi
     fi
@@ -424,74 +447,72 @@
     # Test        : BOOT-5159
     # Description : Check for OpenBSD boot loader
     # More info   : Only OpenBSD
-    Register --test-no BOOT-5159 --os OpenBSD --weight L --network NO --description "Check for OpenBSD boot loader presence"
+    Register --test-no BOOT-5159 --os OpenBSD --weight L --network NO --category security --description "Check for OpenBSD boot loader presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
         FOUND=0
         # Boot files
         # /usr/mdec/biosboot: first stage bootstrap
         # /boot             : second stage bootstrap
-        if [ -f /usr/mdec/biosboot -a -f /boot ]; then
+        if [ -f ${ROOTDIR}usr/mdec/biosboot -a -f ${ROOTDIR}boot ]; then
             FOUND=1
         fi
         # Configuration file
-        if [ -f /etc/boot.conf ]; then
+        if [ -f ${ROOTDIR}etc/boot.conf ]; then
             FOUND=1
-            Display --indent 2 --text "- Checking /etc/boot.conf" --result "FOUND" --color GREEN
-            FIND=`grep '^boot' /etc/boot.conf`
-            if [ "${FIND}" = "" ]; then
-                Display --indent 4 --text "- Checking boot option" --result WARNING --color RED
-                #ReportSuggestion ${TEST_NO} "Add 'boot' to the /etc/boot.conf file to disable the default 5 seconds waiting time, to disallow booting into single user mode."
-                ReportWarning ${TEST_NO} "M" "System can be booted into single user mode without password"
-              else
-                Display --indent 4 --text "- Checking boot option" --result OK --color GREEN
+            Display --indent 2 --text "- Checking ${ROOTDIR}etc/boot.conf" --result "${STATUS_FOUND}" --color GREEN
+            FIND=$(${GREPBINARY} '^boot' ${ROOTDIR}etc/boot.conf)
+            if [ -z "${FIND}" ]; then
+                Display --indent 4 --text "- Checking boot option" --result "${STATUS_WARNING}" --color RED
+                #ReportSuggestion ${TEST_NO} "Add 'boot' to the ${ROOTDIR}etc/boot.conf file to disable the default 5 seconds waiting time, to disallow booting into single user mode."
+                ReportWarning ${TEST_NO} "System can be booted into single user mode without password"
+            else
+                Display --indent 4 --text "- Checking boot option" --result "${STATUS_OK}" --color GREEN
                 LogText "Ok, boot option is enabled."
             fi
-          else
-            Display --indent 2 --text "- Checking /etc/boot.conf" --result "NOT FOUND" --color YELLOW
-            LogText "Result: no /etc/boot.conf found. When using the default boot loader, physical"
+        else
+            Display --indent 2 --text "- Checking ${ROOTDIR}etc/boot.conf" --result "${STATUS_NOT_FOUND}" --color YELLOW
+            LogText "Result: no ${ROOTDIR}etc/boot.conf found. When using the default boot loader, physical"
             LogText "access to the server can be used to possibly enter single user mode."
-            ReportSuggestion ${TEST_NO} "Add 'boot' to the /etc/boot.conf file to disable the default 5 seconds waiting time."
+            ReportSuggestion ${TEST_NO} "Add 'boot' to the ${ROOTDIR}etc/boot.conf file to disable the default 5 seconds waiting time."
         fi
         if [ ${FOUND} -eq 1 ]; then
             LogText "Result: found OpenBSD boot loader"
             BOOT_LOADER="OpenBSD"
             BOOT_LOADER_FOUND=1
         fi
-
-
     fi
 #
 #################################################################################
 #
     if [ ${BOOT_LOADER_FOUND} -eq 0 -a ${BOOT_LOADER_SEARCHED} -eq 1 ]; then
         # Your boot loader is not detected. Want to help supporting it, see the README
-        ReportException "BOOTLOADER" "No boot loader found"
-        Display --indent 4 --text "- Boot loader" --result "NONE FOUND" --color RED
+        # ReportException "BOOTLOADER" "No boot loader found"
+        Display --indent 4 --text "- Boot loader" --result "NONE FOUND" --color YELLOW
     fi
 #
 #################################################################################
 #
     # Test        : BOOT-5165
     # Description : Check for FreeBSD boot services
-    Register --test-no BOOT-5165 --os FreeBSD --weight L --network NO --description "Check for FreeBSD boot services"
+    Register --test-no BOOT-5165 --os FreeBSD --weight L --network NO --category security --description "Check for FreeBSD boot services"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! "${SERVICEBINARY}" = "" ]; then
             # FreeBSD (Ask services(8) for enabled services)
             LogText "Searching for services at startup (service)"
-            FIND=`${SERVICEBINARY} -e | sed 's|^.*\/||' | sort`
+            FIND=$(${SERVICEBINARY} -e | ${SEDBINARY} 's|^.*\/||' | ${SORTBINARY})
         else
             # FreeBSD (Read /etc/rc.conf file for enabled services)
             LogText "Searching for services at startup (rc.conf)"
-            FIND=`egrep -v -i '^#|none' /etc/rc.conf | egrep -i '_enable.*(yes|on|1)' | sort | awk -F= '{ print $1 }' | sed 's/_enable//'`
+            FIND=$(${EGREPBINARY} -v -i '^#|none' /etc/rc.conf | ${EGREPBINARY} -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | ${SEDBINARY} 's/_enable//')
         fi
         N=0
         for I in ${FIND}; do
             LogText "Found service (service/rc.conf): ${I}"
             Report "boottask[]=${I}"
-            N=`expr ${N} + 1`
+            N=$((N + 1))
         done
-        Display --indent 2 --text "- Checking services at startup (service/rc.conf)" --result "DONE" --color GREEN
+        Display --indent 2 --text "- Checking services at startup (service/rc.conf)" --result "${STATUS_DONE}" --color GREEN
         Display --indent 6 --text "Result: found $N services/options set"
         LogText "Found $N services/options to run at startup"
     fi
@@ -501,61 +522,62 @@
     # Test        : BOOT-5177
     # Description : Check for Linux boot services (systemd and chkconfig)
     # Notes       : We skip using chkconfig if systemd is being used.
-    Register --test-no BOOT-5177 --os Linux --weight L --network NO --description "Check for Linux boot and running services"
+    Register --test-no BOOT-5177 --os Linux --weight L --network NO --category security --description "Check for Linux boot and running services"
     if [ ${SKIPTEST} -eq 0 ]; then
         CHECKED=0
         LogText "Test: checking presence systemctl binary"
         # Determine if we have systemctl on board
-        if [ ! "${SYSTEMCTLBINARY}" = "" ]; then
+        if [ ! -z "${SYSTEMCTLBINARY}" ]; then
             LogText "Result: systemctl binary found, trying that to discover information"
             # Running services
             LogText "Searching for running services (systemctl services only)"
-            FIND=`${SYSTEMCTLBINARY} --full --type=service | awk '{ if ($4=="running") { print $1 } }' | awk -F. '{ print $1 }'`
+            FIND=$(${SYSTEMCTLBINARY} --full --type=service | ${AWKBINARY} '{ if ($4=="running") { print $1 } }' | ${AWKBINARY} -F. '{ print $1 }')
             N=0
             Report "running_service_tool=systemctl"
             for I in ${FIND}; do
                 LogText "Found running service: ${I}"
                 Report "running_service[]=${I}"
-                N=`expr ${N} + 1`
+                N=$((N + 1))
             done
             LogText "Note: Run systemctl --full --type=service to see all services"
-            Display --indent 2 --text "- Check running services (systemctl)" --result "DONE" --color GREEN
+            Display --indent 2 --text "- Check running services (systemctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found $N running services"
             LogText "Result: Found $N enabled services"
 
             # Services at boot
             LogText "Searching for enabled services (systemctl services only)"
-            FIND=`${SYSTEMCTLBINARY} list-unit-files --type=service | awk '{ if ($2=="enabled") { print $1 } }' | awk -F. '{ print $1 }'`
+            FIND=$(${SYSTEMCTLBINARY} list-unit-files --type=service | ${AWKBINARY} '{ if ($2=="enabled") { print $1 } }' | ${AWKBINARY} -F. '{ print $1 }')
             N=0
             Report "boot_service_tool=systemctl"
             for I in ${FIND}; do
                 LogText "Found enabled service at boot: ${I}"
                 Report "boot_service[]=${I}"
-                N=`expr ${N} + 1`
+                N=$((N + 1))
             done
             LogText "Note: Run systemctl list-unit-files --type=service to see all services"
-            Display --indent 2 --text "- Check enabled services at boot (systemctl)" --result "DONE" --color GREEN
+            Display --indent 2 --text "- Check enabled services at boot (systemctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found $N enabled services"
             LogText "Result: Found $N running services"
 
           else
+
             LogText "Result: systemctl binary not found, checking chkconfig binary"
-            if [ ! "${CHKCONFIGBINARY}" = "" ]; then
+            if [ ! -z "${CHKCONFIGBINARY}" ]; then
                 LogText "Result: chkconfig binary found, trying that to discover information"
                 LogText "Searching for services at startup (chkconfig, runlevel 3 and 5)"
-                FIND=`${CHKCONFIGBINARY} --list | egrep '3:on|5:on' | awk '{ print $1 }'`
+                FIND=$(${CHKCONFIGBINARY} --list | ${EGREPBINARY} '3:on|5:on' | ${AWKBINARY} '{ print $1 }')
                 N=0
                 Report "boot_service_tool=chkconfig"
                 for I in ${FIND}; do
                     LogText "Found service (at boot, runlevel 3 or 5): ${I}"
                     Report "boot_service[]=${I}"
-                    N=`expr ${N} + 1`
+                    N=$((N + 1))
                 done
-                LogText "Suggestion: Run chkconfig --list to see all services and disable unneeded services"
-                Display --indent 2 --text "- Check services at startup (chkconfig)" --result "DONE" --color GREEN
+                LogText "Hint: Run chkconfig --list to see all services and disable unneeded services"
+                Display --indent 2 --text "- Check services at startup (chkconfig)" --result "${STATUS_DONE}" --color GREEN
                 Display --indent 8 --text "Result: found $N services"
                 LogText "Result: Found $N services at startup"
-              else
+            else
                 LogText "Result: both systemctl and chkconfig not found. Skipping this test"
             fi
         fi
@@ -567,27 +589,27 @@
     # Description : Check for Linux boot services (Debian style)
     # Notes       : Debian 8+ shows runlevel 5
     if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no BOOT-5180 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for Linux boot services (Debian style)"
+    Register --test-no BOOT-5180 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for Linux boot services (Debian style)"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Runlevel check
-        sRUNLEVEL=`${RUNLEVELBINARY} | grep "N [0-9]" | awk '{ print $2} '`
+        sRUNLEVEL=$(${RUNLEVELBINARY} | ${GREPBINARY} "N [0-9]" | ${AWKBINARY} '{ print $2} ')
         LogText "Result: found runlevel ${sRUNLEVEL}"
         if [ "${sRUNLEVEL}" = "2" ]; then
             LogText "Result: performing find in /etc/rc2.d as runlevel 2 is found"
-            FIND=`find /etc/rc2.d -type l -print | cut -d '/' -f4 | sed "s/S[0-9][0-9]//g" | sort`
+            FIND=$(${FINDBINARY} ${ROOTDIR}etc/rc2.d -type l -print | ${CUTBINARY} -d '/' -f4 | ${SEDBINARY} "s/S[0-9][0-9]//g" | sort)
             if [ ! "${FIND}" = "" ]; then
                 N=0
-                for I in ${FIND}; do
-                    LogText "Found service (at boot, runlevel 2): ${I}"
-                    N=`expr ${N} + 1`
+                for SERVICE in ${FIND}; do
+                    LogText "Found service (at boot, runlevel 2): ${SERVICE}"
+                    N=$((N + 1))
                 done
-                Display --indent 2 --text "- Check services at startup (rc2.d)" --result "DONE" --color WHITE
+                Display --indent 2 --text "- Check services at startup (rc2.d)" --result "${STATUS_DONE}" --color WHITE
                 Display --indent 4 --text "Result: found $N services"
                 LogText "Result: found $N services"
             fi
-        elif [ "${sRUNLEVEL}" = "" ]; then
+        elif [ -z "${sRUNLEVEL}" ]; then
             ReportSuggestion ${TEST_NO} "Determine runlevel and services at startup"
-          else
+        else
             LogText "Result: skipping further actions"
         fi
     fi
@@ -596,10 +618,10 @@
 #
     # Test        : BOOT-5184
     # Description : Check world writable startup scripts
-    Register --test-no BOOT-5184 --os Linux --weight L --network NO --description "Check permissions for boot files/scripts"
+    Register --test-no BOOT-5184 --os Linux --weight L --network NO --category security --description "Check permissions for boot files/scripts"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        CHECKDIRS="/etc/init.d /etc/rc.d /etc/rcS.d"
+        CHECKDIRS="${ROOTDIR}etc/init.d ${ROOTDIR}etc/rc.d ${ROOTDIR}etc/rcS.d"
 
         LogText "Result: checking /etc/init.d scripts for writable bit"
         for I in ${CHECKDIRS}; do
@@ -607,22 +629,22 @@
             if [ -d ${I} ]; then
                 LogText "Result: directory ${I} found"
                 LogText "Test: checking for available files in directory"
-                FIND=`find ${I} -type f -print`
-                if [ ! "${FIND}" = "" ]; then
+                FIND=$(${FINDBINARY} ${I} -type f -print)
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: found files in directory, checking permissions now"
                     for J in ${FIND}; do
                         LogText "Test: checking permissions of file ${J}"
                         if IsWorldWritable ${J}; then
-                            LogText "Result: warning, file ${J} is world writable"
                             FOUND=1
-                          else
+                            LogText "Result: warning, file ${J} is world writable"
+                        else
                             LogText "Result: good, file ${J} not world writable"
                         fi
                     done
-                  else
+                else
                     LogText "Result: found no files in directory."
                 fi
-              else
+            else
                 LogText "Result: directory ${I} not found. Skipping.."
             fi
         done
@@ -630,13 +652,13 @@
         # /etc/rc[0-6].d
         for NO in 0 1 2 3 4 5 6; do
             LogText "Test: Checking /etc/rc${NO}.d scripts for writable bit"
-            if [ -d /etc/rc${NO}.d ]; then
-                FIND=`find /etc/rc${NO}.d -type f -print`
+            if [ -d ${ROOTDIR}etc/rc${NO}.d ]; then
+                FIND=$(${FINDBINARY} ${ROOTDIR}etc/rc${NO}.d -type f -print)
                 for I in ${FIND}; do
                     if IsWorldWritable ${I}; then
-                        LogText "Result: warning, file ${I} is world writable"
                         FOUND=1
-                      else
+                        LogText "Result: warning, file ${I} is world writable"
+                    else
                         LogText "Result: good, file ${I} not world writable"
                     fi
                 done
@@ -644,28 +666,35 @@
         done
 
         # Other files
-        CHECKFILES="/etc/rc /etc/rc.local /etc/rc.d/rc.sysinit"
+        CHECKFILES="${ROOTDIR}etc/rc ${ROOTDIR}etc/rc.local ${ROOTDIR}etc/rc.d/rc.sysinit"
         for I in ${CHECKFILES}; do
             if [ -f ${I} ]; then
-                LogText "Test: Checking ${I} file for writable bit"
-                if IsWorldWritable ${I}; then
-                    ReportWarning ${TEST_NO} "H" "Found writable startup script ${I}"
+                ShowSymlinkPath "${I}"
+                if [ ${FOUNDPATH} -eq 1 ]; then
+                    CHECKFILE="${SYMLINK}"
+                    LogText "Result: found the path behind this symlink (${CHECKFILE} --> ${I})"
+                else
+                    CHECKFILE="${I}"
+                fi
+                LogText "Test: Checking ${CHECKFILE} file for writable bit"
+                if IsWorldWritable ${CHECKFILE}; then
                     FOUND=1
-                    LogText "Result: warning, file ${I} is world writable"
-                  else
-                    LogText "Result: good, file ${I} not world writable"
+                    ReportWarning ${TEST_NO} "Found writable startup script ${CHECKFILE}"
+                    LogText "Result: warning, file ${CHECKFILE} is world writable"
+                else
+                    LogText "Result: good, file ${CHECKFILE} not world writable"
                 fi
             fi
         done
 
         # Check results
         if [ ${FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Check startup files (permissions)" --result "WARNING" --color RED
+            Display --indent 2 --text "- Check startup files (permissions)" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "Found world writable startup scripts" "-" "-"
             LogText "Result: found one or more scripts which are possibly writable by other users"
             AddHP 0 3
-          else
-            Display --indent 2 --text "- Check startup files (permissions)" --result "OK" --color GREEN
+        else
+            Display --indent 2 --text "- Check startup files (permissions)" --result "${STATUS_OK}" --color GREEN
             AddHP 3 3
         fi
     fi
@@ -674,71 +703,79 @@
 #
     # Test        : BOOT-5202
     # Description : Check uptime of system
-    Register --test-no BOOT-5202 --weight L --network NO --description "Check uptime of system"
+    Register --test-no BOOT-5202 --weight L --network NO --category security --description "Check uptime of system"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         FIND=""
+        UPTIME_IN_SECS=""
         case "${OS}" in
             Linux)
                 # Idle time, not real uptime
                 if [ -f /proc/uptime ]; then
-                    FIND=`cat /proc/uptime | cut -d ' ' -f1 | cut -d '.' -f1`
-                  else
-                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                    UPTIME_IN_SECS=$(cat /proc/uptime | ${CUTBINARY} -d ' ' -f1 | ${CUTBINARY} -d '.' -f1)
+                else
+                    Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:1" "No uptime test available for this operating system (/proc/uptime missing)"
                 fi
                 ;;
 
-             DragonFly|FreeBSD|MacOS)
-                if [ ! "${SYSCTLBINARY}" = "" ]; then
-                    FIND=`${SYSCTLBINARY} kern.boottime | awk '{ print $5 }' | sed -e 's/,//' | grep "[0-9]"`
-                  else
-                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+             DragonFly | FreeBSD | macOS)
+                if [ ! -z "${SYSCTLBINARY}" ]; then
+                    TIME_BOOT=$(${SYSCTLBINARY} kern.boottime | ${AWKBINARY} '{ print $5 }' | ${SEDBINARY} -e 's/,//' | ${GREPBINARY} "[0-9]")
+                    TIME_NOW=$(date "+%s")
+                    LogText "Boot time: ${TIME_BOOT}"
+                    LogText "Current time: ${TIME_NOW}"
+                    if [ ! -z "${TIME_BOOT}" -a ! -z "${TIME_NOW}" ]; then
+                        UPTIME_IN_SECS=$((TIME_NOW - TIME_BOOT))
+                    else
+                        ReportException "${TEST_NO}:5" "Most likely kern.boottime empty, unable to determine uptime"
+                    fi
+                else
+                    Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:4" "No uptime test available for this operating system (sysctl missing)"
                 fi
                 ;;
 
-             NetBSD|OpenBSD)
-                if [ ! "${SYSCTLBINARY}" = "" ]; then
-                    TIME_BOOT=`${SYSCTLBINARY} -n kern.boottime`
-                    TIME_NOW=`date "+%s"`
+             NetBSD | OpenBSD)
+                if [ ! -z "${SYSCTLBINARY}" ]; then
+                    TIME_BOOT=$(${SYSCTLBINARY} -n kern.boottime)
+                    TIME_NOW=$(date "+%s")
                     LogText "Boot time: ${TIME_BOOT}"
                     LogText "Current time: ${TIME_NOW}"
-                    if [ ! "${TIME_BOOT}" = "" -a ! "${TIME_NOW}" = "" ]; then
-                        UPTIME_IN_SECS=`expr ${TIME_NOW} - ${TIME_BOOT}`
-                      else
+                    if [ ! -z "${TIME_BOOT}" -a ! -z "${TIME_NOW}" ]; then
+                        UPTIME_IN_SECS=$((TIME_NOW - TIME_BOOT))
+                    else
                         ReportException "${TEST_NO}:5" "Most likely kern.boottime empty, unable to determine uptime"
                     fi
-                  else
-                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                else
+                    Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:4" "No uptime test available for this operating system (sysctl missing)"
                 fi
                 ;;
 
             Solaris)
-                if [ ! "${KSTATBINARY}" = "" ]; then
-                    FIND=`${KSTATBINARY} -p unix:0:system_misc:snaptime | grep "^unix" | awk '{print $2}' | cut -d "." -f1`
-                  else
-                    Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                if [ ! -z "${KSTATBINARY}" ]; then
+                    UPTIME_IN_SECS=$(${KSTATBINARY} -p unix:0:system_misc:snaptime | ${GREPBINARY} "^unix" | ${AWKBINARY} '{print $2}' | ${CUTBINARY} -d "." -f1)
+                else
+                    Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
                     ReportException "${TEST_NO}:2" "No uptime test available for this operating system (kstat missing)"
                 fi
                 ;;
 
             *)
-                Display --indent 2 --text "- Checking uptime" --result SKIPPED --color YELLOW
+                Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
 
                 # Want to help improving Lynis? Share your operating system and a way to determine the uptime (in seconds)
                 ReportException "${TEST_NO}:3" "No uptime test available yet for this operating system"
                 ;;
         esac
-        if [ ! "${FIND}" = "" ]; then
-            UPTIME_IN_SECS="${FIND}"
-            UPTIME_IN_DAYS=`expr ${UPTIME_IN_SECS} / 60 / 60 / 24`
+        if [ ! -z "${UPTIME_IN_SECS}" ]; then
+            UPTIME_IN_DAYS=$((UPTIME_IN_SECS / 60 / 60 / 24))
             LogText "Uptime (in seconds): ${UPTIME_IN_SECS}"
             LogText "Uptime (in days): ${UPTIME_IN_DAYS}"
             Report "uptime_in_seconds=${UPTIME_IN_SECS}"
             Report "uptime_in_days=${UPTIME_IN_DAYS}"
-          else
+        else
             LogText "Result: no uptime information available"
         fi
     fi
@@ -747,27 +784,26 @@
 #
     # Test        : BOOT-5260
     # Description : Check single user mode for systemd
-    Register --test-no BOOT-5260 --weight L --network NO --description "Check single user mode for systemd"
+    Register --test-no BOOT-5260 --weight L --network NO --category security --description "Check single user mode for systemd"
     if [ ${SKIPTEST} -eq 0 ]; then
-        # Check if file exists
         LogText "Test: Searching /usr/lib/systemd/system/rescue.service"
-         if [ -f /usr/lib/systemd/system/rescue.service ]; then
-             LogText "Result: file /usr/lib/systemd/system/rescue.service"
-             LogText "Test: checking presence sulogin for single user mode"
-             FIND=`egrep "^ExecStart=-(/bin/sh -c \")?(/usr)?/(s)?bin/sulogin" /usr/lib/systemd/system/rescue.service`
-             if [ ! "${FIND}" = "" ]; then
-                 FOUND=1
-                 LogText "Result: found sulogin, so single user is protected"
-                 AddHP 3 3
-               else
-                 LogText "Result: did not find sulogin in rescue.service"
-                 AddHP 1 3
-                 Display --indent 2 --text "- Checking sulogin in rescue.service" --result "NOT FOUND" --color YELLOW
-                 ReportSuggestion "${TEST_NO}" "Protect rescue.service by using sulogin"
-             fi
-           else
-             LogText "Result: file /usr/lib/systemd/system/rescue.service does not exist"
-         fi
+        if [ -f ${ROOTDIR}usr/lib/systemd/system/rescue.service ]; then
+            LogText "Result: file /usr/lib/systemd/system/rescue.service"
+            LogText "Test: checking presence sulogin for single user mode"
+            FIND=$(${EGREPBINARY} "^ExecStart=-(/bin/sh -c \")?(/usr)?/(s)?bin/sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
+            if [ ! -z "${FIND}" ]; then
+                FOUND=1
+                LogText "Result: found sulogin, so single user is protected"
+                AddHP 3 3
+            else
+                LogText "Result: did not find sulogin in rescue.service"
+                AddHP 1 3
+                Display --indent 2 --text "- Checking sulogin in rescue.service" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Protect rescue.service by using sulogin"
+            fi
+        else
+            LogText "Result: file ${ROOTDIR}usr/lib/systemd/system/rescue.service does not exist"
+        fi
     fi
 #
 #################################################################################
@@ -778,7 +814,7 @@ Report "boot_uefi_booted=${UEFI_BOOTED}"
 Report "boot_uefi_booted_secure=${UEFI_BOOTED_SECURE}"
 Report "service_manager=${SERVICE_MANAGER}"
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================

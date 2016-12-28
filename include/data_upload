@@ -22,8 +22,7 @@
 #
 #################################################################################
 #
-#    LogTextbreak
-PROGRAM_VERSION="101"
+    PROGRAM_VERSION="105"
 
     # Data upload destination
     if [ "${UPLOAD_SERVER}" = "" ]; then UPLOAD_SERVER="portal.cisofy.com"; fi
@@ -36,19 +35,20 @@ PROGRAM_VERSION="101"
     LICENSE_SERVER_URL="https://${LICENSE_SERVER}/license/"
     LogText "License server: ${LICENSE_SERVER}"
 
-# Additional options to curl
-if [ "${UPLOAD_OPTIONS}" = "" ]; then
-    CURL_OPTIONS=""
-  else
-    CURL_OPTIONS=" ${UPLOAD_OPTIONS}"
-fi
-SETTINGS_FILE="${PROFILE}"
+    # Additional options to curl
+    if [ "${UPLOAD_OPTIONS}" = "" ]; then
+        CURL_OPTIONS=""
+      else
+        CURL_OPTIONS=" ${UPLOAD_OPTIONS}"
+    fi
 
-# Only output text to stdout if DEBUG mode is not used
-output()
-  {
-    if [ ${DEBUG} -eq 1 ]; then echo "$1"; fi
-  }
+    SETTINGS_FILE="${PROFILE}"
+    #if [ "${UPLOAD_TOOL}" = "" ]; then UPLOAD_TOOL="${CURLBINARY}"; fi
+
+    # Only output text to stdout if DEBUG mode is not used
+    Output() {
+        if [ ${DEBUG} -eq 1 ]; then echo "$1"; fi
+    }
 
 #####################################################################################
 #
@@ -56,8 +56,8 @@ output()
 #
 #####################################################################################
 
-output "Lynis Enterprise data uploader starting"
-output "Settings file: ${SETTINGS_FILE}"
+    Output "Lynis Enterprise data uploader starting"
+    Output "Settings file: ${SETTINGS_FILE}"
 
     # Check if we can find curl
     # Suggestion: If you want to keep the system hardened, copying the binary from a trusted source is a good alternative.
@@ -74,7 +74,7 @@ output "Settings file: ${SETTINGS_FILE}"
         LogText "Error: no license key was specified in the profile (${PROFILE})"
         ExitFatal
       else
-        output "License key = ${LICENSE_KEY}"
+        Output "License key = ${LICENSE_KEY}"
     fi
 
 
@@ -84,24 +84,29 @@ output "Settings file: ${SETTINGS_FILE}"
 #
 #####################################################################################
 
+
     # Check report file
     if [ -f ${REPORTFILE} ]; then
-        output "${WHITE}Report file found.${NORMAL} Starting with connectivity check.."
+
+        Output "${WHITE}Report file found.${NORMAL} Starting with content check."
+
+        FIND=$(${GREPBINARY} "finish=true" ${REPORTFILE})
+        if [ $? -gt 0 ]; then ExitFatal "The report is not complete, skipping upload"; fi
+
+        Output "${WHITE}Report file found.${NORMAL} Starting with connectivity check."
+
 
             if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
                 LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
+                # Port is optional
                 if [ ! "${UPLOAD_PROXY_PORT}" = "" ]; then
                     LogText "Upload: Proxy port number is ${UPLOAD_PROXY_PORT}"
                     UPLOAD_PROXY_PORT=":${UPLOAD_PROXY_PORT}"
                 fi
                 LogText "Upload: Proxy protocol is ${UPLOAD_PROXY_PROTOCOL}"
                 case ${UPLOAD_PROXY_PROTOCOL} in
-                    "http")
-                        UPLOAD_PROXY="http://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
-                    ;;
-                    "https")
-                        UPLOAD_PROXY="https://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
+                    "http"|"https")
+                        UPLOAD_PROXY="${UPLOAD_PROXY_PROTOCOL}://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
                         CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
                     ;;
                     "socks5")
@@ -115,32 +120,74 @@ output "Settings file: ${SETTINGS_FILE}"
                 esac
             fi
 
+            # Currently compressed uploads are not supported yet on central node. Therefore default value is set to 0.
+            #if [ ${COMPRESSED_UPLOADS} -eq 1 ]; then
+            #    CURL_OPTIONS="${CURL_OPTIONS} --compressed -H 'Content-Encoding: gzip'"
+            #fi
+
         # Quit if license is not valid, to reduce load on both client and server.
         LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null"
-        UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null`
+        UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null)
         EXITCODE=$?
+        LogText "Exit code: ${EXITCODE}"
         if [ ${EXITCODE} -gt 0 ]; then
-            LogText "Exit code: ${EXITCODE}"
-            if [ ${EXITCODE} -eq 7 ]; then
-                LogText "Result: could not contact license server."
-                LogText "Details: used URL ${LICENSE_SERVER_URL}"
-                LogText "Suggestion: check if the upload host is correctly configured."
-                echo "${RED}Error${NORMAL}: license server not available. See ${LOGFILE} for details."
-            elif [ ${EXITCODE} -eq 60 ]; then
-                echo "${RED}Self-signed certificate used on Lynis Enterprise node${NORMAL}"
-                echo "If you want to accept a self-signed certificate, use the -k option in the profile."
-                echo "Example: ${WHITE}config:upload_options:-k:${NORMAL}"
-                LogText "Result: found self-signed certificate, however cURL -k option not used."
-              else
-                echo "${RED}Upload Error: ${NORMAL}cURL exited with code ${EXITCODE}. See ${LOGFILE} for details."
-                LogText "Result: cURL exited with code ${EXITCODE}."
-            fi
+
+            echo ""
+            echo "${RED}Upload Error${NORMAL}: License could not be checked. See ${LOGFILE} for details."
+            echo "Suggested command: tail -n 20 ${LOGFILE}"
+            echo ""
+
+            case ${EXITCODE} in
+                    2)
+                        LogText "Result: could not initialize"
+                        LogText "Possible cause: most likely your cURL version is too old and does not support the --data-urlencode option."
+                        LogText "Suggestion: copy the data to a different server and use a new cURL version there, or use the Lynis Collector tool."
+                        echo "${RED}Error (2)${NORMAL}: could not initialize cURL. See ${LOGFILE} for details."
+                        ;;
+                    5)
+                        LogText "Result: could not resolve the defined proxy server (${UPLOAD_PROXY_SERVER})."
+                        LogText "Suggestion: check if the proxy is properly defined in the profile."
+                        echo "${RED}Error (5)${NORMAL}: could not use the defined proxy (${UPLOAD_PROXY_SERVER}). See ${LOGFILE} for details."
+                        ;;
+                    6)
+                        echo "${RED}Error (6)${NORMAL}: Could not resolve the hostname of central server."
+                        ;;
+                    7)
+                        LogText "Result: could not contact license server."
+                        LogText "Details: used URL ${LICENSE_SERVER_URL}"
+                        LogText "Suggestion: check if the upload host is correctly configured."
+                        echo "${RED}Error (7)${NORMAL}: license server not available. See ${LOGFILE} for details."
+                        ;;
+                    59)
+                        echo "${RED}Error (59)${NORMAL}: Could not connect because of used SSL cipher."
+                        LogText "Result: SSL cipher used is not understood or accepted."
+                        ;;
+                    60)
+                        echo "${RED}Error (60)${NORMAL}: Self-signed certificate used on Lynis Enterprise node${NORMAL}"
+                        echo "If you want to accept a self-signed certificate, configure your profile and set the -k option in the upload-options."
+                        echo "Example: ${WHITE}$0 configure settings upload-options=-k${NORMAL}"
+                        LogText "Result: found self-signed certificate, however cURL -k option not used."
+                        ;;
+                    77)
+                        echo "${YELLOW}Error (77)${NORMAL}: Could not use CA certificates to check certificate chain. See ${LOGFILE} for details."
+                        LogText "Result: could not use CA certificates to check certificate chain"
+                        LogText "Possible cause: missing CA certificates, or no permissions to access them"
+                        LogText "Suggestion: update your ca-certificates package. Usually updating your packages already solves the issue with missing CA certificates."
+                        ;;
+                    83)
+                        echo "${YELLOW}Error (83)${NORMAL}: Could not check used certificate of server. See ${LOGFILE} for details." ;;
+                    *)
+                        echo "${RED}Upload Error: ${NORMAL}cURL exited with code ${EXITCODE}. See ${LOGFILE} for details."
+                        LogText "Result: cURL exited with code ${EXITCODE}. See man page of cURL for the meaning of this code."
+                        ;;
+            esac
+            LogText "Suggestion: run the cURL command manually without the options -s and -S"
             LogText "Result: quitting, can't check license"
             ExitFatal
         fi
-        UPLOAD_CODE=`echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}'`
+        UPLOAD_CODE=$(echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}')
         if [ "${UPLOAD_CODE}" = "100" ]; then
-            output "${WHITE}License is valid${NORMAL}"
+            Output "${WHITE}License is valid${NORMAL}"
             LogText "Result: license is valid"
           else
             LogText "Result: error while checking license"
@@ -157,51 +204,22 @@ output "Settings file: ${SETTINGS_FILE}"
             echo ""
             echo "URL: ${LICENSE_SERVER_URL}"
             echo "Key: ${LICENSE_KEY}"
-            output "Debug information: ${UPLOAD}"
+            Output "Debug information: ${UPLOAD}"
             # Quit
             ExitFatal
         fi
-        # Extract the hostid from the parse file
-        HOSTID=`awk -F= '/^hostid=/ { print $2 }' ${REPORTFILE}`
-        if [ ! "${HOSTID}" = "" ]; then
-            output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
+
+        # Check for host IDs
+        if [ ! "${HOSTID}" = "" -a ! "${HOSTID2}" = "" ]; then
+            Output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
             # Try to connect
-            output "Uploading data.."
-            # Add a space
-            CURL_OPTIONS=" ${CURL_OPTIONS}"
-            # Currently compressed uploads are not supported yet on central node. Therefore default value is set to 0.
-            if [ ${COMPRESSED_UPLOADS} -eq 1 ]; then
-                CURL_OPTIONS="${CURL_OPTIONS} --compressed -H 'Content-Encoding: gzip'"
-            fi
-            if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
-                LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
-                if [ ! "${UPLOAD_PROXY_PORT}" = "" ]; then
-                    LogText "Upload: Proxy port number is ${UPLOAD_PROXY_PORT}"
-                    UPLOAD_PROXY_PORT=":${UPLOAD_PROXY_PORT}"
-                fi
-                LogText "Upload: Proxy protocol is ${UPLOAD_PROXY_PROTOCOL}"
-                case ${UPLOAD_PROXY_PROTOCOL} in
-                    "http")
-                        UPLOAD_PROXY="http://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
-                    ;;
-                    "https")
-                        UPLOAD_PROXY="https://${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --proxy ${UPLOAD_PROXY}"
-                    ;;
-                    "socks5")
-                        UPLOAD_PROXY="${UPLOAD_PROXY_SERVER}${UPLOAD_PROXY_PORT}"
-                        CURL_OPTIONS="${CURL_OPTIONS} --socks5 ${UPLOAD_PROXY}"
-                    ;;
-                    *)
-                        echo "Unknown protocol. Please report to lynis-dev@cisofy.com"
-                        ExitFatal
-                    ;;
-                esac
-            fi
+            Output "Uploading data.."
             LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
-            UPLOAD=`${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" ${UPLOAD_URL} 2> /dev/null`
+            LogText "Tip: try running ${CURLBINARY}${CURL_OPTIONS} --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
+            LogText "Tip: to just retry an upload, use: lynis upload-only"
+            UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" --data-urlencode "hostid2=${HOSTID2}" ${UPLOAD_URL} 2> /dev/null)
             EXITCODE=$?
+            LogText "Exit code: ${EXITCODE}"
             if [ ${EXITCODE} -gt 0 ]; then
                 echo ""
                 echo "${RED}Upload Error${NORMAL}: cURL could not upload data. See ${LOGFILE} for details."
@@ -219,14 +237,17 @@ output "Settings file: ${SETTINGS_FILE}"
                 echo ""
                 # Quit
                 ExitClean
+              else
+                Display --indent 2 --text "Data upload status" --result OK --color GREEN
             fi
           else
-            echo "${RED}Error${NORMAL}: No hostid found in report file. Can not upload report file."
+            echo "${RED}Error${NORMAL}: No hostid and/or hostid2 found. Can not upload report file."
+            echo "Suggested command: lynis show hostids"
             # Quit
             ExitFatal
         fi
       else
-         output "${YELLOW}No report file found to upload.${NORMAL}"
+         Output "${YELLOW}No report file found to upload.${NORMAL}"
          ExitFatal
     fi
 

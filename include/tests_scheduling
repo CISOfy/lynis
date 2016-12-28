@@ -27,22 +27,44 @@
 #################################################################################
 #
     ATD_RUNNING=0
+    CROND_RUNNING=0
+#
+#################################################################################
+#
+    # Test        : SCHD-7702
+    # Description : Check cron daemon
+    Register --test-no SCHD-7702 --weight L --network NO --category security --description "Check status of cron daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(ps aux | ${EGREPBINARY} "( cron$|/cron(d)? )")
+        if [ "${FIND}" = "" ]; then
+            LogText "Result: no cron daemon found"
+          else
+            LogText "Result: cron daemon running"
+            CROND_RUNNING=1
+            Report "crond_running=1"
+            Report "scheduler[]=crond"
+        fi
+    fi
 #
 #################################################################################
 #
     # Test        : SCHD-7704
     # Description : Check crontab / cronjobs
-    Register --test-no SCHD-7704 --weight L --network NO --description "Check crontab/cronjobs"
+    Register --test-no SCHD-7704 --weight L --network NO --category security --description "Check crontab/cronjobs"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FindCronJob()
-          {
-            sCRONJOBS=`egrep '^([0-9*])' $1 | tr '\t' ' ' | tr -s ' ' | tr ' ' ','`
-          }
+        BAD_FILE_PERMISSIONS=0
+        BAD_FILE_OWNERSHIP=0
+        FindCronJob() {
+            sCRONJOBS=$(${EGREPBINARY} '^([0-9*])' $1 | ${TRBINARY} '\t' ' ' | ${TRBINARY} -s ' ' | ${TRBINARY} ' ' ',')
+        }
 
-        if [ -f /etc/crontab ]; then
-            FindCronJob /etc/crontab
+        CRONTAB_FILE="/etc/crontab"
+        if [ -f ${CRONTAB_FILE} ]; then
+            if IsWorldWritable ${CRONTAB_FILE}; then LogText "Result: insecure file permissions for cronjob file ${CRONTAB_FILE}"; Report "insecure_fileperms_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+            if ! IsOwnedByRoot ${CRONTAB_FILE}; then LogText "Result: incorrect owner found for cronjob file ${CRONTAB_FILE}"; Report "bad_fileowner_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
+            FindCronJob ${CRONTAB_FILE}
             for I in ${sCRONJOBS}; do
-                LogText "Found cronjob (/etc/crontab): ${I}"
+                LogText "Found cronjob (${CRONTAB_FILE}): ${I}"
                 Report "cronjob[]=${I}"
             done
         fi
@@ -55,16 +77,21 @@
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: found directory ${I}"
                     LogText "Test: searching files in ${I}"
-                    FIND=`find ${I} -type f -print`
+                    FIND=$(find ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: no files found in ${I}"
                       else
                         LogText "Result: found one or more files in ${I}. Analyzing files.."
                         for J in ${FIND}; do
+                            if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+                            if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
                             FindCronJob ${J}
-                            for K in ${sCRONJOBS}; do
-                                LogText "Result: Found cronjob (${I}): ${K}"
-                            done
+                            if [ ! "${sCRONJOBS}" = "" ]; then
+                                for K in ${sCRONJOBS}; do
+                                    LogText "Result: Found cronjob (${J}): ${K}"
+                                    Report "cronjob[]=${J}"
+                                done
+                            fi
                         done
                         LogText "Result: done with analyzing files in ${I}"
                     fi
@@ -82,12 +109,14 @@
             if [ -d ${I} ]; then
                 LogText "Result: found directory ${I}"
                 LogText "Test: searching files in ${I}"
-                FIND=`find ${I} -type f -print | grep -v ".placeholder"`
+                FIND=$(find ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
                 if [ "${FIND}" = "" ]; then
                     LogText "Result: no files found in ${I}"
                   else
                     LogText "Result: found one or more files in ${I}. Analyzing files.."
                     for J in ${FIND}; do
+                        if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+                        if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
                         LogText "Result: Found cronjob (${I}): ${J}"
                         Report "cronjob[]=${J}"
                     done
@@ -101,7 +130,7 @@
         # /var/spool/cron/* and /var/spool/cron/crontabs/*
         # Search only in one tree, to avoid searching the tree twice
         if [ -d /var/spool/cron/crontabs ]; then
-            FIND=`find /var/spool/cron/crontabs -type f -print`
+            FIND=$(find /var/spool/cron/crontabs -type f -print)
             for I in ${FIND}; do
                 FindCronJob ${I}
                 for J in ${sCRONJOBS}; do
@@ -111,7 +140,7 @@
             done
           else
             if [ -d /var/spool/cron ]; then
-                FIND=`find /var/spool/cron -type f -print`
+                FIND=$(find /var/spool/cron -type f -print)
                 for I in ${FIND}; do
                     FindCronJob ${I}
                     for J in ${sCRONJOBS}; do
@@ -126,32 +155,46 @@
         if [ "${OS}" = "Linux" ]; then
             if [ -f /etc/anacrontab ]; then
                 LogText "Test: checking anacrontab"
-                sANACRONJOBS=`egrep '^([0-9@])' /etc/anacrontab | tr '\t' ' ' | tr -s ' ' | tr ' ' ','`
-                for J in ${sANACRONJOBS}; do
-                    LogText "Found anacron job (/etc/anacrontab): ${J}"
-                    Report "cronjob[]=${J}"
-                done
+                sANACRONJOBS=$(${EGREPBINARY} '^([0-9@])' /etc/anacrontab | ${TRBINARY} '\t' ' ' | ${TRBINARY} -s ' ' | ${TRBINARY} ' ' ',')
+                if [ ! "${sANACRONJOBS}" = "" ]; then
+                    Report "scheduler[]=anacron"
+                    for J in ${sANACRONJOBS}; do
+                        LogText "Found anacron job (/etc/anacrontab): ${J}"
+                        Report "cronjob[]=${J}"
+                    done
+                fi
             fi
         fi
 
-        Display --indent 2 --text "- Checking crontab/cronjob" --result DONE --color GREEN
+        # Show warning when an issue shows up. Even if *both* the permissions and ownership are wrong, just show one (prevent overload of warnings).
+        if [ ${BAD_FILE_PERMISSIONS} -eq 1 ]; then
+            ReportWarning "${TEST_NO}" "Found one or more cronjob files with incorrect file permissions (see log for details)"
+            Display --indent 2 --text "- Checking crontab/cronjob" --result "${STATUS_WARNING}" --color RED
+        elif [ ${BAD_FILE_OWNERSHIP} -eq 1 ]; then
+            ReportWarning "${TEST_NO}" "Found one or more cronjob files with incorrect ownership (see log for details)"
+            Display --indent 2 --text "- Checking crontab/cronjob" --result "${STATUS_WARNING}" --color RED
+        else
+            Display --indent 2 --text "- Checking crontab/cronjob" --result "${STATUS_DONE}" --color GREEN
+        fi
+
     fi
 #
 #################################################################################
 #
     # Test        : SCHD-7718
     # Description : Check atd status
-    Register --test-no SCHD-7718 --weight L --network NO --description "Check at users"
+    Register --test-no SCHD-7718 --weight L --network NO --category security --description "Check at users"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking atd status"
-        FIND=`${PSBINARY} ax | grep "/atd" | grep -v "grep"`
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} "/atd" | ${GREPBINARY} -v "grep")
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: at daemon active"
-            Display --indent 2 --text "- Checking atd status" --result RUNNING --color GREEN
+            Display --indent 2 --text "- Checking atd status" --result "${STATUS_RUNNING}" --color GREEN
             ATD_RUNNING=1
+            Report "scheduler[]=atd"
           else
             LogText "Result: at daemon not active"
-            Display --indent 2 --text "- Checking atd status" --result "NOT RUNNING" --color WHITE
+            if IsVerbose; then Display --indent 2 --text "- Checking atd status" --result "${STATUS_NOT_RUNNING}" --color WHITE; fi
         fi
     fi
 #
@@ -164,7 +207,7 @@
     #               except the listed ones can schedule jobs. If both can't be
     #               found, only root can schedule jobs.
     if [ ${ATD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SCHD-7720 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check at users"
+    Register --test-no SCHD-7720 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check at users"
     if [ ${SKIPTEST} -eq 0 ]; then
         AT_UNKNOWN=0
         case ${OS} in
@@ -181,7 +224,7 @@
                 FileIsReadable ${AT_ALLOW}
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: file ${AT_ALLOW} exists, only listed users can schedule at jobs"
-                    FIND=`cat ${AT_ALLOW} | sort`
+                    FIND=$(${SORTBINARY} ${AT_ALLOW})
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: File empty, no users are allowed to schedule at jobs"
                       else
@@ -199,7 +242,7 @@
                    FileIsReadable ${AT_DENY}
                    if [ ${CANREAD} -eq 1 ]; then
                        LogText "Result: file ${AT_DENY} exists, only non listed users can schedule at jobs"
-                       FIND=`cat ${AT_DENY} | sort`
+                       FIND=$(${SORTBINARY} ${AT_DENY})
                        if [ "${FIND}" = "" ]; then
                            LogText "Result: file is empty, no users are denied access to schedule jobs"
                          else
@@ -216,9 +259,9 @@
                    AddHP 1 1
                fi
             fi
-            Display --indent 4 --text "- Checking at users" --result DONE --color GREEN
+            Display --indent 4 --text "- Checking at users" --result "${STATUS_DONE}" --color GREEN
           else
-            Display --indent 4 --text "- Checking at users" --result SKIPPED --color YELLOW
+            Display --indent 4 --text "- Checking at users" --result "${STATUS_SKIPPED}" --color YELLOW
         fi
     fi
 #
@@ -227,27 +270,27 @@
     # Test        : SCHD-7724
     # Description : Check scheduled at jobs
     if [ ${ATD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SCHD-7724 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check at jobs"
+    Register --test-no SCHD-7724 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check at jobs"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check scheduled at jobs"
-        FIND=`atq | grep -v "no files in queue" | ${AWKBINARY} '{gsub("\t"," ");print}' | sed 's/ /!space!/g'`
+        FIND=$(atq | ${GREPBINARY} -v "no files in queue" | ${AWKBINARY} '{gsub("\t"," ");print}' | ${SEDBINARY} 's/ /!space!/g')
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: found one or more jobs"
             for I in ${FIND}; do
-                I=`echo ${I} | sed 's/!space!/ /g'`
-                LogText "Found at job: ${I}"
+                VALUE=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')
+                LogText "Found at job: ${VALUE}"
             done
-            Display --indent 4 --text "- Checking at jobs" --result FOUND --color GREEN
+            Display --indent 4 --text "- Checking at jobs" --result "${STATUS_FOUND}" --color GREEN
           else
             LogText "Result: no pending at jobs"
-            Display --indent 4 --text "- Checking at jobs" --result NONE --color GREEN
+            Display --indent 4 --text "- Checking at jobs" --result "${STATUS_NONE}" --color GREEN
         fi
     fi
 #
 #################################################################################
 #
 
-wait_for_keypress
+WaitForKeyPress
 
 #
 #================================================================================

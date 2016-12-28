@@ -22,235 +22,455 @@
 #
 #################################################################################
 #
-    Display --indent 2 --text "- Checking profile file (${PROFILE})..."
-    logtext "Reading profile/configuration ${PROFILE}"
-    FIND=`grep '^config:' ${PROFILE} | sed 's/ /!space!/g'`
-    for I in ${FIND}; do
-        OPTION=`echo ${I} | cut -d ':' -f2`
-        VALUE=`echo ${I} | cut -d ':' -f3 | sed 's/!space!/ /g'`
+    # Set default values (should be equal to default.prf)
+    SETTING_LOG_TESTS_INCORRECT_OS=1
+    SETTING_SHOW_REPORT_SOLUTION=0
+#
+#################################################################################
+#
+    for PROFILE in ${PROFILES}; do
+        LogText "Reading profile/configuration ${PROFILE}"
+        FIND=$(egrep "^config:|^[a-z-].*=" ${PROFILE} | sed 's/ /!space!/g')
+        for CONFIGOPTION in ${FIND}; do
+            if ContainsString "config:" "${CONFIGOPTION}"; then
+                # Old style configuration
+                OPTION=$(echo ${CONFIGOPTION} | cut -d ':' -f2)
+                VALUE=$(echo ${CONFIGOPTION} | cut -d ':' -f3 | sed 's/!space!/ /g')
+              else
+                OPTION=$(echo ${CONFIGOPTION} | cut -d '=' -f1)
+                VALUE=$(echo ${CONFIGOPTION} | cut -d '=' -f2 | sed 's/!space!/ /g')
+            fi
+            Debug "Profile option set: ${OPTION} (with value ${VALUE})"
 
-        logtext "Profile option set: ${OPTION} (with value ${VALUE})"
+            case ${OPTION} in
 
-        case ${OPTION} in
+                # Define which compliance standards are enabled
+                # For this to work, the Enterprise plugins are needed
+                compliance_standards | check-compliance)
+                    COMPLIANCE_STANDARDS_ENABLED=$(echo ${VALUE} | tr ',' ' ')
+                    for STANDARD in ${COMPLIANCE_STANDARDS_ENABLED}; do
+                        case ${STANDARD} in
+                            cis)      COMPLIANCE_ENABLE_CIS=1      ; Debug "Compliance scanning for CIS Benchmarks is enabled" ;;
+                            hipaa)    COMPLIANCE_ENABLE_HIPAA=1    ; Debug "Compliance scanning for HIPAA is enabled" ;;
+                            iso27001) COMPLIANCE_ENABLE_ISO27001=1 ; Debug "Compliance scanning for ISO27001 is enabled" ;;
+                            pci-dss)  COMPLIANCE_ENABLE_PCI_DSS=1  ; Debug "Compliance scanning for PCI DSS is enabled" ;;
+                            *) LogText "Result: Unknown compliance standard configured" ;;
+                        esac
+                    done
+                ;;
 
-            # Define which compliance standards are enabled
-            compliance_standards)
-                COMPLIANCE_STANDARDS_ENABLED=`echo ${VALUE} | tr ',' ' '`
-                for I in ${COMPLIANCE_STANDARDS_ENABLED}; do
-                    case $I in
-                        cis)      COMPLIANCE_ENABLE_CIS=1      ; Debug "Compliance scanning for CIS Benchmarks is enabled" ;;
-                        hipaa)    COMPLIANCE_ENABLE_HIPAA=1    ; Debug "Compliance scanning for HIPAA is enabled" ;;
-                        iso27001) COMPLIANCE_ENABLE_ISO27001=1 ; Debug "Compliance scanning for ISO27001 is enabled" ;;
-                        pci-dss)  COMPLIANCE_ENABLE_PCI_DSS=1  ; Debug "Compliance scanning for PCI DSS is enabled" ;;
-                        *) logtext "Result: Unknown compliance standard configured" ;;
-                    esac
-                done
-            ;;
+                # Check for a specific value
+                check-value)
+                    STRING=$(echo ${VALUE} | tr -d "[" | tr -d "]" | sed "s/, /,/g")
+                    CHECK_VALUE_ARRAY="${CHECK_OPTION_ARRAY} ${STRING}"
+                ;;
 
-            # Maximum number of WAITing connections
-            connections_max_wait_state)
-                OPTIONS_CONN_MAX_WAIT_STATE="${VALUE}"
-            ;;
+                # Ignore configuration data
+                config-data)
+                    Debug "Ignoring configuration option, as it will be used by a specific test"
+                ;;
 
-            # Append something to URL for control information
-            control_url_append)
-                CONTROL_URL_APPEND="${VALUE}"
-            ;;
+                # Maximum number of WAITing connections
+                connections-max-wait-state | connections_max_wait_state)
+                    OPTIONS_CONN_MAX_WAIT_STATE="${VALUE}"
+                    AddSetting "connections-max-wait-state" "${OPTIONS_CONN_MAX_WAIT_STATE}" "Connections (max-wait-state)"
+                ;;
 
-            # Prepend an URL before control information link
-            control_url_prepend)
-                CONTROL_URL_PREPEND="${VALUE}"
-            ;;
+                # Append something to URL for control information
+                control-url-append | control_url_append)
+                    CONTROL_URL_APPEND="${VALUE}"
+                    AddSetting "control-url-append" "${CONTROL_URL_APPEND}" "Control URL (append)"
+                ;;
 
-            # Protocol to use for control information link
-            control_url_protocol)
-                CONTROL_URL_PROTOCOL="${VALUE}"
-            ;;
+                # Prepend an URL before control information link
+                control-url-prepend | control_url_prepend)
+                    CONTROL_URL_PREPEND="${VALUE}"
+                    AddSetting "control-url-prepend" "${CONTROL_URL_PREPEND}" "Control URL (prepend)"
+                ;;
 
-            # Append something to URL for control information (only applies to CUST-*)
-            custom_url_append)
-                CUSTOM_URL_APPEND="${VALUE}"
-            ;;
+                # Protocol to use for control information link
+                control-url-protocol | control_url_protocol)
+                    CONTROL_URL_PROTOCOL="${VALUE}"
+                    AddSetting "control-url-protocol" "${CONTROL_URL_PREPEND}" "Control URL (protocol)"
+                ;;
 
-            # Prepend an URL before control information link (only applies to CUST-*)
-            custom_url_prepend)
-                CUSTOM_URL_PREPEND="${VALUE}"
-            ;;
+                # Append something to URL for control information (only applies to CUST-*)
+                custom-url-append | custom_url_append)
+                    CUSTOM_URL_APPEND="${VALUE}"
+                    AddSetting "custom-url-append" "${CUSTOM_URL_APPEND}" "Custom URL (append)"
+                ;;
 
-            # Protocol to use for control information link
-            custom_url_protocol)
-                CUSTOM_URL_PROTOCOL="${VALUE}"
-            ;;
+                # Prepend an URL before control information link (only applies to CUST-*)
+                custom-url-prepend | custom_url_prepend)
+                    CUSTOM_URL_PREPEND="${VALUE}"
+                    AddSetting "custom-url-prepend" "${CUSTOM_URL_PREPEND}" "Custom URL (prepend)"
+                ;;
 
-            # Do not check security repository in sources.list (Debian/Ubuntu)
-            debian_skip_security_repository)
-            OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY="${VALUE}"
-            ;;
-            debug)
-                if [ "${VALUE}" = "yes" -o "${VALUE}" = "true" ]; then
-                    DEBUG=1
-                fi
-            ;;
-            # Skip FreeBSD port audit
-            freebsd_skip_portaudit)
-                logtext "Option set: Skip FreeBSD portaudit"
-                OPTION_FREEBSD_SKIP_PORTAUDIT="${VALUE}"
-            ;;
+                # Protocol to use for control information link
+                custom-url-protocol | custom_url_protocol)
+                    CUSTOM_URL_PROTOCOL="${VALUE}"
+                    AddSetting "custom-url-protocol" "${CUSTOM_URL_PREPEND}" "Custom URL (protocol)"
+                ;;
 
-            # Lynis Enterprise: group name
-            group)
-                GROUP_NAME="${VALUE}"
-            ;;
+                # Do not check security repository in sources.list (Debian/Ubuntu)
+                debian-skip-security-repository | debian_skip_security_repository)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY=1 
+                    AddSetting "debian-skip-security-repository" "OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY" "Skip checking for a security repository (Debian and others)"
+                ;;
 
-            # Lynis Enterprise license key
-            license_key)
-                LICENSE_KEY="${VALUE}"
-                report "license_key=${LICENSE_KEY}"
-            ;;
+                # Debug status to show more details while running program
+                debug)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && DEBUG=1
+                    Debug "Debug mode set to '${DEBUG}'"
+                    AddSetting "debug" "${DEBUG}" "Debugging mode"
+                ;;
 
-            # Do (not) log tests if they have an different operating system
-            log_tests_incorrect_os)
-                logtext "Option set: No logging for incorrect OS"
-                if [ "${VALUE}" = "no" ]; then LOG_INCORRECT_OS=0; else LOG_INCORRECT_OS=1; fi
-            ;;
+                # Development mode (--developer)
+                developer-mode)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && DEVELOPER_MODE=1
+                    Debug "Developer mode set to ${DEVELOPER_MODE}"
+                    AddSetting "developer" "${DEVELOPER_MODE}" "Developer mode"
+                ;;
 
-            # What type of machine we are scanning (eg. desktop, server, server with storage)
-            machine_role)
-                MACHINE_ROLE="${VALUE}"
-            ;;
+                # Show non-zero exit code when errors are found
+                error-on-warnings)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && ERROR_ON_WARNINGS=1
+                    Debug "Exit with different code on warnings is set to ${ERROR_ON_WARNINGS}"
+                    AddSetting "error-on-warnings" "${ERROR_ON_WARNINGS}" "Use non-zero exit code if one or more warnings were found"
+                ;;
 
-            # Define if any found NTP daemon instance is configured as a server or client
-            ntpd_role)
-                NTPD_ROLE="${VALUE}"
-            ;;
+                # Skip FreeBSD port audit
+                freebsd-skip-portaudit | freebsd_skip_portaudit)
+                    LogText "Option set: Skip FreeBSD portaudit"
+                    OPTION_FREEBSD_SKIP_PORTAUDIT="${VALUE}"
+                ;;
 
-            # How much seconds to wait between tests
-            pause_between_tests)
-                TEST_PAUSE_TIME="${VALUE}"
-            ;;
+                # Lynis Enterprise: group name
+                group)
+                    GROUP_NAME="${VALUE}"
+                    AddSetting "group" "${GROUP_NAME}" "Group"
+                ;;
 
-            # Profile name
-            profile_name)
-                PROFILE_NAME="${VALUE}"
-            ;;
+                hostid)
+                    HOSTID="${VALUE}"
+                ;;
 
-            # Inline tips about tool
-            show_tool_tips)
-                SHOW_TOOL_TIPS="${VALUE}"
-            ;;
+                hostid2)
+                    HOSTID2="${VALUE}"
+                ;;
 
-            # Tests to always skip (useful for false positives or problematic tests)
-            test_skip_always)
-                TEST_SKIP_ALWAYS="${VALUE}"
-                logtext "Tests to be skipped: ${VALUE}"
-            ;;
+                # Language
+                language | lang)
+                    LogText "Language set via profile to '${VALUE}'"
+                    if [ ! -z "${VALUE}" ]; then LANGUAGE="${VALUE}"; fi
+                    AddSetting "language" "${LANGUAGE}" "Language"
+                ;;
 
-            # Do not check the latest version on the internet
-            skip_upgrade_test)
-                if [ "${VALUE}" = "yes" -o "${VALUE}" = "YES" ]; then SKIP_UPGRADE_TEST=1; else SKIP_UPGRADE_TEST=0; fi
-            ;;
+                # Lynis Enterprise license key
+                 license-key | license_key)
+                    if [ ! "${VALUE}" = "" ]; then
+                        LICENSE_KEY="${VALUE}"
+                        Report "license_key=${VALUE}"
+                    fi
+                    AddSetting "license-key" "${VALUE}" "License key"
+                ;;
 
-            # Define what kind of scan we are performing
-            test_scan_mode)
-                if [ "${VALUE}" = "light" ]; then   SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="NO";  SCAN_TEST_HEAVY="NO";  fi
-                if [ "${VALUE}" = "normal" ]; then  SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="NO";  fi
-                if [ "${VALUE}" = "full" ]; then    SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="YES"; fi
-            ;;
+                # Do (not) log tests if they have an different operating system
+                log-tests-incorrect-os | log_tests_incorrect_os)
+                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)") && SETTING_LOG_TESTS_INCORRECT_OS=0
+                    Debug "Logging of tests with incorrect operating system set to ${SETTING_LOG_TESTS_INCORRECT_OS}"
+                    LOG_INCORRECT_OS=${SETTING_LOG_TESTS_INCORRECT_OS}
+                ;;
 
-            # Server IP or hostname
-            update_server_address)
-                UPDATE_SERVER_ADDRESS="${VALUE}"
-            ;;
+                # What type of machine we are scanning (eg. personal, workstation or server)
+                machine-role | machine_role)
+                    MACHINE_ROLE="${VALUE}"
+                    AddSetting "machine-role" "${MACHINE_ROLE}" "Machine role (personal, workstation or server)"
+                ;;
 
-            # Protocol (http, https)
-            update_server_protocol)
-                UPDATE_SERVER_PROTOCOL="${VALUE}"
-            ;;
+                # Define if any found NTP daemon instance is configured as a server or client
+                ntpd-role | ntpd_role)
+                    NTPD_ROLE="${VALUE}"
+                    AddSetting "ntpd-role" "${NTPD_ROLE}" "NTP role (server or client)"
+                ;;
 
-            # File path to tarball on server
-            update_latest_version_download)
-                UPDATE_LATEST_VERSION_DOWNLOAD="${VALUE}"
-            ;;
+                # How much seconds to wait between tests
+                pause_between_tests | pause-between-tests)
+                    TEST_PAUSE_TIME="${VALUE}"
+                    AddSetting "pause-between-tests" "${TEST_PAUSE_TIME}" "Pause between tests (in seconds)"
+                ;;
 
-            # File path to information file
-            update_latest_version_info)
-                UPDATE_LATEST_VERSION_INFO="${VALUE}"
-            ;;
+                # Plugin
+                plugin)
+                    LogText "Plugin '${VALUE}' enabled according profile (${PROFILE})"
+                ;;
 
-            # Local directory where lynis directory will be placed
-            update_local_directory)
-                UPDATE_LOCAL_DIRECTORY="${VALUE}"
-            ;;
+                # Plugin directory
+                plugindir | plugin-dir)
+                    if [ "${PLUGINDIR}" = "" ]; then
+                        PLUGINDIR="${VALUE}"
+                      else
+                        LogText "Plugin directory was already set to ${PLUGINDIR} before (most likely as a program argument), not overwriting"
+                    fi
+                    AddSetting "plugin-dir" "${PLUGINDIR}" "Plugin directory"
+                ;;
 
-            # Local file to maintain current version
-            update_local_version_info)
-                UPDATE_LOCAL_VERSION_INFO="${VALUE}"
-            ;;
+                # Profile name
+                profile-name | profile_name)
+                    PROFILE_NAME="${VALUE}"
+                ;;
 
-            # Compression of uploads (enabled by default)
-            upload_compressed)
-                if [ "${VALUE}" = "0" ]; then COMPRESSED_UPLOADS=0; fi
-            ;;
+                # Quick (no waiting for keypresses)
+                quick)
+                    # Quick mode (SKIP_PLUGINS) might already be set outside profile, so store in different variable
+                    SETTING_QUICK_MODE=0 # default is no
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && QUICKMODE=1
+                    if [ ! -z "${FIND}" ]; then SETTING_QUICK_MODE=1; fi
+                    Debug "Quickmode set to ${SETTING_QUICK_MODE}"
+                    AddSetting "quick" "${SETTING_QUICK_MODE}" "Quick mode (non-interactive)"
+                ;;
 
-            # Options during upload of data
-            upload_options)
-                UPLOAD_OPTIONS="${VALUE}"
-            ;;
+                # Refresh software repositories
+                refresh-repositories)
+                    SETTING_REFRESH_REPOSITORIES=1 # default is yes
+                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && REFRESH_REPOSITORIES=0
+                    if [ ! -z "${FIND}" ]; then SETTING_REFRESH_REPOSITORIES=0; fi
+                    Debug "Refreshing repositories set to ${SETTING_REFRESH_REPOSITORIES}"
+                    AddSetting "refresh-repositories" "${SETTING_REFRESH_REPOSITORIES}" "Refresh repositories (for vulnerable package detection)"
+                ;;
 
-            # Proxy settings
-            upload_proxy_port)
-                UPLOAD_PROXY_PORT="${VALUE}"
-            ;;
-            upload_proxy_protocol)
-                UPLOAD_PROXY_PROTOCOL="${VALUE}"
-            ;;
-            upload_proxy_server)
-                UPLOAD_PROXY_SERVER="${VALUE}"
-            ;;
+                # Show more details in report
+                show-report-solution)
+                    SETTING_SHOW_REPORT_SOLUTION=${SHOW_REPORT_SOLUTION}
+                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && SHOW_REPORT_SOLUTION=0
+                    if [ ! -z "${FIND}" ]; then SETTING_SHOW_REPORT_SOLUTION=0; fi
+                    Debug "Show report details (solution) set to ${SETTING_SHOW_REPORT_SOLUTION}"
+                ;;
 
-            # Receiving system (IP address or hostname)
-            upload_server)
-                UPLOAD_SERVER="${VALUE}"
-            ;;
+                # Inline tips about tool (default enabled)
+                show_tool_tips | show-tool-tips)
+                    SETTING_SHOW_TOOL_TIPS=1 # default is yes
+                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && SHOW_TOOL_TIPS=0
+                    if [ ! -z "${FIND}" ]; then SETTING_SHOW_TOOL_TIPS=0; fi
+                    Debug "Show tool tips set to ${SETTING_SHOW_TOOL_TIPS}"
+                    AddSetting "show-tool-tips" "${SETTING_SHOW_TOOL_TIPS}" "Show tool tips"
+                ;;
 
-            # Catch all bad options and bail out
-            *)
-                logtext "Unknown option ${OPTION} (with value: ${VALUE})"
-                echo "Fatal error: found errors in profile"
-                echo "Unknown option '${OPTION}' found (with value: ${VALUE})"
-                ExitFatal
-            ;;
+                # Show warnings only
+                show-warnings-only)
+                    QUIET=1
+                    QUICKMODE=1
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && SHOW_WARNINGS_ONLY=1
+                    Debug "Show warnings only set to ${SHOW_WARNINGS_ONLY}"
+                    AddSetting "show-warnings-only" "${SHOW_WARNINGS_ONLY}" "Show only warnings"
+                ;;
 
-        esac
+                # Skip plugins
+                skip-plugins)
+                    # Skip plugins (SKIP_PLUGINS) might already be set, so store in different variable
+                    SETTING_SKIP_PLUGINS=0 # default is no
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && SKIP_PLUGINS=1
+                    if [ ! -z "${FIND}" ]; then SETTING_SKIP_PLUGINS=1; fi
+                    Debug "Skip plugins is set to ${SETTING_SKIP_PLUGINS}"
+                    AddSetting "skip-plugins" "${SETTING_SKIP_PLUGINS}" "Skip plugins"
+                ;;
 
+                # SSL paths
+                ssl-certificate-paths)
+                    SSL_CERTIFICATE_PATHS="${VALUE}"
+                    Debug "SSL paths set to ${SSL_CERTIFICATE_PATHS}"
+                    AddSetting "ssl-certificate-paths" "${SSL_CERTIFICATE_PATHS}" "Paths for SSL certificates"
+                ;;
+
+                # Which tests to skip (skip-test=ABCD-1234 or skip-test=ABCD-1234:subtest)
+                skip-test)
+                    STRING=$(echo ${VALUE} | tr '[:lower:]' '[:upper:]')
+                    SKIP_TESTS="${SKIP_TESTS} ${STRING}"
+                ;;
+
+                # Do not check the latest version on the internet
+                skip_upgrade_test | skip-upgrade-test)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && SKIP_UPGRADE_TEST=1
+                    Debug "Skip upgrade test set to ${SKIP_UPGRADE_TEST}"
+                ;;
+
+                # Set strict mode for development and quality purposes
+                strict)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && SET_STRICT=1
+                ;;
+
+                # Define what kind of scan we are performing
+                test_scan_mode | test-scan-mode)
+                    if [ "${VALUE}" = "light" ]; then   SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="NO";  SCAN_TEST_HEAVY="NO";  fi
+                    if [ "${VALUE}" = "normal" ]; then  SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="NO";  fi
+                    if [ "${VALUE}" = "full" ]; then    SCAN_TEST_LIGHT="YES"; SCAN_TEST_MEDIUM="YES"; SCAN_TEST_HEAVY="YES"; fi
+                    AddSetting "test-scan-mode" "${VALUE}" "Scan mode"
+                ;;
+
+                # Server IP or hostname
+                update_server_address)
+                    UPDATE_SERVER_ADDRESS="${VALUE}"
+                    AddSetting "update-server-address" "${UPDATE_SERVER_ADDRESS}" "Update server (address)"
+                ;;
+
+                # Protocol (http, https)
+                update_server_protocol)
+                    UPDATE_SERVER_PROTOCOL="${VALUE}"
+                    AddSetting "update-server-protocol" "${UPDATE_SERVER_PROTOCOL}" "Update server (protocol)"
+                ;;
+
+                # File path to tarball on server
+                update_latest_version_download)
+                    UPDATE_LATEST_VERSION_DOWNLOAD="${VALUE}"
+                    AddSetting "update-latest-version-download" "${UPDATE_LATEST_VERSION_DOWNLOAD}" "Update information: file path to latest update"
+                ;;
+
+                # File path to information file
+                update_latest_version_info)
+                    UPDATE_LATEST_VERSION_INFO="${VALUE}"
+                    AddSetting "update-latest-version-info" "${UPDATE_LATEST_VERSION_INFO}" "Update information: file path to information file"
+                ;;
+
+                # Local directory where lynis directory will be placed
+                update_local_directory)
+                    UPDATE_LOCAL_DIRECTORY="${VALUE}"
+                    AddSetting "update-local-directory" "${UPDATE_LOCAL_DIRECTORY}" "Update information: local directory for updates"
+                ;;
+
+                # Local file to maintain current version
+                update_local_version_info)
+                    UPDATE_LOCAL_VERSION_INFO="${VALUE}"
+                    AddSetting "update-local-version-info" "${UPDATE_LOCAL_VERSION_INFO}" "Update information: local file for latest release"
+                ;;
+
+                # Compression of uploads (enabled by default)
+                upload_compressed | compressed-uploads)
+                    if [ "${VALUE}" = "0" ]; then COMPRESSED_UPLOADS=0; fi
+                    AddSetting "compressed-uploads" "${COMPRESSED_UPLOADS}" "Compressed uploads"
+                ;;
+
+                # Options during upload of data
+                upload_options | upload-options)
+                    UPLOAD_OPTIONS="${VALUE}"
+                    AddSetting "upload-options" "${UPLOAD_OPTIONS}" "Upload options"
+                ;;
+
+                # Proxy settings
+                upload_proxy_port | proxy-port | upload-proxy-port)
+                    UPLOAD_PROXY_PORT="${VALUE}"
+                    AddSetting "upload-proxy-port" "${UPLOAD_PROXY_PORT}" "Proxy port"
+                ;;
+                upload_proxy_protocol | proxy-protocol)
+                    UPLOAD_PROXY_PROTOCOL="${VALUE}"
+                    AddSetting "upload-proxy-protocol" "${UPLOAD_PROXY_PROTOCOL}" "Proxy protocol"
+                ;;
+                upload_proxy_server | proxy-server)
+                    UPLOAD_PROXY_SERVER="${VALUE}"
+                    AddSetting "upload-proxy-server" "${UPLOAD_PROXY_PORT}" "Proxy server"
+                ;;
+
+                # Receiving system (IP address or hostname)
+                upload-server)
+                    UPLOAD_SERVER="${VALUE}"
+                    AddSetting "upload-server" "${UPLOAD_SERVER}" "Upload server (ip or hostname)"
+                ;;
+
+                # Specify an alternative upload tool
+                upload-tool)
+                    if [ -f "${VALUE}" ]; then UPLOAD_TOOL="${VALUE}"; fi
+                    AddSetting "upload-tool" "${UPLOAD_TOOL}" "Upload tool"
+                ;;
+
+                # Specify arguments for an alternative upload tool
+                upload-tool-arguments)
+                    UPLOAD_TOOL_ARGS="${VALUE}"
+                    AddSetting "upload-tool-arguments" "${UPLOAD_TOOL_ARGS}" "Upload tool (arguments)"
+                ;;
+
+                # Verbose output (--verbose)
+                verbose)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && VERBOSE=1
+                    Debug "Verbose set to ${VERBOSE}"
+                    AddSetting "verbose" "${VERBOSE}" "Verbose output"
+                ;;
+
+                ########################################################################################################
+                ## DEPRECATED ITEMS
+                ########################################################################################################
+
+                # Deprecated: skip tests
+                test_skip_always)
+                    STRING=$(echo ${VALUE} | tr '[:lower:]' '[:upper:]')
+                    SKIP_TESTS="${SKIP_TESTS} ${STRING}"
+                    LogText "[deprecated option] Tests to be skipped: ${VALUE}"
+                    DisplayToolTip "Replace deprecated option 'test_skip_always' and replace with 'skip-test' (add to custom.prf)"
+                ;;
+
+                # Deprecated: receiving system (IP address or hostname)
+                upload_server)
+                    UPLOAD_SERVER="${VALUE}"
+                    AddSetting "upload-server" "${UPLOAD_SERVER}" "Upload server (ip or hostname)"
+                    DisplayToolTip "Replace deprecated option 'upload_server' and replace with 'upload-server' (add to custom.prf)"
+                ;;
+
+
+                # Catch all bad options and bail out
+                *)
+                    LogText "Unknown option ${OPTION} (with value: ${VALUE})"
+                    ${ECHOCMD} ""
+                    ${ECHOCMD} "${RED}Error${NORMAL}: found one or more errors in profile ${PROFILE}"
+                    ${ECHOCMD} "${WHITE}Details${NORMAL}: Unknown option '${YELLOW}${OPTION}${NORMAL}' found (with value: ${VALUE})"
+                    ${ECHOCMD} ""
+                    ExitFatal
+                ;;
+
+            esac
+
+        done
     done
+#
+#################################################################################
+#
+    SKIP_TESTS=$(echo ${SKIP_TESTS} | sed "s/^ //")
+    if [ ! -z "${SKIP_TESTS}" ]; then LogText "Skip tests: ${SKIP_TESTS}"; fi
 #
 #################################################################################
 #
     # Add group name to report
     if [ ! "${GROUP_NAME}" = "" ]; then
-        report "group=${GROUP_NAME}"
+        Report "group=${GROUP_NAME}"
     fi
 #
 #################################################################################
 #
     # Set default values (only if not configured in profile)
-
     if [ "${MACHINE_ROLE}" = "" ]; then
         MACHINE_ROLE="server"
-        logtext "Set option to default value: MACHINE_ROLE --> ${MACHINE_ROLE}"
+        LogText "Set option to default value: MACHINE_ROLE --> ${MACHINE_ROLE}"
     fi
 
     if [ "${NTPD_ROLE}" = "" ]; then
         NTPD_ROLE="client"
-        logtext "Set option to default value: NTPD_ROLE --> ${NTPD_ROLE}"
+        LogText "Set option to default value: NTPD_ROLE --> ${NTPD_ROLE}"
     fi
 
 #
 #################################################################################
 #
+    # Register the discovered settings
+    AddSetting "log-tests-incorrect-os" "${SETTING_LOG_TESTS_INCORRECT_OS}" "Logging of tests that have a different OS"
+    AddSetting "show-report-solution" "${SETTING_SHOW_REPORT_SOLUTION}" "Show more details in report (solution)"
+    AddSetting "skip-upgrade-test" "${SKIP_UPGRADE_TEST}" "Skip upgrade test"
+    AddSetting "strict" "${SET_STRICT}" "Perform strict code test of scripts"
 
-logtextbreak
+    unset SETTING_LOG_TESTS_INCORRECT_OS SETTING_SHOW_REPORT_SOLUTION
+#
+#################################################################################
+#
+    Display --indent 2 --text "- Checking profiles..." --result "DONE" --color GREEN
+
+
+LogTextBreak
 
 #================================================================================
 # Lynis - Copyright 2007-2016, Michael Boelen - CISOfy, https://cisofy.com

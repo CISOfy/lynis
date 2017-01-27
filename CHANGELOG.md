@@ -10,6 +10,7 @@ Changes:
 * Extended support and tests for DragonFlyBSD
 * Option to configure hostid and hostid2 in profile
 * Support for Trend Micro and Cylance (macOS)
+* Remove comments at end of nginx configuration
 
 Tests:
 ------

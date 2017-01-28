@@ -101,23 +101,27 @@
         FIND1=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^smtpd_banner' | ${GREPBINARY} 'postfix')
         FIND2=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^smtpd_banner' | ${GREPBINARY} '$mail_name')
         FIND3=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^mail_name' | ${GREPBINARY} -i 'postfix')
-        #TODO Check if OS name shows up in banner
-        #FIND4=`${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^smtpd_banner' | ${EGREPBINARY} "${OS}|${LINUX_VERSION}`
+        FIND4=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^smtpd_banner' | ${EGREPBINARY} -i "${OS}|${LINUX_VERSION}")
         SHOWWARNING=0
-        if [ ! "${FIND1}" = "" ]; then
+
+        if [ ! -z "${FIND1}" ]; then
             SHOWWARNING=1
-        else
-            if [ ! "${FIND2}" = "" -a ! "${FIND3}" = "" ]; then
-                SHOWWARNING=1
-            else
-                Display --indent 4 --text "- Postfix banner" --result "${STATUS_OK}" --color GREEN
-            fi
+            Report "banner_software_disclosure[]=${FIND1}"
+        elif [ ! -z "${FIND2}" -a ! -z "${FIND3}" ]; then
+            SHOWWARNING=1
+            Report "banner_software_disclosure[]=${FIND2}"
+        elif [ ! -z "${FIND4}" ]; then
+            SHOWWARNING=1
+            Report "banner_os_disclosure[]=${FIND4}"
         fi
+
         if [ ${SHOWWARNING} -eq 1 ]; then
             Display --indent 4 --text "- Postfix banner" --result "${STATUS_WARNING}" --color RED
-            LogText "Result: found mail_name in SMTP banner, and/or mail_name contains 'Postfix'."
-            ReportWarning ${TEST_NO} "Found mail_name in SMTP banner, and/or mail_name contains 'Postfix'"
+            LogText "Result: found OS, or mail_name in SMTP banner, and/or mail_name contains 'Postfix'."
+            ReportWarning ${TEST_NO} "Found some information disclosure in SMTP banner (OS or software name)"
             ReportSuggestion ${TEST_NO} "You are advised to hide the mail_name (option: smtpd_banner) from your postfix configuration. Use postconf -e or change your main.cf file (${POSTFIX_CONFIGFILE})"
+        else
+            if IsVerbose; then Display --indent 4 --text "- Postfix banner" --result "${STATUS_OK}" --color GREEN; fi
         fi
     fi
 #

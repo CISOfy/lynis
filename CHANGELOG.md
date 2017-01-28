@@ -12,9 +12,11 @@ Changes:
 * Support for Trend Micro and Cylance (macOS)
 * Remove comments at end of nginx configuration
 * Used machine ID to create host ID when no SSH keys are available
+* Added detection of iptables-save to binaries
 
 Tests:
 ------
+* FIRE-4586 - Check logging for firewall components
 * KRNL-5788 - Remove exception and style improvements
 * KRNL-5830 - Improved logging
 

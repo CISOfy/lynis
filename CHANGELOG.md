@@ -11,6 +11,7 @@ Changes:
 * Option to configure hostid and hostid2 in profile
 * Support for Trend Micro and Cylance (macOS)
 * Remove comments at end of nginx configuration
+* Used machine ID to create host ID when no SSH keys are available
 
 Tests:
 ------

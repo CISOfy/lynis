@@ -1,9 +1,10 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.1 (not released yet, under development)
+Lynis 2.4.1 (2017-02-09)
 
 Changes:
+--------
 * Generic code improvements
 * Improved the update check and display
 * Finish, Portuguese, and Turkish translation

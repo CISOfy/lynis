@@ -7,10 +7,6 @@
 
 ----
 
-**Help Lynis and nominate it as the [best security tool of 2016](https://www.toolswatch.org/2016/12/2016-best-security-tools-as-voted-by-toolswatch-org-readers/). Thanks!**
-
-----
-
 # lynis
 
 > Lynis - Security auditing and hardening tool, for UNIX-based systems.

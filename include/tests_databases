@@ -105,31 +105,31 @@
     fi
 
     # Test        : DBS-1820
-    # Description : Check empty MongoDB authentication
+    # Description : Check empty MongoDB authorization
     # Notes       : Authentication can be set via command line or configuration file
-    Register --test-no DBS-1820 --weight L --network NO --category security --description "Check for authentication in MongoDB"
+    Register --test-no DBS-1820 --weight L --network NO --category security --description "Check for authorization in MongoDB"
     if [ ${SKIPTEST} -eq 0 ]; then
-        MONGODB_AUTHENTICATION_ENABLED=0
+        MONGODB_AUTHORIZATION_ENABLED=0
         if [ ${MONGODB_RUNNING} -eq 1 ]; then
 
             MONGO_CONF_FILES="${ROOTDIR}etc/mongod.conf ${ROOTDIR}etc/mongodb.conf"
             for FILE in ${MONGO_CONF_FILES}; do
                 if [ -f ${FILE} ]; then
                     LogText "Result: found MongoDB configuration file (${FILE})"
-                    LogText "Test: determine authentication setting in new style YAML format"
-                    AUTH_IN_CONFIG=$(${GREPBINARY} "authentication: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                    LogText "Test: determine authorization setting in new style YAML format"
+                    AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
                     if [ ! -z "${AUTH_IN_CONFIG}" ]; then
-                        LogText "Result: GOOD, found authentication enabled in configuration file (YAML format)"
-                        MONGODB_AUTHENTICATION_ENABLED=1
+                        LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)"
+                        MONGODB_AUTHORIZATION_ENABLED=1
                     else
-                        LogText "Result: did NOT find authentication enabled in configuration file (with YAML format)"
+                        LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)"
                         LogText "Test: now searching for old style configuration (auth = true) in configuration file"
                         AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")
                         if [ -z "${AUTH_IN_CONFIG}" ]; then
                             LogText "Result: did NOT find auth = true in configuration file"
                         else
-                            LogText "Result: GOOD, found authentication enabled in configuration file (old format)"
-                            MONGODB_AUTHENTICATION_ENABLED=1
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (old format)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
                         fi
                     fi
                 else
@@ -137,22 +137,22 @@
                 fi
             done
 
-            # Now check authentication on the command line
-            if [ ${MONGODB_AUTHENTICATION_ENABLED} -eq 0 ]; then
+            # Now check authorization on the command line
+            if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
                 if [ ! -z "${PGREPBINARY}" ]; then
                     AUTH_ON_CMDLINE=$(for I in $(${PGREPBINARY} mongo); do cat /proc/${I}/cmdline | xargs -0 echo | ${GREPBINARY} -E "\-\-auth( |$)"; done)
-                    if [ ! -z "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authentication enabled via mongod parameter"; MONGODB_AUTHENTICATION_ENABLED=1; fi
+                    if [ ! -z "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authorization enabled via mongod parameter"; MONGODB_AUTHORIZATION_ENABLED=1; fi
                 else
                     LogText "Result: skipped this part of the test, as pgrep is not available"
                 fi
             fi
-            if [ ${MONGODB_AUTHENTICATION_ENABLED} -eq 0 ]; then
-                LogText "Result: no authentication enabled via parameter or configuration file"
-                Report "mongodb_authentication_disabled=1"
-                ReportWarning ${TEST_NO} "MongoDB instance allows unauthenticated access"
-                Display --indent 4 --text "- Checking MongoDB authentication" --result "${STATUS_DISABLED}" --color RED
+            if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                LogText "Result: no authorization enabled via parameter or configuration file"
+                Report "mongodb_authorization_disabled=1"
+                ReportWarning ${TEST_NO} "MongoDB instance allows any user to access databases"
+                Display --indent 4 --text "- Checking MongoDB authorization" --result "${STATUS_DISABLED}" --color RED
             else
-                if IsVerbose; then Display --indent 4 --text "- Checking MongoDB authentication" --result "${STATUS_ENABLED}" --color GREEN; fi
+                if IsVerbose; then Display --indent 4 --text "- Checking MongoDB authorization" --result "${STATUS_ENABLED}" --color GREEN; fi
             fi
         fi
     fi

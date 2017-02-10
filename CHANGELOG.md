@@ -1,6 +1,15 @@
 Lynis Changelog
 ===============
 
+Lynis 2.4.2 (under development, not released yet)
+
+Changes:
+--------
+
+* FIRE-4586 - Fix applied when searching for "-j LOG"
+
+---------------------------------------------------------------------------------
+
 Lynis 2.4.1 (2017-02-09)
 
 Changes:

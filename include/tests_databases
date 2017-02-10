@@ -71,7 +71,7 @@
     # Test        : DBS-1816
     # Description : Check empty MySQL root password
     # Notes       : Only perform test when MySQL is running and client is available
-    if [ ! "${MYSQLCLIENTBINARY}" = "" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
+    if [ ! -z "${MYSQLCLIENTBINARY}" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
     Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking MySQL root password"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Trying to login to local MySQL server without password"
@@ -83,11 +83,61 @@
             AddHP 0 5
         else
             LogText "Result: Login did not succeed, so a MySQL root password is set"
-            Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN
+            if IsVerbose; then Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN; fi
             AddHP 2 2
         fi
       else
         LogText "Test skipped, MySQL daemon not running or no MySQL client available"
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1820
+    # Description : Check empty MongoDB authentication
+    # Notes       : Authentication can be set via command line or configuration file
+    Register --test-no DBS-1820 --weight L --network NO --category security --description "Check for authentication in MongoDB"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        MONGOD_AUTHENTICATION_ENABLED=0
+        if IsRunning "mongod"; then
+            MONGO_CONF_FILES="${ROOTDIR}etc/mongod.conf ${ROOTDIR}etc/mongodb.conf"
+            for FILE in ${MONGO_CONF_FILES}; do
+                if [ -f ${FILE} ]; then
+                    LogText "Result: found MongoDB configuration file (${FILE})"
+                    LogText "Test: determine authentication setting in new style YAML format"
+                    AUTH_IN_CONFIG=$(${GREPBINARY} "authentication: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                    if [ ! -z "${AUTH_IN_CONFIG}" ]; then
+                        LogText "Result: GOOD, found authentication enabled in configuration file (YAML format)"
+                        MONGOD_AUTHENTICATION_ENABLED=1
+                    else
+                        LogText "Result: did NOT find authentication enabled in configuration file (with YAML format)"
+                        LogText "Test: now searching for old style configuration (auth = true) in configuration file"
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if [ -z "${AUTH_IN_CONFIG}" ]; then
+                            LogText "Result: did NOT find auth = true in configuration file"
+                        else
+                            LogText "Result: GOOD, found authentication enabled in configuration file (old format)"
+                            MONGOD_AUTHENTICATION_ENABLED=1
+                        fi
+                    fi
+                else
+                    LogText "Result: configuration file ${FILE} not found"
+                fi
+            done
+
+            # Now check authentication on the command line
+            if [ ${MONGOD_AUTHENTICATION_ENABLED} -eq 0 ]; then
+                AUTH_ON_CMDLINE=$(for I in $(${PGREPBINARY} mongo); do cat /proc/${I}/cmdline | xargs -0 echo | ${GREPBINARY} -E "\-\-auth( |$)"; done)
+                if [ ! -z "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authentication enabled via mongod parameter"; MONGOD_AUTHENTICATION_ENABLED=1; fi
+            fi
+            if [ ${MONGOD_AUTHENTICATION_ENABLED} -eq 0 ]; then
+                LogText "Result: no authentication enabled via parameter or configuration file"
+                Report "mongod_authentication_disabled=1"
+                ReportWarning ${TEST_NO} "MongoDB instance allows unauthenticated access"
+                Display --indent 4 --text "- Checking MongoDB authentication" --result "${STATUS_DISABLED}" --color RED
+            else
+                if IsVerbose; then Display --indent 4 --text "- Checking MongoDB authentication" --result "${STATUS_ENABLED}" --color GREEN; fi
+            fi
+        fi
     fi
 #
 #################################################################################

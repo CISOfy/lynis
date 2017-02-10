@@ -6,6 +6,8 @@ Lynis 2.4.2 (under development, not released yet)
 Changes:
 --------
 
+* DBS-1818  - New test to detect MongoDB
+* DBS-1820  - New test for MongoDB authentication
 * FIRE-4586 - Fix applied when searching for "-j LOG"
 
 ---------------------------------------------------------------------------------

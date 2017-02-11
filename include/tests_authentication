@@ -244,13 +244,17 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for non unique group ID's in /etc/group"
         FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $3 }' | ${SORTBINARY} | uniq -d)
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Unique group IDs" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group ID's are unique"
+            Report "auth_group_ids_unique=1"
         else
             Display --indent 2 --text "- Unique group IDs" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found the same group ID multiple times"
-            LogText "Output: ${FIND}"
+            for I in ${FIND}; do
+                Report "auth_groups_nonunique[]=${I}"
+                LogText "Non-unique group: ${I}"
+            done
             ReportSuggestion ${TEST_NO} "Check your /etc/group file and correct any inconsistencies"
         fi
     fi
@@ -259,19 +263,23 @@
 #
     # Test        : AUTH-9226
     # Description : Check unique group names
-    if [ -f /etc/group ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -f ${ROOTDIR}etc/group ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9226 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unique group names"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking for non unique group names in /etc/group"
-        FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $1 }' | ${SORTBINARY} | uniq -d)
+        LogText "Test: Checking for non unique group names in ${ROOTDIR}etc/group"
+        FIND=$(${GREPBINARY} -v '^#' ${ROOTDIR}etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $1 }' | ${SORTBINARY} | uniq -d)
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Unique group names" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group names are unique"
+            Report "auth_group_names_unique=1"
         else
-            Display --indent 2 --text "- Unique group names" --result "${STATUS_WARNING}" --color WARNING
+            Display --indent 2 --text "- Unique group names" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found the same group name multiple times"
-            LogText "Output: ${FIND}"
-            ReportSuggestion ${TEST_NO} "Check your /etc/group file and correct any inconsistencies"
+            for I in ${FIND}; do
+                Report "auth_groups_nonunique[]=${I}"
+                LogText "Non-unique group: ${I}"
+            done
+            ReportSuggestion ${TEST_NO} "Check your ${ROOTDIR}etc/group file and correct any inconsistencies"
         fi
     fi
 #

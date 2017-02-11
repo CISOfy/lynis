@@ -6,6 +6,8 @@ Lynis 2.4.2 (under development, not released yet)
 Changes:
 --------
 
+* AUTH-9222 - Improve logging for double groups
+* AUTH-9226 - Improve logging for double groups
 * DBS-1818  - New test to detect MongoDB
 * DBS-1820  - New test for MongoDB authentication
 * FIRE-4586 - Fix applied when searching for "-j LOG"

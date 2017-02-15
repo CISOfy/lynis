@@ -118,7 +118,7 @@
                 LogLevel:VERBOSE,INFO,:=\
                 MaxAuthTries:1,3,6:<\
                 MaxSessions:2,4,8:<\
-                PermitRootLogin:NO,WITHOUT-PASSWORD,YES:=\
+                PermitRootLogin:NO,(PROHIBIT-PASSWORD|WITHOUT-PASSWORD),YES:=\
                 PermitUserEnvironment:NO,,YES:=\
                 PermitTunnel:NO,,YES:=\
                 Port:,,22:!\
@@ -162,7 +162,28 @@
                         elif [ "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
                             RESULT="WEAK"
                         else
-                            RESULT="UNKNOWN"
+                            if [ ! -z "${EXPECTEDSCOREDVALUE}" ]; then
+                                LogText "Expected scored value has multiple values, testing if active value is in list (${EXPECTEDSCOREDVALUE})"
+                                FIND=$(echo ${FOUNDVALUE} | ${GREPBINARY} -E "${EXPECTEDSCOREDVALUE}")
+                                if [ $? -eq 0 ]; then
+                                    LogText "Result: found"
+                                    RESULT="GOOD"
+                                else
+                                    LogText "Result: not found"
+                                fi
+                            fi
+                            if [ ! -z "${MEDIUMSCOREDVALUE}" ]; then
+                                LogText "Medium scored value has multiple values, testing if active value is in list (${MEDIUMSCOREDVALUE})"
+                                FIND=$(echo ${FOUNDVALUE} | ${GREPBINARY} -E "${MEDIUMSCOREDVALUE}")
+                                if [ $? -eq 0 ]; then
+                                    LogText "Result: found"
+                                    RESULT="MIDSCORED"
+                                else
+                                    LogText "Result: not found"
+                                fi
+                            fi
+                            # Set result to weak if we can't find any matches
+                            if [ "${RESULT}" = "NONE" ]; then RESULT="WEAK"; fi
                         fi
 
                     elif [ "${TESTTYPE}" = "<" ]; then

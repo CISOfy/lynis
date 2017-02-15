@@ -1,16 +1,24 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.2 (under development, not released yet)
+Lynis 2.4.2 (2017-02-15)
 
 Changes:
 --------
+* Properly detect SSH daemon version
 
+Tests:
+------
+* AUTH-9208 - Removed double logging
 * AUTH-9222 - Improve logging for double groups
 * AUTH-9226 - Improve logging for double groups
+* BOOT-5177 - Sort systemctl unit files to make them unique
 * DBS-1818  - New test to detect MongoDB
 * DBS-1820  - New test for MongoDB authentication
+* FIRE-4512 - Lowered minimum number of iptables firewall rules
 * FIRE-4586 - Fix applied when searching for "-j LOG"
+* HRDN-7222 - Changed reporting key of world executable compilers
+* SSH-7408  - Added filtering for PermitRootLogin (prohibit-password, OpenSSH 7.0)
 
 ---------------------------------------------------------------------------------
 

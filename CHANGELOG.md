@@ -1,6 +1,14 @@
 Lynis Changelog
 ===============
 
+Lynis 2.4.3 (this version is not released yet)
+
+Changes:
+* Colored output can now be tuned with profile (colors=yes/no)
+
+
+---------------------------------------------------------------------------------
+
 Lynis 2.4.2 (2017-02-15)
 
 Changes:

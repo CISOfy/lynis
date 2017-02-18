@@ -6,6 +6,8 @@ Lynis 2.4.3 (this version is not released yet)
 Changes:
 * Colored output can now be tuned with profile (colors=yes/no)
 
+Tests:
+* TIME-3116 - Skip stratum 16 items for time pools
 
 ---------------------------------------------------------------------------------
 

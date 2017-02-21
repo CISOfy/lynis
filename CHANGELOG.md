@@ -7,6 +7,8 @@ Changes:
 * Colored output can now be tuned with profile (colors=yes/no)
 
 Tests:
+* AUTH-9308 - Improved test for sulogin string
+* MAIL-8818 - Test if Linux version is known before comparing in Postfix banner
 * TIME-3116 - Skip stratum 16 items for time pools
 
 ---------------------------------------------------------------------------------

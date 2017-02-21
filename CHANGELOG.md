@@ -5,6 +5,7 @@ Lynis 2.4.3 (this version is not released yet)
 
 Changes:
 * Colored output can now be tuned with profile (colors=yes/no)
+* Allow data upload to be set as a profile option
 
 Tests:
 * AUTH-9308 - Improved test for sulogin string

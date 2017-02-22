@@ -1,16 +1,19 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.3 (this version is not released yet)
+Lynis 2.4.3 (2017-02-22)
 
 Changes:
+--------
 * Colored output can now be tuned with profile (colors=yes/no)
 * Allow data upload to be set as a profile option
 
 Tests:
+------
 * AUTH-9308 - Improved test for sulogin string
 * MAIL-8818 - Test if Linux version is known before comparing in Postfix banner
 * TIME-3116 - Skip stratum 16 items for time pools
+* TIME-3148 - New test to detect TZ variable
 
 ---------------------------------------------------------------------------------
 

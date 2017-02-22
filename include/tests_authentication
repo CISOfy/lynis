@@ -193,50 +193,6 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9489
-    # Description : Check login shells for passwordless accounts
-    # Notes       : Results should be checked
-    Register --test-no AUTH-9489 --os DragonFly --weight L --network NO --category security --description "Check login shells for passwordless accounts"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        FOUND=0
-        LogText "Test: Checking login shells"
-        if [ -f /etc/master.passwd ]; then
-            # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
-            FIND=`${GREPBINARY} "[a-z]:\*:" /etc/master.passwd | ${EGREPBINARY} -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g'`
-            if [ "${FIND}" = "" ]; then
-                Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
-            else
-                Display --indent 2 --text "- Login shells" --result "${STATUS_WARNING}" --color RED
-                for LINE in ${FIND}; do
-                    LINE=$(echo ${LINE} | ${SEDBINARY} 's/!space!/ /g')
-                    SHELL=$(echo ${LINE} | ${AWKBINARY} -F: '{ print $10 }')
-                    LogText "Output: ${LINE}"
-                    if [ -z "${SHELL}" ]; then
-                        LogText "Result: found no shell on line"
-                    else
-                        LogText "Result: found possible harmful shell ${SHELL}"
-                        if [ -f ${SHELL} ]; then
-                            LogText "Result: shell ${SHELL} does exist"
-                            FOUND=1
-                        else
-                            LogText "Result: shell ${SHELL} does not exist"
-                            ReportSuggestion ${TEST_NO} "Determine if account is needed, as shell ${SHELL} does not exist"
-                        fi
-                    fi
-                done
-                if [ ${FOUND} -eq 1 ]; then
-                    ReportWarning ${TEST_NO} "Possible harmful shell found (for passwordless account!)"
-                fi
-            fi
-          else
-            Display --indent 2 --text "- Login shells" --result "${STATUS_SKIPPED}" --color WHITE
-            LogText "Result: No /etc/master.passwd file found"
-        fi
-        unset LINE SHELL
-    fi
-#
-#################################################################################
-#
     # Test        : AUTH-9222
     # Description : Check unique group IDs
     Register --test-no AUTH-9222 --weight L --network NO --category security --description "Check unique groups (IDs)"
@@ -355,7 +311,7 @@
                 FIND=$(${AWKBINARY} -v UID_MIN="${UID_MIN}" -F: '($3 >= UID_MIN && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
 
-            "macOS")
+            "MacOS")
                 LogText "macOS real users output (ID = 0, or 500-599) using dscacheutil"
                 FIND_USERS=$(dscacheutil -q user | ${GREPBINARY} -A 3 -B 2 -e "^uid: 5[0-9][0-9]" | ${GREPBINARY} "^name: " | ${AWKBINARY} '{print $2}')
                 if [ ! -z "${FIND_USERS}" ]; then

@@ -1,6 +1,20 @@
 Lynis Changelog
 ===============
 
+Lynis 2.4.4 (not released yet, under development)
+
+Changes:
+--------
+* Fix for upload function to be used from profile
+* Reduce screen output for mail section, unless --verbose is used
+
+Tests:
+------
+* AUTH-9308 - Improved test for sulogin string (Debian systems)
+* MAIL-8817 - New test to check Postfix configuration for errors
+
+---------------------------------------------------------------------------------
+
 Lynis 2.4.3 (2017-02-22)
 
 Changes:

@@ -475,20 +475,20 @@
     # Notes       :
     Register --test-no FILE-6372 --os Linux --weight L --network NO --category security --description "Checking / mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -f /etc/fstab ]; then
-            FIND=$(${AWKBINARY} '{ if ($2=="/") { print $4 } }' /etc/fstab | ${GREPBINARY} -v "^#")
+        if [ -f ${ROOTDIR}etc/fstab ]; then
+            FIND=$(${GREPBINARY} -w "/" ${ROOTDIR}etc/fstab | ${GREPBINARY} -v "^#" | ${CUTBINARY} -f1 -d"#" | ${AWKBINARY} '{ if ($2=="/") { print $4 }}')
             NODEV=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "nodev") { print "YES" } else { print "NO" } }')
             NOEXEC=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "noexec") { print "YES" } else { print "NO" } }')
             NOSUID=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "nosuid") { print "YES" } else { print "NO" } }')
 
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: mount system / is configured with options: ${FIND}"
                 if [ "${FIND}" = "defaults" ]; then
                     Display --indent 2 --text "- Mount options of /" --result "${STATUS_OK}" --color GREEN
                 else
                     Display --indent 2 --text "- Mount options of /" --result "NON DEFAULT" --color YELLOW
                 fi
-              else
+            else
                 LogText "Result: no mount point / or expected options found"
             fi
         fi

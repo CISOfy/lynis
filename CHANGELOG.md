@@ -12,7 +12,9 @@ Changes:
 Tests:
 ------
 * AUTH-9308 - Improved test for sulogin string (Debian systems)
+* FILE-6372 - Properly deal with comment on lines in /etc/fstab
 * MAIL-8817 - New test to check Postfix configuration for errors
+* SSH-7408  - Corrected SSH check
 
 ---------------------------------------------------------------------------------
 

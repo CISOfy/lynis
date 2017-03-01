@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2013-2016, CISOfy
+# Copyright 2007-2017, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -149,10 +149,11 @@
     Register --test-no BANN-7126 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check issue banner file contents"
     if [ ${SKIPTEST} -eq 0 ]; then
         N=0
-        LogText "Test: Checking file /etc/issue contents for legal key words"
+        FILE="${ROOTDIR}etc/issue"
+        LogText "Test: Checking file ${FILE} contents for legal key words"
         for I in ${LEGAL_BANNER_STRINGS}; do
-            FIND=`${GREPBINARY} -i "${I}" /etc/issue`
-            if [ ! "${FIND}" = "" ]; then
+            FIND=$(${GREPBINARY} -i "${I}" ${FILE})
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: found string '${I}'"
                 N=$((N + 1))
             fi
@@ -160,13 +161,14 @@
         # Check if we have 5 or more key words
         if [ ${N} -gt 4 ]; then
             LogText "Result: Found ${N} key words (5 or more suggested), to warn unauthorized users"
-            Display --indent 4 --text "- /etc/issue contents" --result "${STATUS_OK}" --color GREEN
+            Display --indent 4 --text "- ${FILE} contents" --result "${STATUS_OK}" --color GREEN
             AddHP 2 2
           else
             LogText "Result: Found only ${N} key words (5 or more suggested), to warn unauthorized users and could be increased"
-            Display --indent 4 --text "- /etc/issue contents" --result WEAK --color YELLOW
-            ReportSuggestion ${TEST_NO} "Add a legal banner to /etc/issue, to warn unauthorized users"
+            Display --indent 4 --text "- ${FILE} contents" --result WEAK --color YELLOW
+            ReportSuggestion ${TEST_NO} "Add a legal banner to ${FILE}, to warn unauthorized users"
             AddHP 0 1
+            Report "weak_banner_file[]=${FILE}"
         fi
     fi
 #

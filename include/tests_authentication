@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2013-2016, CISOfy
+# Copyright 2007-2017, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -88,7 +88,6 @@
             Display --indent 2 --text "- Unique UIDs" --result "${STATUS_SKIPPED}" --color WHITE
             LogText "Result: test skipped, ${PASSWD_FILE} file not available"
         fi
-        LogText "Remarks: Non unique UIDs can riskful for the system or part of a configuration mistake"
         LogText "Remarks: Non unique UIDs can be a risk for the system or part of a configuration mistake"
     fi
 #
@@ -244,13 +243,17 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for non unique group ID's in /etc/group"
         FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $3 }' | ${SORTBINARY} | uniq -d)
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Unique group IDs" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group ID's are unique"
+            Report "auth_group_ids_unique=1"
         else
             Display --indent 2 --text "- Unique group IDs" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found the same group ID multiple times"
-            LogText "Output: ${FIND}"
+            for I in ${FIND}; do
+                Report "auth_groups_nonunique[]=${I}"
+                LogText "Non-unique group: ${I}"
+            done
             ReportSuggestion ${TEST_NO} "Check your /etc/group file and correct any inconsistencies"
         fi
     fi
@@ -259,19 +262,23 @@
 #
     # Test        : AUTH-9226
     # Description : Check unique group names
-    if [ -f /etc/group ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -f ${ROOTDIR}etc/group ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9226 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unique group names"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking for non unique group names in /etc/group"
-        FIND=$(${GREPBINARY} -v '^#' /etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $1 }' | ${SORTBINARY} | uniq -d)
+        LogText "Test: Checking for non unique group names in ${ROOTDIR}etc/group"
+        FIND=$(${GREPBINARY} -v '^#' ${ROOTDIR}etc/group | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $1 }' | ${SORTBINARY} | uniq -d)
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Unique group names" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All group names are unique"
+            Report "auth_group_names_unique=1"
         else
-            Display --indent 2 --text "- Unique group names" --result "${STATUS_WARNING}" --color WARNING
+            Display --indent 2 --text "- Unique group names" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found the same group name multiple times"
-            LogText "Output: ${FIND}"
-            ReportSuggestion ${TEST_NO} "Check your /etc/group file and correct any inconsistencies"
+            for I in ${FIND}; do
+                Report "auth_groups_nonunique[]=${I}"
+                LogText "Non-unique group: ${I}"
+            done
+            ReportSuggestion ${TEST_NO} "Check your ${ROOTDIR}etc/group file and correct any inconsistencies"
         fi
     fi
 #
@@ -898,7 +905,7 @@
                 TEST_PERFORMED=1
                 LogText "Result: file /etc/inittab exists"
                 LogText "Test: checking presence sulogin for single user mode"
-                FIND=$(${EGREPBINARY} "^~~:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
+                FIND=$(${EGREPBINARY} "^[a-zA-Z0-9~]+:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
                 FIND2=$(${EGREPBINARY} "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
                 if [ ! -z "${FIND}" -o ! -z "${FIND2}" ]; then
                     FOUND=1

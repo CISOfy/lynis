@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2013-2016, CISOfy
+# Copyright 2007-2017, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -71,7 +71,7 @@
     # Test        : DBS-1816
     # Description : Check empty MySQL root password
     # Notes       : Only perform test when MySQL is running and client is available
-    if [ ! "${MYSQLCLIENTBINARY}" = "" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
+    if [ ! -z "${MYSQLCLIENTBINARY}" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
     Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking MySQL root password"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Trying to login to local MySQL server without password"
@@ -83,11 +83,78 @@
             AddHP 0 5
         else
             LogText "Result: Login did not succeed, so a MySQL root password is set"
-            Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN
+            if IsVerbose; then Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN; fi
             AddHP 2 2
         fi
       else
         LogText "Test skipped, MySQL daemon not running or no MySQL client available"
+    fi
+#
+#################################################################################
+#
+    # Test        : DBS-1818
+    # Description : Check MongoDB status
+    Register --test-no DBS-1818 --weight L --network NO --category security --description "Check status of MongoDB server"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if IsRunning "mongod"; then
+            MONGODB_RUNNING=1
+            DATABASE_ENGINE_RUNNING=1
+            Report "mongodb_running=1"
+            Display --indent 2 --text "- MongoDB status" --result "${STATUS_FOUND}" --color GREEN
+        fi
+    fi
+
+    # Test        : DBS-1820
+    # Description : Check empty MongoDB authorization
+    # Notes       : Authentication can be set via command line or configuration file
+    Register --test-no DBS-1820 --weight L --network NO --category security --description "Check for authorization in MongoDB"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        MONGODB_AUTHORIZATION_ENABLED=0
+        if [ ${MONGODB_RUNNING} -eq 1 ]; then
+
+            MONGO_CONF_FILES="${ROOTDIR}etc/mongod.conf ${ROOTDIR}etc/mongodb.conf"
+            for FILE in ${MONGO_CONF_FILES}; do
+                if [ -f ${FILE} ]; then
+                    LogText "Result: found MongoDB configuration file (${FILE})"
+                    LogText "Test: determine authorization setting in new style YAML format"
+                    AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                    if [ ! -z "${AUTH_IN_CONFIG}" ]; then
+                        LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)"
+                        MONGODB_AUTHORIZATION_ENABLED=1
+                    else
+                        LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)"
+                        LogText "Test: now searching for old style configuration (auth = true) in configuration file"
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if [ -z "${AUTH_IN_CONFIG}" ]; then
+                            LogText "Result: did NOT find auth = true in configuration file"
+                        else
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (old format)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
+                        fi
+                    fi
+                else
+                    LogText "Result: configuration file ${FILE} not found"
+                fi
+            done
+
+            # Now check authorization on the command line
+            if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                if [ ! -z "${PGREPBINARY}" ]; then
+                    AUTH_ON_CMDLINE=$(for I in $(${PGREPBINARY} mongo); do cat /proc/${I}/cmdline | xargs -0 echo | ${GREPBINARY} -E "\-\-auth( |$)"; done)
+                    if [ ! -z "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authorization enabled via mongod parameter"; MONGODB_AUTHORIZATION_ENABLED=1; fi
+                else
+                    LogText "Result: skipped this part of the test, as pgrep is not available"
+                fi
+            fi
+            if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                LogText "Result: no authorization enabled via parameter or configuration file"
+                Report "mongodb_authorization_disabled=1"
+                ReportWarning ${TEST_NO} "MongoDB instance allows any user to access databases"
+                Display --indent 4 --text "- Checking MongoDB authorization" --result "${STATUS_DISABLED}" --color RED
+            else
+                if IsVerbose; then Display --indent 4 --text "- Checking MongoDB authorization" --result "${STATUS_ENABLED}" --color GREEN; fi
+            fi
+        fi
     fi
 #
 #################################################################################

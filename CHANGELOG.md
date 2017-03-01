@@ -1,17 +1,77 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.1 (not released yet, under development)
+Lynis 2.4.4 (2017-03-01)
 
 Changes:
+--------
+* Fix for upload function to be used from profile
+* Reduce screen output for mail section, unless --verbose is used
+* Code cleanups and removed 'update release' command
+
+Tests:
+------
+* AUTH-9308 - Improved test for sulogin string (Debian systems)
+* FILE-6372 - Properly deal with comment on lines in /etc/fstab
+* MAIL-8817 - New test to check Postfix configuration for errors
+* SSH-7408  - Corrected SSH check
+
+---------------------------------------------------------------------------------
+
+Lynis 2.4.3 (2017-02-22)
+
+Changes:
+--------
+* Colored output can now be tuned with profile (colors=yes/no)
+* Allow data upload to be set as a profile option
+
+Tests:
+------
+* AUTH-9308 - Improved test for sulogin string
+* MAIL-8818 - Test if Linux version is known before comparing in Postfix banner
+* TIME-3116 - Skip stratum 16 items for time pools
+* TIME-3148 - New test to detect TZ variable
+
+---------------------------------------------------------------------------------
+
+Lynis 2.4.2 (2017-02-15)
+
+Changes:
+--------
+* Properly detect SSH daemon version
+
+Tests:
+------
+* AUTH-9208 - Removed double logging
+* AUTH-9222 - Improve logging for double groups
+* AUTH-9226 - Improve logging for double groups
+* BOOT-5177 - Sort systemctl unit files to make them unique
+* DBS-1818  - New test to detect MongoDB
+* DBS-1820  - New test for MongoDB authentication
+* FIRE-4512 - Lowered minimum number of iptables firewall rules
+* FIRE-4586 - Fix applied when searching for "-j LOG"
+* HRDN-7222 - Changed reporting key of world executable compilers
+* SSH-7408  - Added filtering for PermitRootLogin (prohibit-password, OpenSSH 7.0)
+
+---------------------------------------------------------------------------------
+
+Lynis 2.4.1 (2017-02-09)
+
+Changes:
+--------
 * Generic code improvements
 * Improved the update check and display
 * Finish, Portuguese, and Turkish translation
 * Extended support and tests for DragonFlyBSD
 * Option to configure hostid and hostid2 in profile
+* Support for Trend Micro and Cylance (macOS)
+* Remove comments at end of nginx configuration
+* Used machine ID to create host ID when no SSH keys are available
+* Added detection of iptables-save to binaries
 
 Tests:
 ------
+* FIRE-4586 - Check logging for firewall components
 * KRNL-5788 - Remove exception and style improvements
 * KRNL-5830 - Improved logging
 

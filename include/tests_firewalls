@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2013-2016, CISOfy
+# Copyright 2007-2017, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -145,14 +145,14 @@
 #
     # Test        : FIRE-4512
     # Description : Check iptables for empty ruleset (should have at least 10 or more rules)
-    if [ ! "${IPTABLESBINARY}" = "" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${IPTABLESBINARY}" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FIRE-4512 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Check iptables for empty ruleset"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${IPTABLESBINARY} --list --numeric 2> /dev/null | ${EGREPBINARY} -v "^(Chain|target|$)" | ${WCBINARY} -l | ${TRBINARY} -d ' ')
         if [ ! -z "${FIND}" ]; then
             FIREWALL_ACTIVE=1
-            if [ ${FIND} -le 10 ]; then
-                # Firewall is active, but clearly needs configuration
+            if [ ${FIND} -le 5 ]; then
+                # Firewall is active, but needs configuration
                 FIREWALL_EMPTY_RULESET=1
                 LogText "Result: iptables ruleset seems to be empty (found ${FIND} rules)"
                 Display --indent 4 --text "- Checking for empty ruleset" --result "${STATUS_WARNING}" --color RED
@@ -451,6 +451,23 @@
     # Ideas:
     # Suggestion to disable iptables if nftables is enabled
     # Check for specific features in nftables releases
+#
+#################################################################################
+#
+    # Test        : FIRE-4586
+    # Description : Check firewall logging
+    if [ ${FIREWALL_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FIRE-4586 --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Check firewall logging"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ${IPTABLES_ACTIVE} -eq 1 ]; then
+            if [ ! -z "${IPTABLESSAVEBINARY}" ]; then
+                HAS_LOGGING=$(${IPTABLESSAVEBINARY} | ${GREPBINARY} "\-j LOG")
+                if [ -z "${HAS_LOGGING}" ]; then
+                    Report "firewall_no_logging[]=iptables"
+                fi
+             fi
+        fi
+    fi
 #
 #################################################################################
 #

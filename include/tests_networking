@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2013-2016, CISOfy
+# Copyright 2007-2017, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -212,27 +212,27 @@
 #################################################################################
 #
     # Test        : NETW-3004
-    # Description : Find available network interfaces on FreeBSD and others
-    Register --test-no NETW-3004 --weight L --network NO --category security --description "Search available network interfaces"
+    # Description : Find available network interfaces
+    Register --test-no NETW-3004 --weight L --network NO --category security --description "Search for available network interfaces"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=""
         N=0
         case ${OS} in
             AIX)
-                FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ":" '{ print  $1 }'`
+                FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ":" '{ print  $1 }')
             ;;
             Linux)
                 if [ ! "${IPBINARY}" = "" ]; then
-                    FIND=`${IPBINARY} link show | ${GREPBINARY} "^[0-9]" | ${AWKBINARY} '{ print $2 }' | ${SEDBINARY} 's/://g'`
+                    FIND=$(${IPBINARY} link show 2> /dev/null | ${GREPBINARY} "^[0-9]" | ${AWKBINARY} '{ print $2 }' | ${SEDBINARY} 's/://g')
                 elif [ ! "${IFCONFIGBINARY}" = "" ]; then
-                    FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ( $2 == "Link" ) { print  $1 }}'`
+                    FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ( $2 == "Link" ) { print  $1 }}')
                 fi
             ;;
             DragonFly|FreeBSD|macOS|NetBSD)
-                FIND=`${IFCONFIGBINARY} -l`
+                FIND=$(${IFCONFIGBINARY} -l 2> /dev/null)
             ;;
             OpenBSD|Solaris)
-                FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ": " '{ print  $1 }'`
+                FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ": " '{ print  $1 }')
             ;;
             *)
                 # Having a system currently unsupported? Share your details to determine network interfaces
@@ -263,31 +263,31 @@
                 FIND=`lscfg -vl ent* | ${GREPBINARY} "Network Address" | ${CUTBINARY} -d"." -f14 | ${AWKBINARY} '{ ctr=1; i=1; while (ctr <= 6) { d[ctr++]=substr($0,i,2);i=i+2 } printf("%s:%s:%s:%s:%s:%s\n",d[1],d[2],d[3],d[4],d[5],d[6]) }'`
                 ;;
             DragonFly|FreeBSD)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u`
                 ;;
             Linux)
                 if [ ! "${IFCONFIGBINARY}" = "" ]; then
-                    FIND=`${IFCONFIGBINARY} -a | ${GREPBINARY} "HWaddr" | ${AWKBINARY} '{ if ($4=="HWaddr") print $5 }' | ${SORTBINARY} -u`
+                    FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "HWaddr" | ${AWKBINARY} '{ if ($4=="HWaddr") print $5 }' | ${SORTBINARY} -u`
                 else
                     if [ ! "${IPBINARY}" = "" ]; then
                         LogText "Test: Using ip binary to gather hardware addresses"
-                        FIND=`${IPBINARY} link | ${GREPBINARY} "link/ether" | ${AWKBINARY} '{ print $2 }'`
+                        FIND=`${IPBINARY} link 2> /dev/null | ${GREPBINARY} "link/ether" | ${AWKBINARY} '{ print $2 }'`
                       else
                         ReportException "${TEST_NO}:2" "Missing ifconfig or ip command to collect hardware address (MAC)"
                     fi
                 fi
                 ;;
             macOS)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="lladdr" || $1=="ether") print $2 }' | ${SORTBINARY} -u`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="lladdr" || $1=="ether") print $2 }' | ${SORTBINARY} -u`
                 ;;
             NetBSD)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="address:") print $2 }' | ${SORTBINARY} -u`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="address:") print $2 }' | ${SORTBINARY} -u`
                 ;;
             OpenBSD)
-                FIND=`${IFCONFIGBINARY} -A | ${AWKBINARY} '{ if ($1=="lladdr") print $2 }' | ${SORTBINARY} -u`
+                FIND=`${IFCONFIGBINARY} -A 2> /dev/null | ${AWKBINARY} '{ if ($1=="lladdr") print $2 }' | ${SORTBINARY} -u`
                 ;;
             Solaris)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u`
                 ;;
             *)
                 # Having a system currently unsupported? Share your details to determine MAC information
@@ -311,39 +311,39 @@
         FIND=""; FIND2=""
         case ${OS} in
             AIX)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             DragonFly|FreeBSD|NetBSD)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             Linux)
                 if [ ! "${IFCONFIGBINARY}" = "" ]; then
-                    FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }' | ${CUTBINARY} -d ':' -f2`
+                    FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }' | ${CUTBINARY} -d ':' -f2`
                     # Version which works for multiple types of ifconfig (e.g. Slackware)
-                    FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
+                    FIND2=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }'`
                 else
                     if [ ! "${IPBINARY}" = "" ]; then
                         LogText "Test: Using ip binary to gather IP addresses"
-                        FIND=`${IPBINARY} addr | ${AWKBINARY} '{ if ($1=="inet") { print $2 }}' | ${SEDBINARY} 's/\/.*//'`
-                        FIND2=`${IPBINARY} addr | ${AWKBINARY} '{ if ($1=="inet6") { print $2 }}' | ${SEDBINARY} 's/\/.*//'`
+                        FIND=`${IPBINARY} addr 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") { print $2 }}' | ${SEDBINARY} 's/\/.*//'`
+                        FIND2=`${IPBINARY} addr 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") { print $2 }}' | ${SEDBINARY} 's/\/.*//'`
                     else
                         ReportException "${TEST_NO}:2" "Missing ifconfig or ip command to collect hardware address (MAC)"
                     fi
                 fi
                 ;;
             macOS)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             OpenBSD)
-                FIND=`${IFCONFIGBINARY} -A | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -A | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -A 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -A 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             Solaris)
-                FIND=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
-                FIND2=`${IFCONFIGBINARY} -a | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
+                FIND=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }'`
+                FIND2=`${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") print $2 }'`
                 ;;
             *)
                 LogText "Result: no support yet for this OS (${OS}) to find IP address information. You can help improving this test by submitting your details."
@@ -393,9 +393,9 @@
                   else
                     if [ ! "${SSBINARY}" = "" ]; then
                         # UDP
-                        FIND=`${SSBINARY} -u -a -n | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local`
+                        FIND=`${SSBINARY} -u -a -n 2> /dev/null | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local`
                         # TCP
-                        FIND2=`${SSBINARY} -t -a -n | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local`
+                        FIND2=`${SSBINARY} -t -a -n 2> /dev/null | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local`
                       else
                         ReportException "${TEST_NO}:1" "netstat and ss binary missing to gather listening ports"
                     fi
@@ -416,7 +416,7 @@
 
             NetBSD)
                 if [ ! "${SOCKSTATBINARY}" = "" ]; then
-                    FIND=`${SOCKSTATBINARY} | ${AWKBINARY} '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u`
+                    FIND=`${SOCKSTATBINARY} 2> /dev/null | ${AWKBINARY} '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u`
                 else
                     FIND=""
                 fi
@@ -472,7 +472,7 @@
     Register --test-no NETW-3014 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (BSD)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking promiscuous interfaces (FreeBSD)"
-        FIND=`${IFCONFIGBINARY} | ${GREPBINARY} PROMISC | ${CUTBINARY} -d ':' -f1`
+        FIND=`${IFCONFIGBINARY} 2> /dev/null | ${GREPBINARY} PROMISC | ${CUTBINARY} -d ':' -f1`
         if [ ! "${FIND}" = "" ]; then
             LogText "Result: Promiscuous interfaces: ${FIND}"
             for I in ${FIND}; do
@@ -514,10 +514,10 @@
     Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (Linux)"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking promiscuous interfaces (Linux)"
-        NETWORK=`${IFCONFIGBINARY} | ${GREPBINARY} Link | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f1`
+        NETWORK=`${IFCONFIGBINARY} 2> /dev/null | ${GREPBINARY} Link | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f1`
         if [ ! "${NETWORK}" = "" ]; then
             for I in ${NETWORK}; do
-                FIND=`${IFCONFIGBINARY} ${I} | ${GREPBINARY} PROMISC`
+                FIND=`${IFCONFIGBINARY} ${I} 2> /dev/null | ${GREPBINARY} PROMISC`
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: Promiscuous interface: ${I}"
                     ISWHITELISTED=`${GREPBINARY} "^if_promisc:${I}:" ${PROFILE}`

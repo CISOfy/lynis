@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2013-2016, CISOfy
+# Copyright 2007-2017, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -69,6 +69,7 @@
 #    ParseTestValues            Parse a set of values
 #    PortIsListening            Check if machine is listening on specified protocol and port
 #    Progress                   Show progress on screen
+#    Register                   Register a test (for logging and execution)
 #    RandomString               Show a random string
 #    RemoveColors               Reset all colors
 #    RemovePIDFile              Remove PID file
@@ -76,9 +77,9 @@
 #    Report                     Add string of data to report file
 #    ReportDetails              Store details of tests which include smaller atomic tests in report
 #    ReportException            Add an exception to the report file (for debugging purposes)
+#    ReportManual               Log manual actions to report file
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
-#    Register                   Register a test (for logging and execution)
 #    SafePerms                  Check if a directory has safe permissions
 #    SearchItem                 Search a string in a file
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
@@ -1028,15 +1029,15 @@
             if [ ! -z "${STRING_TO_HASH}" ]; then
                 # Create hashes
                 if [ ! "${SHA256SUMBINARY}" = "" ]; then
-                    HASH_SSH=$(echo ${DATA_SSH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
+                    HASH2=$(echo ${STRING_TO_HASH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                 elif [ ! "${OPENSSLBINARY}" = "" ]; then
-                    HASH_SSH=$(echo ${DATA_SSH} | ${OPENSSLBINARY} sha -sha256 | awk '{ print $2 }')
+                    HASH2=$(echo ${STRING_TO_HASH} | ${OPENSSLBINARY} sha -sha256 | awk '{ print $2 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${OPENSSLBINARY} sha -sha256 | awk '{ print $2 }')
                 fi
                 LogText "Hash (hostname): ${HASH_HOSTNAME}"
-                LogText "Hash (ssh): ${HASH_SSH}"
-                HOSTID2="${HASH_SSH}"
+                LogText "Hash (ssh or machineid): ${HASH2}"
+                HOSTID2="${HASH2}"
                 Report "hostid2=${HOSTID2}"
             fi
         fi
@@ -1635,7 +1636,7 @@
         FIND=$(cat ${TMP_NGINX_FILE} | sed 's/ /:space:/g')
         DEPTH=0
         for I in ${FIND}; do
-            I=`echo ${I} | sed 's/:space:/ /g' | sed 's/;$//'`
+            I=`echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//'`
             OPTION=`echo ${I} | awk '{ print $1 }'`
             VALUE=`echo ${I}| cut -d' ' -f2-`
             LogText "Result: found option ${OPTION} in ${CONFIG_FILE} with value '${VALUE}'"
@@ -2263,7 +2264,7 @@
         if [ "$2" = "L" -o "$2" = "M" -o "$2" = "H" ]; then
             if [ $# -ge 1 ]; then TEST="$1"; fi
             if [ $# -ge 2 ]; then DETAILS="$2"; fi
-            if [ $# -ge 3 ]; then DESSAGE="$3"; fi
+            if [ $# -ge 3 ]; then MESSAGE="$3"; fi
             SOLUTION="-"
         else
             # New style warning format:
@@ -3033,4 +3034,4 @@
 
 #================================================================================
 # Lynis is part of Lynis Enterprise and released under GPLv3 license
-# Copyright 2007-2016 - Michael Boelen, CISOfy - https://cisofy.com
+# Copyright 2007-2017 - Michael Boelen, CISOfy - https://cisofy.com

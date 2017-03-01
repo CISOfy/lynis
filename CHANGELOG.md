@@ -1,12 +1,13 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.4 (not released yet, under development)
+Lynis 2.4.4 (2017-03-01)
 
 Changes:
 --------
 * Fix for upload function to be used from profile
 * Reduce screen output for mail section, unless --verbose is used
+* Code cleanups and removed 'update release' command
 
 Tests:
 ------

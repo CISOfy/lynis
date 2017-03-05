@@ -68,25 +68,25 @@
         # Check if the PAM directory structure exists
         if [ -d ${PAM_DIRECTORY} ]; then
                 LogText "Result: /etc/pam.d exists"
-                FIND_FILES=`find ${PAM_DIRECTORY} -type f -print`
+                FIND_FILES=$(find ${PAM_DIRECTORY} -type f -print)
                 # First check /etc/pam.conf if it exists.
                 #if [ -f /etc/pam.conf ]; then FIND="/etc/pam.conf ${FIND}"; fi
                 for PAM_FILE in ${FIND_FILES}; do
                     LogText "Now checking PAM file ${PAM_FILE}"
                     while read line; do
                         # Strip empty lines, commented lines, tabs, line breaks (\), then finally remove all double spaces
-                        LINE=`echo $line | grep -v "^#" | grep -v "^$" | tr '\011' ' ' | sed 's/\\\n/ /' | sed 's/  / /g' | sed 's/ #\(.*\)$//'`
+                        LINE=$(echo $line | grep -v "^#" | grep -v "^$" | tr '\011' ' ' | sed 's/\\\n/ /' | sed 's/  / /g' | sed 's/ #\(.*\)$//')
                         if [ ! "${LINE}" = "" ]; then
-                            PAM_SERVICE=`echo ${PAM_FILE} | awk -F/ '{ print $NF }'`
+                            PAM_SERVICE=$(echo ${PAM_FILE} | awk -F/ '{ print $NF }')
                             PAM_CONTROL_FLAG="-"
                             PAM_CONTROL_OPTIONS="-"
                             PAM_MODULE="-"
                             PAM_MODULE_OPTIONS="-"
-                            PAM_TYPE=`echo ${LINE} | awk '{ print $1 }'`
+                            PAM_TYPE=$(echo ${LINE} | awk '{ print $1 }')
                             PARSELINE=0
                             case ${PAM_TYPE} in
                                 "@include")
-                                    FILE=`echo ${LINE} | awk '{ print $2 }'`
+                                    FILE=$(echo ${LINE} | awk '{ print $2 }')
                                     Debug "Result: Found @include in ${PAM_FILE}. Does include PAM settings from file ${FILE} (which is individually processed)"
                                 ;;
                                 "account")
@@ -106,16 +106,16 @@
                                 ;;
                             esac
                             if [ ${PARSELINE} -eq 1 ]; then
-                                MULTIPLE_OPTIONS=`echo ${LINE} | awk '$2 ~ /^\[/'`
+                                MULTIPLE_OPTIONS=$(echo ${LINE} | awk '$2 ~ /^\[/')
                                 if [ ! "${MULTIPLE_OPTIONS}" = "" ]; then
                                     # Needs more parsing, depending on the options found
-                                    PAM_CONTROL_OPTIONS=`echo ${LINE} | sed "s/^.*\[//" | sed "s/\].*$//"`
+                                    PAM_CONTROL_OPTIONS=$(echo ${LINE} | sed "s/^.*\[//" | sed "s/\].*$//")
                                     LogText "Result: Found brackets in line, indicating multiple options for control flags: ${PAM_CONTROL_OPTIONS}"
-                                    LINE=`echo ${LINE} | sed "s/ \[.*\] / other /"`
+                                    LINE=$(echo ${LINE} | sed "s/ \[.*\] / other /")
                                 fi
-                                PAM_MODULE=`echo ${LINE} | awk '{ print $3 }'`
-                                PAM_MODULE_OPTIONS=`echo ${LINE} | cut -d ' ' -f 4-`
-                                PAM_CONTROL_FLAG=`echo ${LINE} | awk '{ print $2 }'`
+                                PAM_MODULE=$(echo ${LINE} | awk '{ print $3 }')
+                                PAM_MODULE_OPTIONS=$(echo ${LINE} | cut -d ' ' -f 4-)
+                                PAM_CONTROL_FLAG=$(echo ${LINE} | awk '{ print $2 }')
                                 case ${PAM_CONTROL_FLAG} in
                                         "optional"|"required"|"requisite"|"sufficient")
                                             #Debug "Found a common control flag: ${PAM_CONTROL_FLAG} for ${PAM_MODULE}"
@@ -135,7 +135,7 @@
                                     LogText "Result: using module ${PAM_MODULE} (${PAM_CONTROL_FLAG}) without options configured"
                                 fi
 
-                                PAM_MODULE_NAME=`echo ${PAM_MODULE} | sed 's/.so$//'`
+                                PAM_MODULE_NAME=$(echo ${PAM_MODULE} | sed 's/.so$//')
                                 #
                                 # Specific PAMs are commonly seen on these platforms:
                                 #
@@ -202,8 +202,8 @@
                                         if [ "${PAM_PASSWORD_PWHISTORY_AMOUNT}" = "" ]; then PAM_PASSWORD_PWHISTORY_AMOUNT=10; fi
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
                                             for I in ${PAM_MODULE_OPTIONS}; do
-                                                OPTION=`echo ${I} | awk -F= '{ print $1 }'`
-                                                VALUE=`echo ${I} | awk -F= '{ print $2 }'`
+                                                OPTION=$(echo ${I} | awk -F= '{ print $1 }')
+                                                VALUE=$(echo ${I} | awk -F= '{ print $2 }')
                                                 CREDITS_CONFIGURED=0
                                                 case ${OPTION} in
                                                     remember)
@@ -231,8 +231,8 @@
                                         LogText "Result: found ${PAM_MODULE} module (generic)"
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
                                             for I in ${PAM_MODULE_OPTIONS}; do
-                                                OPTION=`echo ${I} | awk -F= '{ print $1 }'`
-                                                VALUE=`echo ${I} | awk -F= '{ print $2 }'`
+                                                OPTION=$(echo ${I} | awk -F= '{ print $1 }')
+                                                VALUE=$(echo ${I} | awk -F= '{ print $2 }')
                                                 CREDITS_CONFIGURED=0
                                                 case ${OPTION} in
                                                     remember)
@@ -268,9 +268,9 @@
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
                                             Debug "Module options configured"
                                             for I in ${PAM_MODULE_OPTIONS}; do
-                                                OPTION=`echo ${I} | awk -F= '{ print $1 }'`
+                                                OPTION=$(echo ${I} | awk -F= '{ print $1 }')
                                                 Debug ${OPTION}
-                                                VALUE=`echo ${I} | awk -F= '{ print $2 }'`
+                                                VALUE=$(echo ${I} | awk -F= '{ print $2 }')
                                                 CREDITS_CONFIGURED=0
                                                 case ${OPTION} in
                                                     minlen)
@@ -318,8 +318,8 @@
                                         fi
                                         if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
                                             for I in ${PAM_MODULE_OPTIONS}; do
-                                                OPTION=`echo ${I} | awk -F= '{ print $1 }'`
-                                                VALUE=`echo ${I} | awk -F= '{ print $2 }'`
+                                                OPTION=$(echo ${I} | awk -F= '{ print $1 }')
+                                                VALUE=$(echo ${I} | awk -F= '{ print $2 }')
                                                 case ${OPTION} in
                                                     deny)
                                                         AUTH_BLOCK_BAD_LOGIN_ATTEMPTS="${VALUE}"
@@ -402,7 +402,7 @@ if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
 
         # Digits
         if [ ${CREDITS_D_PASSWORD} -lt 0 ]; then
-                CREDITS_D_PASSWORD=`echo ${CREDITS_D_PASSWORD} | cut -b 2-`
+                CREDITS_D_PASSWORD=$(echo ${CREDITS_D_PASSWORD} | cut -b 2-)
                 LogText "[PAM] Minimum number of Digital characters required: ${CREDITS_D_PASSWORD}"
                 Report "password_min_digital_required=${CREDITS_D_PASSWORD}"
         elif [ ${CREDITS_D_PASSWORD} -ge 0 ]; then
@@ -412,7 +412,7 @@ if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
 
         # Lowercase
         if [ ${CREDITS_L_PASSWORD} -lt 0 ]; then
-                CREDITS_L_PASSWORD=`echo ${CREDITS_L_PASSWORD} | cut -b 2-`
+                CREDITS_L_PASSWORD=$(echo ${CREDITS_L_PASSWORD} | cut -b 2-)
                 LogText "[PAM] Minimum number of Lowercase characters required: ${CREDITS_L_PASSWORD}"
                 Report "password_min_l_required=${CREDITS_L_PASSWORD}"
         elif [ ${CREDITS_L_PASSWORD} -ge 0 ]; then
@@ -422,7 +422,7 @@ if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
 
         # Other characters
         if [ ${CREDITS_O_PASSWORD} -lt 0 ]; then
-                CREDITS_O_PASSWORD=`echo ${CREDITS_O_PASSWORD} | cut -b 2-`
+                CREDITS_O_PASSWORD=$(echo ${CREDITS_O_PASSWORD} | cut -b 2-)
                 LogText "[PAM] Minimum number of Other characters required: ${CREDITS_O_PASSWORD}"
                 Report "password_min_other_required=${CREDITS_O_PASSWORD}"
         elif [ ${CREDITS_O_PASSWORD} -ge 0 ]; then
@@ -432,7 +432,7 @@ if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then
 
         # Uppercase
         if [ ${CREDITS_U_PASSWORD} -lt 0 ]; then
-                CREDITS_U_PASSWORD=`echo ${CREDITS_U_PASSWORD} | cut -b 2-`
+                CREDITS_U_PASSWORD=$(echo ${CREDITS_U_PASSWORD} | cut -b 2-)
                 LogText "[PAM] Minimum number of Uppercase characters required: ${CREDITS_U_PASSWORD}"
                 Report "password_min_u_required=${CREDITS_U_PASSWORD}"
         elif [ ${CREDITS_U_PASSWORD} -ge 0 ]; then

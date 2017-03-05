@@ -71,9 +71,9 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FILENAME=`${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
+                    FILENAME=$(${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline)
                     LogText "Result: cmdline found = ${FILENAME}"
-                    ISFILE=`echo ${FILENAME} | ${GREPBINARY} "^/"`
+                    ISFILE=$(echo ${FILENAME} | ${GREPBINARY} "^/")
                     if [ ! "${ISFILE}" = "" ]; then
                         if [ -L ${ISFILE} ]; then
                             ShowSymlinkPath ${ISFILE}
@@ -85,10 +85,10 @@
                         fi
                     fi
                     if [ ! "${FILENAME}" = "" ]; then
-                        SHORTNAME=`echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }'`
+                        SHORTNAME=$(echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }')
                         LogText "Found: ${SHORTNAME}"
                         case ${SHORTNAME} in
-                            "init")
+                            "init" | "initsplash")
                                 SERVICE_MANAGER="SysV Init"
                             ;;
                             systemd)
@@ -98,8 +98,8 @@
                                 SERVICE_MANAGER="upstart"
                             ;;
                             *)
-                                CONTAINS_SYSTEMD=`echo ${SHORTNAME} | ${GREPBINARY} "systemd"`
-                                if [ ! "${CONTAINS_SYSTEMD}" = "" ]; then
+                                CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
+                                if [ ! -z "${CONTAINS_SYSTEMD}" ]; then
                                     SERVICE_MANAGER="systemd"
                                 else
                                     LogText "Found ${SHORTNAME}. Unclear what service manager this is"
@@ -107,7 +107,7 @@
                                 fi
                             ;;
                         esac
-                      else
+                    else
                         LogText "Result: /proc/1/cmdline seems to be empty"
                         ReportException "${TEST_NO}:002" "No data found in /proc/1/cmdline"
                     fi
@@ -117,13 +117,14 @@
                     if [ -f /usr/bin/init-openrc ]; then SERVICE_MANAGER="openrc"; fi
                 fi
             ;;
-            "DragonFly"|"NetBSD"|"FreeBSD")
+            "DragonFly" | "NetBSD" | "FreeBSD")
                 if [ -x /sbin/init -a -d ${ROOTDIR}etc/rc.d -a -f ${ROOTDIR}etc/rc ]; then
                     SERVICE_MANAGER="bsdrc"
                 fi
             ;;
             *)
                 LogText "Result: unknown service manager"
+            ;;
         esac
         LogText "Result: service manager found = ${SERVICE_MANAGER}"
         if [ "${SERVICE_MANAGER}" = "" -o "${SERVICE_MANAGER}" = "unknown" ]; then

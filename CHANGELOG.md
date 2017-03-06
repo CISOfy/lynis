@@ -9,6 +9,7 @@ Changes:
 
 Tests:
 ------
+* AUTH-9328 - Add missing 0027 and 0077 masks
 * BOOT-5104 - Add initsplash and minor code enhancements
 
 ---------------------------------------------------------------------------------

@@ -82,7 +82,7 @@
 #
 #########################################################################
 #
-    MYUSER=`whoami`
+    MYUSER=$(whoami)
     if [ "${MYUSER}" = "" ]; then
         echo "[X] Could not determine user"
     fi
@@ -91,7 +91,7 @@
     fi
 
 
-    MYWORKDIR=`pwd | awk -F / '{ for (i=1;i<=NF-2;i++){ printf $i"/" }; printf "\n"}' | sed 's./$..'`
+    MYWORKDIR=$(pwd | awk -F / '{ for (i=1;i<=NF-2;i++){ printf $i"/" }; printf "\n"}' | sed 's./$..')
     if [ ! -d ${MYWORKDIR} ]; then
         echo "[X] Could not determine workdir (result: ${MYWORKDIR} seems invalid)"
         ExitFatal
@@ -126,7 +126,7 @@
 
     # Check binaries
 
-    GITBUILDPACKAGEBINARY=`which git-buildpackage`
+    GITBUILDPACKAGEBINARY=$(which git-buildpackage)
     if [ ! "${GITBUILDPACKAGEBINARY}" = "" ]; then
        echo "[=] git-buildpackage = ${GITBUILDPACKAGEBINARY}"
      else
@@ -135,7 +135,7 @@
        ExitFatal
     fi
 
-    RPMBUILDBINARY=`which rpmbuild`
+    RPMBUILDBINARY=$(which rpmbuild)
     if [ ! "${RPMBUILDBINARY}" = "" ]; then
        echo "[=] rpmbuild = ${RPMBUILDBINARY}"
      else
@@ -168,7 +168,7 @@
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     # Create temporary build directory
-    TMPDIR=`mktemp -d /tmp/lynis-BUILDROOT.XXXXXX`
+    TMPDIR=$(mktemp -d /tmp/lynis-BUILDROOT.XXXXXX)
     if [ $? -eq 0 ]; then
         echo "[V] Creating temporary build directory"
         #echo "    BUILDROOT: ${TMPDIR}"
@@ -202,8 +202,8 @@
         fi
     fi
 
-    TARBALL_MD5=`md5sum ${TARBALL}`
-    TARBALL_SHA1=`sha1sum ${TARBALL}`
+    TARBALL_MD5=$(md5sum ${TARBALL})
+    TARBALL_SHA1=$(sha1sum ${TARBALL})
 
     echo "[*] Starting with RPM building process"
 
@@ -212,7 +212,7 @@
     if [ -f ${SOURCEFILE_RPM} ]; then
         if [ -f lynis.spec ]; then
             # adjust version in spec file
-            VERSION_IN_SPECFILE=`awk '/^Version:/ { print $2 }' lynis.spec`
+            VERSION_IN_SPECFILE=$(awk '/^Version:/ { print $2 }' lynis.spec)
             echo "[=] Found version ${VERSION_IN_SPECFILE}"
             if [ ${VERSION_IN_SPECFILE} = "" -o ! "${VERSION_IN_SPECFILE}" = "${LYNIS_VERSION}" ]; then
                echo "[X] Version in specfile is outdated"
@@ -241,9 +241,9 @@
 
     echo "[*] Starting with DEB building process"
 
-        DEBCHANGELOGFULLVERSION=`head -1 ../debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//'`
-        DEBCHANGELOGVERSION=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }'`
-        DEBCHANGELOGVERSIONREV=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }'`
+        DEBCHANGELOGFULLVERSION=$(head -1 ../debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//')
+        DEBCHANGELOGVERSION=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }')
+        DEBCHANGELOGVERSIONREV=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }')
         if [ "${LYNIS_VERSION}" = "${DEBCHANGELOGVERSION}" ]; then
             echo "[V] Debian/changelog up-to-date"
           else
@@ -251,12 +251,12 @@
             ExitFatal
         fi
 
-#    BZRSTATUS=`${BZRBINARY} status . 2>&1 > /dev/null; echo $?`
+#    BZRSTATUS=$(${BZRBINARY} status . 2>&1 > /dev/null; echo $?)
 #    if [ "${BZRSTATUS}" = "0" ]; then
 #        echo "[V] bzr has proper directory tree"
-#        DEBCHANGELOGFULLVERSION=`head -1 debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//'`
-#        DEBCHANGELOGVERSION=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }'`
-#        DEBCHANGELOGVERSIONREV=`echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }'`
+#        DEBCHANGELOGFULLVERSION=$(head -1 debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//')
+#        DEBCHANGELOGVERSION=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }')
+#        DEBCHANGELOGVERSIONREV=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }')
 #        echo "[=] Version in Debian changelog: ${DEBCHANGELOGVERSION} (revision: ${DEBCHANGELOGVERSIONREV})"
 #        if [ "${LYNIS_VERSION}" = "${DEBCHANGELOGVERSION}" ]; then
 #            echo "[V] Debian/changelog up-to-date"
@@ -343,7 +343,7 @@ Exit
     if [ ! -f ${OPTION_BINARY_FILE} ]; then echo "BAD (can't find ${OPTION_BINARY_FILE})"; exit 1; fi
 
     # Check script
-    FIND=`sh -n ${OPTION_BINARY_FILE} ; echo $?`
+    FIND=$(sh -n ${OPTION_BINARY_FILE} ; echo $?)
     if [ $FIND -eq 0 ]; then
         echo "OK"
       else
@@ -354,7 +354,7 @@ Exit
 
     # Create SHA1 hashes
     echo -n "- Create SHA1 hashes                                   "
-    SHA1HASH_LYNIS=`grep -v '^#' ${OPTION_BINARY_FILE} | sha1`
+    SHA1HASH_LYNIS=$(grep -v '^#' ${OPTION_BINARY_FILE} | sha1)
     echo "DONE"
     echo "    Lynis (SHA1): ${SHA1HASH_LYNIS}"
 
@@ -372,16 +372,16 @@ Exit
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     echo -n "- Creating MD5 hashes..."
-    PACKAGE_LIST_FILES=`grep "^file:" files.dat | cut -d ':' -f3`
+    PACKAGE_LIST_FILES=$(grep "^file:" files.dat | cut -d ':' -f3)
 
     for I in ${PACKAGE_LIST_FILES}; do
 
       echo -n "${I} "
-      #FULLNAME=`grep ":file:include:" files.dat
+      #FULLNAME=$(grep ":file:include:" files.dat)
       #echo "${FULLNAME}" >> ${OPENBSD_CONTENTS}
       echo "${I}" >> ${OPENBSD_CONTENTS}
       FILE="../${I}"
-      MD5HASH=`md5 -q ${FILE}`
+      MD5HASH=$(md5 -q ${FILE})
       echo "@md5 ${MD5HASH}" >> ${OPENBSD_CONTENTS}
       echo "@size 0000" >> ${OPENBSD_CONTENTS}
     done

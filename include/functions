@@ -190,11 +190,11 @@
           else
             # If 'file' is an directory, use -d
             if [ -d ${CHECKFILE} ]; then
-                FILEVALUE=`ls -d -l ${CHECKFILE} | cut -c 2-10`
-                PROFILEVALUE=`grep '^permdir' ${PROFILE} | grep ":${CHECKFILE}:" | cut -d: -f3`
+                FILEVALUE=$(ls -d -l ${CHECKFILE} | cut -c 2-10)
+                PROFILEVALUE=$(grep '^permdir' ${PROFILE} | grep ":${CHECKFILE}:" | cut -d: -f3)
               else
-                FILEVALUE=`ls -l ${CHECKFILE} | cut -c 2-10`
-                PROFILEVALUE=`grep '^permfile' ${PROFILE} | grep ":${CHECKFILE}:" | cut -d: -f3`
+                FILEVALUE=$(ls -l ${CHECKFILE} | cut -c 2-10)
+                PROFILEVALUE=$(grep '^permfile' ${PROFILE} | grep ":${CHECKFILE}:" | cut -d: -f3)
             fi
             if [ "${FILEVALUE}" = "${PROFILEVALUE}" ]; then PERMS="OK"; else PERMS="BAD"; fi
         fi
@@ -218,7 +218,7 @@
             if [ ! "${REPORTFILE}" = "/dev/null" ]; then
                 # Check if we can find the main type (with or without brackets)
                 LogText "Test: search string $2 in earlier discovered results"
-                FIND=`egrep "^$1(\[\])?=" ${REPORTFILE} | egrep "$2"`
+                FIND=$(egrep "^$1(\[\])?=" ${REPORTFILE} | egrep "$2")
                 if [ ! "${FIND}" = "" ]; then
                     ITEM_FOUND=1
                     RETVAL=0
@@ -298,7 +298,7 @@
     ContainsString() {
         RETVAL=1
         if [ $# -ne 2 ]; then ReportException "ContainsString" "Incorrect number of arguments for ContainsStrings function"; fi
-        FIND=`echo "$2" | egrep "$1"`
+        FIND=$(echo "$2" | egrep "$1")
         if [ ! "${FIND}" = "" ]; then RETVAL=0; fi
         return ${RETVAL}
     }
@@ -334,11 +334,11 @@
     CreateTempFile() {
         TEMP_FILE=""
         if [ "${OS}" = "AIX" ]; then
-            RANDOMSTRING1=`echo lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}')`
+            RANDOMSTRING1=$(echo lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}'))
             TEMP_FILE="/tmp/${RANDOMSTRING1}"
             touch ${TEMP_FILE}
           else
-            TEMP_FILE=`mktemp /tmp/lynis.XXXXXXXXXX` || exit 1
+            TEMP_FILE=$(mktemp /tmp/lynis.XXXXXXXXXX) || exit 1
         fi
         if [ ! "${TEMP_FILE}" = "" ]; then
             LogText "Action: created temporary file ${TEMP_FILE}"
@@ -398,7 +398,7 @@
         VALUE=$1
         LogText "Value is now: ${VALUE}"
         if [ ! "${AWKBINARY}" = "" ]; then
-            VALUE=`echo ${VALUE} | grep -Eo '[0-9]{1,}'`
+            VALUE=$(echo ${VALUE} | grep -Eo '[0-9]{1,}')
         fi
         LogText "Returning value: ${VALUE}"
     }
@@ -454,7 +454,7 @@
             echo "Search paths used --> ${tPROFILE_TARGETS}"
             ExitCustom 66
           else
-            PROFILES=`echo ${PROFILES} | sed 's/^ //'`
+            PROFILES=$(echo ${PROFILES} | sed 's/^ //')
         fi
     }
 
@@ -525,7 +525,7 @@
                 # Display:
                 # - counting with -m instead of -c, to support language locale
                 # - wc needs LANG to deal with multi-bytes characters but LANG has been unset in include/consts...
-                LINESIZE=`export LC_ALL= ; export LANG="${DISPLAY_LANG}";echo "${TEXT}" | wc -m | tr -d ' '`
+                LINESIZE=$(export LC_ALL= ; export LANG="${DISPLAY_LANG}";echo "${TEXT}" | wc -m | tr -d ' ')
                 if [ ${SHOWDEBUG} -eq 1 ]; then DEBUGTEXT=" [${PURPLE}DEBUG${NORMAL}]"; else DEBUGTEXT=""; fi
                 if [ ${INDENT} -gt 0 ]; then SPACES=$((62 - INDENT - LINESIZE)); fi
                 if [ ${SPACES} -lt 0 ]; then SPACES=0; fi
@@ -793,18 +793,18 @@
 
                 "AIX")
                     # Common interfaces: en0 en1 en2, ent0 ent1 ent2
-                    FIND=`entstat en0 2>/dev/null | grep "Hardware Address" | awk -F ": " '{ print $2 }'`
+                    FIND=$(entstat en0 2>/dev/null | grep "Hardware Address" | awk -F ": " '{ print $2 }')
                     if [ "${FIND}" = "" ]; then
-                        FIND=`entstat ent0 2>/dev/null | grep "Hardware Address" | awk -F ": " '{ print $2 }'`
+                        FIND=$(entstat ent0 2>/dev/null | grep "Hardware Address" | awk -F ": " '{ print $2 }')
                     fi
                     if [ ! "${FIND}" = "" ]; then
                         # We have a MAC address, now hashing it
                         if [ ! "${SHA1SUMBINARY}" = "" ]; then
-                            HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                            HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                         elif [ ! "${CSUMBINARY}" = "" ]; then
-                            HOSTID=`echo ${FIND} | ${CSUMBINARY} -h SHA1 - | awk '{ print $1 }'`
+                            HOSTID=$(echo ${FIND} | ${CSUMBINARY} -h SHA1 - | awk '{ print $1 }')
                         elif [ ! "${OPENSSLBINARY}" = "" ]; then
-                            HOSTID=`echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }'`
+                            HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "No sha1, sha1sum, csum or openssl binary available on AIX"
                         fi
@@ -814,9 +814,9 @@
                 ;;
 
                 "DragonFly" | "FreeBSD")
-                     FIND=`${IFCONFIGBINARY} | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     FIND=$(${IFCONFIGBINARY} | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                      if [ ! "${FIND}" = "" ]; then
-                         HOSTID=`echo ${FIND} | sha1`
+                         HOSTID=$(echo ${FIND} | sha1)
                        else
                          ReportException "GetHostID" "No MAC address returned on DragonFly or FreeBSD"
                      fi
@@ -829,20 +829,20 @@
                         # Only use ifconfig if no ip binary has been found
                         if [ ! "${IFCONFIGBINARY}" = "" ]; then
                             # Determine if we have ETH0 at all (not all Linux distro have this, e.g. Arch)
-                            HASETH0=`${IFCONFIGBINARY} | grep "^eth0"`
+                            HASETH0=$(${IFCONFIGBINARY} | grep "^eth0")
                             # Check if we can find it with HWaddr on the line
-                            FIND=`${IFCONFIGBINARY} 2> /dev/null | grep "^eth0" | grep -v "eth0:" | grep HWaddr | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]'`
+                            FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "^eth0" | grep -v "eth0:" | grep HWaddr | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
 
                             # If nothing found, then try first for alternative interface. Else other versions of ifconfig (e.g. Slackware/Arch)
                             if [ "${FIND}" = "" ]; then
-                                FIND=`${IFCONFIGBINARY} 2> /dev/null | grep HWaddr`
+                                FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep HWaddr)
                                 if [ "${FIND}" = "" ]; then
                                     # If possible directly address eth0 to avoid risking gathering the incorrect MAC address.
                                     # If not, then falling back to getting first interface. Better than nothing.
                                     if [ ! "${HASETH0}" = "" ]; then
-                                        FIND=`${IFCONFIGBINARY} eth0 2> /dev/null | grep "ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                                        FIND=$(${IFCONFIGBINARY} eth0 2> /dev/null | grep "ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                                       else
-                                        FIND=`${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -1 | tr '[:upper:]' '[:lower:]'`
+                                        FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -1 | tr '[:upper:]' '[:lower:]')
                                         if [ "${FIND}" = "" ]; then
                                             ReportException "GetHostID" "No eth0 found (and no ether was found with ifconfig)"
                                           else
@@ -850,7 +850,7 @@
                                         fi
                                     fi
                                   else
-                                    FIND=`${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]'`
+                                    FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
                                     LogText "GetHostID: No eth0 found (but HWaddr was found), using first network interface to determine hostid, with ifconfig"
                                 fi
                             fi
@@ -858,10 +858,10 @@
                             # See if we can use ip binary instead
                             if [ ! "${IPBINARY}" = "" ]; then
                                 # Determine if we have the common available eth0 interface
-                                FIND=`${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                                FIND=$(${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                                 if [ "${FIND}" = "" ]; then
                                     # Determine the MAC address of first interface with the ip command
-                                    FIND=`${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                                    FIND=$(${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                                     if [ "${FIND}" = "" ]; then
                                         ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
                                     fi
@@ -874,7 +874,7 @@
                         # Check if we found a HostID
                         if [ ! "${FIND}" = "" ]; then
                             LogText "Info: using hardware address ${FIND} to create ID"
-                            HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                            HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                             LogText "Result: Found HostID: ${HOSTID}"
                           else
                             ReportException "GetHostID" "Can't create HOSTID, command ip not found"
@@ -904,18 +904,18 @@
                 ;;
 
                 "NetBSD")
-                     FIND=`${IFCONFIGBINARY} -a | grep "address:" | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     FIND=$(${IFCONFIGBINARY} -a | grep "address:" | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                      if [ ! "${FIND}" = "" ]; then
-                         HOSTID=`echo ${FIND} | sha1`
+                         HOSTID=$(echo ${FIND} | sha1)
                        else
                          ReportException "GetHostID" "No MAC address returned on NetBSD"
                      fi
                 ;;
 
                 "OpenBSD")
-                     FIND=`${IFCONFIGBINARY} | grep "lladdr " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]'`
+                     FIND=$(${IFCONFIGBINARY} | grep "lladdr " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                      if [ ! "${FIND}" = "" ]; then
-                         HOSTID=`echo ${FIND} | sha1`
+                         HOSTID=$(echo ${FIND} | sha1)
                        else
                          ReportException "GetHostID" "No MAC address returned on OpenBSD"
                      fi
@@ -925,17 +925,17 @@
                     INTERFACES_TO_TEST="e1000g1 net0"
                     FOUND=0
                     for I in ${INTERFACES_TO_TEST}; do
-                         FIND=`${IFCONFIGBINARY} -a | grep "^${I}"`
+                         FIND=$(${IFCONFIGBINARY} -a | grep "^${I}")
                          if [ ! "${FIND}" = "" ]; then
                              FOUND=1; LogText "Found interface ${I} on Solaris"
                          fi
                     done
                     if [ ${FOUND} -eq 1 ]; then
-                        FIND=`${IFCONFIGBINARY} ${I} | grep ether | awk '{ if ($1=="ether") { print $2 }}'`
+                        FIND=$(${IFCONFIGBINARY} ${I} | grep ether | awk '{ if ($1=="ether") { print $2 }}')
                         if [ ! "${SHA1SUMBINARY}" = "" ]; then
-                            HOSTID=`echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                            HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                         elif [ ! "${OPENSSLBINARY}" = "" ]; then
-                            HOSTID=`echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }'`
+                            HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                           else
                             ReportException "GetHostID" "Can not find sha1/sha1sum or openssl"
                         fi
@@ -966,7 +966,7 @@
         # Optional: DBUS creates ID as well with dbus-uuidgen and is stored in /var/lib/dbus-machine-id (might be symlinked to /etc/machine-id)
         sMACHINEIDFILE="/etc/machine-id"
         if [ -f ${sMACHINEIDFILE} ]; then
-            FIND=`head -1 ${sMACHINEIDFILE} | grep "^[a-f0-9]"`
+            FIND=$(head -1 ${sMACHINEIDFILE} | grep "^[a-f0-9]")
             if [ "${FIND}" = "" ]; then
                 MACHINEID="${FIND}"
             fi
@@ -982,7 +982,7 @@
                         if [ -f /etc/ssh/${I} ]; then
                             LogText "Result: found ${I} in /etc/ssh"
                             if [ ! "${SHA1SUMBINARY}" = "" ]; then
-                                HOSTID=`cat /etc/ssh/${I} | ${SHA1SUMBINARY} | awk '{ print $1 }'`
+                                HOSTID=$(cat /etc/ssh/${I} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                                 LogText "result: Created HostID with SSH key ($I): ${HOSTID}"
                               else
                                 ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
@@ -1159,7 +1159,7 @@
         RUNNING=0
         PSOPTIONS=""
         if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" ax"; fi
-        FIND=`${PSBINARY} ${PSOPTIONS} | egrep "( |/)$1" | grep -v "grep"`
+        FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)$1" | grep -v "grep")
         if [ ! "${FIND}" = "" ]; then
             RUNNING=1
             LogText "IsRunning: process '$1' found (${FIND})"
@@ -1201,18 +1201,18 @@
             FILE="$1"
             case $OS in
                 "AIX")
-                    if [ ! "${ISTATBINARY}" = "" ]; then PERMS=`${ISTATBINARY} ${FILE} | sed "s/Owner: //" | sed "s/[a-zA-Z() ]//g"`; fi
+                    if [ ! "${ISTATBINARY}" = "" ]; then PERMS=$(${ISTATBINARY} ${FILE} | sed "s/Owner: //" | sed "s/[a-zA-Z() ]//g"); fi
                 ;;
                 "Linux")
-                    if [ ! "${STATBINARY}" = "" ]; then PERMS=`${STATBINARY} -c "%u:%g" ${FILE}`; fi
+                    if [ ! "${STATBINARY}" = "" ]; then PERMS=$(${STATBINARY} -c "%u:%g" ${FILE}); fi
                 ;;
                 "FreeBSD")
-                    if [ ! "${STATBINARY}" = "" ]; then PERMS=`${STATBINARY} -f "%u:%g" ${FILE}`; fi
+                    if [ ! "${STATBINARY}" = "" ]; then PERMS=$(${STATBINARY} -f "%u:%g" ${FILE}); fi
                 ;;
             esac
             # Fallback with ls (for other platforms, or when a test did not reveal any output)
             if [ "${PERMS}" = "" ]; then
-                PERMS=`ls -n ${FILE} | ${AWKBINARY} '{ print $3":"$4 }'`
+                PERMS=$(ls -n ${FILE} | ${AWKBINARY} '{ print $3":"$4 }')
             fi
           else
             ReportException "IsOwnedByRoot" "Functions needs 1 argument"
@@ -1255,9 +1255,9 @@
         # facter
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/facter ] || [ -x /usr/local/bin/facter ]; then
-                case "`facter is_virtual`" in
+                case "$(facter is_virtual)" in
                 "true")
-                    SHORT=`facter virtual`
+                    SHORT=$(facter virtual)
                     LogText "Result: found ${SHORT}"
                 ;;
                 "false")
@@ -1275,7 +1275,7 @@
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/systemd-detect-virt ]; then
                 LogText "Test: trying to guess virtualization technology with systemd-detect-virt"
-                FIND=`/usr/bin/systemd-detect-virt`
+                FIND=$(/usr/bin/systemd-detect-virt)
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
@@ -1292,7 +1292,7 @@
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/lscpu ]; then
                 LogText "Test: trying to guess virtualization with lscpu"
-                FIND=`lscpu | grep "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g'`
+                FIND=$(lscpu | grep "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
@@ -1315,7 +1315,7 @@
             fi
             if [ ! "${DMIDECODE_BINARY}" = "" -a ${PRIVILEGED} -eq 1 ]; then
                 LogText "Test: trying to guess virtualization with dmidecode"
-                FIND=`/usr/sbin/dmidecode -s system-product-name | awk '{ print $1 }'`
+                FIND=$(/usr/sbin/dmidecode -s system-product-name | awk '{ print $1 }')
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
@@ -1370,7 +1370,7 @@
             # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
             # NetBSD: machdep.dmi.system-product
             # OpenBSD: hw.product
-            FIND=`sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }'`
+            FIND=$(sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }')
             if [ ! "${FIND}" = "" ]; then
                 SHORT="${FIND}"
             fi
@@ -1383,7 +1383,7 @@
             if [ ${PRIVILEGED} -eq 1 ]; then
                 if [ -x /usr/bin/lshw ]; then
                     LogText "Test: trying to guess virtualization with lshw"
-                    FIND=`lshw -quiet -class system 2> /dev/null | awk '{ if ($1=="product:") { print $2 }}'`
+                    FIND=$(lshw -quiet -class system 2> /dev/null | awk '{ if ($1=="product:") { print $2 }}')
                     if [ ! "${FIND}" = "" ]; then
                         LogText "Result: found ${FIND}"
                         SHORT="${FIND}"
@@ -1398,10 +1398,10 @@
             LogText "Result: skipped lshw test, as we already found machine type"
         fi
 
-        # Check if we catched some string along all tests
+        # Check if we caught some string along all tests
         if [ ! "${SHORT}" = "" ]; then
             # Lowercase and see if we found a match
-            SHORT=`echo ${SHORT} | awk '{ print $1 }' | tr [[:upper:]] [[:lower:]]`
+            SHORT=$(echo ${SHORT} | awk '{ print $1 }' | tr [[:upper:]] [[:lower:]])
 
                 case ${SHORT} in
                     amazon-ec2)         ISVIRTUALMACHINE=1; VMTYPE="amazon-ec2";      VMFULLTYPE="Amazon AWS EC2 Instance"                 ;;
@@ -1455,7 +1455,7 @@
             if [ ! "${SYMLINK}" = "" ]; then sFILE="${SYMLINK}"; fi
         fi
         if [ -f ${sFILE} -o -d ${sFILE} ]; then
-            FINDVAL=`ls -ld ${sFILE} | cut -c 8`
+            FINDVAL=$(ls -ld ${sFILE} | cut -c 8)
             if [ "${FINDVAL}" = "r" ]; then return 0; else return 1; fi
           else
             return 255
@@ -1481,7 +1481,7 @@
             if [ ! "${SYMLINK}" = "" ]; then sFILE="${SYMLINK}"; fi
         fi
         if [ -f ${sFILE} -o -d ${sFILE} ]; then
-            FINDVAL=`ls -l ${sFILE} | cut -c 10`
+            FINDVAL=$(ls -l ${sFILE} | cut -c 10)
             if [ "${FINDVAL}" = "x" ]; then return 0; else return 1; fi
           else
             return 255
@@ -1504,7 +1504,7 @@
 
         # Only check if target is a file or directory
         if [ -f ${sFILE} -o -d ${sFILE} ]; then
-            FINDVAL=`ls -ld ${sFILE} | cut -c 9`
+            FINDVAL=$(ls -ld ${sFILE} | cut -c 9)
             if IsDeveloperMode; then Debug "File mode of ${sFILE} is ${FINDVAL}"; fi
             if [ "${FINDVAL}" = "w" ]; then return 0; else return 1; fi
           else
@@ -1637,9 +1637,9 @@
         FIND=$(cat ${TMP_NGINX_FILE} | sed 's/ /:space:/g')
         DEPTH=0
         for I in ${FIND}; do
-            I=`echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//'`
-            OPTION=`echo ${I} | awk '{ print $1 }'`
-            VALUE=`echo ${I}| cut -d' ' -f2-`
+            I=$(echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//')
+            OPTION=$(echo ${I} | awk '{ print $1 }')
+            VALUE=$(echo ${I}| cut -d' ' -f2-)
             LogText "Result: found option ${OPTION} in ${CONFIG_FILE} with value '${VALUE}'"
             STORE_SETTING=1
             case ${OPTION} in
@@ -1679,7 +1679,7 @@
                       else
                         if [ ! "${VALUE}" = "" ]; then
                             # If multiple values follow, select first one
-                            VALUE=`echo ${VALUE} | awk '{ print $1 }'`
+                            VALUE=$(echo ${VALUE} | awk '{ print $1 }')
                             if [ ! -f ${VALUE} ]; then
                                 LogText "Result: could not find referenced log file ${VALUE} in nginx configuration"
                                 NGINX_ACCESS_LOG_MISSING=1
@@ -1689,8 +1689,8 @@
                 ;;
                 # Headers
                 add_header)
-                    HEADER=`echo ${VALUE} | awk '{ print $1 }'`
-                    HEADER_VALUE=`echo ${VALUE} | cut -d' ' -f2-`
+                    HEADER=$(echo ${VALUE} | awk '{ print $1 }')
+                    HEADER_VALUE=$(echo ${VALUE} | cut -d' ' -f2-)
                     LogText "Result: found header ${HEADER} with value ${HEADER_VALUE}"
                     #Report "nginx_header[]=${HEADER}|${HEADER_VALUE}|"
                 ;;
@@ -1710,12 +1710,12 @@
                 ;;
                 error_log)
                     # Check if debug is appended
-                    FIND=`echo ${VALUE} | awk '{ if ($2=="debug") { print 1 } else { print 0 }}'`
+                    FIND=$(echo ${VALUE} | awk '{ if ($2=="debug") { print 1 } else { print 0 }}')
                     if [ ${FIND} -eq 1 ]; then
                         NGINX_ERROR_LOG_DEBUG=1
                     fi
                     # Check if log file exists
-                    FILE=`echo ${VALUE} | awk '{ print $1 }'`
+                    FILE=$(echo ${VALUE} | awk '{ print $1 }')
                     if [ ! "${FILE}" = "" ]; then
                         if [ ! -f ${FILE} ]; then
                           NGINX_ERROR_LOG_MISSING=1
@@ -1759,7 +1759,7 @@
                 listen)
                     NGINX_LISTEN_FOUND=1
                     # Test for ssl on listen statement
-                    FIND_SSL=`echo ${VALUE} | grep ssl`
+                    FIND_SSL=$(echo ${VALUE} | grep ssl)
                     if [ ! "${FIND_SSL}" = "" ]; then NGINX_SSL_ON=1; fi
                 ;;
                 location)
@@ -1789,7 +1789,7 @@
                 ;;
                 ssl_protocols)
                     NGINX_SSL_PROTOCOLS=1
-                    VALUE=`echo ${VALUE} | sed 's/;$//' | tr '[:upper:]' '[:lower:]'`
+                    VALUE=$(echo ${VALUE} | sed 's/;$//' | tr '[:upper:]' '[:lower:]')
                     for ITEM in ${VALUE}; do
                         LogText "Result: found protocol ${ITEM}"
                         case ${ITEM} in
@@ -1835,7 +1835,7 @@
           else
             if [ $# -eq 2 ] && [ $1 = "TCP" -o $1 = "UDP" ]; then
                 LogText "Test: find service listening on $1:$2"
-                if [ $1 = "TCP" ]; then FIND=`${LSOFBINARY} -i${1} -s${1}:LISTEN -P -n | grep ":${2} "`; else FIND=`${LSOFBINARY} -i${1} -P -n | grep ":${2} "`; fi
+                if [ $1 = "TCP" ]; then FIND=$(${LSOFBINARY} -i${1} -s${1}:LISTEN -P -n | grep ":${2} "); else FIND=$(${LSOFBINARY} -i${1} -P -n | grep ":${2} "); fi
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found service listening on port $2 ($1)"
                     return 0
@@ -1895,7 +1895,7 @@
         fi
         if [ $# -eq 0 ]; then SIZE=16; else SIZE=$1; fi
         CSIZE=$((SIZE / 2))
-        RANDOMSTRING=`head -c ${CSIZE} /dev/urandom | od -An -x | tr -d ' ' | cut -c 1-${SIZE}`
+        RANDOMSTRING=$(head -c ${CSIZE} /dev/urandom | od -An -x | tr -d ' ' | cut -c 1-${SIZE})
     }
 
 
@@ -1975,13 +1975,13 @@
 
         # Skip test if it's configured in profile (old style)
         if [ ${SKIPTEST} -eq 0 ]; then
-            FIND=`echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}" | tr '[:lower:]' '[:upper:]'`
+            FIND=$(echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}" | tr '[:lower:]' '[:upper:]')
             if [ ! "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Skipped by configuration"; fi
         fi
 
         # Check if this test is on the list to skip
         if [ ${SKIPTEST} -eq 0 ]; then
-            VALUE=`echo ${TEST_NO} | tr '[:lower:]' '[:upper:]'`
+            VALUE=$(echo ${TEST_NO} | tr '[:lower:]' '[:upper:]')
             for I in ${SKIP_TESTS}; do
                 if [ "${I}" = "${VALUE}" ]; then SKIPTEST=1; SKIPREASON="Skipped by profile setting (skip-test)"; fi
             done
@@ -1989,7 +1989,7 @@
 
         # Skip if test is not in the list
         if [ ${SKIPTEST} -eq 0 -a ! "${TESTS_TO_PERFORM}" = "" ]; then
-          FIND=`echo "${TESTS_TO_PERFORM}" | grep "${TEST_NO}"`
+          FIND=$(echo "${TESTS_TO_PERFORM}" | grep "${TEST_NO}")
           if [ "${FIND}" = "" ]; then SKIPTEST=1; SKIPREASON="Test not in list of tests to perform"; fi
         fi
 
@@ -2109,7 +2109,7 @@
             # Clean up temp files
             for FILE in ${TEMP_FILES}; do
                 # Temporary files should be in /tmp
-                TMPFILE=`echo ${FILE} | egrep "^/tmp/lynis" | grep -v "\.\."`
+                TMPFILE=$(echo ${FILE} | egrep "^/tmp/lynis" | grep -v "\.\.")
                 if [ ! "${TMPFILE}" = "" ]; then
                     if [ -f ${TMPFILE} ]; then
                         LogText "Action: removing temporary file ${TMPFILE}"
@@ -2300,17 +2300,17 @@
             PERMS_OK=0
             LogText "Checking permissions of $1"
             if [ $# -eq 1 ]; then
-                IS_PARAMETERS_FILE=`echo $1 | grep "/parameters"`
+                IS_PARAMETERS_FILE=$(echo $1 | grep "/parameters")
                 # Check file permissions
                   if [ ! -f "$1" ]; then
                       LogText "Fatal error: file $1 does not exist. Quitting."
                       echo "Fatal error: file $1 does not exist"
                       ExitFatal
                     else
-                      PERMS=`ls -l $1`
+                      PERMS=$(ls -l $1)
                       # Owner permissions
-                      OWNER=`echo ${PERMS} | awk -F" " '{ print $3 }'`
-                      OWNERID=`ls -n $1 | awk -F" " '{ print $3 }'`
+                      OWNER=$(echo ${PERMS} | awk -F" " '{ print $3 }')
+                      OWNERID=$(ls -n $1 | awk -F" " '{ print $3 }')
                       if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
                           if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
                               echo "Fatal error: file $1 should be owned by user 'root' when running it as root (found: ${OWNER})."
@@ -2318,8 +2318,8 @@
                           fi
                       fi
                       # Group permissions
-                      GROUP=`echo ${PERMS} | awk -F" " '{ print $4 }'`
-                      GROUPID=`ls -n $1 | awk -F" " '{ print $4 }'`
+                      GROUP=$(echo ${PERMS} | awk -F" " '{ print $4 }')
+                      GROUPID=$(ls -n $1 | awk -F" " '{ print $4 }')
 
                       if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
                           if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
@@ -2329,21 +2329,21 @@
                       fi
 
                       # Owner permissions
-                      OWNER_PERMS=`echo ${PERMS} | cut -c2-4`
+                      OWNER_PERMS=$(echo ${PERMS} | cut -c2-4)
                       if [ ! "${OWNER_PERMS}" = "rw-" -a ! "${OWNER_PERMS}" = "r--" ]; then
                           echo "Fatal error: permissions of file $1 are not strict enough. Access to 'owner' should be read-write, or read. Change with: chmod 600 $1"
                           ExitFatal
                       fi
 
                       # Owner permissions
-                      GROUP_PERMS=`echo ${PERMS} | cut -c5-7`
+                      GROUP_PERMS=$(echo ${PERMS} | cut -c5-7)
                       if [ ! "${GROUP_PERMS}" = "rw-" -a ! "${GROUP_PERMS}" = "r--" -a ! "${GROUP_PERMS}" = "---" ]; then
                           echo "Fatal error: permissions of file $1 are not strict enough. Access to 'group' should be read-write, read, or none. Change with: chmod 600 $1"
                           ExitFatal
                       fi
 
                       # Other permissions
-                      OTHER_PERMS=`echo ${PERMS} | cut -c8-10`
+                      OTHER_PERMS=$(echo ${PERMS} | cut -c8-10)
                       if [ ! "${OTHER_PERMS}" = "---" -a ! "${OTHER_PERMS}" = "r--" ]; then
                           echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied or read-only. Change with: chmod 600 $1"
                           ExitFatal
@@ -2401,7 +2401,7 @@
             if [ -f ${FILE} ]; then
                 # Check if we can find the main type (with or without brackets)
                 LogText "Test: search string ${STRING} in file ${FILE}"
-                FIND=`egrep "${STRING}" ${FILE}`
+                FIND=$(egrep "${STRING}" ${FILE})
                 if [ ! "${FIND}" = "" ]; then
                     ITEM_FOUND=1
                     LogText "Result: found search string '${STRING}'"
@@ -2547,25 +2547,25 @@
                 if [ "${OS}" = "macOS" ]; then
                     # If a Python binary is found, use the one in path
                     if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${PYTHONBINARY}" = "" ]; then
-                        FIND=`which python 2> /dev/null`
+                        FIND=$(which python 2> /dev/null)
                         if [ ! "${FIND}" = "" ]; then LogText "Setting temporary pythonbinary variable"; PYTHONBINARY="${FIND}"; fi
                     fi
 
                     if [ ! "${PYTHONBINARY}" = "" ]; then
                         SYMLINK_USE_PYTHON=1
                         LogText "Note: using Python to determine symlinks"
-                        tFILE=`python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" $1`
+                        tFILE=$(python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" $1)
                     fi
                 else
                     if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${READLINKBINARY}" = "" ]; then
-                        FIND=`which readlink 2> /dev/null`
+                        FIND=$(which readlink 2> /dev/null)
                         if [ ! "${FIND}" = "" ]; then LogText "Setting temporary readlinkbinary variable"; READLINKBINARY="${FIND}"; fi
                     fi
 
                     if [ ! "${READLINKBINARY}" = "" ]; then
                         SYMLINK_USE_READLINK=1
                         LogText "Note: Using real readlink binary to determine symlink on ${sFILE}"
-                        tFILE=`${READLINKBINARY} -f ${sFILE}`
+                        tFILE=$(${READLINKBINARY} -f ${sFILE})
                         LogText "Result: readlink shows ${tFILE} as output"
                     fi
                 fi
@@ -2590,15 +2590,15 @@
                     FOUNDPATH=1
                   else
                     # Check the full path of the symlink, strip the filename, copy the path and linked filename together
-                    tDIR=`echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}'`
+                    tDIR=$(echo ${sFILE} | awk '{match($1, "^.*/"); print substr($1, 1, RLENGTH-1)}')
                     tFILE="${tDIR}/${tFILE}"
                     if [ -L ${tFILE} ]; then
                         LogText "Result: this symlink links to another symlink"
                         # Ensure that we use a second try with the right tool as well
                         if [ ${SYMLINK_USE_PYTHON} -eq 1 ]; then
-                            tFILE=`python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" ${tFILE}`
+                            tFILE=$(python -c "import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))" ${tFILE})
                         elif [ ${SYMLINK_USE_READLINK} -eq 1 ]; then
-                            tFILE=`${READLINKBINARY} -f ${tFILE}`
+                            tFILE=$(${READLINKBINARY} -f ${tFILE})
                         fi
                         # Check if we now have a normal file
                         if [ -f ${tFILE} ]; then
@@ -2656,7 +2656,7 @@
             RETVAL=1
             # Check if this test is on the list to skip
             for I in ${SKIP_TESTS}; do
-                STRING=`echo $1 | tr '[:lower:]' '[:upper:]'`
+                STRING=$(echo $1 | tr '[:lower:]' '[:upper:]')
                 if [ "${I}" = "${STRING}" ]; then RETVAL=0; LogText "Atomic test ($1) skipped by configuration (skip-test)"; fi
             done
           else
@@ -2768,13 +2768,13 @@
         # Apply the related function
         case ${FUNCTION} in
               "contains")
-                  FIND=`echo ${VALUE} | egrep "${SEARCH}"`
+                  FIND=$(echo ${VALUE} | egrep "${SEARCH}")
                   if [ "${FIND}" = "" ]; then RETVAL=1; else RETVAL=0; fi
               ;;
               #"gt" | "greater-than")   COLOR=$GREEN   ;;
               "equals")
-                  CMP1=`echo ${SEARCH} | tr '[:upper:]' '[:lower:']`
-                  CMP2=`echo ${VALUE} | tr '[:upper:]' '[:lower:']`
+                  CMP1=$(echo ${SEARCH} | tr '[:upper:]' '[:lower:'])
+                  CMP2=$(echo ${VALUE} | tr '[:upper:]' '[:lower:'])
                   if [ "${CMP1}" = "${CMP2}" ]; then RETVAL=0; else RETVAL=1; fi
               ;;
               #"not-equal")   COLOR=$WHITE   ;;
@@ -2819,7 +2819,7 @@
     ViewGroups() {
         if [ ! "${INCLUDEDIR}" = "" ]; then
             InsertSection "Available test groups"
-            for I in `ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"`; do
+            for I in $(ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"); do
               echo "${I}"
             done
         fi

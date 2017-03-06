@@ -6,6 +6,7 @@ Lynis 2.4.5 (2017-xx-xx, not released yet)
 Changes:
 --------
 * Allow host alias to be specified in profile
+* General code enhancements
 
 Tests:
 ------
@@ -13,7 +14,6 @@ Tests:
 * BOOT-5104 - Add initsplash and minor code enhancements
 
 ---------------------------------------------------------------------------------
-
 
 Lynis 2.4.4 (2017-03-01)
 

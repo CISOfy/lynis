@@ -112,9 +112,9 @@
     NEEDED_DIRS="debbuild rpmbuild rpmbuild/BUILD rpmbuild/BUILDROOT rpmbuild/RPMS rpmbuild/SOURCES rpmbuild/SRPMS"
     for I in ${NEEDED_DIRS}; do
         if [ ! -d "${MYBUILDDIR}/${I}" ]; then
-             echo "[X] Missing directory: ${MYBUILDDIR}/${I}"
-             echo "   Hint: create subdirs with cd ${MYBUILDDIR} && mkdir -p ${NEEDED_DIRS}"
-             ExitFatal
+            echo "[X] Missing directory: ${MYBUILDDIR}/${I}"
+            echo "   Hint: create subdirs with cd ${MYBUILDDIR} && mkdir -p ${NEEDED_DIRS}"
+            ExitFatal
         fi
     done
 
@@ -128,20 +128,20 @@
 
     GITBUILDPACKAGEBINARY=$(which git-buildpackage)
     if [ ! "${GITBUILDPACKAGEBINARY}" = "" ]; then
-       echo "[=] git-buildpackage = ${GITBUILDPACKAGEBINARY}"
-     else
-       echo "[X] Can not find git-buildpackage binary"
-       echo "    Hint: install git-buildpackage"
-       ExitFatal
+        echo "[=] git-buildpackage = ${GITBUILDPACKAGEBINARY}"
+      else
+        echo "[X] Can not find git-buildpackage binary"
+        echo "    Hint: install git-buildpackage"
+        ExitFatal
     fi
 
     RPMBUILDBINARY=$(which rpmbuild)
     if [ ! "${RPMBUILDBINARY}" = "" ]; then
-       echo "[=] rpmbuild = ${RPMBUILDBINARY}"
-     else
-       echo "[X] Can not find rpmbuild binary"
-       echo "    Hint: install rpmbuild"
-       ExitFatal
+        echo "[=] rpmbuild = ${RPMBUILDBINARY}"
+      else
+        echo "[X] Can not find rpmbuild binary"
+        echo "    Hint: install rpmbuild"
+        ExitFatal
     fi
 
 
@@ -195,10 +195,10 @@
       else
         tar -C ${MYWORKDIR} --exclude=debian --exclude=README.md --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
         if [ -f ${TARBALL} ]; then
-             echo "[V] Tarball created"
-           else
-             echo "[X] Tarball ${TARBALL} could not be created"
-             ExitFatal
+            echo "[V] Tarball created"
+          else
+            echo "[X] Tarball ${TARBALL} could not be created"
+            ExitFatal
         fi
     fi
 
@@ -215,8 +215,8 @@
             VERSION_IN_SPECFILE=$(awk '/^Version:/ { print $2 }' lynis.spec)
             echo "[=] Found version ${VERSION_IN_SPECFILE}"
             if [ ${VERSION_IN_SPECFILE} = "" -o ! "${VERSION_IN_SPECFILE}" = "${LYNIS_VERSION}" ]; then
-               echo "[X] Version in specfile is outdated"
-               ExitFatal
+                echo "[X] Version in specfile is outdated"
+                ExitFatal
             fi
             echo "[*] Start RPM building"
             #${RPMBUILDBINARY} --quiet -ba -bl lynis.spec 2> /dev/null

@@ -561,55 +561,55 @@
                     LogText "Result: using ${MYKERNEL} as my kernel version (stripped)"
                     FIND=$(ls ${ROOTDIR}boot/vmlinuz* 2> /dev/null)
                     if [ ! -z "${FIND}" ]; then
-                         for ITEM in ${FIND}; do
-                             LogText "Result: found ${ITEM}"
-                         done
-                         # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
-                         # Ignore rescue images. Remove generic. and huge. for Slackware machines
-                         LogText "Action: checking relevant kernels"
-                         KERNELS=$(${LSBINARY} /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
-                         KERNELS_ONE_LINE=$(echo ${KERNELS} | ${TRBINARY} '\n' ' ')
-                         LogText "Output: ${KERNELS_ONE_LINE}"
+                        for ITEM in ${FIND}; do
+                            LogText "Result: found ${ITEM}"
+                        done
+                        # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
+                        # Ignore rescue images. Remove generic. and huge. for Slackware machines
+                        LogText "Action: checking relevant kernels"
+                        KERNELS=$(${LSBINARY} /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
+                        KERNELS_ONE_LINE=$(echo ${KERNELS} | ${TRBINARY} '\n' ' ')
+                        LogText "Output: ${KERNELS_ONE_LINE}"
                     elif [ ! "$(ls ${ROOTDIR}boot/kernel* 2> /dev/null)" = "" ]; then
-                         LogText "Output: Found a kernel file in ${ROOTDIR}boot"
-                         # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
-                         # Examples:
-                         # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
-                         KERNELS=$(${LSBINARY} ${ROOTDIR}boot/kernel* | ${AWKBINARY} -F- '{ if ($2=="genkernel") { print $4 }}' | ${GREPBINARY} "^[0-9]" | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
-                         if [ ! -z "${KERNELS}" ]; then LogText "Output: ${KERNELS}"; fi
+                        LogText "Output: Found a kernel file in ${ROOTDIR}boot"
+                        # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
+                        # Examples:
+                        # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
+                        KERNELS=$(${LSBINARY} ${ROOTDIR}boot/kernel* | ${AWKBINARY} -F- '{ if ($2=="genkernel") { print $4 }}' | ${GREPBINARY} "^[0-9]" | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
+                        if [ ! -z "${KERNELS}" ]; then LogText "Output: ${KERNELS}"; fi
                     else
                         ReportException "${TEST_NO}:2" "Can not find any vmlinuz or kernel files in /boot, which is unexpected"
                     fi
                     if [ ! -z "${KERNELS}" ]; then
-                         FOUND_KERNEL=0
-                         for I in ${KERNELS}; do
-                             # Check if we already found a kernel and it is not equal to what we run (e.g. double versions may exist)
-                             if [ ${FOUND_KERNEL} -eq 1 -a ! "${MYKERNEL}" = "${I}" ]; then
-                                 LogText "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
-                                 REBOOT_NEEDED=1
-                             fi
-                             if [ "${MYKERNEL}" = "${I}" ]; then
-                                 FOUND_KERNEL=1
-                                 LogText "Result: Found ${I} (= our kernel)"
-                             else
-                                 LogText "Result: Found ${I}"
-                             fi
-                         done
-                         # Check if we at least found the kernel on disk
-                         if [ ${FOUND_KERNEL} -eq 0 ]; then
-                             ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
-                         else
-                             # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
-                             if [ ${REBOOT_NEEDED} -eq 2 ]; then
-                                 LogText "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
-                                 REBOOT_NEEDED=0
-                             fi
-                         fi
-                     fi
+                        FOUND_KERNEL=0
+                        for I in ${KERNELS}; do
+                            # Check if we already found a kernel and it is not equal to what we run (e.g. double versions may exist)
+                            if [ ${FOUND_KERNEL} -eq 1 -a ! "${MYKERNEL}" = "${I}" ]; then
+                                LogText "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
+                                REBOOT_NEEDED=1
+                            fi
+                            if [ "${MYKERNEL}" = "${I}" ]; then
+                                FOUND_KERNEL=1
+                                LogText "Result: Found ${I} (= our kernel)"
+                            else
+                                LogText "Result: Found ${I}"
+                            fi
+                        done
+                        # Check if we at least found the kernel on disk
+                        if [ ${FOUND_KERNEL} -eq 0 ]; then
+                            ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
+                        else
+                            # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
+                            if [ ${REBOOT_NEEDED} -eq 2 ]; then
+                                LogText "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
+                                REBOOT_NEEDED=0
+                            fi
+                        fi
+                    fi
                 fi
             # No files in /boot
             else
-                 LogText "Result: Skipping this test, as there are no files in /boot"
+                LogText "Result: Skipping this test, as there are no files in /boot"
             fi
         else
             LogText "Result: /boot does not exist"

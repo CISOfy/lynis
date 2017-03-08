@@ -27,6 +27,7 @@
 #################################################################################
 #
     IPTABLES_ACTIVE=0
+    IP6TABLES_ACTIVE=0
     IPTABLES_INKERNEL_ACTIVE=0
     IPTABLES_MODULE_ACTIVE=0
     FIREWALL_ACTIVE=0
@@ -47,26 +48,35 @@
             IPTABLES_ACTIVE=1
             IPTABLES_MODULE_ACTIVE=1
             Display --indent 2 --text "- Checking iptables kernel module" --result "${STATUS_FOUND}" --color GREEN
+            Report "firewall_software[]=iptables"
             LogText "Result: Found iptables in loaded kernel modules"
             for I in ${FIND}; do
+                if [ "${I}" = "ip6_tables" ]; then IP6TABLES_ACTIVE=1; Report "firewall_software[]=ip6tables"; fi
                 LogText "Found module: ${I}"
             done
-          else
+        elif [ -f ${ROOTDIR}proc/net/ip_tables_names ]; then
+            FIREWALL_ACTIVE=1
+            FIREWALL_SOFTWARE="iptables"
+            Report "firewall_software[]=iptables"
+            IPTABLES_ACTIVE=1
+            Display --indent 2 --text "- Checking iptables support" --result "${STATUS_FOUND}" --color GREEN
+        elif [ -f ${ROOTDIR}proc/net/ip6_tables_names ]; then
+            FIREWALL_ACTIVE=1
+            IP6TABLES_ACTIVE=1
+            Report "firewall_software[]=ip6tables"
+            Display --indent 2 --text "- Checking ip6tables support" --result "${STATUS_FOUND}" --color GREEN
+        else
             Display --indent 2 --text "- Checking iptables kernel module" --result "${STATUS_NOT_FOUND}" --color WHITE
 
             # If we can't find an active module, try to find the Linux configuration file and check that
-            if [ -f /proc/config.gz ]; then
-                LINUXCONFIGFILE="/proc/config.gz"; tCATCMD="zcat";
-            fi
+            if [ -f /proc/config.gz ]; then LINUXCONFIGFILE="/proc/config.gz"; tCATCMD="zcat"; fi
             sLINUXCONFIGFILE="/boot/config-$(uname -r)"
-            if [ -f ${sLINUXCONFIGFILE} ]; then
-                LINUXCONFIGFILE=${sLINUXCONFIGFILE}; tCATCMD="cat";
-            fi
+            if [ -f ${sLINUXCONFIGFILE} ]; then LINUXCONFIGFILE=${sLINUXCONFIGFILE}; tCATCMD="cat"; fi
 
             # If we have a kernel configuration file, use it for testing
             # Do not perform test if we already found it in kernel module list, to avoid triggered it in the upcoming
             # tests, when using iptables --list
-            if [ ! "${LINUXCONFIGFILE}" = "" ]; then
+            if [ ! -z "${LINUXCONFIGFILE}" ]; then
                 if [ -f ${LINUXCONFIGFILE} -a ${IPTABLES_MODULE_ACTIVE} -eq 0 ]; then
                     LogText "Result: found kernel configuration file (${LINUXCONFIGFILE})"
                     FIND=$(${tCATCMD} ${LINUXCONFIGFILE} | ${GREPBINARY} -v '^#' | ${GREPBINARY} "CONFIG_IP_NF_IPTABLES" | head -n 1)
@@ -81,17 +91,16 @@
                             FIREWALL_ACTIVE=1
                             FIREWALL_SOFTWARE="iptables"
                             Display --indent 2 --text "- Checking iptables in config file" --result "${STATUS_FOUND}" --color GREEN
-                          else
+                        else
                             LogText "Result: no iptables found in Linux kernel config file"
                         fi
-                      else
+                    else
                         LogText "Result: no Linux configuration file found"
                         Display --indent 2 --text "- Checking iptables in config file" --result "${STATUS_NOT_FOUND}" --color WHITE
                     fi
                 fi
             fi
         fi
-        if [ ${IPTABLES_ACTIVE} -eq 1 ]; then Report "firewall_software[]=iptables"; fi
     fi
 #
 #################################################################################
@@ -188,6 +197,14 @@
 #
 #################################################################################
 #
+    # Test        : FIRE-4514
+    # Notes       :
+    # Check if ipv6 is active on any network interface
+    # If ip_tables is active, and ip6_tables is not, show warning about missing filtering
+#
+#################################################################################
+#
+
     # Test        : FIRE-4518
     # Description : Checking status of pf firewall components
     # Notes       : Use /dev/pf as first detection method if pf is available

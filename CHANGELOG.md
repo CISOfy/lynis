@@ -13,6 +13,7 @@ Tests:
 ------
 * AUTH-9328 - Add missing 0027 and 0077 umasks
 * BOOT-5104 - Add initsplash and minor code enhancements
+* FIRE-4502 - Improved detection for iptables modules when using OpenVZ
 
 ---------------------------------------------------------------------------------
 

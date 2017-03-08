@@ -787,6 +787,16 @@
         if [ "${IFCONFIGBINARY}" = "" ]; then IFCONFIGBINARY=$(which ifconfig 2> /dev/null | grep -v "no [^ ]* in "); fi
         if [ "${IPBINARY}" = "" ]; then IPBINARY=$(which ip 2> /dev/null | grep -v "no [^ ]* in "); fi
 
+	# If using openssl, use the best hash type it supports
+	if [ ! "${OPENSSLBINARY}" = "" ]; then
+	    OPENSSL_HASHLIST=$(openssl dgst -h 2>&1)
+            for OPENSSL_HASHTYPE in sha256 sha1 md5 ; do
+	        if echo "${OPENSSL_HASHLIST}" | grep "^-${OPENSSL_HASHTYPE} " >/dev/null ; then
+	            break
+		fi
+	    done
+	fi
+
         if [ ! "${SHA1SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
 
             case "${OS}" in
@@ -804,7 +814,7 @@
                         elif [ ! "${CSUMBINARY}" = "" ]; then
                             HOSTID=$(echo ${FIND} | ${CSUMBINARY} -h SHA1 - | awk '{ print $1 }')
                         elif [ ! "${OPENSSLBINARY}" = "" ]; then
-                            HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
+                            HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "No sha1, sha1sum, csum or openssl binary available on AIX"
                         fi
@@ -935,7 +945,7 @@
                         if [ ! "${SHA1SUMBINARY}" = "" ]; then
                             HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                         elif [ ! "${OPENSSLBINARY}" = "" ]; then
-                            HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
+                            HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                           else
                             ReportException "GetHostID" "Can not find sha1/sha1sum or openssl"
                         fi
@@ -1033,8 +1043,8 @@
                     HASH2=$(echo ${STRING_TO_HASH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                 elif [ ! "${OPENSSLBINARY}" = "" ]; then
-                    HASH2=$(echo ${STRING_TO_HASH} | ${OPENSSLBINARY} sha -sha256 | awk '{ print $2 }')
-                    HASH_HOSTNAME=$(echo ${HOSTNAME} | ${OPENSSLBINARY} sha -sha256 | awk '{ print $2 }')
+                    HASH2=$(echo ${STRING_TO_HASH} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
+                    HASH_HOSTNAME=$(echo ${HOSTNAME} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                 fi
                 LogText "Hash (hostname): ${HASH_HOSTNAME}"
                 LogText "Hash (ssh or machineid): ${HASH2}"

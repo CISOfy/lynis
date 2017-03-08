@@ -6,11 +6,12 @@ Lynis 2.4.5 (2017-xx-xx, not released yet)
 Changes:
 --------
 * Allow host alias to be specified in profile
-* General code enhancements
+* Code readability enhancements
+* Solaris support has been improved
 
 Tests:
 ------
-* AUTH-9328 - Add missing 0027 and 0077 masks
+* AUTH-9328 - Add missing 0027 and 0077 umasks
 * BOOT-5104 - Add initsplash and minor code enhancements
 
 ---------------------------------------------------------------------------------

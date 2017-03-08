@@ -650,7 +650,12 @@
             if [ -d ${DIR} -a ! -L ${DIR} ]; then
                 LogText "Result: directory ${DIR} exists"
                 # Search in the specified directory
-                FIND=$(find ${DIR} -maxdepth 1 -type f -name "pam_*.so" -print | sort)
+                if [ "${OS}" = "Solaris" ]; then
+                    # Solaris doesn't support -maxdepth
+                    FIND=$(find ${DIR} -type f -name "pam_*.so" -print | sort)
+                  else
+                    FIND=$(find ${DIR} -maxdepth 1 -type f -name "pam_*.so" -print | sort)
+                fi
                 if [ ! "${FIND}" = "" ]; then FOUND=1; fi
                 for FILE in ${FIND}; do
                     LogText "Found file: ${FILE}"
@@ -809,7 +814,14 @@
     Register --test-no AUTH-9288 --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Checking for expired passwords"
     if [ ${SKIPTEST} -eq 0 ]; then
         if FileIsReadable /etc/shadow; then
-            DAYS_SINCE_EPOCH=$(($(date --utc +%s)/86400))
+
+            if [ "$OS" = "Solaris" ]; then
+                NOW=$(nawk 'BEGIN{print srand()}')
+              else
+                NOW=$(date "+%s")
+            fi
+
+            DAYS_SINCE_EPOCH=$((${NOW}/86400))
             LogText "Data: Days since epoch is ${DAYS_SINCE_EPOCH}"
             LogText "Test: collecting accounts which have an expired password (last day changed + maximum change time)"
             # Skip fields with a !, *, or x, or !* (field $3 is last changed, $5 is maximum changed)

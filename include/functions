@@ -151,7 +151,11 @@
               else
                 Debug "Setting '${SETTING}' was already configured, overwriting previous line '${FIND}' in ${SETTINGS_FILE} with value '${VALUE}'"
                 # Delete line first, then add new value (inline search and replace is messy)
-                sed -i -e '/^'"${SETTING}"';/d' ${SETTINGS_FILE}
+                CreateTempFile
+                TEMP_SETTINGS_FILE="${TEMP_FILE}"
+                cat ${SETTINGS_FILE} > ${TEMP_SETTINGS_FILE}
+                sed -e '/^'"${SETTING}"';/d' ${TEMP_SETTINGS_FILE} > ${SETTINGS_FILE}
+                rm ${TEMP_SETTINGS_FILE}
                 echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
             fi
         else
@@ -250,16 +254,16 @@
         PROGRAM_LV="0000000000"; DB_MALWARE_LV="0000000000"; DB_FILEPERMS_LV="0000000000"
         if [ ${RUN_UPDATE_CHECK} -eq 1 ]; then
             LYNIS_LV_RECORD="lynis-latest-version.cisofy.com."
-            FIND=$(which dig 2> /dev/null)
+            FIND=$(which dig 2> /dev/null | grep -v "no [^ ]* in")
             if [ ! -z "${FIND}" ]; then
                 PROGRAM_LV=$(dig +short +time=3 -t txt lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | sed 's/[".]//g' | grep "^[1-9][0-9][0-9]$")
             else
-                FIND=$(which host 2> /dev/null)
+                FIND=$(which host 2> /dev/null | grep -v "no [^ ]* in ")
                 if [ ! -z "${FIND}" ]; then
                     PROGRAM_LV=$(host -t txt -W 3 lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | awk '{ if ($1=="lynis-latest-version.cisofy.com" && $3=="text") { print $4 }}' | sed 's/"//g' | grep "^[1-9][0-9][0-9]$")
                     if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
                 else
-                    FIND=$(which drill 2> /dev/null)
+                    FIND=$(which drill 2> /dev/null | grep -v "no [^ ]* in ")
                     if [ ! -z "${FIND}" ]; then
                         PROGRAM_LV=$(drill txt ${LYNIS_LV_RECORD} | awk '{ if ($1=="lynis-latest-version.cisofy.com." && $4=="TXT") { print $5 }}' | tr -d '"' | grep "^[1-9][0-9][0-9]$")
                         if [ -z "${PROGRAM_LV}" ]; then PROGRAM_LV=0; fi
@@ -778,14 +782,24 @@
         # Avoid some hashes (empty, only zeros)
         BLACKLISTED_HASHES="6ef1338f520d075957424741d7ed35ab5966ae97 adc83b19e793491b1c6ea0fd8b46cd9f32e592fc"
         # Check which utilities we can use (e.g. lynis show hostids). Normally these are detected during binaries collecting.
-        if [ "${SHA1SUMBINARY}" = "" ]; then SHA1SUMBINARY=$(which sha1sum 2> /dev/null); fi
-        if [ "${SHA1SUMBINARY}" = "" ]; then SHA1SUMBINARY=$(which sha1 2> /dev/null); fi
-        if [ "${SHA256SUMBINARY}" = "" ]; then SHA256SUMBINARY=$(which sha256sum 2> /dev/null); fi
-        if [ "${SHA256SUMBINARY}" = "" ]; then SHA256SUMBINARY=$(which sha256 2> /dev/null); fi
-        if [ "${CSUMBINARY}" = "" ]; then CSUMBINARY=$(which csum 2> /dev/null); fi
-        if [ "${OPENSSLBINARY}" = "" ]; then OPENSSLBINARY=$(which openssl 2> /dev/null); fi
-        if [ "${IFCONFIGBINARY}" = "" ]; then IFCONFIGBINARY=$(which ifconfig 2> /dev/null); fi
-        if [ "${IPBINARY}" = "" ]; then IPBINARY=$(which ip 2> /dev/null); fi
+        if [ "${SHA1SUMBINARY}" = "" ]; then SHA1SUMBINARY=$(which sha1sum 2> /dev/null | grep -v "no [^ ]* in "); fi
+        if [ "${SHA1SUMBINARY}" = "" ]; then SHA1SUMBINARY=$(which sha1 2> /dev/null | grep -v "no [^ ]* in "); fi
+        if [ "${SHA256SUMBINARY}" = "" ]; then SHA256SUMBINARY=$(which sha256sum 2> /dev/null | grep -v "no [^ ]* in "); fi
+        if [ "${SHA256SUMBINARY}" = "" ]; then SHA256SUMBINARY=$(which sha256 2> /dev/null | grep -v "no [^ ]* in "); fi
+        if [ "${CSUMBINARY}" = "" ]; then CSUMBINARY=$(which csum 2> /dev/null | grep -v "no [^ ]* in "); fi
+        if [ "${OPENSSLBINARY}" = "" ]; then OPENSSLBINARY=$(which openssl 2> /dev/null | grep -v "no [^ ]* in "); fi
+        if [ "${IFCONFIGBINARY}" = "" ]; then IFCONFIGBINARY=$(which ifconfig 2> /dev/null | grep -v "no [^ ]* in "); fi
+        if [ "${IPBINARY}" = "" ]; then IPBINARY=$(which ip 2> /dev/null | grep -v "no [^ ]* in "); fi
+
+        # If using openssl, use the best hash type it supports
+        if [ ! "${OPENSSLBINARY}" = "" ]; then
+            OPENSSL_HASHLIST=$(openssl dgst -h 2>&1)
+            for OPENSSL_HASHTYPE in sha256 sha1 md5 ; do
+                if echo "${OPENSSL_HASHLIST}" | grep "^-${OPENSSL_HASHTYPE} " >/dev/null ; then
+                    break
+                fi
+            done
+        fi
 
         if [ ! "${SHA1SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
 
@@ -1033,8 +1047,8 @@
                     HASH2=$(echo ${STRING_TO_HASH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                 elif [ ! "${OPENSSLBINARY}" = "" ]; then
-                    HASH2=$(echo ${STRING_TO_HASH} | ${OPENSSLBINARY} sha -sha256 | awk '{ print $2 }')
-                    HASH_HOSTNAME=$(echo ${HOSTNAME} | ${OPENSSLBINARY} sha -sha256 | awk '{ print $2 }')
+                    HASH2=$(echo ${STRING_TO_HASH} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
+                    HASH_HOSTNAME=$(echo ${HOSTNAME} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                 fi
                 LogText "Hash (hostname): ${HASH_HOSTNAME}"
                 LogText "Hash (ssh or machineid): ${HASH2}"
@@ -1178,7 +1192,7 @@
     ################################################################################
 
     IsNotebook() {
-        FIND=$(which laptop-detect 2> /dev/null)
+        FIND=$(which laptop-detect 2> /dev/null | grep -v "no [^ ]* in ")
         if [ ! -z "${FIND}" ]; then
             Debug "Testing if we are a notebook"
             laptop-detect
@@ -2547,7 +2561,7 @@
             if [ "${OS}" = "macOS" ]; then
                 # If a Python binary is found, use the one in path
                 if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${PYTHONBINARY}" = "" ]; then
-                    FIND=$(which python 2> /dev/null)
+                    FIND=$(which python 2> /dev/null | grep -v "no [^ ]* in ")
                     if [ ! "${FIND}" = "" ]; then LogText "Setting temporary pythonbinary variable"; PYTHONBINARY="${FIND}"; fi
                 fi
 
@@ -2558,7 +2572,7 @@
                 fi
             else
                 if [ ${BINARY_SCAN_FINISHED} -eq 0 -a "${READLINKBINARY}" = "" ]; then
-                    FIND=$(which readlink 2> /dev/null)
+                    FIND=$(which readlink 2> /dev/null | grep -v "no [^ ]* in ")
                     if [ ! "${FIND}" = "" ]; then LogText "Setting temporary readlinkbinary variable"; READLINKBINARY="${FIND}"; fi
                 fi
 

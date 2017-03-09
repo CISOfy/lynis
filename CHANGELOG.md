@@ -1,7 +1,7 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.5 (2017-xx-xx, not released yet)
+Lynis 2.4.5 (2017-03-09)
 
 Changes:
 --------
@@ -13,7 +13,9 @@ Tests:
 ------
 * AUTH-9328 - Add missing 0027 and 0077 umasks
 * BOOT-5104 - Add initsplash and minor code enhancements
+* DBS-1882  - Include Redis configuration file
 * FIRE-4502 - Improved detection for iptables modules when using OpenVZ
+* PKGS-7381 - Enhanced package audit for FreeBSD
 
 ---------------------------------------------------------------------------------
 

@@ -1,6 +1,19 @@
 Lynis Changelog
 ===============
 
+Lynis 2.4.6 (not released yet)
+
+Changes:
+--------
+* Added FileInstalledByPackage function (dpkg and rpm supported)
+* Mark Arch Linux version as rolling release (instead of unknown)
+
+Tests:
+------
+* CRYP-7902 - Test *.crt and *.pem certificates , but only if not part of a package
+
+---------------------------------------------------------------------------------
+
 Lynis 2.4.5 (2017-03-09)
 
 Changes:

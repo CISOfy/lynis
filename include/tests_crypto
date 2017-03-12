@@ -44,23 +44,26 @@
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: found directory ${DIR}"
                     # Search for CRT files
-                    sFINDCRTS=$(${FINDBINARY} ${DIR} -name "*.crt" -type f -print 2> /dev/null)
+                    sFINDCRTS=$(${FINDBINARY} ${DIR} -name "*.crt" -or -name "*.pem" -and -type f -print 2> /dev/null)
                     if [ ! -z "${sFINDCRTS}" ]; then
                         for FILE in ${sFINDCRTS}; do
                             FileIsReadable ${FILE}
                             if [ ${CANREAD} -eq 1 ]; then
-                                COUNT_DIR=$((COUNT_DIR + 1))
-                                LogText "Test: checking certificate ${FILE}"
-                                # Check certificate where 'end date' has been expired
-                                EXIT_CODE=$(${OPENSSLBINARY} x509 -noout -checkend 0 -in ${FILE} -enddate > /dev/null ; echo $?)
-                                CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in ${FILE} 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
-                                CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in ${FILE} 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
-                                Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
-                                if [ "${EXIT_CODE}" = "0" ]; then
-                                    LogText "Result: certificate ${FILE} seems to be correct and still valid"
-                                else
-                                    FOUNDPROBLEM=1
-                                    LogText "Result: certificate ${FILE} has been expired"
+                                # Only check the files that are not installed by a package
+                                if ! FileInstalledByPackage ${FILE}; then
+                                    COUNT_DIR=$((COUNT_DIR + 1))
+                                    LogText "Test: checking certificate ${FILE}"
+                                    # Check certificate where 'end date' has been expired
+                                    EXIT_CODE=$(${OPENSSLBINARY} x509 -noout -checkend 0 -in ${FILE} -enddate > /dev/null ; echo $?)
+                                    CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in ${FILE} 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
+                                    CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in ${FILE} 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
+                                    Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
+                                    if [ "${EXIT_CODE}" = "0" ]; then
+                                        LogText "Result: certificate ${FILE} seems to be correct and still valid"
+                                    else
+                                        FOUNDPROBLEM=1
+                                        LogText "Result: certificate ${FILE} has been expired"
+                                    fi
                                 fi
                             else
                                 LogText "Result: can not read file ${FILE} (no permission)"
@@ -72,11 +75,11 @@
                 else
                     LogText "Result: can not read path ${DIR} (no permission)"
                 fi
+                LogText "Result: found ${COUNT_DIR} certificates in ${DIR}"
             else
                 LogText "Result: SSL path ${DIR} does not exist"
             fi
             COUNT_TOTAL=$((COUNT_TOTAL + COUNT_DIR))
-            LogText "Result: found ${COUNT_DIR} certificates in ${DIR}"
         done
         Report "certificates=${COUNT_TOTAL}"
         LogText "Result: found a total of ${COUNT_TOTAL} certificates"

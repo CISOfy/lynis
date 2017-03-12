@@ -10,6 +10,7 @@ Changes:
 
 Tests:
 ------
+* NAME-4018 - Only perform name services test when resolv.conf file exists
 * CRYP-7902 - Test *.crt and *.pem certificates , but only if not part of a package
 
 ---------------------------------------------------------------------------------

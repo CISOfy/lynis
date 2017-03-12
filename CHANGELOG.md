@@ -7,6 +7,7 @@ Changes:
 --------
 * Added FileInstalledByPackage function (dpkg and rpm supported)
 * Mark Arch Linux version as rolling release (instead of unknown)
+* Support for Manjaro Linux
 
 Tests:
 ------

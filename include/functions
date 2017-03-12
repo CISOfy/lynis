@@ -46,6 +46,7 @@
 #    ExitCustom                 Stop the program (cleanly), with custom exit code
 #    ExitFatal                  Stop the program (cleanly), with exit code 1
 #    FileExists                 Check if a file exists on the disk
+#    FileInstalledByPackage     Check if a file is linked to a package
 #    FileIsEmpty                Check if a file is empty
 #    FileIsReadable             Check if a file is readable or directory accessible
 #    GetHostID                  Retrieve an unique ID for this host
@@ -681,6 +682,31 @@
             LogText "Result: file $1 NOT found"
             return 1
         fi
+    }
+
+
+    ################################################################################
+    # Name        : FileInstalledByPackage()
+    # Description : Check if a file is part of a package
+    # Returns     : 0 (true), 1 (default: unknown or false)
+    ################################################################################
+
+    FileInstalledByPackage() {
+        exitcode=1
+        file=$1
+        find=""
+        if [ ! -z "${DPKGBINARY}" ]; then
+            find=$(${DPKGBINARY} -S ${file} 2> /dev/null | ${AWKBINARY} -F: '{print $1}')
+        elif [ ! -z "${RPMBINARY}" ]; then
+            find=$(${RPMBINARY} -qf ${file} 2> /dev/null | ${AWKBINARY} -F- '{print $1}')
+        fi
+        if [ ! -z "${find}" ]; then
+            LogText "Result: file ${file} belongs to package (${find})"
+            exitcode=0
+        else
+            LogText "Result: file ${file} does most likely not belong to a package"
+        fi
+        return ${exitcode}
     }
 
 

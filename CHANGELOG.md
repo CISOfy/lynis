@@ -14,6 +14,7 @@ Changes:
 Tests:
 ------
 * CRYP-7902 - Test *.crt and *.pem certificates , but only if not part of a package
+* MALW-3280 - Added Avira detection as a malware scanner
 * NAME-4018 - Only perform name services test when resolv.conf file exists
 * SCHD-7704 - Permission checks
 * TIME-3104 - Check permissions before open files

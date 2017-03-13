@@ -36,9 +36,9 @@
     Register --test-no SCHD-7702 --weight L --network NO --category security --description "Check status of cron daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${PSBINARY} aux | ${EGREPBINARY} "( cron$|/cron(d)? )")
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             LogText "Result: no cron daemon found"
-          else
+        else
             LogText "Result: cron daemon running"
             CROND_RUNNING=1
             Report "crond_running=1"
@@ -73,14 +73,13 @@
         for I in ${CRON_DIRS}; do
             LogText "Test: checking directory ${I}"
             if [ -d ${I} ]; then
-                FileIsReadable ${I}
-                if [ ${CANREAD} -eq 1 ]; then
+                if FileIsReadable ${I}; then
                     LogText "Result: found directory ${I}"
                     LogText "Test: searching files in ${I}"
                     FIND=$(find ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: no files found in ${I}"
-                      else
+                    else
                         LogText "Result: found one or more files in ${I}. Analyzing files.."
                         for J in ${FIND}; do
                             if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
@@ -95,10 +94,10 @@
                         done
                         LogText "Result: done with analyzing files in ${I}"
                     fi
-                  else
+                else
                     LogText "Result: can not read file or directory ${I}"
                 fi
-              else
+            else
                 LogText "Result: directory ${I} does not exist"
             fi
         done
@@ -108,21 +107,25 @@
             LogText "Test: checking directory ${I}"
             if [ -d ${I} ]; then
                 LogText "Result: found directory ${I}"
-                LogText "Test: searching files in ${I}"
-                FIND=$(find ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
-                if [ "${FIND}" = "" ]; then
-                    LogText "Result: no files found in ${I}"
-                  else
-                    LogText "Result: found one or more files in ${I}. Analyzing files.."
-                    for J in ${FIND}; do
-                        if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
-                        if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
-                        LogText "Result: Found cronjob (${I}): ${J}"
-                        Report "cronjob[]=${J}"
-                    done
-                    LogText "Result: done with analyzing files in ${I}"
+                if FileIsReadable ${I}; then
+                    LogText "Test: searching files in ${I}"
+                    FIND=$(find ${I} -type f -print 2> /dev/null | ${GREPBINARY} -v ".placeholder")
+                    if [ "${FIND}" = "" ]; then
+                        LogText "Result: no files found in ${I}"
+                    else
+                        LogText "Result: found one or more files in ${I}. Analyzing files.."
+                        for J in ${FIND}; do
+                            if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+                            if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
+                            LogText "Result: Found cronjob (${I}): ${J}"
+                            Report "cronjob[]=${J}"
+                        done
+                        LogText "Result: done with analyzing files in ${I}"
+                    fi
+                else
+                    LogText "Result: directory permissions are too strict to enter it (which might be good)"
                 fi
-              else
+            else
                 LogText "Result: directory ${I} does not exist"
             fi
         done
@@ -130,23 +133,27 @@
         # /var/spool/cron/* and /var/spool/cron/crontabs/*
         # Search only in one tree, to avoid searching the tree twice
         if [ -d /var/spool/cron/crontabs ]; then
-            FIND=$(find /var/spool/cron/crontabs -type f -print)
+            FIND=$(${FINDBINARY} /var/spool/cron/crontabs -xdev -type f -print 2> /dev/null)
             for I in ${FIND}; do
-                FindCronJob ${I}
-                for J in ${sCRONJOBS}; do
-                    LogText "Found cronjob (/var/spool/cron/crontabs): ${I} (${J})"
-                    Report "cronjob[]=${I}"
-                done
+                if FileIsReadable ${I}; then
+                    FindCronJob ${I}
+                    for J in ${sCRONJOBS}; do
+                        LogText "Found cronjob (/var/spool/cron/crontabs): ${I} (${J})"
+                        Report "cronjob[]=${I}"
+                    done
+                fi
             done
-          else
+        else
             if [ -d /var/spool/cron ]; then
                 FIND=$(find /var/spool/cron -type f -print)
                 for I in ${FIND}; do
-                    FindCronJob ${I}
-                    for J in ${sCRONJOBS}; do
-                        LogText "Found cronjob (/var/spool/cron): ${I} (${J})"
-                        LogText "cronjob[]=${I}"
-                    done
+                    if FileIsReadable ${I}; then
+                        FindCronJob ${I}
+                        for J in ${sCRONJOBS}; do
+                            LogText "Found cronjob (/var/spool/cron): ${I} (${J})"
+                            LogText "cronjob[]=${I}"
+                        done
+                    fi
                 done
             fi
         fi
@@ -156,11 +163,11 @@
             if [ -f /etc/anacrontab ]; then
                 LogText "Test: checking anacrontab"
                 sANACRONJOBS=$(${EGREPBINARY} '^([0-9@])' /etc/anacrontab | ${TRBINARY} '\t' ' ' | ${TRBINARY} -s ' ' | ${TRBINARY} ' ' ',')
-                if [ ! "${sANACRONJOBS}" = "" ]; then
+                if [ ! -z "${sANACRONJOBS}" ]; then
                     Report "scheduler[]=anacron"
-                    for J in ${sANACRONJOBS}; do
-                        LogText "Found anacron job (/etc/anacrontab): ${J}"
-                        Report "cronjob[]=${J}"
+                    for I in ${sANACRONJOBS}; do
+                        LogText "Found anacron job (/etc/anacrontab): ${I}"
+                        Report "cronjob[]=${I}"
                     done
                 fi
             fi
@@ -187,12 +194,12 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking atd status"
         FIND=$(${PSBINARY} ax | ${GREPBINARY} "/atd" | ${GREPBINARY} -v "grep")
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: at daemon active"
             Display --indent 2 --text "- Checking atd status" --result "${STATUS_RUNNING}" --color GREEN
             ATD_RUNNING=1
             Report "scheduler[]=atd"
-          else
+        else
             LogText "Result: at daemon not active"
             if IsVerbose; then Display --indent 2 --text "- Checking atd status" --result "${STATUS_NOT_RUNNING}" --color WHITE; fi
         fi
@@ -227,7 +234,7 @@
                     FIND=$(${SORTBINARY} ${AT_ALLOW})
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: File empty, no users are allowed to schedule at jobs"
-                      else
+                    else
                         for I in ${FIND}; do
                            LogText "Allowed at user: ${I}"
                         done
@@ -235,32 +242,32 @@
                   else
                     LogText "Result: can not read ${AT_ALLOW} (no permission)"
                 fi
-             else
-               LogText "Result: file ${AT_ALLOW} does not exist"
-               LogText "Test: checking for file ${AT_DENY}"
-               if [ -f ${AT_DENY} ]; then
-                   FileIsReadable ${AT_DENY}
-                   if [ ${CANREAD} -eq 1 ]; then
-                       LogText "Result: file ${AT_DENY} exists, only non listed users can schedule at jobs"
-                       FIND=$(${SORTBINARY} ${AT_DENY})
-                       if [ "${FIND}" = "" ]; then
-                           LogText "Result: file is empty, no users are denied access to schedule jobs"
-                         else
-                           for I in ${FIND}; do
-                               LogText "Denied at user: ${I}"
-                           done
-                       fi
-                     else
-                       LogText "Result: can not read ${AT_DENY} (no permission)"
-                   fi
-                 else
-                   LogText "Result: both ${AT_ALLOW} and ${AT_DENY} do not exist"
-                   LogText "Note: only root can schedule at jobs"
-                   AddHP 1 1
-               fi
+            else
+                LogText "Result: file ${AT_ALLOW} does not exist"
+                LogText "Test: checking for file ${AT_DENY}"
+                if [ -f ${AT_DENY} ]; then
+                    FileIsReadable ${AT_DENY}
+                    if [ ${CANREAD} -eq 1 ]; then
+                        LogText "Result: file ${AT_DENY} exists, only non listed users can schedule at jobs"
+                        FIND=$(${SORTBINARY} ${AT_DENY})
+                        if [ "${FIND}" = "" ]; then
+                            LogText "Result: file is empty, no users are denied access to schedule jobs"
+                        else
+                            for I in ${FIND}; do
+                                LogText "Denied at user: ${I}"
+                            done
+                        fi
+                    else
+                        LogText "Result: can not read ${AT_DENY} (no permission)"
+                    fi
+                else
+                    LogText "Result: both ${AT_ALLOW} and ${AT_DENY} do not exist"
+                    LogText "Note: only root can schedule at jobs"
+                    AddHP 1 1
+                fi
             fi
             Display --indent 4 --text "- Checking at users" --result "${STATUS_DONE}" --color GREEN
-          else
+        else
             Display --indent 4 --text "- Checking at users" --result "${STATUS_SKIPPED}" --color YELLOW
         fi
     fi
@@ -281,7 +288,7 @@
                 LogText "Found at job: ${VALUE}"
             done
             Display --indent 4 --text "- Checking at jobs" --result "${STATUS_FOUND}" --color GREEN
-          else
+        else
             LogText "Result: no pending at jobs"
             Display --indent 4 --text "- Checking at jobs" --result "${STATUS_NONE}" --color GREEN
         fi

@@ -14,8 +14,10 @@ Changes:
 Tests:
 ------
 * CRYP-7902 - Test *.crt and *.pem certificates , but only if not part of a package
+* FILE-7524 - Reduce standard screen output for file permissions check
 * MALW-3280 - Added Avira detection as a malware scanner
 * NAME-4018 - Only perform name services test when resolv.conf file exists
+* PKGS-7387 - Check all repositories if they use GPG signing
 * SCHD-7704 - Permission checks
 * TIME-3104 - Check permissions before open files
 

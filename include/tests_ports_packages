@@ -866,9 +866,26 @@
 #
     # Test        : PKGS-7387
     # Description : Search for YUM GPG check
-    if [ -x /usr/bin/yum -a "${DNFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -x /usr/bin/yum -a -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7387 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --category security --description "Check for GPG signing in YUM security package"
     if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ! -z "${PYTHONBINARY}" ]; then
+            REPOS=$(${PYTHONBINARY} -c 'import yum ; yb = yum.YumBase() ; print [(r.id + "=" + str(r.gpgcheck)) for r in yb.repos.listEnabled()]' | ${GREPBINARY} "^\[" | ${TRBINARY} -d '[] ' ${TRBINARY} -d "'" | ${SEDBINARY} 's/,/ /g')
+            for I in ${REPOS}; do
+                REPO=$(echo ${I} | ${AWKBINARY} -F= '{print $1}')
+                GPGSIGNED=$(echo ${I} | ${AWKBINARY} -F= '{print $2}')
+                if [ "${GPGSIGNED}" = "False" ]; then
+                    LogText "Result: software repository '${REPO}' is NOT signed"
+                    Report "software_repository_unsigned[]=${REPO}"
+                    AddHP 3 4
+                elif [ "${GPGSIGNED}" = "True" ]; then
+                    LogText "Result: software repository '${REPO}' is signed"
+                    AddHP 4 4
+                else
+                    LogText "Result: unknown status for repository (data: ${I})"
+                fi
+            done
+        fi
         FOUND=0
         FileExists /etc/yum.conf
         if [ ${FILE_FOUND} -eq 1 ]; then

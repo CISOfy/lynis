@@ -8,11 +8,15 @@ Changes:
 * Added FileInstalledByPackage function (dpkg and rpm supported)
 * Mark Arch Linux version as rolling release (instead of unknown)
 * Support for Manjaro Linux
+* Escape files when testing if they are readable
+* Code cleanups
 
 Tests:
 ------
-* NAME-4018 - Only perform name services test when resolv.conf file exists
 * CRYP-7902 - Test *.crt and *.pem certificates , but only if not part of a package
+* NAME-4018 - Only perform name services test when resolv.conf file exists
+* SCHD-7704 - Permission checks
+* TIME-3104 - Check permissions before open files
 
 ---------------------------------------------------------------------------------
 

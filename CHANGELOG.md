@@ -1,6 +1,15 @@
 Lynis Changelog
 ===============
 
+Lynis 2.4.7 (not released yet)
+
+
+Tests:
+------
+* BANN-7126 - Added more words to test for
+
+---------------------------------------------------------------------------------
+
 Lynis 2.4.6 (2017-03-15)
 
 Changes:

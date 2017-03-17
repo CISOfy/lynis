@@ -3,10 +3,12 @@ Lynis Changelog
 
 Lynis 2.4.7 (not released yet)
 
+Changes:
 
 Tests:
 ------
 * BANN-7126 - Added more words to test for
+* PKGS-7388 - Minor change to detect security repositories
 
 ---------------------------------------------------------------------------------
 

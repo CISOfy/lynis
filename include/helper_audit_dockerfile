@@ -24,7 +24,7 @@ if [ $# -eq 0 ]; then
     Display --text " "; Display --text " "
     ExitFatal
   else
-    FILE=`echo $1 | egrep "^http|https"`
+    FILE=$(echo $1 | egrep "^http|https")
     if [ ! "${FILE}" = "" ] ; then
         CreateTempFile
         TMP_FILE="${TEMP_FILE}"
@@ -59,12 +59,12 @@ fi
     InsertSection "Image"
 
     PKGMGR=""
-    FIND=`grep "^FROM" ${AUDIT_FILE} | sed 's/ /:space:/g'`
+    FIND=$(grep "^FROM" ${AUDIT_FILE} | sed 's/ /:space:/g')
     for I in ${FIND}; do
-        IMAGE=`echo ${I} | sed 's/:space:/ /g' | awk '{ if ($1=="FROM") { print $2 }}'`
+        IMAGE=$(echo ${I} | sed 's/:space:/ /g' | awk '{ if ($1=="FROM") { print $2 }}')
         Display --indent 2 --text "Found image:" --result "${IMAGE}"
 
-        IS_UBUNTU=`echo ${IMAGE} | grep -i ubuntu`
+        IS_UBUNTU=$(echo ${IMAGE} | grep -i ubuntu)
         if [ ! "${IS_DEBIAN}" = "" ]; then IMAGE="debian"; fi
         if [ ! "${IS_FEDORA}" = "" ]; then IMAGE="fedora"; fi
         if [ ! "${IS_UBUNTU}" = "" ]; then IMAGE="ubuntu"; fi
@@ -95,11 +95,11 @@ fi
 
 InsertSection "Basics"
 
-    FIND=`egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g'`
+    FIND=$(egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g')
     if [ "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "No maintainer found. Unclear who created this file."
       else
-        MAINTAINER=`echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}'`
+        MAINTAINER=$(echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}')
         Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
     fi
 
@@ -111,7 +111,7 @@ InsertSection "Basics"
 
     case $PKGMGR in
     "apt")
-        FIND=`egrep "apt-get(.*) install" ${AUDIT_FILE}`
+        FIND=$(egrep "apt-get(.*) install" ${AUDIT_FILE})
         if [ ! "${FIND}" = "" ]; then
             LogText "Found installation via apt-get"
           else
@@ -123,14 +123,14 @@ InsertSection "Basics"
     ;;
     esac
 
-    FIND=`egrep " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#"`
+    FIND=$(egrep " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#")
     if [ ! "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "Possible development utilities found, which is not advised for production environment"
         LogText "Details: ${FIND}"
     fi
 
     # SSH
-    FIND_OPENSSH=`grep openssh ${AUDIT_FILE}`
+    FIND_OPENSSH=$(grep openssh ${AUDIT_FILE})
     if [ ! "${FIND_OPENSSH}" = "" ]; then
         Display --indent 2 --text "OpenSSH" --result "FOUND" --color RED
         ReportSuggestion "dockerfile" "Don't use OpenSSH in container, use 'docker exec' instead"
@@ -143,21 +143,21 @@ InsertSection "Basics"
     FILE_DOWNLOAD=0
 
     LogText "Checking usage of cURL"
-    FIND_CURL=`grep curl ${AUDIT_FILE}`
+    FIND_CURL=$(grep curl ${AUDIT_FILE})
     if [ ! "${FIND_CURL}" = "" ]; then
         Display --indent 4 --text "Download tool" --result "curl"
         FILE_DOWNLOAD=1
     fi
 
     LogText "Checking usage of wget"
-    FIND_WGET=`grep wget ${AUDIT_FILE}`
+    FIND_WGET=$(grep wget ${AUDIT_FILE})
     if [ ! "${FIND_WGET}" = "" ]; then
         Display --indent 4 --text "Download tool" --result "wget"
         FILE_DOWNLOAD=1
     fi
 
 
-    FIND=`grep "^ADD http" ${AUDIT_FILE}`
+    FIND=$(grep "^ADD http" ${AUDIT_FILE})
     if [ ! "${FIND}" = "" ]; then
         FILE_DOWNLOAD=1
         ReportWarning "dockerfile" "Found download of file via ADD. Unclear if the integrity of this file is checked, or file is signed"
@@ -166,7 +166,7 @@ InsertSection "Basics"
 
     if [ ${FILE_DOWNLOAD} -eq 1 ]; then
 
-        SSL_USED_FIND=`egrep "(https)" ${AUDIT_FILE}`
+        SSL_USED_FIND=$(egrep "(https)" ${AUDIT_FILE})
 
         if [ ! "${SSL_USED_FIND}" = "" ]; then
             SSL_USED="YES"
@@ -177,9 +177,9 @@ InsertSection "Basics"
             ReportSuggestion "Use SSL downloads when possible to increase security (DNSSEC, HTTPS, validation of domain, avoid MitM)"
         fi
         Display --indent 2 --text "Integrity testing performed" --result "${SSL_USED}" --color ${COLOR}
-        HASHING_USED=`egrep "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE}`
+        HASHING_USED=$(egrep "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE})
         Display --indent 2 --text "Hashing" --result "${HASHING_USED}"
-        KEYS_USED=`egrep "(apt-key adv)" ${AUDIT_FILE}`
+        KEYS_USED=$(egrep "(apt-key adv)" ${AUDIT_FILE})
         Display --indent 2 --text "Signing keys used" --result ${SSL_USED}
         Display --indent 2 --text "All downloads properly checked" --result "?"
       else
@@ -191,7 +191,7 @@ InsertSection "Basics"
 #
     InsertSection "Permissions"
 
-    FIND=`grep -i "chmod 777" ${AUDIT_FILE}`
+    FIND=$(grep -i "chmod 777" ${AUDIT_FILE})
     if [ ! "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "Warning: chmod 777 found"
     fi

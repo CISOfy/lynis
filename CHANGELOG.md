@@ -1,6 +1,55 @@
 Lynis Changelog
 ===============
 
+Lynis 2.4.7 (not released yet)
+
+
+Tests:
+------
+* BANN-7126 - Added more words to test for
+
+---------------------------------------------------------------------------------
+
+Lynis 2.4.6 (2017-03-15)
+
+Changes:
+--------
+* Added FileInstalledByPackage function (dpkg and rpm supported)
+* Mark Arch Linux version as rolling release (instead of unknown)
+* Support for Manjaro Linux
+* Escape files when testing if they are readable
+* Code cleanups
+
+Tests:
+------
+* CRYP-7902 - Test more certificates names, but only if they are not part of a package
+* FILE-7524 - Reduce standard screen output for file permissions check
+* MALW-3280 - Added Avira detection as a malware scanner
+* NAME-4018 - Only perform name services test when resolv.conf file exists
+* PKGS-7387 - Check all repositories if they use GPG signing
+* SCHD-7704 - Permission checks
+* TIME-3104 - Check permissions before open files
+
+---------------------------------------------------------------------------------
+
+Lynis 2.4.5 (2017-03-09)
+
+Changes:
+--------
+* Allow host alias to be specified in profile
+* Code readability enhancements
+* Solaris support has been improved
+
+Tests:
+------
+* AUTH-9328 - Add missing 0027 and 0077 umasks
+* BOOT-5104 - Add initsplash and minor code enhancements
+* DBS-1882  - Include Redis configuration file
+* FIRE-4502 - Improved detection for iptables modules when using OpenVZ
+* PKGS-7381 - Enhanced package audit for FreeBSD
+
+---------------------------------------------------------------------------------
+
 Lynis 2.4.4 (2017-03-01)
 
 Changes:

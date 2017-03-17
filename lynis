@@ -22,16 +22,22 @@
 #
 #################################################################################
 #
+    # In Solaris /bin/sh is not POSIX, but /usr/xpg4/bin/sh is.
+    # Switch to /usr/xpg4/bin/sh if it exists and we are not already running it.
+    test "$_" != "/usr/xpg4/bin/sh" && test -f /usr/xpg4/bin/sh && exec /usr/xpg4/bin/sh "$0" "$@"
+#
+#################################################################################
+#
     # Program information
     PROGRAM_NAME="Lynis"
     PROGRAM_AUTHOR="CISOfy"
     PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2017-03-01"
-    PROGRAM_RELEASE_TIMESTAMP=1488378460
-    PROGRAM_RELEASE_TYPE="final" # dev or final
-    PROGRAM_VERSION="2.4.4"
+    PROGRAM_RELEASE_DATE="2017-03-18"
+    PROGRAM_RELEASE_TIMESTAMP=1489570216
+    PROGRAM_RELEASE_TYPE="dev" # dev or final
+    PROGRAM_VERSION="2.4.7"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
@@ -61,7 +67,7 @@
 #################################################################################
 #
     # Work directory
-    WORKDIR=`pwd`
+    WORKDIR=$(pwd)
 
     # Test from which directories we can use all functions and tests
 
@@ -76,7 +82,7 @@
         done
 
     # Drop out if our include directory can't be found
-        if [ "${INCLUDEDIR}" = "" ]; then
+        if [ -z "${INCLUDEDIR}" ]; then
             printf "%s" "
 Fatal error: can't find include directory
 Make sure to execute ${PROGRAM_NAME} from untarred directory or check your installation."
@@ -98,7 +104,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     if [ ! -f ${DBDIR}/languages/en ]; then
         echo "Could not find languages directory (file: ${DBDIR}/languages/en)"
         exit 1
-      else
+    else
         . ${DBDIR}/languages/en
     fi
 
@@ -121,7 +127,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     else
         MYID=$(id -u 2> /dev/null)
     fi
-    if [ "${MYID}" = "" ]; then Display "Could not find user ID with id command. Want to help improving Lynis? Raise a ticket at ${PROGRAM_SOURCE}"; ExitFatal; fi
+    if [ -z "${MYID}" ]; then Display "Could not find user ID with id command. Want to help improving Lynis? Raise a ticket at ${PROGRAM_SOURCE}"; ExitFatal; fi
 #
 #################################################################################
 #
@@ -165,7 +171,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     done
 
     if [ ${SHOWPERMERROR} -eq 1 ]; then
-            printf "%s" "
+        printf "%s" "
 
 [!] Change ownership of ${INCLUDEDIR}/${ISSUE_FILE} to 'root' or similar (found: ${ISSUE_OWNER} with UID ${ISSUE_OWNERID}).
 
@@ -218,7 +224,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     # Now determine if we are root (UID = 0)
     if [ ${MYID} -eq 0 ]; then
         PRIVILEGED=1
-      else
+    else
         Debug "Starting Lynis non-privileged"
         # Implied pentesting mode if not performed by root user
         PENTESTINGMODE=1
@@ -248,7 +254,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 #################################################################################
 #
     # CV - Current Version
-    PROGRAM_AC=`echo ${PROGRAM_VERSION} | awk '{ print $1 }' | sed 's/[.]//g'`
+    PROGRAM_AC=$(echo ${PROGRAM_VERSION} | awk '{ print $1 }' | sed 's/[.]//g')
     PROGRAM_LV=0
 #
 #################################################################################
@@ -299,9 +305,9 @@ ${NORMAL}
 #################################################################################
 #
     # Decide where to write our PID file. For unprivileged users this will be in their home directory, or /tmp if their
-    # home directory isn't set. For root it will be /var/run, or the current workign directory if /var/run doesn't exist.
+    # home directory isn't set. For root it will be /var/run, or the current working directory if /var/run doesn't exist.
     MYHOMEDIR=$(echo ~ 2> /dev/null)
-    if [ "${MYHOMEDIR}" = "" ]; then MYHOMEDIR="/tmp"; fi
+    if [ -z "${MYHOMEDIR}" ]; then MYHOMEDIR="/tmp"; fi
 
     if [ ${PRIVILEGED} -eq 0 ]; then
         PIDFILE="${MYHOMEDIR}/lynis.pid"
@@ -331,7 +337,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
         if [ ${CRONJOB} -eq 1 ]; then
             echo "Quitting, to prevent multiple cron jobs running at the same time"
             exit 1 # Manually exit, no cleanups to prevent deleting an active PID file
-          else
+        else
             wait_for_keypress
         fi
 
@@ -440,7 +446,7 @@ ${NORMAL}
 
 "
         sleep 3
-        if [ "${LOGFILE}" = "" -o "${LOGFILE}" = "/dev/null" ]; then
+        if [ -z "${LOGFILE}" -o "${LOGFILE}" = "/dev/null" ]; then
             printf "%s" "
   ${RED}WARNING:${NORMAL}
   ${WHITE}*${NORMAL} No suggestions or warnings will be displayed in report (due to missing log file)"
@@ -544,7 +550,7 @@ ${NORMAL}
             Display --indent 4 --text "${YELLOW}Notice:${NORMAL} no language file found for '${LANGUAGE}' (tried: ${DBDIR}/languages/${LANGUAGE})"
             if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/documentation/10-translations.md for more details to help translating Lynis"; fi
             sleep 5
-          else
+        else
             LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
             . ${DBDIR}/languages/${LANGUAGE}
         fi
@@ -563,7 +569,7 @@ ${NORMAL}
 #################################################################################
 #
     # Plugin directory test
-    if [ "${PLUGINDIR}" = "" ]; then
+    if [ -z "${PLUGINDIR}" ]; then
         #LogText "Result: Searching for plugindir"
         tPLUGIN_TARGETS="/usr/local/lynis/plugins /usr/local/share/lynis/plugins /usr/share/lynis/plugins /etc/lynis/plugins ./plugins"
         for I in ${tPLUGIN_TARGETS}; do
@@ -596,7 +602,7 @@ ${NORMAL}
         echo "  Operating system:          ${OS}"
         echo "  Operating system name:     ${OS_NAME}"
         echo "  Operating system version:  ${OS_VERSION}"
-        if [ ! "${OS_MODE}" = "" ]; then echo "  Operating system mode:     ${OS_MODE}"; fi
+        if [ ! -z "${OS_MODE}" ]; then echo "  Operating system mode:     ${OS_MODE}"; fi
         echo "  Kernel version:            ${OS_KERNELVERSION}"
         echo "  Hardware platform:         ${HARDWARE}"
         echo "  Hostname:                  ${HOSTNAME}"
@@ -618,10 +624,10 @@ ${NORMAL}
     LogText "Operating system:          ${OS}"
     LogText "Operating system name:     ${OS_NAME}"
     LogText "Operating system version:  ${OS_VERSION}"
-    if [ ! "${OS_MODE}" = "" ]; then LogText "Operating system mode:     ${OS_MODE}"; fi
+    if [ ! -z "${OS_MODE}" ]; then LogText "Operating system mode:     ${OS_MODE}"; fi
     LogText "Kernel version:            ${OS_KERNELVERSION}"
-    if [ ! "${OS_KERNELVERSION_FULL}" = "" ]; then
-      LogText "Kernel version (full):     ${OS_KERNELVERSION_FULL}"
+    if [ ! -z "${OS_KERNELVERSION_FULL}" ]; then
+        LogText "Kernel version (full):     ${OS_KERNELVERSION_FULL}"
     fi
     LogText "Hardware platform:         ${HARDWARE}"
     LogText "-----------------------------------------------------"
@@ -652,13 +658,15 @@ ${NORMAL}
 #
     LogText "Test: Checking for program update..."
     UPDATE_AVAILABLE=0
+
     if [ ${SKIP_UPGRADE_TEST} -eq 1 ]; then
         LogText "Upgrade test skipped due profile option set (skip_upgrade_test)"
         PROGRAM_LV="${PROGRAM_AC}"
     else
         CheckUpdates
     fi
-    if [ "${PROGRAM_AC}" = "" -o "${PROGRAM_LV}" = "" ]; then
+
+    if [ -z "${PROGRAM_AC}" -o -z "${PROGRAM_LV}" ]; then
         Display --indent 2 --text "- Program update status... " --result UNKNOWN --color YELLOW
         LogText "Result: Update check failed. No network connection?"
         LogText "Info: to perform an automatic update check, outbound DNS connections should be allowed (TXT record)."
@@ -698,7 +706,12 @@ ${NORMAL}
     fi
 
     # Test for older releases, without testing via update mechanism
-    NOW=$(date "+%s")
+    if [ "$OS" = "Solaris" ]; then
+        NOW=$(nawk 'BEGIN{print srand()}')
+      else
+        NOW=$(date "+%s")
+    fi
+
     OLD_RELEASE=0
     TIME_DIFFERENCE_CHECK=10368000 # 4 months
     RELEASE_PLUS_TIMEDIFF=$((${PROGRAM_RELEASE_TIMESTAMP} + ${TIME_DIFFERENCE_CHECK}))
@@ -815,15 +828,15 @@ ${NORMAL}
                 LogText "Found plugin file: ${PLUGIN_FILE}"
                 # Double check if output is a valid file name
                 if [ -f ${PLUGIN_FILE} ]; then
-                    FIND2=`grep "^# PLUGIN_NAME=" ${PLUGIN_FILE} | awk -F= '{ print $2 }'`
+                    FIND2=$(grep "^# PLUGIN_NAME=" ${PLUGIN_FILE} | awk -F= '{ print $2 }')
                     if [ ! "${FIND2}" = "" -a ! "${FIND2}" = "[plugin_name]" ]; then
                         if [ ${PLUGIN_PHASE} -eq 1 ]; then N_PLUGIN=$((${N_PLUGIN} + 1)); fi
                         # Check if the plugin is enabled in any of the profiles
                         PLUGIN_ENABLED_STATE=0
                         for PROFILE in ${PROFILES}; do
                             LogText "Action: checking plugin status in profile: ${PROFILE}"
-                            FIND3=`grep "^plugin=${FIND2}" ${PROFILE}`
-                            if [ ! "${FIND3}" = "" ]; then
+                            FIND3=$(grep "^plugin=${FIND2}" ${PROFILE})
+                            if [ ! -z "${FIND3}" ]; then
                                 LogText "Result: plugin enabled in profile (${PROFILE})"
                                 PLUGIN_ENABLED_STATE=1
                             fi
@@ -832,8 +845,8 @@ ${NORMAL}
                             LogText "Result: plugin ${FIND2} is enabled"
                             PLUGINFILE="${PLUGINDIR}/plugin_${FIND2}_phase${PLUGIN_PHASE}"
                             if [ -f ${PLUGINFILE} ]; then
-                                PLUGIN_VERSION=`grep "^# PLUGIN_VERSION=" ${PLUGIN_FILE} | awk -F= '{ print $2 }'`
-                                PLUGIN_VERSION_NODOTS=`echo ${PLUGIN_VERSION} | sed 's/.//g'`
+                                PLUGIN_VERSION=$(grep "^# PLUGIN_VERSION=" ${PLUGIN_FILE} | awk -F= '{ print $2 }')
+                                PLUGIN_VERSION_NODOTS=$(echo ${PLUGIN_VERSION} | sed 's/.//g')
                                 if SafePerms ${PLUGINFILE}; then
                                     LogText "Including plugin file: ${PLUGINFILE} (version: ${PLUGIN_VERSION})"
                                     Report "plugin_enabled_phase${PLUGIN_PHASE}[]=${FIND2}|${PLUGIN_VERSION}|"

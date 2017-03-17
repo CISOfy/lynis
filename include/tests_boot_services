@@ -71,9 +71,9 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FILENAME=`${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline`
+                    FILENAME=$(${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline)
                     LogText "Result: cmdline found = ${FILENAME}"
-                    ISFILE=`echo ${FILENAME} | ${GREPBINARY} "^/"`
+                    ISFILE=$(echo ${FILENAME} | ${GREPBINARY} "^/")
                     if [ ! "${ISFILE}" = "" ]; then
                         if [ -L ${ISFILE} ]; then
                             ShowSymlinkPath ${ISFILE}
@@ -85,10 +85,10 @@
                         fi
                     fi
                     if [ ! "${FILENAME}" = "" ]; then
-                        SHORTNAME=`echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }'`
+                        SHORTNAME=$(echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }')
                         LogText "Found: ${SHORTNAME}"
                         case ${SHORTNAME} in
-                            "init")
+                            "init" | "initsplash")
                                 SERVICE_MANAGER="SysV Init"
                             ;;
                             systemd)
@@ -98,8 +98,9 @@
                                 SERVICE_MANAGER="upstart"
                             ;;
                             *)
-                                CONTAINS_SYSTEMD=`echo ${SHORTNAME} | ${GREPBINARY} "systemd"`
-                                if [ ! "${CONTAINS_SYSTEMD}" = "" ]; then
+                                CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
+
+                                if [ ! -z "${CONTAINS_SYSTEMD}" ]; then
                                     SERVICE_MANAGER="systemd"
                                 else
                                     LogText "Found ${SHORTNAME}. Unclear what service manager this is"
@@ -107,7 +108,7 @@
                                 fi
                             ;;
                         esac
-                      else
+                    else
                         LogText "Result: /proc/1/cmdline seems to be empty"
                         ReportException "${TEST_NO}:002" "No data found in /proc/1/cmdline"
                     fi
@@ -117,13 +118,14 @@
                     if [ -f /usr/bin/init-openrc ]; then SERVICE_MANAGER="openrc"; fi
                 fi
             ;;
-            "DragonFly"|"NetBSD"|"FreeBSD")
+            "DragonFly" | "NetBSD" | "FreeBSD")
                 if [ -x /sbin/init -a -d ${ROOTDIR}etc/rc.d -a -f ${ROOTDIR}etc/rc ]; then
                     SERVICE_MANAGER="bsdrc"
                 fi
             ;;
             *)
                 LogText "Result: unknown service manager"
+            ;;
         esac
         LogText "Result: service manager found = ${SERVICE_MANAGER}"
         if [ "${SERVICE_MANAGER}" = "" -o "${SERVICE_MANAGER}" = "unknown" ]; then
@@ -258,7 +260,7 @@
         # Some OSes like Gentoo do not have /boot mounted by default
         # TODO: root directory and rewrite ls statement
         if [ -d /boot ]; then
-            if [ "`ls /boot/* 2> /dev/null`" = "" -a ! -z "${GRUB2INSTALLBINARY}" ]; then
+            if [ "$(ls /boot/* 2> /dev/null)" = "" -a ! -z "${GRUB2INSTALLBINARY}" ]; then
                 BOOT_LOADER_FOUND=1
                 LogText "Result: found empty /boot, however with GRUB2 binary installed. Best guess is that GRUB2 is actually installed, but /boot not mounted"
                 Display --indent 2 --text "- Checking presence GRUB2" --result "POSSIBLE MATCH" --color YELLOW
@@ -386,7 +388,7 @@
                         ReportSuggestion ${TEST_NO} "Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"
                         ReportWarning ${TEST_NO} "No password set on LILO bootloader"
                         AddHP 0 2
-                    elif [ "${MACHINE_ROLE}" = "personal"]; then
+                    elif [ "${MACHINE_ROLE}" = "personal" ]; then
                         Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color yellow
                         LogText "Result: no password set for LILO. Bootloader is unprotected to dropping to single user mode or unauthorized access to devices/data."
                         ReportSuggestion ${TEST_NO} "No password set on LILO bootloader. Add a password to LILO, by adding a line to the lilo.conf file, above the first line saying 'image=<name>': password=<password>"

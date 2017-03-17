@@ -43,12 +43,12 @@
         if [ -L /etc/systemd/system/default.target ]; then
             LogText "Result: symlink found"
             if [ ! "${READLINKBINARY}" = "" ]; then
-                FIND=`${READLINKBINARY} /etc/systemd/system/default.target`
+                FIND=$(${READLINKBINARY} /etc/systemd/system/default.target)
                 if [ "${FIND}" = "" ]; then
                     LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
                     ReportException "${TEST_NO}:01"
                   else
-                    FIND2=`echo ${FIND} | ${EGREPBINARY} "runlevel5|graphical"`
+                    FIND2=$(echo ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
                     if [ ! "${FIND2}" = "" ]; then
                         LogText "Result: Found match on runlevel5/graphical"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
@@ -69,7 +69,7 @@
             if [ -f /etc/inittab ]; then
                 LogText "Result: file /etc/inittab found"
                 LogText "Test: Checking default Linux run level"
-                FIND=`${AWKBINARY} -F: '/^id/ { print $2; }' /etc/inittab | head -n 1`
+                FIND=$(${AWKBINARY} -F: '/^id/ { print $2; }' /etc/inittab | head -n 1)
                 if [ "${FIND}" = "" ]; then
                     Display --indent 2 --text "- Checking default runlevel" --result "${STATUS_UNKNOWN}" --color YELLOW
                     LogText "Result: Can't determine default run level from /etc/inittab"
@@ -82,7 +82,7 @@
                 LogText "Result: file /etc/inittab not found"
                 if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then
                     LogText "Test: Checking run level with who -r, for Debian based systems"
-                    FIND=`who -r | ${AWKBINARY} '{ if ($1=="run-level") { print $2 } }'`
+                    FIND=$(who -r | ${AWKBINARY} '{ if ($1=="run-level") { print $2 } }')
                     if [ ! "${FIND}" = "" ]; then
                         LogText "Result: Found default run level '${FIND}'"
                         Report "linux_default_runlevel=${FIND}"
@@ -109,9 +109,9 @@
         if [ -f /proc/cpuinfo ]; then
             LogText "Result: found /proc/cpuinfo"
             LogText "Test: Checking CPU options (XD/NX/PAE)"
-            FIND_PAE_NX=`${GREPBINARY} " pae " /proc/cpuinfo | ${GREPBINARY} " nx "`
-            FIND_PAE=`${GREPBINARY} " pae " /proc/cpuinfo`
-            FIND_NX=`${GREPBINARY} " nx " /proc/cpuinfo`
+            FIND_PAE_NX=$(${GREPBINARY} " pae " /proc/cpuinfo | ${GREPBINARY} " nx ")
+            FIND_PAE=$(${GREPBINARY} " pae " /proc/cpuinfo)
+            FIND_NX=$(${GREPBINARY} " nx " /proc/cpuinfo)
             FOUND=0
             if [ ! "${FIND_PAE_NX}" = "" ]; then
                 LogText "PAE: Yes"
@@ -165,11 +165,11 @@
     Register --test-no KRNL-5695 --os Linux --weight L --network NO --category security --description "Determine Linux kernel version and release number"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Kernel number (and suffix)
-        LINUX_KERNEL_RELEASE=`uname -r`
+        LINUX_KERNEL_RELEASE=$(uname -r)
         Report "linux_kernel_release=${LINUX_KERNEL_RELEASE}"
         LogText "Result: found kernel release ${LINUX_KERNEL_RELEASE}"
         # Type and build date
-        LINUX_KERNEL_VERSION=`uname -v`
+        LINUX_KERNEL_VERSION=$(uname -v)
         Report "linux_kernel_version=${LINUX_KERNEL_VERSION}"
         LogText "Result: found kernel version ${LINUX_KERNEL_VERSION}"
         Display --indent 2 --text "- Checking kernel version and release" --result "${STATUS_DONE}" --color GREEN
@@ -184,7 +184,7 @@
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
             LogText "Test: checking if kernel is monolithic or modular"
             # Checking if any modules are loaded
-            FIND=`${LSMODBINARY} | ${GREPBINARY} -v "^Module" | wc -l | ${TRBINARY} -s ' ' | ${TRBINARY} -d ' '`
+            FIND=$(${LSMODBINARY} | ${GREPBINARY} -v "^Module" | wc -l | ${TRBINARY} -s ' ' | ${TRBINARY} -d ' ')
             Display --indent 2 --text "- Checking kernel type" --result "${STATUS_DONE}" --color GREEN
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: Found monolithic kernel"
@@ -207,7 +207,7 @@
     Register --test-no KRNL-5726 --os Linux --weight L --network NO --category security --description "Checking Linux loaded kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
-            FIND=`${LSMODBINARY} | ${AWKBINARY} '{ if ($1!="Module") print $1 }' | sort`
+            FIND=$(${LSMODBINARY} | ${AWKBINARY} '{ if ($1!="Module") print $1 }' | sort)
             Display --indent 2 --text "- Checking loaded kernel modules" --result "${STATUS_DONE}" --color GREEN
             if [ ! "${FIND}" = "" ]; then
                 LogText "Loaded modules according lsmod:"
@@ -233,7 +233,7 @@
     # Description : Checking for available Linux kernel configuration file in /boot
     Register --test-no KRNL-5728 --os Linux --weight L --network NO --category security --description "Checking Linux kernel config"
     if [ ${SKIPTEST} -eq 0 ]; then
-        CHECKFILE="/boot/config-`uname -r`"
+        CHECKFILE="/boot/config-$(uname -r)"
         if [ -f ${CHECKFILE} ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LogText "Result: found config (${LINUXCONFIGFILE})"
@@ -267,7 +267,7 @@
         if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
         if [ ! "${GREPTOOL}" = "" ]; then
             LogText "Test: Checking the default I/O kernel scheduler"
-            LINUX_KERNEL_IOSCHED=`${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | ${SEDBINARY} s/\"//g`
+            LINUX_KERNEL_IOSCHED=$(${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | ${SEDBINARY} s/\"//g)
             if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
                 LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
@@ -292,7 +292,7 @@
         LogText "Description: View all active kernel modules (including kernel)"
         LogText "Test: Checking modules"
         if [ -f /sbin/kldstat ]; then
-            FIND=`kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6`
+            FIND=$(kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6)
             if [ $? -eq 0 ]; then
                 LogText "Loaded modules according kldstat:"
                 N=0
@@ -323,7 +323,7 @@
         LogText "Description: View all active kernel modules (including kernel)"
         LogText "Test: Checking modules"
         if [ -f /sbin/kldstat ]; then
-            FIND=`kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6`
+            FIND=$(kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6)
             if [ $? -eq 0 ]; then
                 LogText "Loaded modules according kldstat:"
                 N=0
@@ -350,7 +350,7 @@
     Register --test-no KRNL-5770 --os Solaris --weight L --network NO --category security --description "Checking active kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: searching loaded kernel modules"
-        FIND=`modinfo -c -w | ${GREPBINARY} -v "UNLOADED" | ${GREPBINARY} LOADED | ${AWKBINARY} '{ print $3 }' | sort`
+        FIND=$(/usr/sbin/modinfo -c -w | ${GREPBINARY} -v "UNLOADED" | ${GREPBINARY} LOADED | ${AWKBINARY} '{ print $3 }' | sort)
         if [ ! "${FIND}" = "" ]; then
             for I in ${FIND}; do
                 LogText "Found module: ${I}"
@@ -394,7 +394,7 @@
             LogText "Kernel candidate: ${FINDCAND}"
             if [ -z "${FINDINST}" ]; then
                 Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
-                LogText "Result: Exception occured, no output from apt-cache policy"
+                LogText "Result: Exception occurred, no output from apt-cache policy"
                 ReportException "${TEST_NO}:01"
                 LogText "Exception: apt-cache policy did not return an installed kernel version"
                 ReportSuggestion ${TEST_NO} "Check the output of apt-cache policy manually to determine why output is empty"
@@ -523,7 +523,7 @@
                         fi
                     done
                     if [ ! -z "${FINDVERSION}" ]; then
-                        CURRENT_KERNEL=`uname -r`
+                        CURRENT_KERNEL=$(uname -r)
                         if [ ! "${CURRENT_KERNEL}" = "${FINDVERSION}" ]; then
                             LogText "Result: reboot needed, as current kernel is different than the one loaded"
                             REBOOT_NEEDED=1
@@ -561,55 +561,55 @@
                     LogText "Result: using ${MYKERNEL} as my kernel version (stripped)"
                     FIND=$(ls ${ROOTDIR}boot/vmlinuz* 2> /dev/null)
                     if [ ! -z "${FIND}" ]; then
-                         for ITEM in ${FIND}; do
-                             LogText "Result: found ${ITEM}"
-                         done
-                         # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
-                         # Ignore rescue images. Remove generic. and huge. for Slackware machines
-                         LogText "Action: checking relevant kernels"
-                         KERNELS=$(${LSBINARY} /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
-                         KERNELS_ONE_LINE=$(echo ${KERNELS} | ${TRBINARY} '\n' ' ')
-                         LogText "Output: ${KERNELS_ONE_LINE}"
+                        for ITEM in ${FIND}; do
+                            LogText "Result: found ${ITEM}"
+                        done
+                        # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
+                        # Ignore rescue images. Remove generic. and huge. for Slackware machines
+                        LogText "Action: checking relevant kernels"
+                        KERNELS=$(${LSBINARY} /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
+                        KERNELS_ONE_LINE=$(echo ${KERNELS} | ${TRBINARY} '\n' ' ')
+                        LogText "Output: ${KERNELS_ONE_LINE}"
                     elif [ ! "$(ls ${ROOTDIR}boot/kernel* 2> /dev/null)" = "" ]; then
-                         LogText "Output: Found a kernel file in ${ROOTDIR}boot"
-                         # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
-                         # Examples:
-                         # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
-                         KERNELS=$(${LSBINARY} ${ROOTDIR}boot/kernel* | ${AWKBINARY} -F- '{ if ($2=="genkernel") { print $4 }}' | ${GREPBINARY} "^[0-9]" | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
-                         if [ ! -z "${KERNELS}" ]; then LogText "Output: ${KERNELS}"; fi
+                        LogText "Output: Found a kernel file in ${ROOTDIR}boot"
+                        # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
+                        # Examples:
+                        # /boot/kernel-genkernel-x86_64-3.14.14-gentoo
+                        KERNELS=$(${LSBINARY} ${ROOTDIR}boot/kernel* | ${AWKBINARY} -F- '{ if ($2=="genkernel") { print $4 }}' | ${GREPBINARY} "^[0-9]" | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
+                        if [ ! -z "${KERNELS}" ]; then LogText "Output: ${KERNELS}"; fi
                     else
                         ReportException "${TEST_NO}:2" "Can not find any vmlinuz or kernel files in /boot, which is unexpected"
                     fi
                     if [ ! -z "${KERNELS}" ]; then
-                         FOUND_KERNEL=0
-                         for I in ${KERNELS}; do
-                             # Check if we already found a kernel and it is not equal to what we run (e.g. double versions may exist)
-                             if [ ${FOUND_KERNEL} -eq 1 -a ! "${MYKERNEL}" = "${I}" ]; then
-                                 LogText "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
-                                 REBOOT_NEEDED=1
-                             fi
-                             if [ "${MYKERNEL}" = "${I}" ]; then
-                                 FOUND_KERNEL=1
-                                 LogText "Result: Found ${I} (= our kernel)"
-                             else
-                                 LogText "Result: Found ${I}"
-                             fi
-                         done
-                         # Check if we at least found the kernel on disk
-                         if [ ${FOUND_KERNEL} -eq 0 ]; then
-                             ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
-                         else
-                             # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
-                             if [ ${REBOOT_NEEDED} -eq 2 ]; then
-                                 LogText "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
-                                 REBOOT_NEEDED=0
-                             fi
-                         fi
-                     fi
+                        FOUND_KERNEL=0
+                        for I in ${KERNELS}; do
+                            # Check if we already found a kernel and it is not equal to what we run (e.g. double versions may exist)
+                            if [ ${FOUND_KERNEL} -eq 1 -a ! "${MYKERNEL}" = "${I}" ]; then
+                                LogText "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
+                                REBOOT_NEEDED=1
+                            fi
+                            if [ "${MYKERNEL}" = "${I}" ]; then
+                                FOUND_KERNEL=1
+                                LogText "Result: Found ${I} (= our kernel)"
+                            else
+                                LogText "Result: Found ${I}"
+                            fi
+                        done
+                        # Check if we at least found the kernel on disk
+                        if [ ${FOUND_KERNEL} -eq 0 ]; then
+                            ReportException "${TEST_NO}:3" "Could not find our running kernel on disk, which is unexpected"
+                        else
+                            # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
+                            if [ ${REBOOT_NEEDED} -eq 2 ]; then
+                                LogText "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
+                                REBOOT_NEEDED=0
+                            fi
+                        fi
+                    fi
                 fi
             # No files in /boot
             else
-                 LogText "Result: Skipping this test, as there are no files in /boot"
+                LogText "Result: Skipping this test, as there are no files in /boot"
             fi
         else
             LogText "Result: /boot does not exist"

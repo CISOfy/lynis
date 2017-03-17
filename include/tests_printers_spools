@@ -48,7 +48,7 @@
             LogText "Result: /usr/sbin/chkprintcap NOT found, test skipped."
           else
             LogText "Result: /usr/sbin/chkprintcap found"
-            FIND=`/usr/sbin/chkprintcap > /dev/null ; echo $?`
+            FIND=$(/usr/sbin/chkprintcap > /dev/null ; echo $?)
             # Only an exit code of zero should come back. Use string instead of integer, due unexpected trash
             if [ "${FIND}" = "0" ]; then
                 Display --indent 2 --text "- Integrity check of printcap file" --result "${STATUS_OK}" --color GREEN
@@ -69,7 +69,7 @@
     Register --test-no PRNT-2304 --weight L --network NO --category security --description "Check cupsd status"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking cupsd status"
-        #FIND=`${PSBINARY} ax | ${GREPBINARY} "cupsd" | ${GREPBINARY} -v "grep" | ${GREPBINARY} -v apcupsd`
+        #FIND=$(${PSBINARY} ax | ${GREPBINARY} "cupsd" | ${GREPBINARY} -v "grep" | ${GREPBINARY} -v apcupsd)
         IsRunning cupsd
         if [ ${RUNNING} -eq 1 ]; then
             Display --indent 2 --text "- Checking cups daemon" --result "${STATUS_RUNNING}" --color GREEN
@@ -117,7 +117,7 @@
     Register --test-no PRNT-2307 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check CUPSd configuration file permissions"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking CUPS configuration file permissions"
-        FIND=`ls -l ${CUPSD_CONFIG_FILE} | ${CUTBINARY} -c 2-10`
+        FIND=$(ls -l ${CUPSD_CONFIG_FILE} | ${CUTBINARY} -c 2-10)
         LogText "Result: found ${FIND}"
         if [ "${FIND}" = "r--------" -o "${FIND}" = "rw-------" -o "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-rw----" ]; then
             Display --indent 4 --text "- File permissions" --result "${STATUS_OK}" --color GREEN
@@ -139,7 +139,7 @@
         FOUND=0
         # Checking network addresses
         LogText "Test: Checking CUPS daemon listening network addresses"
-        FIND=`${GREPBINARY} "^Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} -v "/" | ${AWKBINARY} '{ print $2 }'`
+        FIND=$(${GREPBINARY} "^Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} -v "/" | ${AWKBINARY} '{ print $2 }')
         N=0
         for I in ${FIND}; do
             LogText "Found network address: ${I}"
@@ -147,7 +147,7 @@
             FOUND=1
         done
         if [ ${FOUND} -eq 0 ]; then
-           ReportException "${TEST_NO}:1" "No listen statement found in CUPS configuration file"
+            ReportException "${TEST_NO}:1" "No listen statement found in CUPS configuration file"
         fi
 
         # Check if daemon is only running on localhost
@@ -168,7 +168,7 @@
 
         # Checking sockets
         LogText "Test: Checking cups daemon listening sockets"
-        FIND=`${GREPBINARY} "^Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} "/" | ${AWKBINARY} '{ print $2 }'`
+        FIND=$(${GREPBINARY} "^Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} "/" | ${AWKBINARY} '{ print $2 }')
         for I in ${FIND}; do
             LogText "Found socket address: ${I}"
             N=$((N + 1))
@@ -224,7 +224,7 @@
         QDAEMON_CONFIG_FILE="/etc/qconfig"
         FileIsReadable ${QDAEMON_CONFIG_FILE}
         if [ ${CANREAD} -eq 1 ]; then
-            FIND=`${GREPBINARY} -v "^\*" ${QDAEMON_CONFIG_FILE} | ${EGREPBINARY} "backend|device"`
+            FIND=$(${GREPBINARY} -v "^\*" ${QDAEMON_CONFIG_FILE} | ${EGREPBINARY} "backend|device")
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: printers are defined in ${QDAEMON_CONFIG_FILE}"
                 Display --indent 2 --text "- Checking /etc/qconfig file" --result "${STATUS_FOUND}" --color GREEN
@@ -271,11 +271,11 @@
         LogText "Test: Checking old print jobs"
         DirectoryExists /var/spool/lpd/qdir
         if [ ${DIRECTORY_FOUND} -eq 1 ]; then
-            FIND=`find /var/spool/lpd/qdir -type f -mtime +1 2> /dev/null | ${SEDBINARY} 's/ /!space!/g'`
+            FIND=$(find /var/spool/lpd/qdir -type f -mtime +1 2> /dev/null | ${SEDBINARY} 's/ /!space!/g')
             if [ ! "${FIND}" = "" ]; then
                 N=0
                 for I in ${FIND}; do
-                    FILE=`echo ${I} | ${SEDBINARY} 's/!space!/ /g'`
+                    FILE=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')
                     LogText "Found old print job: ${FILE}"
                     N=$((N + 1))
                 done

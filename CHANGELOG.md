@@ -8,6 +8,7 @@ Changes:
 Tests:
 ------
 * BANN-7126 - Added more words to test for
+* CUPS-2308 - Improve logging for CUPS configuration test, removed exception handler
 * PKGS-7388 - Minor change to detect security repositories
 
 ---------------------------------------------------------------------------------

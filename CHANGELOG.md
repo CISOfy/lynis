@@ -9,6 +9,7 @@ Tests:
 ------
 * BANN-7126 - Added more words to test for
 * CUPS-2308 - Improve logging for CUPS configuration test, removed exception handler
+* HTTP-6641 - Support detection for Apache module mod_reqtimeout
 * PKGS-7388 - Minor change to detect security repositories
 
 ---------------------------------------------------------------------------------

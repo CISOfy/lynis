@@ -1,9 +1,10 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.7 (not released yet)
+Lynis 2.4.7 (2017-03-22)
 
 Changes:
+* Minor code cleanups
 
 Tests:
 ------

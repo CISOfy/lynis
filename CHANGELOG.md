@@ -6,9 +6,11 @@ Lynis 2.4.8 (not released yet, under development)
 Changes:
 * More PHP paths added
 * Minor changes to text
+* Show atomic test in report
 
 Tests:
 ------
+* MAIL-8820 - New Postfix configuration check
 * TOOL-5002 - Extended Puppet detection
 
 ---------------------------------------------------------------------------------

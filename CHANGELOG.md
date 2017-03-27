@@ -7,6 +7,10 @@ Changes:
 * More PHP paths added
 * Minor changes to text
 
+Tests:
+------
+* TOOL-5002 - Extended Puppet detection
+
 ---------------------------------------------------------------------------------
 
 Lynis 2.4.7 (2017-03-22)

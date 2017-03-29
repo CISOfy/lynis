@@ -1,7 +1,7 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.8 (not released yet, under development)
+Lynis 2.4.8 (2017-03-29)
 
 Changes:
 * More PHP paths added

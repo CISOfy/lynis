@@ -47,7 +47,7 @@
         IPV6_MISCONFIGURED=0
         IPV6_MISCONFIGURED_MTU=0
         FIND=$(sysctl -a 2> /dev/null | ${GREPBINARY} "^net.ipv6" | ${SEDBINARY} "s/ = /=/")
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             IPV6_CONFIGURED=1
             for I in ${FIND}; do
                 SYSCTL_KEY=$(echo ${I} | ${AWKBINARY} -F= '{ print $1 }')
@@ -124,7 +124,7 @@
         if [ -f /etc/resolv.conf ]; then
             LogText "Result: Found /etc/resolv.conf file"
             FIND=$(${GREPBINARY} '^nameserver' /etc/resolv.conf | ${TRBINARY} -d '\t' | ${SEDBINARY} 's/nameserver*//g' | uniq)
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 Display --indent 4 --text "- Testing nameservers"
                 LogText "Test: Querying nameservers"
                 for I in ${FIND}; do
@@ -134,7 +134,7 @@
                     if [ "${I}" = "::1" -o "${I}" = "127.0.0.1" -o "${I}" = "0.0.0.0" ]; then
                         LOCAL_DNSRESOLVER_FOUND=1
                     fi
-                    if [ ! "${DIGBINARY}" = "" ]; then
+                    if [ ! -z "${DIGBINARY}" ]; then
                         # See if we can query something at the nameserver
                         # 0=good, other=bad
                         DNSRESPONSE=$(${DIGBINARY} +noall +time=3 +retry=0 @${I} ${I} > /dev/null ; echo $?)
@@ -166,7 +166,7 @@
     if [ ${LOCAL_DNSRESOLVER_FOUND} -eq 0  ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-2705 --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check availability two nameservers"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! "${DIGBINARY}" = "" ]; then
+        if [ ! -z "${DIGBINARY}" ]; then
             if [ ${NUMBERACTIVENS} -lt 2 ]; then
                 Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: less than 2 responsive nameservers found"
@@ -192,12 +192,12 @@
     # Test        : NETW-3001
     # Description : Find default gateway (route)
     # More info   : BSD: ^default   Linux: 0.0.0.0
-    if [ ! "${NETSTATBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${NETSTATBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-3001 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Find default gateway (route)"
     if [ $SKIPTEST -eq 0 ]; then
         LogText "Test: Searching default gateway(s)"
         FIND=$(${NETSTATBINARY} -rn | ${EGREPBINARY} "^0.0.0.0|default" | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f2)
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             for I in ${FIND}; do
                 LogText "Result: Found default gateway ${I}"
                 Report "default_gateway[]=${I}"
@@ -222,9 +222,9 @@
                 FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ":" '{ print  $1 }')
             ;;
             Linux)
-                if [ ! "${IPBINARY}" = "" ]; then
+                if [ ! -z "${IPBINARY}" ]; then
                     FIND=$(${IPBINARY} link show 2> /dev/null | ${GREPBINARY} "^[0-9]" | ${AWKBINARY} '{ print $2 }' | ${SEDBINARY} 's/://g')
-                elif [ ! "${IFCONFIGBINARY}" = "" ]; then
+                elif [ ! -z "${IFCONFIGBINARY}" ]; then
                     FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ( $2 == "Link" ) { print  $1 }}')
                 fi
             ;;
@@ -239,7 +239,7 @@
                 ReportException "${TEST_NO}:1" "No support for this OS (${OS}) to find available network interfaces"
             ;;
         esac
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             for I in ${FIND}; do
                 NETWORK_INTERFACES="${NETWORK_INTERFACES}|${I}"
                 LogText "Found network interface: ${I}"
@@ -266,10 +266,10 @@
                 FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u)
                 ;;
             Linux)
-                if [ ! "${IFCONFIGBINARY}" = "" ]; then
+                if [ ! -z "${IFCONFIGBINARY}" ]; then
                     FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "HWaddr" | ${AWKBINARY} '{ if ($4=="HWaddr") print $5 }' | ${SORTBINARY} -u)
                 else
-                    if [ ! "${IPBINARY}" = "" ]; then
+                    if [ ! -z "${IPBINARY}" ]; then
                         LogText "Test: Using ip binary to gather hardware addresses"
                         FIND=$(${IPBINARY} link 2> /dev/null | ${GREPBINARY} "link/ether" | ${AWKBINARY} '{ print $2 }')
                       else
@@ -319,12 +319,12 @@
                 FIND2=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") print $2 }')
                 ;;
             Linux)
-                if [ ! "${IFCONFIGBINARY}" = "" ]; then
+                if [ ! -z "${IFCONFIGBINARY}" ]; then
                     FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }' | ${CUTBINARY} -d ':' -f2)
                     # Version which works for multiple types of ifconfig (e.g. Slackware)
                     FIND2=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }')
                 else
-                    if [ ! "${IPBINARY}" = "" ]; then
+                    if [ ! -z "${IPBINARY}" ]; then
                         LogText "Test: Using ip binary to gather IP addresses"
                         FIND=$(${IPBINARY} addr 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") { print $2 }}' | ${SEDBINARY} 's/\/.*//')
                         FIND2=$(${IPBINARY} addr 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") { print $2 }}' | ${SEDBINARY} 's/\/.*//')
@@ -376,7 +376,7 @@
         N=0
         case ${OS} in
             DragonFly|FreeBSD)
-                if [ ! "${SOCKSTATBINARY}" = "" ]; then
+                if [ ! -z "${SOCKSTATBINARY}" ]; then
                     FIND=$(${SOCKSTATBINARY} | ${AWKBINARY} '{ if ($7 ~ /\*:\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u)
                     # To strip off IP's: ${SEDBINARY} 's/|.*:/|/'
                 else
@@ -385,7 +385,7 @@
                 FIND2=""
                 ;;
             Linux)
-                if [ ! "${NETSTATBINARY}" = "" ]; then
+                if [ ! -z "${NETSTATBINARY}" ]; then
                     # UDP
                     FIND=$(${NETSTATBINARY} -nlp 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"|"$6"|" }' | ${SEDBINARY} 's:|[0-9]*/:|:')
                     # TCP

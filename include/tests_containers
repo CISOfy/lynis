@@ -35,11 +35,11 @@
 #
     # Test        : CONT-8004
     # Description : Query running Solaris zones
-    if [ -x /usr/sbin/zoneadm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -x ${ROOTDIR}usr/sbin/zoneadm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8004 --os Solaris --weight L --network NO --category security --description "Query running Solaris zones"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: query zoneadm to list all running zones"
-        FIND=$(/usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }')
+        FIND=$(${ROOTDIR}usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }')
         if [ ! -z "${FIND}" ]; then
             N=0
             for I in ${FIND}; do
@@ -137,7 +137,7 @@
         # Check total of containers
         LogText "Test: checking total amount of Docker containers"
         DOCKER_CONTAINERS_TOTAL=$(${DOCKERBINARY} info 2> /dev/null | ${GREPBINARY} "^Containers: " | ${AWKBINARY} '{ print $2 }')
-        if [ "${DOCKER_CONTAINERS_TOTAL}" = "" ]; then
+        if [ -z "${DOCKER_CONTAINERS_TOTAL}" ]; then
             DOCKER_CONTAINERS_TOTAL=0
         fi
 
@@ -169,7 +169,7 @@
     # Test        : CONT-8107
     # Description : Checking Docker number of unused containers
     # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
-    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8107 --preqs-met ${PREQS_MET} --weight L --network NO --category performance --description "Check number of Docker containers"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if there aren't too many unused containers on the system
@@ -192,10 +192,10 @@
     # Test        : CONT-8108
     # Description : Checking Docker file permissions
     # Notes       : /var/run/docker.sock - Usually root as owner, docker as group - should not be world writable
-    if [ ! "${DOCKERBINARY}" = "" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8108 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check file permissions for Docker files"
     if [ ${SKIPTEST} -eq 0 ]; then
-        NOT_WORLD_WRITABLE="/var/run/docker.sock"
+        NOT_WORLD_WRITABLE="${ROOTDIR}var/run/docker.sock"
         for FILE in ${NOT_WORLD_WRITABLE}; do
             LogText "Test: Check ${FILE}"
             if [ -f ${FILE} ]; then

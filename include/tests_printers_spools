@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    CUPSD_CONFIG_LOCS="/etc/cups /usr/local/etc/cups /private/etc/cups"
+    CUPSD_CONFIG_LOCS="${ROOTDIR}etc/cups ${ROOTDIR}usr/local/etc/cups ${ROOTDIR}private/etc/cups"
     CUPSD_CONFIG_FILE=""
     CUPSD_RUNNING=0
     CUPSD_FOUND=0
@@ -43,21 +43,21 @@
     Register --test-no PRNT-2302 --os FreeBSD --weight L --network NO --category security --description "Check for printcap consistency"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching /usr/sbin/chkprintcap"
-        if [ ! -f /usr/sbin/chkprintcap ]; then
+        if [ ! -f ${ROOTDIR}usr/sbin/chkprintcap ]; then
             Display --indent 2 --text "- Checking chkprintcap" --result "${STATUS_NOT_FOUND}" --color WHITE
-            LogText "Result: /usr/sbin/chkprintcap NOT found, test skipped."
+            LogText "Result: ${ROOTDIR}usr/sbin/chkprintcap NOT found, test skipped"
           else
-            LogText "Result: /usr/sbin/chkprintcap found"
-            FIND=$(/usr/sbin/chkprintcap > /dev/null ; echo $?)
+            LogText "Result: ${ROOTDIR}usr/sbin/chkprintcap found"
+            FIND=$(${ROOTDIR}usr/sbin/chkprintcap > /dev/null ; echo $?)
             # Only an exit code of zero should come back. Use string instead of integer, due unexpected trash
             if [ "${FIND}" = "0" ]; then
                 Display --indent 2 --text "- Integrity check of printcap file" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: chkprintcap did NOT gave any warnings"
-              else
+            else
                 Display --indent 2 --text "- Integrity check of printcap file" --result "${STATUS_WARNING}" --color RED
                 ReportSuggestion ${TEST_NO} "Run chkprintcap manually to test printcap file"
                 LogText "Output from chkprintcap: ${FIND}"
-                LogText "Run chkprintcap and check the /etc/printcap file."
+                LogText "Run chkprintcap and check the ${ROOTDIR}etc/printcap file"
             fi
         fi
     fi
@@ -69,13 +69,12 @@
     Register --test-no PRNT-2304 --weight L --network NO --category security --description "Check cupsd status"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking cupsd status"
-        #FIND=$(${PSBINARY} ax | ${GREPBINARY} "cupsd" | ${GREPBINARY} -v "grep" | ${GREPBINARY} -v apcupsd)
         IsRunning cupsd
         if [ ${RUNNING} -eq 1 ]; then
             Display --indent 2 --text "- Checking cups daemon" --result "${STATUS_RUNNING}" --color GREEN
             LogText "Result: cups daemon running"
             CUPSD_RUNNING=1; PRINTING_DAEMON="cups"
-          else
+        else
             Display --indent 2 --text "- Checking cups daemon" --result "${STATUS_NOT_FOUND}" --color WHITE
             LogText "Result: cups daemon not running, cups daemon tests skipped"
         fi
@@ -97,7 +96,7 @@
                 fi
             fi
         done
-        if [ ! "${CUPSD_CONFIG_FILE}" = "" ]; then
+        if [ ! -z "${CUPSD_CONFIG_FILE}" ]; then
             Display --indent 2 --text "- Checking CUPS configuration file" --result "${STATUS_OK}" --color GREEN
             LogText "Result: configuration file found (${CUPSD_CONFIG_FILE})"
             CUPSD_FOUND=1
@@ -194,7 +193,7 @@
             Display --indent 2 --text "- Checking lp daemon" --result "${STATUS_RUNNING}" --color GREEN
             LogText "Result: lp daemon running"
             LPD_RUNNING=1; PRINTING_DAEMON="lp"
-          else
+        else
             Display --indent 2 --text "- Checking lp daemon" --result "${STATUS_NOT_RUNNING}" --color WHITE
             LogText "Result: lp daemon not running"
             AddHP 4 4
@@ -203,36 +202,24 @@
 #
 #################################################################################
 #
-    # Test        : PRNT-23xx
-    # Description : Test Linux printcap file
-    #if [ ${CUPSD_RUNNING} -eq 1 -a ! "${CUPSD_CONFIG_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no PRNT-23xx--preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check cupsd address configuration"
-    #if [ ${SKIPTEST} -eq 0 ]; then
-    #if [ "${OS}" = "Linux" ]; then
-    #    echo "        - Testing printcap file [Test not implemented yet]"
-    #    # Check printcap with checkpc command
-    #fi
-#
-#################################################################################
-#
     # Test        : PRNT-2416
     # Description : Check /etc/qconfig file
     Register --test-no PRNT-2316 --os AIX --weight L --network NO --category security --description "Checking /etc/qconfig file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking /etc/qconfig"
-        QDAEMON_CONFIG_FILE="/etc/qconfig"
+        LogText "Test: Checking ${ROOTDIR}etc/qconfig"
+        QDAEMON_CONFIG_FILE="${ROOTDIR}etc/qconfig"
         FileIsReadable ${QDAEMON_CONFIG_FILE}
         if [ ${CANREAD} -eq 1 ]; then
             FIND=$(${GREPBINARY} -v "^\*" ${QDAEMON_CONFIG_FILE} | ${EGREPBINARY} "backend|device")
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: printers are defined in ${QDAEMON_CONFIG_FILE}"
                 Display --indent 2 --text "- Checking /etc/qconfig file" --result "${STATUS_FOUND}" --color GREEN
                 QDAEMON_CONFIG_ENABLED=1
-              else
+            else
                 LogText "Result: ${QDAEMON_CONFIG_FILE} is empty. No printers are defined"
                 Display --indent 2 --text "- Checking /etc/qconfig file" --result EMPTY --color WHITE
             fi
-          else
+        else
             LogText "Result: Can not read ${QDAEMON_CONFIG_FILE} (no permission)"
         fi
     fi
@@ -271,7 +258,7 @@
         DirectoryExists /var/spool/lpd/qdir
         if [ ${DIRECTORY_FOUND} -eq 1 ]; then
             FIND=$(find /var/spool/lpd/qdir -type f -mtime +1 2> /dev/null | ${SEDBINARY} 's/ /!space!/g')
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 N=0
                 for I in ${FIND}; do
                     FILE=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')
@@ -282,7 +269,7 @@
                 Display --indent 4 --text "- Checking old print jobs" --result "${STATUS_FOUND}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Check old print jobs in /var/spool/lpd/qdir to prevent new jobs from being processed"
                 LogText "Risk: Failed or defunct print jobs can occupy a lot of space and in some cases, prevent new jobs from being processed"
-              else
+            else
                 LogText "Result: Old print jobs not found in /var/spool/lpd/qdir"
                 Display --indent 4 --text "- Checking old print jobs" --result "${STATUS_NONE}" --color GREEN
             fi
@@ -292,7 +279,7 @@
 #################################################################################
 #
 
-Report "printing_daemon=${PRINTING_DAEMON}"
+if [ ! -z ${PRINTING_DAEMON} ]; then Report "printing_daemon=${PRINTING_DAEMON}"; fi
 
 WaitForKeyPress
 

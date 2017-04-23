@@ -58,7 +58,7 @@
             sCRONJOBS=$(${EGREPBINARY} '^([0-9*])' $1 | ${TRBINARY} '\t' ' ' | ${TRBINARY} -s ' ' | ${TRBINARY} ' ' ',')
         }
 
-        CRONTAB_FILE="/etc/crontab"
+        CRONTAB_FILE="${ROOTDIR}etc/crontab"
         if [ -f ${CRONTAB_FILE} ]; then
             if IsWorldWritable ${CRONTAB_FILE}; then LogText "Result: insecure file permissions for cronjob file ${CRONTAB_FILE}"; Report "insecure_fileperms_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
             if ! IsOwnedByRoot ${CRONTAB_FILE}; then LogText "Result: incorrect owner found for cronjob file ${CRONTAB_FILE}"; Report "bad_fileowner_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
@@ -69,15 +69,15 @@
             done
         fi
 
-        CRON_DIRS="/etc/cron.d"
+        CRON_DIRS="${ROOTDIR}etc/cron.d"
         for I in ${CRON_DIRS}; do
             LogText "Test: checking directory ${I}"
             if [ -d ${I} ]; then
                 if FileIsReadable ${I}; then
                     LogText "Result: found directory ${I}"
                     LogText "Test: searching files in ${I}"
-                    FIND=$(find ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
-                    if [ "${FIND}" = "" ]; then
+                    FIND=$(${FINDBINARY} ${I} -type f -print | ${GREPBINARY} -v ".placeholder")
+                    if [ -z "${FIND}" ]; then
                         LogText "Result: no files found in ${I}"
                     else
                         LogText "Result: found one or more files in ${I}. Analyzing files.."
@@ -85,7 +85,7 @@
                             if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
                             if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
                             FindCronJob ${J}
-                            if [ ! "${sCRONJOBS}" = "" ]; then
+                            if [ ! -z "${sCRONJOBS}" ]; then
                                 for K in ${sCRONJOBS}; do
                                     LogText "Result: Found cronjob (${J}): ${K}"
                                     Report "cronjob[]=${J}"
@@ -102,15 +102,15 @@
             fi
         done
 
-        CRON_DIRS="/etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly"
+        CRON_DIRS="${ROOTDIR}etc/cron.hourly ${ROOTDIR}etc/cron.daily ${ROOTDIR}etc/cron.weekly ${ROOTDIR}etc/cron.monthly"
         for I in ${CRON_DIRS}; do
             LogText "Test: checking directory ${I}"
             if [ -d ${I} ]; then
                 LogText "Result: found directory ${I}"
                 if FileIsReadable ${I}; then
                     LogText "Test: searching files in ${I}"
-                    FIND=$(find ${I} -type f -print 2> /dev/null | ${GREPBINARY} -v ".placeholder")
-                    if [ "${FIND}" = "" ]; then
+                    FIND=$(${FINDBINARY} ${I} -type f -print 2> /dev/null | ${GREPBINARY} -v ".placeholder")
+                    if [ -z "${FIND}" ]; then
                         LogText "Result: no files found in ${I}"
                     else
                         LogText "Result: found one or more files in ${I}. Analyzing files.."
@@ -232,7 +232,7 @@
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: file ${AT_ALLOW} exists, only listed users can schedule at jobs"
                     FIND=$(${SORTBINARY} ${AT_ALLOW})
-                    if [ "${FIND}" = "" ]; then
+                    if [ -z "${FIND}" ]; then
                         LogText "Result: File empty, no users are allowed to schedule at jobs"
                     else
                         for I in ${FIND}; do
@@ -250,7 +250,7 @@
                     if [ ${CANREAD} -eq 1 ]; then
                         LogText "Result: file ${AT_DENY} exists, only non listed users can schedule at jobs"
                         FIND=$(${SORTBINARY} ${AT_DENY})
-                        if [ "${FIND}" = "" ]; then
+                        if [ -z "${FIND}" ]; then
                             LogText "Result: file is empty, no users are denied access to schedule jobs"
                         else
                             for I in ${FIND}; do
@@ -281,7 +281,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check scheduled at jobs"
         FIND=$(atq | ${GREPBINARY} -v "no files in queue" | ${AWKBINARY} '{gsub("\t"," ");print}' | ${SEDBINARY} 's/ /!space!/g')
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: found one or more jobs"
             for I in ${FIND}; do
                 VALUE=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')

@@ -51,8 +51,6 @@
                 BOOT_LOADER_FOUND=1
             else
                 LogText "Result: no data received from bootinfo, most likely boot device not found"
-                #Display --indent 4 --text "- Checking boot device (bootinfo)" --result "${STATUS_NOT_FOUND}" --color YELLOW
-                #ReportSuggestion ${TEST_NO}  "Only use root (not sudo account) to query properly boot device"
             fi
         fi
     fi
@@ -74,7 +72,7 @@
                     FILENAME=$(${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline)
                     LogText "Result: cmdline found = ${FILENAME}"
                     ISFILE=$(echo ${FILENAME} | ${GREPBINARY} "^/")
-                    if [ ! "${ISFILE}" = "" ]; then
+                    if [ ! -z "${ISFILE}" ]; then
                         if [ -L ${ISFILE} ]; then
                             ShowSymlinkPath ${ISFILE}
                             FILENAME="${SYMLINK}"
@@ -84,7 +82,7 @@
                             LogText "Result: cmdline of PID 1 is not a file"
                         fi
                     fi
-                    if [ ! "${FILENAME}" = "" ]; then
+                    if [ ! -z "${FILENAME}" ]; then
                         SHORTNAME=$(echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }')
                         LogText "Found: ${SHORTNAME}"
                         case ${SHORTNAME} in
@@ -277,7 +275,7 @@
 #
     # Test        : BOOT-5122
     # Description : Check for GRUB boot loader configuration
-    if [ ! "${GRUBCONFFILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${GRUBCONFFILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no BOOT-5122 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for GRUB boot password"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
@@ -499,7 +497,7 @@
     # Description : Check for FreeBSD boot services
     Register --test-no BOOT-5165 --os FreeBSD --weight L --network NO --category security --description "Check for FreeBSD boot services"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! "${SERVICEBINARY}" = "" ]; then
+        if [ ! -z "${SERVICEBINARY}" ]; then
             # FreeBSD (Ask services(8) for enabled services)
             LogText "Searching for services at startup (service)"
             FIND=$(${SERVICEBINARY} -e | ${SEDBINARY} 's|^.*\/||' | ${SORTBINARY})
@@ -599,7 +597,7 @@
         if [ "${sRUNLEVEL}" = "2" ]; then
             LogText "Result: performing find in /etc/rc2.d as runlevel 2 is found"
             FIND=$(${FINDBINARY} ${ROOTDIR}etc/rc2.d -type l -print | ${CUTBINARY} -d '/' -f4 | ${SEDBINARY} "s/S[0-9][0-9]//g" | sort)
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 N=0
                 for SERVICE in ${FIND}; do
                     LogText "Found service (at boot, runlevel 2): ${SERVICE}"

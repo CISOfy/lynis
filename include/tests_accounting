@@ -76,19 +76,19 @@
         LogText "Test: Check accounting information"
         if [ -f ${ROOTDIR}var/account/pacct ]; then
             Display --indent 2 --text "- Checking accounting information" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: /var/account/pacct available"
+            LogText "Result: ${ROOTDIR}var/account/pacct available"
             AddHP 3 3
         elif [ -f ${ROOTDIR}var/log/account/pacct ]; then
             Display --indent 2 --text "- Checking accounting information" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: /var/log/account/pacct available"
+            LogText "Result: ${ROOTDIR}var/log/account/pacct available"
             AddHP 3 3
         elif [ -f ${ROOTDIR}var/log/pacct ]; then
             Display --indent 2 --text "- Checking accounting information" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: /var/log/pacct available"
+            LogText "Result: ${ROOTDIR}var/log/pacct available"
             AddHP 3 3
         else
             Display --indent 2 --text "- Checking accounting information" --result "${STATUS_NOT_FOUND}" --color YELLOW
-            LogText "Result: No accounting information available (/var/account/pacct, /var/log/account/pact nor /var/log/pact exist)"
+            LogText "Result: No accounting information available (${ROOTDIR}var/account/pacct, ${ROOTDIR}var/log/account/pact nor ${ROOTDIR}var/log/pact exist)"
             LogText "Remark: Possibly there is another location where the accounting data is stored"
             ReportSuggestion ${TEST_NO} "Enable process accounting"
             AddHP 2 3
@@ -101,11 +101,11 @@
     # Description : Check sysstat accounting data
     Register --test-no ACCT-9626 --os Linux --weight L --network NO --category security --description "Check for sysstat accounting data"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: check /etc/default/sysstat presence"
+        LogText "Test: check ${ROOTDIR}etc/default/sysstat presence"
         if [ -f ${ROOTDIR}etc/default/sysstat ]; then
             LogText "Result: ${ROOTDIR}etc/default/sysstat found"
             FIND=$(${GREPBINARY} "^ENABLED" ${ROOTDIR}etc/default/sysstat | ${GREPBINARY} -i true)
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: sysstat enabled via ${ROOTDIR}etc/default/sysstat"
                 Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_ENABLED}" --color GREEN
             else
@@ -124,7 +124,7 @@
                 ReportSuggestion ${TEST_NO} "Enable sysstat to collect accounting (cron disabled)"
             fi
         else
-            LogText "Result: sysstat not found via ${ROOTDIR}etc/default/sysstat or /etc/cron.d/sysstat"
+            LogText "Result: sysstat not found via ${ROOTDIR}etc/default/sysstat or ${ROOTDIR}etc/cron.d/sysstat"
             Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Enable sysstat to collect accounting (no results)"
         fi
@@ -134,7 +134,7 @@
 #
     # Test        : ACCT-9628
     # Description : Check auditd status
-    if [ ! "${AUDITDBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${AUDITDBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9628 --os Linux --weight L --network NO --category security --description "Check for auditd"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check auditd status"
@@ -189,7 +189,7 @@
 #
     # Test        : ACCT-9632
     # Description : Check auditd configuration file
-    if [ ! "${AUDITDBINARY}" = "" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${AUDITDBINARY}" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9632 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for auditd configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd configuration file"
@@ -202,7 +202,7 @@
             fi
         done
         # Check if we discovered the configuration file. It should be there is the binaries are available and process is running
-        if [ ! "${AUDITD_CONF_FILE}" = "" ]; then
+        if [ ! -z "${AUDITD_CONF_FILE}" ]; then
             Display --indent 4 --text "- Checking audit configuration file" --result "${STATUS_OK}" --color GREEN
         else
             LogText "Result: could not find auditd configuration file"
@@ -252,14 +252,14 @@
             if [ -f ${ROOTDIR}etc/ld.so.preload ]; then
                 LogText "Result: found ${ROOTDIR}etc/ld.so.preload, testing if snoopy.so is listed"
                 FIND=$(${GREPBINARY} ${FILE} ${ROOTDIR}etc/ld.so.preload)
-                if [ ! "${FIND}" = "" ]; then
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: found snoopy in ld.so.preload"
                     LogText "Output: ${FIND}"
                     Display --indent 6 --text "- Library in ld.so.preload" --result "LOADED" --color GREEN
                     Report "audit_trail_tool[]=snoopy"
                 else
                     Display --indent 6 --text "- Library in ld.so.preload" --result "${STATUS_NOT_FOUND}" --color YELLOW
-                    ReportSuggestion ${TEST_NO} "Snoopy is installed but not loaded via /etc/ld.so.preload"
+                    ReportSuggestion ${TEST_NO} "Snoopy is installed but not loaded via ${ROOTDIR}etc/ld.so.preload"
                     AddHP 3 3
                 fi
             else
@@ -293,11 +293,11 @@
 #
     # Test        : ACCT-9652
     # Description : Check Solaris auditd service status
-    if [ -x /usr/bin/svcs -a ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -x ${ROOTDIR}usr/bin/svcs -a ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9652 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check auditd SMF status"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check if auditd service is enabled and online"
-        FIND=$(/usr/bin/svcs svc:/system/auditd:default | ${GREPBINARY} "^online")
+        FIND=$(${ROOTDIR}usr/bin/svcs svc:/system/auditd:default | ${GREPBINARY} "^online")
         if [ ! -z "${FIND}" ]; then
             LogText "Result: auditd service is online"
             Display --indent 4 --text "- Checking Solaris audit daemon status" --result "${STATUS_ON}"LINE --color GREEN
@@ -312,7 +312,7 @@
     # Test        : ACCT-9654
     # Description : Check Solaris Basic Security Mode (BSM) in /etc/system
     if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no ACCT-9654 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check BSM auditing in /etc/system"
+    Register --test-no ACCT-9654 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check BSM auditing in ${ROOTDIR}etc/system"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check if BSM is enabled in ${ROOTDIR}etc/system"
         if [ -f ${ROOTDIR}etc/system ]; then
@@ -337,9 +337,9 @@
     Register --test-no ACCT-9656 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check BSM auditing in module list"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check if c2audit module is active"
-        if [ -x /usr/sbin/modinfo ]; then
-            FIND=$(/usr/sbin/modinfo | ${GREPBINARY} c2audit)
-            if [ ! "${FIND}" = "" ]; then
+        if [ -x ${ROOTDIR}usr/sbin/modinfo ]; then
+            FIND=$(${ROOTDIR}usr/sbin/modinfo | ${GREPBINARY} c2audit)
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: c2audit found in modinfo output"
                 Display --indent 4 --text "- Checking Solaris BSM (modules list)" --result "${STATUS_ENABLED}" --color GREEN
             else
@@ -347,7 +347,7 @@
                 Display --indent 4 --text "- Checking Solaris BSM (modules list)" --result "${STATUS_NOT_FOUND}" --color YELLOW
             fi
         else
-            LogText "Result: /usr/sbin/modinfo does not exist, skipping test"
+            LogText "Result: ${ROOTDIR}usr/sbin/modinfo does not exist, skipping test"
         fi
     fi
 #
@@ -358,11 +358,11 @@
     if [ ${SOLARIS_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9660 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check location of audit events"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: check /etc/security/audit_control for event logging location"
+        LogText "Test: check ${ROOTDIR}etc/security/audit_control for event logging location"
         if [ -f ${ROOTDIR}etc/security/audit_control ]; then
             LogText "Result: file ${ROOTDIR}etc/security/audit_control found"
             FIND=$(${GREPBINARY} "^dir" ${ROOTDIR}etc/security/audit_control | ${AWKBINARY} -F: '{ print $2 }')
-            if [ ! "${FIND}" = "" ]; then
+            if [ ! -z "${FIND}" ]; then
                 LogText "Result: found location ${FIND}"
                 LogText "Test: Checking if location is a valid directory"
                 if [ -d ${FIND} ]; then
@@ -392,14 +392,14 @@
     Register --test-no ACCT-9662 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Solaris auditing stats"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check auditing statistics"
-        if [ -x /usr/sbin/auditstat ]; then
-            FIND=$(/usr/sbin/auditstat | ${TRBINARY} -s ' ' ',')
+        if [ -x ${ROOTDIR}usr/sbin/auditstat ]; then
+            FIND=$(${ROOTDIR}usr/sbin/auditstat | ${TRBINARY} -s ' ' ',')
             for ITEM in ${FIND}; do
                 LogText "Output: ${ITEM}"
             done
             Display --indent 4 --text "- Checking Solaris audit statistics" --result "${STATUS_DONE}" --color GREEN
         else
-            LogText "Result: /usr/sbin/auditstat not found, skipping test"
+            LogText "Result: ${ROOTDIR}usr/sbin/auditstat not found, skipping test"
             Display --indent 4 --text "- Checking Solaris audit statistics" --result "${STATUS_SKIPPED}" --color YELLOW
         fi
     fi

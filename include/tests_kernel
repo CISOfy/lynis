@@ -42,52 +42,52 @@
         LogText "Test: Checking for systemd default.target"
         if [ -L /etc/systemd/system/default.target ]; then
             LogText "Result: symlink found"
-            if [ ! "${READLINKBINARY}" = "" ]; then
+            if HasData "${READLINKBINARY}"; then
                 FIND=$(${READLINKBINARY} /etc/systemd/system/default.target)
-                if [ "${FIND}" = "" ]; then
+                if ! HasData "${FIND}"; then
                     LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
                     ReportException "${TEST_NO}:01"
-                  else
+                else
                     FIND2=$(echo ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
-                    if [ ! "${FIND2}" = "" ]; then
+                    if HasData "${FIND2}"; then
                         LogText "Result: Found match on runlevel5/graphical"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
                         Report "linux_default_runlevel=5"
-                      else
+                    else
                         LogText "Result: No match found on runlevel, defaulting to runlevel 3"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
                         Report "linux_default_runlevel=3"
                     fi
                 fi
-              else
+            else
                 LogText "Result: No readlink binary, can't determine where symlink is pointing to"
                 Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
             fi
-          else
+        else
             LogText "Result: no systemd found, so trying inittab"
             LogText "Test: Checking /etc/inittab"
             if [ -f /etc/inittab ]; then
                 LogText "Result: file /etc/inittab found"
                 LogText "Test: Checking default Linux run level"
-                FIND=$(${AWKBINARY} -F: '/^id/ { print $2; }' /etc/inittab | head -n 1)
-                if [ "${FIND}" = "" ]; then
+                FIND=$(${AWKBINARY} -F: '/^id/ { print $2; }' ${ROOTDIR}etc/inittab | head -n 1)
+                if IsEmpty "${FIND}"; then
                     Display --indent 2 --text "- Checking default runlevel" --result "${STATUS_UNKNOWN}" --color YELLOW
-                    LogText "Result: Can't determine default run level from /etc/inittab"
-                  else
+                    LogText "Result: Can't determine default run level from ${ROOTDIR}etc/inittab"
+                else
                     Display --indent 2 --text "- Checking default run level" --result "${FIND}" --color GREEN
                     LogText "Found default run level '${FIND}'"
                     Report "linux_default_runlevel=${FIND}"
                 fi
-              else
-                LogText "Result: file /etc/inittab not found"
+            else
+                LogText "Result: file ${ROOTDIR}etc/inittab not found"
                 if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then
                     LogText "Test: Checking run level with who -r, for Debian based systems"
                     FIND=$(who -r | ${AWKBINARY} '{ if ($1=="run-level") { print $2 } }')
-                    if [ ! "${FIND}" = "" ]; then
+                    if HasData "${FIND}"; then
                         LogText "Result: Found default run level '${FIND}'"
                         Report "linux_default_runlevel=${FIND}"
                         Display --indent 2 --text "- Checking default run level" --result "RUNLEVEL ${FIND}" --color GREEN
-                      else
+                    else
                         LogText "Result: Can't determine default run level from who -r"
                         Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
                     fi
@@ -113,7 +113,7 @@
             FIND_PAE=$(${GREPBINARY} " pae " /proc/cpuinfo)
             FIND_NX=$(${GREPBINARY} " nx " /proc/cpuinfo)
             FOUND=0
-            if [ ! "${FIND_PAE_NX}" = "" ]; then
+            if HasData "${FIND_PAE_NX}"; then
                 LogText "PAE: Yes"
                 LogText "NX: Yes"
                 CPU_PAE=1
@@ -122,30 +122,30 @@
                 Report "cpu_pae=1"
                 Report "cpu_nx=1"
                 FOUND=1
-              else
-                if [ ! "${FIND_PAE}" = "" -a "${FIND_NX}" = "" ]; then
+            else
+                if [ HasData "${FIND_PAE}" -a IsEmpty "${FIND_NX}" ]; then
                     Report "cpu_pae=1"
                     LogText "Result: found PAE"
                     CPU_PAE=1
                     FOUND=1
-                  else
-                    if [ ! "${FIND_NX}" = "" -a "${FIND_PAE}" = "" ]; then
+                else
+                    if [ HasData "${FIND_NX}" -a IsEmpty "${FIND_PAE}" ]; then
                         Report "cpu_nx=1"
                         LogText "Result: found No eXecute"
                         CPU_NX=1
                         FOUND=1
-                      else
+                    else
                         LogText "Result: found no CPU options enabled (PAE or NX bit)"
                     fi
                 fi
             fi
             if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "CPU support: PAE and/or NoeXecute supported" --result "${STATUS_FOUND}" --color GREEN
-              else
+            else
                 Display --indent 4 --text "CPU support: No PAE or NoeXecute supported" --result "${STATUS_NONE}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Use a PAE enabled kernel when possible to gain native No eXecute/eXecute Disable support"
             fi
-          else
+        else
             Display --indent 4 --text "CPU support: no /proc/cpuinfo" --result "${STATUS_SKIPPED}" --color YELLOW
             LogText "Result: /proc/cpuinfo not found"
         fi
@@ -181,7 +181,7 @@
     # Description : Check if Linux is build as a monolithic kernel or not
     Register --test-no KRNL-5723 --os Linux --weight L --network NO --category security --description "Determining if Linux kernel is monolithic"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
+        if [ ! -z "${LSMODBINARY}" -a -f /proc/modules ]; then
             LogText "Test: checking if kernel is monolithic or modular"
             # Checking if any modules are loaded
             FIND=$(${LSMODBINARY} | ${GREPBINARY} -v "^Module" | wc -l | ${TRBINARY} -s ' ' | ${TRBINARY} -d ' ')
@@ -190,12 +190,12 @@
                 LogText "Result: Found monolithic kernel"
                 Report "linux_kernel_type=monolithic"
                 MONOLITHIC_KERNEL=1
-              else
+            else
                 LogText "Result: Found modular kernel"
                 Report "linux_kernel_type=modular"
                 MONOLITHIC_KERNEL=0
             fi
-          else
+        else
             LogText "Test skipped, lsmod binary not found or /proc/modules can not be opened"
         fi
     fi
@@ -206,23 +206,23 @@
     # Description : Checking Linux loaded kernel modules
     Register --test-no KRNL-5726 --os Linux --weight L --network NO --category security --description "Checking Linux loaded kernel modules"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! "${LSMODBINARY}" = "" -a -f /proc/modules ]; then
+        if [ ! -z "${LSMODBINARY}" -a -f /proc/modules ]; then
             FIND=$(${LSMODBINARY} | ${AWKBINARY} '{ if ($1!="Module") print $1 }' | sort)
             Display --indent 2 --text "- Checking loaded kernel modules" --result "${STATUS_DONE}" --color GREEN
-            if [ ! "${FIND}" = "" ]; then
+            if HasData "${FIND}"; then
                 LogText "Loaded modules according lsmod:"
                 N=0
                 for I in ${FIND}; do
-                        LogText "Loaded module: ${I}"
-                        Report "loaded_kernel_module[]=${I}"
-                        N=$((N + 1))
+                    LogText "Loaded module: ${I}"
+                    Report "loaded_kernel_module[]=${I}"
+                    N=$((N + 1))
                 done
                 Display --indent 6 --text "Found ${N} active modules"
-              else
+            else
                 LogText "Result: no loaded modules found"
                 LogText "Notice: No loaded kernel modules could indicate a broken/malformed lsmod, or a (custom) monolithic kernel"
             fi
-          else
+        else
             LogText "Test skipped, lsmod binary not found or /proc/modules can not be opened"
         fi
     fi
@@ -238,16 +238,16 @@
             LINUXCONFIGFILE="${CHECKFILE}"
             LogText "Result: found config (${LINUXCONFIGFILE})"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
-          elif [ -f /proc/config.gz ]; then
+        elif [ -f /proc/config.gz ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LINUXCONFIGFILE_ZIPPED=1
             LogText "Result: found config: /proc/config.gz (compressed)"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
-          else
+        else
             LogText "Result: no Linux kernel configuration file found in /boot"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
-        if [ ! "${LINUXCONFIGFILE}" = "" ]; then
+        if HasData "${LINUXCONFIGFILE}"; then
             Report "linux_config_file=${LINUXCONFIGFILE}"
         fi
     fi
@@ -259,7 +259,7 @@
     # Notes       : This test could be extended with testing some of the specific devices like disks
     #               cat /sys/block/sda/queue/scheduler
     PREQS_MET="NO"
-    if [ ! "${LINUXCONFIGFILE}" = "" ]; then
+    if HasData "${LINUXCONFIGFILE}"; then
         if [ -f ${LINUXCONFIGFILE} ]; then PREQS_MET="YES"; fi
     fi
     Register --test-no KRNL-5730 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking disk I/O kernel scheduler"
@@ -272,11 +272,11 @@
                 LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
                 Report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
-              else
+            else
                 LogText "Result: no default i/o kernel scheduler found"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_NOT_FOUND}" --color WHITE
             fi
-          else
+        else
             ReportException "${TEST_NO}" "No valid ${GREPBINARY} tool found to search kernel settings"
         fi
    fi
@@ -302,12 +302,11 @@
                     N=$((N + 1))
                 done
                 Display --indent 4 --text "Found ${N} kernel modules" --result "${STATUS_DONE}" --color GREEN
-              else
+            else
                 Display --indent 4 --text "Test failed" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Problem with executing kldstat"
             fi
-          else
-            echo "[ ${WHITE}SKIPPED${NORMAL} ]"
+        else
             LogText "Result: no results, can't find /sbin/kldstat"
         fi
     fi
@@ -333,11 +332,11 @@
                     N=$((N + 1))
                 done
                 Display --indent 4 --text "Found ${N} kernel modules" --result "${STATUS_DONE}" --color GREEN
-              else
+            else
                 Display --indent 4 --text "Test failed" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Problem with executing kldstat"
             fi
-          else
+        else
             echo "[ ${WHITE}SKIPPED${NORMAL} ]"
             LogText "Result: no results, can't find /sbin/kldstat"
         fi
@@ -351,13 +350,13 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: searching loaded kernel modules"
         FIND=$(/usr/sbin/modinfo -c -w | ${GREPBINARY} -v "UNLOADED" | ${GREPBINARY} LOADED | ${AWKBINARY} '{ print $3 }' | sort)
-        if [ ! "${FIND}" = "" ]; then
+        if HasData "${FIND}"; then
             for I in ${FIND}; do
                 LogText "Found module: ${I}"
                 Report "loaded_kernel_module[]=${I}"
             done
             Display --indent 2 --text "- Checking Solaris active kernel modules" --result "${STATUS_DONE}" --color GREEN
-          else
+        else
             LogText "Result: no output"
             Display --indent 2 --text "- Checking Solaris active kernel modules" --result "${STATUS_UNKNOWN}" --color YELLOW
         fi
@@ -392,7 +391,7 @@
             FINDCAND=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
             LogText "Kernel installed: ${FINDINST}"
             LogText "Kernel candidate: ${FINDCAND}"
-            if [ -z "${FINDINST}" ]; then
+            if IsEmpty "${FINDINST}"; then
                 Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
                 LogText "Result: Exception occurred, no output from apt-cache policy"
                 ReportException "${TEST_NO}:01"
@@ -414,7 +413,7 @@
                     ReportSuggestion ${TEST_NO} "Determine priority for available kernel update"
                 fi
             fi
-          else
+        else
             LogText "Result: could NOT find /usr/bin/apt-cache, skipped other tests."
         fi
     fi
@@ -465,7 +464,7 @@
                 Display --indent 4 --text "- Checking setuid core dumps configuration" --result DEFAULT --color YELLOW
                 AddHP 1 1
             fi
-          else
+        else
             LogText "Result: file /etc/security/limits.conf does not exist, skipping test"
         fi
         # TODO: Check ulimit settings in /etc/profile and /etc/profile.d

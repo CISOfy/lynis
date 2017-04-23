@@ -33,7 +33,7 @@
 #
     # Test        : STRG-1902
     # Description : Check rpcinfo
-    if [ ! "${RPCINFOBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${RPCINFOBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no STRG-1902 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check rpcinfo registered programs"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking rpcinfo registered programs"
@@ -48,7 +48,7 @@
 #
     # Test        : STRG-1904
     # Description : Check nfs versions in rpcinfo
-    if [ ! "${RPCINFOBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${RPCINFOBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no STRG-1904 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nfs rpc"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking NFS registered versions"
@@ -63,7 +63,7 @@
 #
     # Test        : STRG-1906
     # Description : Check nfs protocols (TCP/UDP) and port in rpcinfo
-    if [ ! "${RPCINFOBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ! -z "${RPCINFOBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no STRG-1906 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nfs rpc"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking NFS registered protocols"
@@ -71,7 +71,7 @@
         for I in ${FIND}; do
             LogText "Found protocol: ${I}"
         done
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             LogText "Output: no NFS protocols found"
         fi
 
@@ -81,7 +81,7 @@
         for I in ${FIND}; do
             LogText "Found port: ${I}"
         done
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             LogText "Output: no NFS port number found"
         fi
         Display --indent 2 --text "- Query NFS protocols" --result "${STATUS_DONE}" --color GREEN
@@ -95,10 +95,10 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking running NFS daemon"
         FIND=$(${PSBINARY} ax | ${GREPBINARY} "nfsd" | ${GREPBINARY} -v "grep")
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             LogText "Output: NFS daemon is not running"
             Display --indent 2 --text "- Check running NFS daemon" --result "${STATUS_NOT_FOUND}" --color WHITE
-          else
+        else
             LogText "Output: NFS daemon is running"
             Display --indent 2 --text "- Check running NFS daemon" --result "${STATUS_FOUND}" --color GREEN
             NFS_DAEMON_RUNNING=1
@@ -120,22 +120,22 @@
     Register --test-no STRG-1926 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking NFS exports"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check /etc/exports"
-        if [ -f /etc/exports ]; then
-            LogText "Result: /etc/exports exists"
-            FIND=$(${GREPBINARY} -v "^$" /etc/exports | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/ /!space!/g')
-            if [ ! "${FIND}" = "" ]; then
+        if [ -f ${ROOTDIR}etc/exports ]; then
+            LogText "Result: ${ROOTDIR}etc/exports exists"
+            FIND=$(${GREPBINARY} -v "^$" ${ROOTDIR}etc/exports | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/ /!space!/g')
+            if [ ! -z "${FIND}" ]; then
                 for I in ${FIND}; do
                     I=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')
                     LogText "Found line: ${I}"
                 done
-              else
-                LogText "Result: /etc/exports does not contain exported file systems"
+            else
+                LogText "Result: ${ROOTDIR}etc/exports does not contain exported file systems"
                 NFS_EXPORTS_EMPTY=1
             fi
-            Display --indent 4 --text "- Checking /etc/exports" --result "${STATUS_FOUND}" --color GREEN
-          else
+            Display --indent 4 --text "- Checking ${ROOTDIR}etc/exports" --result "${STATUS_FOUND}" --color GREEN
+        else
             LogText "Result: file /etc/exports does not exist"
-            Display --indent 4 --text "- Checking /etc/exports" --result "${STATUS_NOT_FOUND}" --color WHITE
+            Display --indent 4 --text "- Checking ${ROOTDIR}etc/exports" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #
@@ -148,7 +148,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ${NFS_EXPORTS_EMPTY} -eq 1 ]; then
             Display --indent 6 --text "- Checking empty /etc/exports" --result "${STATUS_SUGGESTION}" --color YELLOW
-            LogText "Result: /etc/exports seems to have no exported file systems"
+            LogText "Result: ${ROOTDIR}etc/exports seems to have no exported file systems"
             ReportSuggestion ${TEST_NO} "/etc/exports has no exported file systems, while NFS daemon is running. Check if NFS needs to run on this system"
         fi
     fi
@@ -160,9 +160,8 @@
     if [ ${NFS_DAEMON_RUNNING} -eq 1 -a ${NFS_EXPORTS_EMPTY} -eq 0 -a ! "${SHOWMOUNTBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no STRG-1930 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check client access to nfs share"
     if [ ${SKIPTEST} -eq 0 ]; then
-        #LogText "Test: "
-        sFIND=$(${SHOWMOUNTBINARY} -e | ${AWKBINARY} '{ print $2 }' | ${SEDBINARY} '1d'| ${GREPBINARY} "\*")
-        if [ "${sFIND}" != "" ]; then
+        sFIND=$(${SHOWMOUNTBINARY} -e | ${AWKBINARY} '{ print $2 }' | ${SEDBINARY} '1d' | ${GREPBINARY} "\*")
+        if [ ! -z "${sFIND}" ]; then
             LogText "Result: all client are allowed to access a NFS share in /etc/exports"
             Display --indent 4 --text "- Checking NFS client access" --result "ALL CLIENTS" --color YELLOW
             ReportSuggestion ${TEST_NO} "Specify clients that are allowed to access a NFS share /etc/exports"

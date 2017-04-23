@@ -47,7 +47,7 @@
             CreateTempFile
             SSH_DAEMON_OPTIONS_FILE="${TEMP_FILE}"
             ${SSHDBINARY} -T 2> /dev/null > ${SSH_DAEMON_OPTIONS_FILE}
-          else
+        else
             Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
@@ -72,16 +72,16 @@
                 if [ ${CANREAD} -eq 1 ]; then
                     FOUND=1
                     SSH_DAEMON_CONFIG="${I}/sshd_config"
-                  else
+                else
                     LogText "Result: can not read ${I}/sshd_config file (no permission)"
                 fi
             fi
         done
-        if [ "${SSH_DAEMON_CONFIG}" = "" ]; then
+        if [ -z "${SSH_DAEMON_CONFIG}" ]; then
             LogText "Result: No sshd configuration found"
             Display --indent 4 --text "- Searching SSH configuration" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportException "${TEST_NO}:1" "SSH daemon is running, but no readable configuration file found"
-          else
+        else
             LogText "Result: using last found configuration file: ${SSH_DAEMON_CONFIG}"
             Display --indent 4 --text "- Searching SSH configuration" --result "${STATUS_FOUND}" --color GREEN
         fi
@@ -92,7 +92,7 @@
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
     # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking specific defined options in ${SSH_DAEMON_OPTIONS_FILE}"
@@ -150,7 +150,7 @@
                 FOUNDVALUE=$(${AWKBINARY} -v OPT="${OPTIONNAME_LOWER}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_OPTIONS_FILE} | tail -1)
                 LogText "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_OPTIONS_FILE}"
 
-                if [ ! "${FOUNDVALUE}" = "" ]; then
+                if [ ! -z "${FOUNDVALUE}" ]; then
                     LogText "Result: Option ${OPTIONNAME} found"
                     LogText "Result: Option ${OPTIONNAME} value is ${FOUNDVALUE}"
 
@@ -246,7 +246,7 @@
                     LogText "Result: Option ${OPTIONNAME} not found in output"
                     Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_NOT_FOUND}" --color WHITE
                 fi
-              else
+            else
                 if IsVerbose; then Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "SKIPPED (via config)" --color WHITE; fi
             fi
         done
@@ -257,28 +257,28 @@
     # Test        : SSH-7440
     # Description : AllowUsers / AllowGroups
     # Goal        : Check if only a specific amount of users/groups can log in to the system
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! "${SSH_DAEMON_OPTIONS_FILE}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH option: AllowUsers and AllowGroups"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # AllowUsers
         FIND=$(${EGREPBINARY} -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: AllowUsers set, with value ${FIND}"
             Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
-          else
+        else
             LogText "Result: AllowUsers is not set"
             Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
         # AllowGroups
         FIND=$(${EGREPBINARY} -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${FIND}" ]; then
             LogText "Result: AllowUsers set ${FIND}"
             Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
-          else
+        else
             LogText "Result: AllowGroups is not set"
             Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -286,7 +286,7 @@
         if [ ${FOUND} -eq 1 ]; then
             LogText "Result: SSH is limited to a specific set of users, which is good"
             AddHP 2 2
-          else
+        else
             LogText "Result: SSH has no specific user or group limitation. Most likely all valid users can SSH to this machine."
             AddHP 0 1
         fi
@@ -296,7 +296,6 @@
 #
 
 Report "ssh_daemon_running=${SSH_DAEMON_RUNNING}"
-#Report "ssh_daemon_port=${SSH_DAEMON_PORT}"
 
 WaitForKeyPress
 

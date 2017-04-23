@@ -1,6 +1,17 @@
 Lynis Changelog
 ===============
 
+Lynis 2.4.9 (2017-04-21)
+
+This release is a maintenance release with focus on cleaning up the code for
+readability and future expansion. It includes:
+
+* Setting ROOTDIR variable instead of fixed paths
+* Introduction of IsEmpty and HasData functions for readability of code
+* Removal of unused code and comments
+
+---------------------------------------------------------------------------------
+
 Lynis 2.4.8 (2017-03-29)
 
 Changes:

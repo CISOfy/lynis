@@ -26,7 +26,7 @@
 #
 #################################################################################
 #
-    CRON_DIRS="/etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /var/spool/crontabs"
+    CRON_DIRS="${ROOTDIR}etc/cron.d ${ROOTDIR}etc/cron.hourly ${ROOTDIR}etc/cron.daily ${ROOTDIR}etc/cron.weekly ${ROOTDIR}etc/cron.monthly ${ROOTDIR}var/spool/crontabs"
     CHRONY_CONF_FILE=""
     NTP_DAEMON=""
     NTP_DAEMON_RUNNING=0
@@ -308,7 +308,7 @@
 #
     # Test        : TIME-3124
     # Description : Check selected time source
-    if [ ${NTPD_RUNNING} -eq 1 -a ! "${NTPQBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3124 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check selected time source"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking selected time source"
@@ -409,7 +409,10 @@
     # Notes       : without TZ variable set, a lot of unneeded calls might be performed.
     Register --test-no TIME-3148 --os Linux --weight L --network NO --category performance --description "Check TZ variable"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -z "${TZ}" ]; then
+        LogText "Test: testing for TZ variable"
+        FIND="${TZ:=notset}"
+        LogText "Result: found TZ variable with value ${FIND}"
+        if [ "${FIND}" = "notset" ]; then
             Report "tz_variable_empty=1"
         fi
     fi
@@ -493,9 +496,7 @@
 #
 #################################################################################
 #
-
-# For VMs check ntpd.conf : tinker panic 0
-
+    # For VMs check ntpd.conf : tinker panic 0
 
     # OS        Time daemons  Configuration file
     # --------------------------------------------
@@ -506,7 +507,7 @@
     # OpenBSD   ntpd          /etc/ntpd.conf
     # Solaris   xntpd         /etc/inet/ntp.conf
 
-WaitForKeyPress
+    WaitForKeyPress
 
 #
 #================================================================================

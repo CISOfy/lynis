@@ -1,7 +1,11 @@
 Lynis Changelog
 ===============
 
-Lynis 2.4.9 (2017-04-21)
+Pre announcement: run version 2.5.0 or later
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.0 (2017-05-03) - Not released yet
 
 This release is a maintenance release with focus on cleaning up the code for
 readability and future expansion. It includes:
@@ -9,6 +13,14 @@ readability and future expansion. It includes:
 * Setting ROOTDIR variable instead of fixed paths
 * Introduction of IsEmpty and HasData functions for readability of code
 * Removal of unused code and comments
+
+During the maintenance cycle, the project got informed about a flaw that could
+be possibly abused. This release is therefore highly recommended. See details on
+[CVE-2017-8108](https://cisofy.com/security/cve/cve-2017-8108/)
+
+Tests:
+------
+* MALW-3280 - Extended test with Symantec components
 
 ---------------------------------------------------------------------------------
 

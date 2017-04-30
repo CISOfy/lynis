@@ -10,17 +10,28 @@ Lynis 2.5.0 (2017-05-03) - Not released yet
 This release is a maintenance release with focus on cleaning up the code for
 readability and future expansion. It includes:
 
-* Setting ROOTDIR variable instead of fixed paths
+* Use ROOTDIR variable instead of fixed paths
 * Introduction of IsEmpty and HasData functions for readability of code
+* Renamed some variables to better indicate their purpose (counting, data type)
 * Removal of unused code and comments
+* Deleted unused tests from database file
+* Correct levels of identation
 
 During the maintenance cycle, the project got informed about a flaw that could
 be possibly abused. This release is therefore highly recommended. See details on
 [CVE-2017-8108](https://cisofy.com/security/cve/cve-2017-8108/)
 
+Changes:
+--------
+* Support for older mac OS X versions (Lion and Mountain Lion)
+* Initialized variables for more binaries
+
 Tests:
 ------
 * MALW-3280 - Extended test with Symantec components
+* PKGS-7332 - Detection of macOS ports tool and installed packages
+* TOOL-5120 - Snort detection
+* TOOL-5122 - Snort configuration file
 
 ---------------------------------------------------------------------------------
 

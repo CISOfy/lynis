@@ -86,7 +86,7 @@
             if IsVerbose; then Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN; fi
             AddHP 2 2
         fi
-      else
+    else
         LogText "Test skipped, MySQL daemon not running or no MySQL client available"
     fi
 #
@@ -118,14 +118,14 @@
                     LogText "Result: found MongoDB configuration file (${FILE})"
                     LogText "Test: determine authorization setting in new style YAML format"
                     AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
-                    if [ ! -z "${AUTH_IN_CONFIG}" ]; then
+                    if HasData "${AUTH_IN_CONFIG}"; then
                         LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)"
                         MONGODB_AUTHORIZATION_ENABLED=1
                     else
                         LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)"
                         LogText "Test: now searching for old style configuration (auth = true) in configuration file"
                         AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")
-                        if [ -z "${AUTH_IN_CONFIG}" ]; then
+                        if IsEmpty "${AUTH_IN_CONFIG}"; then
                             LogText "Result: did NOT find auth = true in configuration file"
                         else
                             LogText "Result: GOOD, found authorization option enabled in configuration file (old format)"
@@ -139,7 +139,7 @@
 
             # Now check authorization on the command line
             if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
-                if [ ! -z "${PGREPBINARY}" ]; then
+                if HasData "${PGREPBINARY}"; then
                     AUTH_ON_CMDLINE=$(for I in $(${PGREPBINARY} mongo); do cat /proc/${I}/cmdline | xargs -0 echo | ${GREPBINARY} -E "\-\-auth( |$)"; done)
                     if [ ! -z "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authorization enabled via mongod parameter"; MONGODB_AUTHORIZATION_ENABLED=1; fi
                 else

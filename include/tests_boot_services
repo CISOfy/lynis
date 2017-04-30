@@ -414,12 +414,12 @@
     Register --test-no BOOT-5142 --weight L --network NO --category security --description "Check SPARC Improved boot loader (SILO)"
     if [ ${SKIPTEST} -eq 0 ]; then
         BOOT_LOADER_SEARCHED=1
-        if [ -f /etc/silo.conf ]; then
+        if [ -f ${ROOTDIR}etc/silo.conf ]; then
             LogText "Result: Found SILO configuration file (/etc/silo.conf)"
             Display --indent 2 --text "- Checking boot loader SILO" --result "${STATUS_FOUND}" --color GREEN
             BOOT_LOADER="SILO"
             BOOT_LOADER_FOUND=1
-          else
+        else
             LogText "Result: no SILO configuration file found."
         fi
     fi
@@ -497,24 +497,24 @@
     # Description : Check for FreeBSD boot services
     Register --test-no BOOT-5165 --os FreeBSD --weight L --network NO --category security --description "Check for FreeBSD boot services"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! -z "${SERVICEBINARY}" ]; then
+        if HasData "${SERVICEBINARY}"; then
             # FreeBSD (Ask services(8) for enabled services)
             LogText "Searching for services at startup (service)"
             FIND=$(${SERVICEBINARY} -e | ${SEDBINARY} 's|^.*\/||' | ${SORTBINARY})
         else
             # FreeBSD (Read /etc/rc.conf file for enabled services)
             LogText "Searching for services at startup (rc.conf)"
-            FIND=$(${EGREPBINARY} -v -i '^#|none' /etc/rc.conf | ${EGREPBINARY} -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | ${SEDBINARY} 's/_enable//')
+            FIND=$(${EGREPBINARY} -v -i '^#|none' ${ROOTDIR}etc/rc.conf | ${EGREPBINARY} -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | ${SEDBINARY} 's/_enable//')
         fi
-        N=0
-        for I in ${FIND}; do
-            LogText "Found service (service/rc.conf): ${I}"
-            Report "boottask[]=${I}"
-            N=$((N + 1))
+        COUNT=0
+        for ITEM in ${FIND}; do
+            LogText "Found service (service/rc.conf): ${ITEM}"
+            Report "boottask[]=${ITEM}"
+            COUNT=$((COUNT + 1))
         done
         Display --indent 2 --text "- Checking services at startup (service/rc.conf)" --result "${STATUS_DONE}" --color GREEN
-        Display --indent 6 --text "Result: found $N services/options set"
-        LogText "Found $N services/options to run at startup"
+        Display --indent 6 --text "Result: found ${COUNT} services/options set"
+        LogText "Found ${COUNT} services/options to run at startup"
     fi
 #
 #################################################################################
@@ -527,56 +527,56 @@
         CHECKED=0
         LogText "Test: checking presence systemctl binary"
         # Determine if we have systemctl on board
-        if [ ! -z "${SYSTEMCTLBINARY}" ]; then
+        if HasData "${SYSTEMCTLBINARY}"; then
             LogText "Result: systemctl binary found, trying that to discover information"
             # Running services
             LogText "Searching for running services (systemctl services only)"
             FIND=$(${SYSTEMCTLBINARY} --full --type=service | ${AWKBINARY} '{ if ($4=="running") { print $1 } }' | ${AWKBINARY} -F. '{ print $1 }')
-            N=0
+            COUNT=0
             Report "running_service_tool=systemctl"
-            for I in ${FIND}; do
-                LogText "Found running service: ${I}"
-                Report "running_service[]=${I}"
-                N=$((N + 1))
+            for ITEM in ${FIND}; do
+                LogText "Found running service: ${ITEM}"
+                Report "running_service[]=${ITEM}"
+                COUNT=$((COUNT + 1))
             done
             LogText "Note: Run systemctl --full --type=service to see all services"
             Display --indent 2 --text "- Check running services (systemctl)" --result "${STATUS_DONE}" --color GREEN
-            Display --indent 8 --text "Result: found $N running services"
-            LogText "Result: Found $N enabled services"
+            Display --indent 8 --text "Result: found ${COUNT} running services"
+            LogText "Result: Found ${COUNT} enabled services"
 
             # Services at boot
             LogText "Searching for enabled services (systemctl services only)"
             FIND=$(${SYSTEMCTLBINARY} list-unit-files --type=service | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2=="enabled") { print $1 } }' | ${AWKBINARY} -F. '{ print $1 }')
-            N=0
+            COUNT=0
             Report "boot_service_tool=systemctl"
-            for I in ${FIND}; do
-                LogText "Found enabled service at boot: ${I}"
-                Report "boot_service[]=${I}"
-                N=$((N + 1))
+            for ITEM in ${FIND}; do
+                LogText "Found enabled service at boot: ${ITEM}"
+                Report "boot_service[]=${ITEM}"
+                COUNT=$((COUNT + 1))
             done
             LogText "Note: Run systemctl list-unit-files --type=service to see all services"
             Display --indent 2 --text "- Check enabled services at boot (systemctl)" --result "${STATUS_DONE}" --color GREEN
-            Display --indent 8 --text "Result: found $N enabled services"
-            LogText "Result: Found $N running services"
+            Display --indent 8 --text "Result: found ${COUNT} enabled services"
+            LogText "Result: Found ${COUNT} running services"
 
-          else
+        else
 
             LogText "Result: systemctl binary not found, checking chkconfig binary"
             if [ ! -z "${CHKCONFIGBINARY}" ]; then
                 LogText "Result: chkconfig binary found, trying that to discover information"
                 LogText "Searching for services at startup (chkconfig, runlevel 3 and 5)"
                 FIND=$(${CHKCONFIGBINARY} --list | ${EGREPBINARY} '3:on|5:on' | ${AWKBINARY} '{ print $1 }')
-                N=0
+                COUNT=0
                 Report "boot_service_tool=chkconfig"
-                for I in ${FIND}; do
-                    LogText "Found service (at boot, runlevel 3 or 5): ${I}"
-                    Report "boot_service[]=${I}"
-                    N=$((N + 1))
+                for ITEM in ${FIND}; do
+                    LogText "Found service (at boot, runlevel 3 or 5): ${ITEM}"
+                    Report "boot_service[]=${ITEM}"
+                    COUNT=$((COUNT + 1))
                 done
                 LogText "Hint: Run chkconfig --list to see all services and disable unneeded services"
                 Display --indent 2 --text "- Check services at startup (chkconfig)" --result "${STATUS_DONE}" --color GREEN
-                Display --indent 8 --text "Result: found $N services"
-                LogText "Result: Found $N services at startup"
+                Display --indent 8 --text "Result: found ${COUNT} services"
+                LogText "Result: Found ${COUNT} services at startup"
             else
                 LogText "Result: both systemctl and chkconfig not found. Skipping this test"
             fi
@@ -598,14 +598,14 @@
             LogText "Result: performing find in /etc/rc2.d as runlevel 2 is found"
             FIND=$(${FINDBINARY} ${ROOTDIR}etc/rc2.d -type l -print | ${CUTBINARY} -d '/' -f4 | ${SEDBINARY} "s/S[0-9][0-9]//g" | sort)
             if [ ! -z "${FIND}" ]; then
-                N=0
+                COUNT=0
                 for SERVICE in ${FIND}; do
                     LogText "Found service (at boot, runlevel 2): ${SERVICE}"
-                    N=$((N + 1))
+                    COUNT=$((COUNT + 1))
                 done
                 Display --indent 2 --text "- Check services at startup (rc2.d)" --result "${STATUS_DONE}" --color WHITE
-                Display --indent 4 --text "Result: found $N services"
-                LogText "Result: found $N services"
+                Display --indent 4 --text "Result: found ${COUNT} services"
+                LogText "Result: found ${COUNT} services"
             fi
         elif [ -z "${sRUNLEVEL}" ]; then
             ReportSuggestion ${TEST_NO} "Determine runlevel and services at startup"
@@ -623,35 +623,35 @@
         FOUND=0
         CHECKDIRS="${ROOTDIR}etc/init.d ${ROOTDIR}etc/rc.d ${ROOTDIR}etc/rcS.d"
 
-        LogText "Result: checking /etc/init.d scripts for writable bit"
-        for I in ${CHECKDIRS}; do
-            LogText "Test: checking if directory ${I} exists"
-            if [ -d ${I} ]; then
-                LogText "Result: directory ${I} found"
+        LogText "Result: checking ${ROOTDIR}etc/init.d scripts for writable bit"
+        for DIR in ${CHECKDIRS}; do
+            LogText "Test: checking if directory ${DIR} exists"
+            if [ -d ${DIR} ]; then
+                LogText "Result: directory ${DIR} found"
                 LogText "Test: checking for available files in directory"
-                FIND=$(${FINDBINARY} ${I} -type f -print)
+                FIND=$(${FINDBINARY} ${DIR} -type f -print)
                 if [ ! -z "${FIND}" ]; then
                     LogText "Result: found files in directory, checking permissions now"
-                    for J in ${FIND}; do
-                        LogText "Test: checking permissions of file ${J}"
-                        if IsWorldWritable ${J}; then
+                    for FILE in ${FIND}; do
+                        LogText "Test: checking permissions of file ${FILE}"
+                        if IsWorldWritable ${FILE}; then
                             FOUND=1
-                            LogText "Result: warning, file ${J} is world writable"
+                            LogText "Result: warning, file ${FILE} is world writable"
                         else
-                            LogText "Result: good, file ${J} not world writable"
+                            LogText "Result: good, file ${FILE} not world writable"
                         fi
                     done
                 else
                     LogText "Result: found no files in directory."
                 fi
             else
-                LogText "Result: directory ${I} not found. Skipping.."
+                LogText "Result: directory ${DIR} not found. Skipping.."
             fi
         done
 
         # /etc/rc[0-6].d
         for NO in 0 1 2 3 4 5 6; do
-            LogText "Test: Checking /etc/rc${NO}.d scripts for writable bit"
+            LogText "Test: Checking ${ROOTDIR}etc/rc${NO}.d scripts for writable bit"
             if [ -d ${ROOTDIR}etc/rc${NO}.d ]; then
                 FIND=$(${FINDBINARY} ${ROOTDIR}etc/rc${NO}.d -type f -print)
                 for I in ${FIND}; do

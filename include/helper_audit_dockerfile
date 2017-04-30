@@ -19,30 +19,29 @@
 #################################################################################
 
 if [ $# -eq 0 ]; then
-
     Display --indent 2 --text "${RED}Error: ${WHITE}Provide URL or file${NORMAL}"
     Display --text " "; Display --text " "
     ExitFatal
-  else
+else
     FILE=$(echo $1 | egrep "^http|https")
-    if [ ! "${FILE}" = "" ] ; then
+    if HasData "${FILE}"; then
         CreateTempFile
         TMP_FILE="${TEMP_FILE}"
         Display --indent 2 --text "Downloading URL ${FILE} with wget"
         wget -o ${TMP_FILE} ${FILE}
         if [ $? -gt 0 ]; then
             AUDIT_FILE="${TMP_FILE}"
-          else
+        else
             if [ -f ${TMP_FILE} ]; then
                 rm -f ${TMP_FILE}
             fi
             Display --indent 2 --text "${RED}Error: ${WHITE}can not download file${NORMAL}"
             ExitFatal
         fi
-      else
+    else
         if [ -f $1 ]; then
             AUDIT_FILE="$1"
-          else
+        else
             Display --indent 2 --text "File $1 does not exist"
             ExitFatal
         fi
@@ -98,7 +97,7 @@ InsertSection "Basics"
     FIND=$(egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g')
     if [ "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "No maintainer found. Unclear who created this file."
-      else
+    else
         MAINTAINER=$(echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}')
         Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
     fi
@@ -114,7 +113,7 @@ InsertSection "Basics"
         FIND=$(egrep "apt-get(.*) install" ${AUDIT_FILE})
         if [ ! "${FIND}" = "" ]; then
             LogText "Found installation via apt-get"
-          else
+        else
             LogText "No installations found via apt-get"
         fi
         ;;
@@ -151,14 +150,14 @@ InsertSection "Basics"
 
     LogText "Checking usage of wget"
     FIND_WGET=$(grep wget ${AUDIT_FILE})
-    if [ ! "${FIND_WGET}" = "" ]; then
+    if HasData "${FIND_WGET}"; then
         Display --indent 4 --text "Download tool" --result "wget"
         FILE_DOWNLOAD=1
     fi
 
 
     FIND=$(grep "^ADD http" ${AUDIT_FILE})
-    if [ ! "${FIND}" = "" ]; then
+    if HasData "${FIND}"; then
         FILE_DOWNLOAD=1
         ReportWarning "dockerfile" "Found download of file via ADD. Unclear if the integrity of this file is checked, or file is signed"
         LogText "Details: ${FIND}"
@@ -168,10 +167,10 @@ InsertSection "Basics"
 
         SSL_USED_FIND=$(egrep "(https)" ${AUDIT_FILE})
 
-        if [ ! "${SSL_USED_FIND}" = "" ]; then
+        if HasData "${SSL_USED_FIND}"; then
             SSL_USED="YES"
             COLOR="GREEN"
-          else
+        else
             SSL_USED="NO"
             COLOR="RED"
             ReportSuggestion "Use SSL downloads when possible to increase security (DNSSEC, HTTPS, validation of domain, avoid MitM)"
@@ -182,7 +181,7 @@ InsertSection "Basics"
         KEYS_USED=$(egrep "(apt-key adv)" ${AUDIT_FILE})
         Display --indent 2 --text "Signing keys used" --result ${SSL_USED}
         Display --indent 2 --text "All downloads properly checked" --result "?"
-      else
+    else
         Display --indent 2 --text "No files seems to be downloaded in this Dockerfile"
 
     fi
@@ -192,7 +191,7 @@ InsertSection "Basics"
     InsertSection "Permissions"
 
     FIND=$(grep -i "chmod 777" ${AUDIT_FILE})
-    if [ ! "${FIND}" = "" ]; then
+    if HasData "${FIND}"; then
         ReportWarning "dockerfile" "Warning: chmod 777 found"
     fi
 #

@@ -87,7 +87,7 @@
         else
             PREQS_MET="NO"
         fi
-      else
+    else
         PREQS_MET="NO"
     fi
     Register --test-no HTTP-6624 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Testing main Apache configuration file"
@@ -193,6 +193,9 @@
 #
 #################################################################################
 #
+    # TODO
+    # Do you have Apache running and want to contribute? Help us testing this control and send in a pull request
+
     # Test        : HTTP-6630
     # Description : Search for all loaded modules
     #if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -219,24 +222,24 @@
     Register --test-no HTTP-6632 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining all available Apache modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: searching available Apache modules"
-        N=0
-        for I in ${APACHE_MODULES_LOCS}; do
-            DirectoryExists ${I}
+        COUNT=0
+        for DIR in ${APACHE_MODULES_LOCS}; do
+            DirectoryExists ${DIR}
             if [ ${DIRECTORY_FOUND} -eq 1 ]; then
-                FIND=$(find ${I} -name "mod_*" -print | sort)
-                for J in ${FIND}; do
-                    Report "apache_module[]=${J}"
-                    LogText "Result: found Apache module ${J}"
-                    N=$((N + 1))
+                FIND=$(${FINDBINARY} ${DIR} -name "mod_*" -print | ${SORTBINARY})
+                for ITEM in ${FIND}; do
+                    Report "apache_module[]=${ITEM}"
+                    LogText "Result: found Apache module ${ITEM}"
+                    COUNT=$((COUNT + 1))
                 done
             fi
         done
-        if [ ${N} -eq 0 ]; then
+        if [ ${COUNT} -eq 0 ]; then
             Display --indent 4 --text "* Loadable modules" --result "${STATUS_NONE}" --color WHITE
             ReportException "${TEST_NO}:1" "No loadable Apache modules found"
         else
-            Display --indent 4 --text "* Loadable modules" --result "${STATUS_FOUND}" --color GREEN
-            Display --indent 8 --text "- Found ${N} loadable modules"
+            Display --indent 4 --text "* Loadable modules" --result "${STATUS_FOUND} (${COUNT})" --color GREEN
+            Display --indent 8 --text "- Found ${COUNT} loadable modules"
         fi
     fi
 #
@@ -300,7 +303,7 @@
 #
 #################################################################################
 #
-    # Test        : HTTP-6660
+    # Test        : HTTP-6660 TODO
     # Description : Search for "TraceEnable off" in configuration files
 #
 #################################################################################
@@ -311,7 +314,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: searching running nginx process"
         FIND=$(${PSBINARY} ax | ${GREPBINARY} "/nginx" | ${GREPBINARY} "master" | ${GREPBINARY} -v "grep")
-        if [ ! -z "${FIND}" ]; then
+        if HasData "${FIND}"; then
             LogText "Result: found running nginx process(es)"
             Display --indent 2 --text "- Checking nginx" --result "${STATUS_FOUND}" --color GREEN
             NGINX_RUNNING=1
@@ -330,14 +333,14 @@
     Register --test-no HTTP-6704 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check nginx configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: searching nginx configuration file"
-        for I in ${NGINX_CONF_LOCS}; do
-            if [ -f ${I}/nginx.conf ]; then
-                NGINX_CONF_LOCATION="${I}/nginx.conf"
+        for DIR in ${NGINX_CONF_LOCS}; do
+            if [ -f ${DIR}/nginx.conf ]; then
+                NGINX_CONF_LOCATION="${DIR}/nginx.conf"
                 LogText "Found file ${NGINX_CONF_LOCATION}"
-                NGINX_CONF_FILES="${I}/nginx.conf"
+                NGINX_CONF_FILES="${DIR}/nginx.conf"
             fi
         done
-        if [ ! -z "${NGINX_CONF_LOCATION}" ]; then
+        if HasData "${NGINX_CONF_LOCATION}"; then
             LogText "Result: found nginx configuration file"
             Report "nginx_main_conf_file=${NGINX_CONF_LOCATION}"
             Display --indent 4 --text "- Searching nginx configuration file" --result "${STATUS_FOUND}" --color GREEN
@@ -357,7 +360,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Remove temp file
         if [ ! -z "${TMPFILE}" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
-        N=0
+        COUNT=0
         ${SEDBINARY} -e 's/^[ 	]*//' ${NGINX_CONF_LOCATION} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "^$" | ${SEDBINARY} 's/[	]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/  / /g' >> ${TMPFILE}
         # Search for included configuration files (may include directories and wild cards)
         FIND=$(${GREPBINARY} "include" ${NGINX_CONF_LOCATION} | ${AWKBINARY} '{ if ($1=="include") { print $2 }}' | ${SEDBINARY} 's/;$//g')
@@ -366,7 +369,7 @@
             for J in ${FIND2}; do
                 # Ensure that we are parsing normal files
                 if [ -f ${J} ]; then
-                    N=$((N + 1))
+                    COUNT=$((COUNT + 1))
                     LogText "Result: found Nginx configuration file ${J}"
                     Report "nginx_sub_conf_file[]=${J}"
                     FileIsReadable ${J}
@@ -390,10 +393,10 @@
         # Remove unsorted file for next tests
         if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi
 
-        if [ ${N} -eq 0 ]; then
+        if [ ${COUNT} -eq 0 ]; then
             LogText "Result: no nginx include statements found"
         else
-            Display --indent 6 --text "- Found nginx includes" --result "${N} FOUND" --color GREEN
+            Display --indent 6 --text "- Found nginx includes" --result "${COUNT} FOUND" --color GREEN
         fi
     fi
 #
@@ -407,14 +410,14 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: start parsing all discovered nginx options"
         Display --indent 4 --text "- Parsing configuration options"
-        for I in ${NGINX_CONF_FILES}; do
-            FILENAME=$(echo ${I} | ${AWKBINARY} -F/ '{print $NF}')
+        for FILE in ${NGINX_CONF_FILES}; do
+            FILENAME=$(echo ${FILE} | ${AWKBINARY} -F/ '{print $NF}')
             if [ ! "${FILENAME}" = "mime.types" ]; then
-                if FileIsReadable ${I}; then
-                    Display --indent 8 --text "- ${I}"
-                    ParseNginx ${I}
+                if FileIsReadable ${FILE}; then
+                    Display --indent 8 --text "- ${FILE}"
+                    ParseNginx ${FILE}
                 else
-                    Display --indent 8 --text "- ${I}" --result "SKIPPED (NOT READABLE)" --color YELLOW
+                    Display --indent 8 --text "- ${FILE}" --result "SKIPPED (NOT READABLE)" --color YELLOW
                 fi
             else
                 LogText "Result: this configuration file is skipped, as it contains usually no interesting details"

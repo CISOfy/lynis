@@ -279,7 +279,7 @@
         done
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Query swap partitions (fstab)" --result "${STATUS_OK}" --color GREEN
-          else
+        else
             Display --indent 2 --text "- Query swap partitions (fstab)" --result "${STATUS_NONE}" --color YELLOW
             LogText "Result: no swap partitions found in /etc/fstab"
         fi
@@ -350,29 +350,29 @@
 #
     # Test        : FILE-6354
     # Description : Search files within /tmp which are older than 3 months
-    if [ -d /tmp ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -d ${ROOTDIR}tmp ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FILE-6354 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Searching for old files in /tmp"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Searching for old files in /tmp"
-        # Search for files only in /tmp, with an access time older than X days
-        FIND=$(${FINDBINARY} ${ROOTDIR}tmp -xdev -type f -atime +${TMP_OLD_DAYS} | ${SEDBINARY} 's/ /!space!/g')
-        if [ -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: no files found in /tmp which are older than 3 months"
+        LogText "Test: Searching for old files in ${ROOTDIR}tmp"
+        # Search for files only in ${ROOTDIR}tmp, with an access time older than X days
+        FIND=$(${FINDBINARY} ${ROOTDIR}tmp -xdev -type f -atime +${TMP_OLD_DAYS} 2> /dev/null | ${SEDBINARY} 's/ /!space!/g')
+        if IsEmpty "${FIND}"; then
+            Display --indent 2 --text "- Checking for old files in ${ROOTDIR}tmp" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: no files found in ${ROOTDIR}tmp which are older than 3 months"
         else
-            Display --indent 2 --text "- Checking for old files in /tmp" --result "${STATUS_FOUND}" --color RED
-            N=0
-            for I in ${FIND}; do
-                FILE=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')
+            Display --indent 2 --text "- Checking for old files in ${ROOTDIR}tmp" --result "${STATUS_FOUND}" --color RED
+            COUNT=0
+            for ITEM in ${FIND}; do
+                FILE=$(echo ${ITEM} | ${SEDBINARY} 's/!space!/ /g')
                 LogText "Old temporary file: ${FILE}"
-                N=$((N + 1))
+                COUNT=$((COUNT + 1))
             done
-            LogText "Result: found old files in /tmp, which were not modified in the last ${TMP_OLD_DAYS} days"
-            LogText "Advice: check and clean up unused files in /tmp. Old files can fill up a disk or contain"
+            LogText "Result: found old files in ${ROOTDIR}tmp, which were not modified in the last ${TMP_OLD_DAYS} days"
+            LogText "Advice: check and clean up unused files in ${ROOTDIR}tmp. Old files can fill up a disk or contain"
             LogText "private information and should be deleted it not being used actively. Use a tool like lsof to"
             LogText "see which programs possibly are using a particular file. Some systems can cleanup temporary"
             LogText "directories by setting a boot option."
-            ReportSuggestion ${TEST_NO} "Check ${N} files in /tmp which are older than ${TMP_OLD_DAYS} days"
+            ReportSuggestion ${TEST_NO} "Check ${COUNT} files in ${ROOTDIR}tmp which are older than ${TMP_OLD_DAYS} days"
         fi
     fi
 #
@@ -380,18 +380,18 @@
 #
     # Test        : FILE-6362
     # Description : Check for sticky bit on /tmp
-    if [ -d /tmp -a ! -L /tmp ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No /tmp or /tmp is symlinked"; fi
+    if [ -d ${ROOTDIR}tmp -a ! -L ${ROOTDIR}tmp ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No /tmp or /tmp is symlinked"; fi
     Register --test-no FILE-6362 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking /tmp sticky bit"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Depending on OS, number of field with 'tmp' differs
-        FIND=$(${LSBINARY} -ld /tmp | ${AWKBINARY} '$1 ~ /[tT]/ { print 1 }')
+        FIND=$(${LSBINARY} -ld ${ROOTDIR}tmp | ${AWKBINARY} '$1 ~ /[tT]/ { print 1 }')
         if [ "${FIND}" = "1" ]; then
-            Display --indent 2 --text "- Checking /tmp sticky bit" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: sticky bit found on /tmp directory"
+            Display --indent 2 --text "- Checking ${ROOTDIR}tmp sticky bit" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: sticky bit found on ${ROOTDIR}tmp directory"
             AddHP 3 3
         else
-            Display --indent 2 --text "- Checking /tmp sticky bit" --result "${STATUS_WARNING}" --color RED
-            ReportSuggestion ${TEST_NO} "Set the sticky bit on /tmp, to prevent users deleting (by other owned) files in the /tmp directory." "/tmp" "text:Set sticky bit"
+            Display --indent 2 --text "- Checking ${ROOTDIR}tmp sticky bit" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion ${TEST_NO} "Set the sticky bit on ${ROOTDIR}tmp, to prevent users deleting (by other owned) files in the /tmp directory." "/tmp" "text:Set sticky bit"
             AddHP 0 3
         fi
         unset FIND
@@ -440,10 +440,10 @@
                 if [ ! -z "${FIND2}" ]; then
                     LogText "Result: found ACL option in default mount options"
                     FOUND=1
-                  else
+                else
                     LogText "Result: no ACL option found in default mount options list"
                 fi
-              else
+            else
                 LogText "Result: No file system found with root file system"
             fi
         fi
@@ -566,7 +566,7 @@
                             AddHP 4 5
                         fi
                     fi
-                  else
+                else
                     LogText "Result: file system ${FILESYSTEM} not found in /etc/fstab"
                 fi
             done
@@ -579,8 +579,8 @@
     # Description : Bind mount the /var/tmp directory to /tmp
     Register --test-no FILE-6376 --os Linux --weight L --network NO --category security --description "Determine if /var/tmp is bound to /tmp"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -f /etc/fstab ]; then
-            FIND=$(${AWKBINARY} '{ if ($2=="/var/tmp") { print $4 } }' /etc/fstab)
+        if [ -f ${ROOTDIR}etc/fstab ]; then
+            FIND=$(${AWKBINARY} '{ if ($2=="/var/tmp") { print $4 } }' ${ROOTDIR}etc/fstab)
             BIND=$(echo ${FIND} | ${AWKBINARY} '{ if ($1 ~ "bind") { print "YES" } else { print "NO" } }')
             if [ ! -z "${FIND}" ]; then
                 LogText "Result: mount system /var/tmp is configured with options: ${FIND}"
@@ -600,7 +600,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6378
+    # Test        : FILE-6378 TODO
     # Description : Check for nodirtime option
 
     # Want to contribute to Lynis? Create this test
@@ -608,7 +608,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6380
+    # Test        : FILE-6380 TODO
     # Description : Check for relatime
 
     # Want to contribute to Lynis? Create this test
@@ -616,7 +616,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6390
+    # Test        : FILE-6390 TODO
     # Description : Check writeback/journalling mode (ext3)
     # More info   : data=writeback | data=ordered | data=journal
 
@@ -625,7 +625,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6394
+    # Test        : FILE-6394 TODO
     # Description : Check vm.swappiness (Linux)
 
     # Want to contribute to Lynis? Create this test
@@ -633,7 +633,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6398
+    # Test        : FILE-6398 TODO
     # Description : Check if JBD (Journal Block Device) driver is loaded
 
     # Want to contribute to Lynis? Create this test
@@ -651,20 +651,20 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking locate database"
         FOUND=0
-        LOCATE_DBS="/var/lib/mlocate/mlocate.db /var/lib/locate/locatedb /var/lib/locatedb /var/lib/slocate/slocate.db /var/cache/locate/locatedb /var/db/locate.database"
-        for I in ${LOCATE_DBS}; do
-            if [ -f ${I} ]; then
-                LogText "Result: locate database found (${I})"
+        LOCATE_DBS="${ROOTDIR}var/lib/mlocate/mlocate.db ${ROOTDIR}var/lib/locate/locatedb ${ROOTDIR}var/lib/locatedb ${ROOTDIR}var/lib/slocate/slocate.db ${ROOTDIR}var/cache/locate/locatedb ${ROOTDIR}var/db/locate.database"
+        for FILE in ${LOCATE_DBS}; do
+            if [ -f ${FILE} ]; then
+                LogText "Result: locate database found (${FILE})"
                 FOUND=1
-                LOCATE_DB="${I}"
-              else
-                LogText "Result: file ${I} not found"
+                LOCATE_DB="${FILE}"
+            else
+                LogText "Result: file ${FILE} not found"
             fi
         done
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking Locate database" --result "${STATUS_FOUND}" --color GREEN
             Report "locate_db=${LOCATE_DB}"
-          else
+        else
             LogText "Result: database not found"
             Display --indent 2 --text "- Checking Locate database" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportSuggestion ${TEST_NO} "The database required for 'locate' could not be found. Run 'updatedb' or 'locate.updatedb' to create this file."
@@ -673,7 +673,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6420
+    # Test        : FILE-6420 TODO
     # Description : Check automount process
 
     # Want to contribute to Lynis? Create this test
@@ -681,7 +681,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6422
+    # Test        : FILE-6422 TODO
     # Description : Check automount maps (files or for example LDAP based)
     # Notes       : Warn when automounter is running
 
@@ -690,7 +690,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6424
+    # Test        : FILE-6424 TODO
     # Description : Check automount map files
 
     # Want to contribute to Lynis? Create this test
@@ -698,7 +698,7 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6425
+    # Test        : FILE-6425 TODO
     # Description : Check mounted files systems via automounter
     # Notes       : Warn when no systems are mounted?
 
@@ -728,11 +728,11 @@
                     LogText "Test: Checking if ${FS} is active"
                     # Check if FS is present in lsmod output
                     FIND=$(${LSMODBINARY} | ${EGREPBINARY} "^${FS}")
-                    if [ -z "${FIND}" ]; then
+                    if IsEmpty "${FIND}"; then
                         LogText "Result: module ${FS} is not loaded in the kernel"
                         AddHP 2 3
-                        #Display --indent 6 --text "- Module ${FS} not loaded (lsmod)" --result OK --color GREEN
-                        # Tip to disable a particular module if it is not loaded
+                        if IsDebug; then Display --indent 6 --text "- Module ${FS} not loaded (lsmod)" --result OK --color GREEN; fi
+                        # Tip to disable a particular module if it is not loaded TODO
                         #ReportSuggestion ${TEST_NO} "The modprobe.d directory should contain a file with the entry 'install ${FS} /bin/true'"
                         FOUND=1
                         AVAILABLE_MODPROBE_FS="${AVAILABLE_MODPROBE_FS}${FS} "
@@ -742,7 +742,7 @@
                     fi
                 else
                     AddHP 3 3
-                    #Display --indent 6 --text "- Module ${FS} not present in the kernel" --result OK --color GREEN
+                    if IsDebug; then Display --indent 6 --text "- Module ${FS} not present in the kernel" --result OK --color GREEN; fi
                 fi
             done
             if [ ${FOUND} -eq 1 ]; then

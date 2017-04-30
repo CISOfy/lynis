@@ -281,21 +281,21 @@
 #
     # Test        : LOGG-2150
     # Description : Checking log directories rotated with logrotate
-    if [ ! "${LOGROTATEBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if HasData "${LOGROTATEBINARY}"; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2150 --weight L --preqs-met ${PREQS_MET} --network NO --category security --description "Checking directories in logrotate configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking which directories can be found in logrotate configuration"
-        FIND=$(${LOGROTATEBINARY} -d -v /etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2=="log") { print $3 } }' | ${SEDBINARY} 's@/[^/]*$@@g' | ${SORTBINARY} -u)
-        if [ "${FIND}" = "" ]; then
+        FIND=$(${LOGROTATEBINARY} -d -v ${ROOTDIR}etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2=="log") { print $3 } }' | ${SEDBINARY} 's@/[^/]*$@@g' | ${SORTBINARY} -u)
+        if IsEmpty "${FIND}" ]; then
             LogText "Result: nothing found"
-          else
+        else
             LogText "Result: found one or more directories (via logrotate configuration)"
-            for I in ${FIND}; do
-                if [ -d ${I} ]; then
-                    LogText "Directory found: ${I}"
-                    Report "log_directory[]=${I}"
-                  else
-                    LogText "Directory could not be found: ${I}"
+            for DIR in ${FIND}; do
+                if [ -d ${DIR} ]; then
+                    LogText "Directory found: ${DIR}"
+                    Report "log_directory[]=${DIR}"
+                else
+                    LogText "Result: Directory could not be found: ${DIR}"
                 fi
             done
         fi
@@ -379,7 +379,7 @@
                 AddHP 5 5
                 Display --indent 2 --text "- Checking remote logging" --result "${STATUS_ENABLED}" --color GREEN
             fi
-          else
+        else
             LogText "Result: test skipped, file ${SYSLOGD_CONF} not found"
         fi
     fi

@@ -46,7 +46,7 @@
         if [ ! -f ${ROOTDIR}usr/sbin/chkprintcap ]; then
             Display --indent 2 --text "- Checking chkprintcap" --result "${STATUS_NOT_FOUND}" --color WHITE
             LogText "Result: ${ROOTDIR}usr/sbin/chkprintcap NOT found, test skipped"
-          else
+        else
             LogText "Result: ${ROOTDIR}usr/sbin/chkprintcap found"
             FIND=$(${ROOTDIR}usr/sbin/chkprintcap > /dev/null ; echo $?)
             # Only an exit code of zero should come back. Use string instead of integer, due unexpected trash
@@ -88,19 +88,19 @@
     Register --test-no PRNT-2306 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check CUPSd configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching cupsd configuration file"
-        for I in ${CUPSD_CONFIG_LOCS}; do
-            if [ -f ${I}/cupsd.conf ]; then
-                if FileIsReadable ${I}/cupsd.conf; then
-                    CUPSD_CONFIG_FILE="${I}/cupsd.conf"
+        for DIR in ${CUPSD_CONFIG_LOCS}; do
+            if [ -f ${DIR}/cupsd.conf ]; then
+                if FileIsReadable ${DIR}/cupsd.conf; then
+                    CUPSD_CONFIG_FILE="${DIR}/cupsd.conf"
                     LogText "Result: found ${CUPSD_CONFIG_FILE}"
                 fi
             fi
         done
-        if [ ! -z "${CUPSD_CONFIG_FILE}" ]; then
+        if HasData "${CUPSD_CONFIG_FILE}"; then
             Display --indent 2 --text "- Checking CUPS configuration file" --result "${STATUS_OK}" --color GREEN
             LogText "Result: configuration file found (${CUPSD_CONFIG_FILE})"
             CUPSD_FOUND=1
-          else
+        else
             Display --indent 2 --text "- Checking CUPS configuration file" --result "${STATUS_NOT_FOUND}" --color RED
             LogText "Result: configuration file not found"
             LogText "Development: no CUPS configuration file found"
@@ -111,17 +111,17 @@
 #
     # Test        : PRNT-2307
     # Description : Check CUPSd configuration file permissions
-    # To Do       : Add function
+    # TODO        : Add function
     if [ ${CUPSD_FOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PRNT-2307 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check CUPSd configuration file permissions"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking CUPS configuration file permissions"
-        FIND=$(ls -l ${CUPSD_CONFIG_FILE} | ${CUTBINARY} -c 2-10)
+        FIND=$(${LSBINARY} -l ${CUPSD_CONFIG_FILE} | ${CUTBINARY} -c 2-10)
         LogText "Result: found ${FIND}"
         if [ "${FIND}" = "r--------" -o "${FIND}" = "rw-------" -o "${FIND}" = "rw-r-----" -o "${FIND}" = "rw-rw----" ]; then
             Display --indent 4 --text "- File permissions" --result "${STATUS_OK}" --color GREEN
             AddHP 1 1
-          else
+        else
             Display --indent 4 --text "- File permissions" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion ${TEST_NO} "Access to CUPS configuration could be more strict."
             AddHP 1 2
@@ -139,17 +139,17 @@
         # Checking network addresses
         LogText "Test: Checking CUPS daemon listening network addresses"
         FIND=$(${GREPBINARY} "^Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} -v "/" | ${AWKBINARY} '{ print $2 }')
-        N=0
-        for I in ${FIND}; do
-            LogText "Found network address: ${I}"
-            N=$((N + 1))
+        COUNT=0
+        for ITEM in ${FIND}; do
+            LogText "Found network address: ${ITEM}"
+            COUNT=$((COUNT + 1))
             FOUND=1
         done
 
         # Check if daemon is only running on localhost
         if [ ${FOUND} -eq 0 ]; then
             LogText "Result: no listen statement found in CUPS configuration file"
-        elif [ ${N} -eq 1 ]; then
+        elif [ ${COUNT} -eq 1 ]; then
             if [ "${FIND}" = "localhost:631" -o "${FIND}" = "127.0.0.1:631" ]; then
                 LogText "Result: CUPS daemon only running on localhost"
                 AddHP 2 2
@@ -167,12 +167,12 @@
         # Checking sockets
         LogText "Test: Checking cups daemon listening sockets"
         FIND=$(${GREPBINARY} "^Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} "/" | ${AWKBINARY} '{ print $2 }')
-        for I in ${FIND}; do
-            LogText "Found socket address: ${I}"
-            N=$((N + 1))
+        for ITEM in ${FIND}; do
+            LogText "Found socket address: ${ITEM}"
+            COUNT=$((COUNT + 1))
         done
 
-        if [ ${N} -eq 0 ]; then
+        if [ ${COUNT} -eq 0 ]; then
             Display --indent 2 --text "- Checking CUPS addresses/sockets" --result "${STATUS_NONE}" --color WHITE
             LogText "Result: no addresses found on which CUPS daemon is listening"
         else
@@ -236,12 +236,12 @@
             LogText "Result: qdaemon daemon running"
             Display --indent 2 --text "- Checking qdaemon daemon" --result "${STATUS_RUNNING}" --color GREEN
             QDAEMON_RUNNING=1; PRINTING_DAEMON="qdaemon"
-          else
+        else
             if [ ${QDAEMON_CONFIG_ENABLED} -eq 1 ]; then
                 LogText "Result: qdaemon daemon not running"
                 Display --indent 2 --text "- Checking qdaemon daemon" --result "${STATUS_NOT_RUNNING}" --color RED
                 ReportSuggestion ${TEST_NO} "Activate print spooler daemon (qdaemon) in order to process print jobs"
-              else
+            else
                 LogText "Result: qdaemon daemon not running"
                 Display --indent 2 --text "- Checking qdaemon daemon" --result "${STATUS_NOT_RUNNING}" --color WHITE
             fi
@@ -255,17 +255,17 @@
     Register --test-no PRNT-2420 --os AIX --weight L --network NO --category security --description "Checking old print jobs"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking old print jobs"
-        DirectoryExists /var/spool/lpd/qdir
+        DirectoryExists ${ROOTDIR}var/spool/lpd/qdir
         if [ ${DIRECTORY_FOUND} -eq 1 ]; then
-            FIND=$(find /var/spool/lpd/qdir -type f -mtime +1 2> /dev/null | ${SEDBINARY} 's/ /!space!/g')
-            if [ ! -z "${FIND}" ]; then
-                N=0
-                for I in ${FIND}; do
-                    FILE=$(echo ${I} | ${SEDBINARY} 's/!space!/ /g')
+            FIND=$(find ${ROOTDIR}var/spool/lpd/qdir -type f -mtime +1 2> /dev/null | ${SEDBINARY} 's/ /!space!/g')
+            if HasData "${FIND}"; then
+                COUNT=0
+                for ITEM in ${FIND}; do
+                    FILE=$(echo ${ITEM} | ${SEDBINARY} 's/!space!/ /g')
                     LogText "Found old print job: ${FILE}"
-                    N=$((N + 1))
+                    COUNT=$((COUNT + 1))
                 done
-                LogText "Result: Found ${N} old print jobs in /var/spool/lpd/qdir"
+                LogText "Result: Found ${COUNT} old print jobs in /var/spool/lpd/qdir"
                 Display --indent 4 --text "- Checking old print jobs" --result "${STATUS_FOUND}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Check old print jobs in /var/spool/lpd/qdir to prevent new jobs from being processed"
                 LogText "Risk: Failed or defunct print jobs can occupy a lot of space and in some cases, prevent new jobs from being processed"

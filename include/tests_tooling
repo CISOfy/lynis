@@ -31,6 +31,8 @@
     FAIL2BAN_EMAIL=0
     FAIL2BAN_SILENT=0
     PERFORM_FAIL2BAN_TESTS=0
+    SNORT_FOUND=0
+    SNORT_RUNNING=0
 #
 #################################################################################
 #
@@ -160,7 +162,7 @@
 #
 #################################################################################
 #
-# Intrusion Prevention tools
+# Intrusion Detection and Prevention tools
 #
 #################################################################################
 #
@@ -285,7 +287,7 @@
     #                if [ ! -z "${CHECK_CHAINS}" ]; then
     #                    LogText "Result: found at least one iptables chain for fail2ban"
     #                    Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result "${STATUS_OK}" --color GREEN
-    #                  else
+    #                else
     #                    LogText "Result: Fail2ban installed but iptables chain not present - fail2ban will not work"
     #                    Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result "${STATUS_WARNING}" --color RED
     #                    AddHP 0 3
@@ -297,6 +299,52 @@
     #            fi
     #        fi
     #    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-5120
+    # Description : Check for Snort
+    Register --test-no TOOL-5120 --weight L --network NO --category security --description "Check for presence of Snort"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # Snort presence
+        if [ -n "${SNORTBINARY}" ]; then
+            SNORT_FOUND=1
+            IDS_IPS_TOOL_FOUND=1
+            LogText "Result: Snort is installed (${SNORTBINARY})"
+            Report "ids_ips_tooling[]=snort"
+            Display --indent 2 --text "- Checking presence of Snort" --result "${STATUS_FOUND}" --color GREEN
+        fi
+
+        IsRunning snort
+        if [ ${SNORT_RUNNING} -eq 1 ]; then
+            SNORT_FOUND=1
+            SNORT_RUNNING=1
+            SNORT_LOG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/snort/ {print $4}' | ${HEADBINARY} -1)
+        else
+            LogText "Result: Snort not present (Snort not running)"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-5122
+    # Description : Check for Snort configuration
+    Register --test-no TOOL-5122 --weight L --network NO --category security --description "Check Snort configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # Continue if tooling is available and snort is running
+        if [ -n ${SNORT_FOUND} ] || [ -n ${SNORT_RUNNING} ]; then
+            if [ ${SNORT_FOUND} -eq 1 ] && [ ${SNORT_RUNNING} -eq 1 ]; then
+                SNORT_CONFIG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/snort/ {print $3}' | ${HEADBINARY} -1)
+                if HasData "${SNORT_CONFIG}"; then
+                    LogText "Result: found Snort configuration file: ${SNORT_CONFIG}"
+                    Report "snort_config=${SNORT_CONFIG}"
+                fi
+                SNORT=$(which snort 2> /dev/null)
+            fi
+        fi
+    fi
 #
 #################################################################################
 #

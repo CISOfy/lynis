@@ -250,30 +250,30 @@
     if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check peers with stratum value of 16"
     if [ ${SKIPTEST} -eq 0 ]; then
-        N=0
+        COUNT=0
         LogText "Test: Checking stratum 16 sources from ntpq peers list"
         FIND=$(${NTPQBINARY} -p -n | ${AWKBINARY} '{ if ($2!=".POOL." && $3=="16") { print $1 }}')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_OK}" --color GREEN
             LogText "Result: All peers are lower than stratum 16"
         else
-            for I in ${FIND}; do
-                LogText "Found stratum 16 peer: ${I}"
-                FIND2=$(${EGREPBINARY} "^ntp:ignore_stratum_16_peer:${I}:" ${PROFILE})
-                if [ -z "${FIND2}" ]; then
-                    N=$((N + 1))
-                    Report "ntp_stratum_16_peer[]=${I}"
+            for ITEM in ${FIND}; do
+                LogText "Found stratum 16 peer: ${ITEM}"
+                FIND2=$(${EGREPBINARY} "^ntp:ignore_stratum_16_peer:${ITEM}:" ${PROFILE})
+                if IsEmpty "${FIND2}"; then
+                    COUNT=$((COUNT + 1))
+                    Report "ntp_stratum_16_peer[]=${ITEM}"
                 else
-                    LogText "Output: host ${I} ignored by profile"
+                    LogText "Output: host ${ITEM} ignored by profile"
                 fi
             done
             # Check if one or more high stratum time servers are found
-            if [ ${N} -eq 0 ]; then
+            if [ ${COUNT} -eq 0 ]; then
                 Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: all non local servers are lower than stratum 16, or whitelisted within the scan profile"
             else
                 Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_WARNING}" --color RED
-                LogText "Result: Found one or more high stratum (16) peers)"
+                LogText "Result: Found ${COUNT} high stratum (16) peers)"
                 ReportSuggestion ${TEST_NO} "Check ntpq peers output for stratum 16 peers"
             fi
         fi
@@ -457,7 +457,7 @@
             fi
             LogText "Information: step-tickers is used by ntpdate where as ntp.conf is the configuration file for the ntpd daemon. ntpdate is initially run to set the clock before ntpd to make sure time is within 1000 sec."
             LogText "Risk: ntp will not run at boot if the time difference between the server and client by more then 1000 sec."
-          else
+        else
             LogText "Result: test skipped because ${FILE} not found"
         fi
     fi

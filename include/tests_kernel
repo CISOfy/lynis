@@ -40,10 +40,10 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Checking if we can find the systemd default target
         LogText "Test: Checking for systemd default.target"
-        if [ -L /etc/systemd/system/default.target ]; then
+        if [ -L ${ROOTDIR}etc/systemd/system/default.target ]; then
             LogText "Result: symlink found"
             if HasData "${READLINKBINARY}"; then
-                FIND=$(${READLINKBINARY} /etc/systemd/system/default.target)
+                FIND=$(${READLINKBINARY} ${ROOTDIR}etc/systemd/system/default.target)
                 if ! HasData "${FIND}"; then
                     LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
                     ReportException "${TEST_NO}:01"
@@ -65,9 +65,9 @@
             fi
         else
             LogText "Result: no systemd found, so trying inittab"
-            LogText "Test: Checking /etc/inittab"
-            if [ -f /etc/inittab ]; then
-                LogText "Result: file /etc/inittab found"
+            LogText "Test: Checking ${ROOTDIR}etc/inittab"
+            if [ -f ${ROOTDIR}etc/inittab ]; then
+                LogText "Result: file ${ROOTDIR}etc/inittab found"
                 LogText "Test: Checking default Linux run level"
                 FIND=$(${AWKBINARY} -F: '/^id/ { print $2; }' ${ROOTDIR}etc/inittab | head -n 1)
                 if IsEmpty "${FIND}"; then
@@ -211,13 +211,13 @@
             Display --indent 2 --text "- Checking loaded kernel modules" --result "${STATUS_DONE}" --color GREEN
             if HasData "${FIND}"; then
                 LogText "Loaded modules according lsmod:"
-                N=0
-                for I in ${FIND}; do
-                    LogText "Loaded module: ${I}"
-                    Report "loaded_kernel_module[]=${I}"
-                    N=$((N + 1))
+                COUNT=0
+                for ITEM in ${FIND}; do
+                    LogText "Loaded module: ${ITEM}"
+                    Report "loaded_kernel_module[]=${ITEM}"
+                    COUNT=$((COUNT + 1))
                 done
-                Display --indent 6 --text "Found ${N} active modules"
+                Display --indent 6 --text "Found ${COUNT} active modules"
             else
                 LogText "Result: no loaded modules found"
                 LogText "Notice: No loaded kernel modules could indicate a broken/malformed lsmod, or a (custom) monolithic kernel"
@@ -295,13 +295,13 @@
             FIND=$(kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6)
             if [ $? -eq 0 ]; then
                 LogText "Loaded modules according kldstat:"
-                N=0
-                for I in ${FIND}; do
-                    LogText "Loaded module: ${I}"
-                    Report "loaded_kernel_module[]=${I}"
-                    N=$((N + 1))
+                COUNT=0
+                for ITEM in ${FIND}; do
+                    LogText "Loaded module: ${ITEM}"
+                    Report "loaded_kernel_module[]=${ITEM}"
+                    COUNT=$((COUNT + 1))
                 done
-                Display --indent 4 --text "Found ${N} kernel modules" --result "${STATUS_DONE}" --color GREEN
+                Display --indent 4 --text "Found ${COUNT} kernel modules" --result "${STATUS_DONE}" --color GREEN
             else
                 Display --indent 4 --text "Test failed" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Problem with executing kldstat"
@@ -321,24 +321,24 @@
         LogText "Test: Active kernel modules (KLDs)"
         LogText "Description: View all active kernel modules (including kernel)"
         LogText "Test: Checking modules"
-        if [ -f /sbin/kldstat ]; then
-            FIND=$(kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6)
+        if [ -f ${ROOTDIR}sbin/kldstat ]; then
+            FIND=$(${ROOTDIR}sbin/kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6)
             if [ $? -eq 0 ]; then
                 LogText "Loaded modules according kldstat:"
-                N=0
-                for I in ${FIND}; do
-                    LogText "Loaded module: ${I}"
-                    Report "loaded_kernel_module[]=${I}"
-                    N=$((N + 1))
+                COUNT=0
+                for ITEM in ${FIND}; do
+                    LogText "Loaded module: ${ITEM}"
+                    Report "loaded_kernel_module[]=${ITEM}"
+                    COUNT=$((COUNT + 1))
                 done
-                Display --indent 4 --text "Found ${N} kernel modules" --result "${STATUS_DONE}" --color GREEN
+                Display --indent 4 --text "Found ${COUNT} kernel modules" --result "${STATUS_DONE}" --color GREEN
             else
                 Display --indent 4 --text "Test failed" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Problem with executing kldstat"
             fi
         else
             echo "[ ${WHITE}SKIPPED${NORMAL} ]"
-            LogText "Result: no results, can't find /sbin/kldstat"
+            LogText "Result: no results, can NOT find ${ROOTDIR}sbin/kldstat"
         fi
     fi
 #
@@ -351,9 +351,9 @@
         LogText "Test: searching loaded kernel modules"
         FIND=$(/usr/sbin/modinfo -c -w | ${GREPBINARY} -v "UNLOADED" | ${GREPBINARY} LOADED | ${AWKBINARY} '{ print $3 }' | sort)
         if HasData "${FIND}"; then
-            for I in ${FIND}; do
-                LogText "Found module: ${I}"
-                Report "loaded_kernel_module[]=${I}"
+            for ITEM in ${FIND}; do
+                LogText "Found module: ${ITEM}"
+                Report "loaded_kernel_module[]=${ITEM}"
             done
             Display --indent 2 --text "- Checking Solaris active kernel modules" --result "${STATUS_DONE}" --color GREEN
         else
@@ -370,21 +370,21 @@
     Register --test-no KRNL-5788 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking availability new Linux kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching apt-cache, to determine if a newer kernel is available"
-        if [ -x /usr/bin/apt-cache ]; then
-            LogText "Result: found /usr/bin/apt-cache"
-            LogText "Test: checking readlink location of /vmlinuz"
-            if [ -f /vmlinuz ]; then
-                FINDKERNFILE=$(readlink -f /vmlinuz)
+        if [ -x ${ROOTDIR}usr/bin/apt-cache ]; then
+            LogText "Result: found ${ROOTDIR}usr/bin/apt-cache"
+            LogText "Test: checking readlink location of ${ROOTDIR}vmlinuz"
+            if [ -f ${ROOTDIR}vmlinuz ]; then
+                FINDKERNFILE=$(readlink -f ${ROOTDIR}vmlinuz)
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
                 LogText "Test: checking package from dpkg -S"
                 FINDKERNEL=$(dpkg -S ${FINDKERNFILE} 2> /dev/null | ${AWKBINARY} -F : '{print $1}')
                 LogText "Output: dpkg -S reported package ${FINDKERNEL}"
-            elif [ -e /dev/grsec ]; then
+            elif [ -e ${ROOTDIR}dev/grsec ]; then
                 FINDKERNEL=linux-image-$(uname -r)
-                LogText "/vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
+                LogText "Result: ${ROOTDIR}vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
             else
-                LogText "This system is missing /vmlinuz.  Unable to check whether kernel is up-to-date."
-                ReportSuggestion ${TEST_NO} "Determine why /vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz"
+                LogText "This system is missing ${ROOTDIR}vmlinuz.  Unable to check whether kernel is up-to-date."
+                ReportSuggestion ${TEST_NO} "Determine why ${ROOTDIR}vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz"
             fi
             LogText "Test: Using apt-cache policy to determine if there is an update available"
             FINDINST=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')

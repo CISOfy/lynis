@@ -41,16 +41,16 @@
         LogText "Test: query zoneadm to list all running zones"
         FIND=$(${ROOTDIR}usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }')
         if [ ! -z "${FIND}" ]; then
-            N=0
-            for I in ${FIND}; do
-                N=$((N + 1))
-                ZONEID=$(echo ${I} | ${CUTBINARY} -d ':' -f1)
-                ZONENAME=$(echo ${I} | ${CUTBINARY} -d ':' -f2)
+            COUNT=0
+            for ITEM in ${FIND}; do
+                COUNT=$((COUNT + 1))
+                ZONEID=$(echo ${ITEM} | ${CUTBINARY} -d ':' -f1)
+                ZONENAME=$(echo ${ITEM} | ${CUTBINARY} -d ':' -f2)
                 LogText "Result: found zone ${ZONENAME} (running)"
                 Report "solaris_running_zone[]=${ZONENAME} [id:${ZONEID}]"
             done
-            LogText "Result: total of ${N} running zones"
-            Display --indent 2 --text "- Checking Solaris Zones" --result "FOUND ${N} zones" --color GREEN
+            LogText "Result: total of ${COUNT} running zones"
+            Display --indent 2 --text "- Checking Solaris Zones" --result "FOUND ${COUNT} zones" --color GREEN
         else
             LogText "Result: no running zones found"
             Display --indent 2 --text "- Checking Solaris Zones" --result "${STATUS_NONE}" --color WHITE
@@ -59,7 +59,9 @@
 #
 #################################################################################
 #
-    # Test        : CONT-1906
+    # Do you have Xen running? Help us testing this test and submit a pull request on GitHub
+
+    # Test        : CONT-1906 TODO
     # Description : Query running Xen zones
     #if [ -x /usr/bin/xm ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     #Register --test-no CONT-1906 --weight L --network NO --category security --description "Query Xen guests"
@@ -95,7 +97,7 @@
     # Test        : CONT-8104
     # Description : Checking Docker info for any warnings
     # Notes       : Hardening points are awarded, as usually warnings are the result of missing controls to restrict boundaries like memory
-    if [ ! -z "${DOCKERBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if HasData "${DOCKERBINARY}"; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8104 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Docker info for any warnings"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0

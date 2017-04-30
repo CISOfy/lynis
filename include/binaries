@@ -38,7 +38,7 @@
         # Description : Check all system binaries
         # Notes       : Always perform test, dependency for many other tests
         Register --test-no CORE-1000 --weight L --network NO --description "Check all system binaries"
-        BINARY_PATHS_FOUND=""; N=0
+        BINARY_PATHS_FOUND=""; COUNT=0
         Display --indent 2 --text "- Checking system binaries..."
         LogText "Status: Starting binary scan..."
         for SCANDIR in ${BIN_PATHS}; do
@@ -55,10 +55,10 @@
                             LogText "Result: found the path behind this symlink (${SCANDIR} --> ${sFILE})"
                             ORGPATH="${SCANDIR}"
                             SCANDIR="${sFILE}"
-                          else
+                        else
                             SKIPDIR=1; LogText "Result: Symlink variable empty, or directory to symlink is non-existing"
                         fi
-                      else
+                    else
                         SKIPDIR=1; LogText "Result: Could not find the location of this symlink, or is not a directory"
                     fi
                 fi
@@ -73,12 +73,12 @@
                     BINARY_PATHS_FOUND="${BINARY_PATHS_FOUND}, ${SCANDIR}"
                     LogText "Directory ${SCANDIR} exists. Starting directory scanning..."
                     FIND=$(ls ${SCANDIR})
-                    for I in ${FIND}; do
-                        N=$((N + 1))
-                        BINARY="${SCANDIR}/${I}"
+                    for FILENAME in ${FIND}; do
+                        COUNT=$((COUNT + 1))
+                        BINARY="${SCANDIR}/${FILENAME}"
                         DISCOVERED_BINARIES="${DISCOVERED_BINARIES}${BINARY} "
                         # Optimized, much quicker (limited file access needed)
-                        case ${I} in
+                        case ${FILENAME} in
                             aa-status)              APPARMORFOUND=1;       AASTATUSBINARY=${BINARY};                                                      LogText "  Found known binary: aa-status (apparmor component) - ${BINARY}"                                ;;
                             afick.pl)               AFICKFOUND=1;          AFICKBINARY=${BINARY};                                                         LogText "  Found known binary: afick (file integrity checker) - ${BINARY}"                                ;;
                             aide)                   AIDEFOUND=1;           AIDEBINARY=${BINARY};                                                          LogText "  Found known binary: aide (file integrity checker) - ${BINARY}"                                 ;;
@@ -205,9 +205,9 @@
                             ps)                     PSFOUND=1;             PSBINARY="${BINARY}";                                                          LogText "  Found known binary: ps (process listing) - ${BINARY}"                                          ;;
                             puppet)                 PUPPETFOUND=1;         PUPPETBINARY="${BINARY}";                                                      LogText "  Found known binary: puppet (automation tooling) - ${BINARY}"                                   ;;
                             puppetmasterd)          PUPPETMASTERDFOUND=1;  PUPPETMASTERDBINARY="${BINARY}";                                               LogText "  Found known binary: puppetmasterd (puppet master daemon) - ${BINARY}"                          ;;
-                            python)                 PYTHONFOUND=1;         PYTHONBINARY="${BINARY}"; PYTHONVERSION=$(${BINARY}  --version 2>&1 | sed 's/^Python //'); LogText "Found known binary: ${I} (programming language interpreter) - ${BINARY} (version ${PYTHONVERSION})" ;;
-                            python2)                PYTHON2FOUND=1;        PYTHON2BINARY="${BINARY}"; PYTHON2VERSION=$(${BINARY}  --version 2>&1 | sed 's/^Python //'); LogText "Found known binary: ${I} (programming language interpreter) - ${BINARY} (version ${PYTHON2VERSION})" ;;
-                            python3)                PYTHON3FOUND=1;        PYTHON3BINARY="${BINARY}"; PYTHON3VERSION=$(${BINARY}  --version 2>&1 | sed 's/^Python //'); LogText "Found known binary: ${I} (programming language interpreter) - ${BINARY} (version ${PYTHON3VERSION})" ;;
+                            python)                 PYTHONFOUND=1;         PYTHONBINARY="${BINARY}"; PYTHONVERSION=$(${BINARY}  --version 2>&1 | sed 's/^Python //'); LogText "Found known binary: ${FILENAME} (programming language interpreter) - ${BINARY} (version ${PYTHONVERSION})" ;;
+                            python2)                PYTHON2FOUND=1;        PYTHON2BINARY="${BINARY}"; PYTHON2VERSION=$(${BINARY}  --version 2>&1 | sed 's/^Python //'); LogText "Found known binary: ${FILENAME} (programming language interpreter) - ${BINARY} (version ${PYTHON2VERSION})" ;;
+                            python3)                PYTHON3FOUND=1;        PYTHON3BINARY="${BINARY}"; PYTHON3VERSION=$(${BINARY}  --version 2>&1 | sed 's/^Python //'); LogText "Found known binary: ${FILENAME} (programming language interpreter) - ${BINARY} (version ${PYTHON3VERSION})" ;;
                             readlink)               READLINKFOUND=1;       READLINKBINARY="${BINARY}";                                                    LogText "  Found known binary: readlink (follows symlinks) - ${BINARY}"                                   ;;
                             rkhunter)               RKHUNTERFOUND=1;       RKHUNTERBINARY="${BINARY}";             MALWARE_SCANNER_INSTALLED=1;           LogText "  Found known binary: rkhunter (malware scanner) - ${BINARY}"                                    ;;
                             rootsh)                 ROOTSHFOUND=1;         ROOTSHBINARY="${BINARY}";                                                      LogText "  Found known binary: rootsh (wrapper for shells) - ${BINARY}"                                   ;;
@@ -217,7 +217,7 @@
                             salt-master)            SALTMASTERFOUND=1;     SALTMASTERBINARY="${BINARY}";                                                  LogText "  Found known binary: salt-master (SaltStack master) - ${BINARY}"                                ;;
                             salt-minion)            SALTMINIONFOUND=1;     SALTMINIONBINARY="${BINARY}";                                                  LogText "  Found known binary: salt-minion (SaltStack client) - ${BINARY}"                                ;;
                             samhain)                SAMHAINFOUND=1;        SAMHAINBINARY="${BINARY}";                                                     LogText "  Found known binary: samhain (integrity tool) - ${BINARY}"                                      ;;
-                            service)                 SERVICEFOUND=1;       SERVICEBINARY="${BINARY}";                                                     LogText "  Found known binary: service (system services) - ${BINARY}"                                    ;;
+                            service)                 SERVICEFOUND=1;       SERVICEBINARY="${BINARY}";                                                     LogText "  Found known binary: service (system services) - ${BINARY}"                                     ;;
                             sed)                    SEDBINARY="${BINARY}"
                                                     LogText "  Found known binary: sed (text stream editor) - ${BINARY}"
                             ;;
@@ -226,8 +226,9 @@
                             smbd)                   SMBDFOUND=1;           SMBDBINARY="${BINARY}"; if [ "${OS}" = "macOS" ]; then SMBDVERSION="unknown"; else SMBDVERSION=$(${BINARY} -V | grep "^Version" | awk '{ print $2 }'); fi; LogText "Found ${BINARY} (version ${SMBDVERSION})"                                            ;;
                             smtpctl)                SMTPCTLBINARY="${BINARY}";                                                                            LogText "  Found known binary: smtpctl (OpenSMTPD client) - ${BINARY}"                                    ;;
                             showmount)              SHOWMOUNTFOUND=1;      SHOWMOUNTBINARY="${BINARY}";                                                   LogText "  Found known binary: showmount (NFS mounts) - ${BINARY}"                                        ;;
+                            snort)                  SNORTBINARY="${BINARY}";                                                                              LogText "  Found known binary: snort (IDS) - ${BINARY}"                                                   ;;
                             sockstat)               SOCKSTATFOUND=1;       SOCKSTATBINARY="${BINARY}";                                                    LogText "  Found known binary: sockstat (open network sockets) - ${BINARY}"                               ;;
-                            sort)                   SORTBINARY="${BINARY}";                                                                               LogText "  Found known binary: sort (sort data streams) - ${BINARY}"                               ;;
+                            sort)                   SORTBINARY="${BINARY}";                                                                               LogText "  Found known binary: sort (sort data streams) - ${BINARY}"                                      ;;
                             squid)                  SQUIDFOUND=1;          SQUIDBINARY="${BINARY}";                                                       LogText "  Found known binary: squid (proxy) - ${BINARY}"                                                 ;;
                             ss)                     SSFOUND=1;             SSBINARY="${BINARY}";                                                          LogText "  Found known binary: ss (show sockets) - ${BINARY}"                                             ;;
                             sshd)                   SSHDFOUND=1;           SSHDBINARY="${BINARY}"; SSHDVERSION=$(${BINARY} -t -d 2>&1 | head -n 1 | awk '{ print $4 }' | cut -d '_' -f2 | tr -d ',' | tr -d '\r'); LogText "Found ${BINARY} (version ${SSHDVERSION})"            ;;
@@ -263,22 +264,21 @@
                             zypper)                 ZYPPERFOUND=1;         ZYPPERBINARY="${BINARY}";                                                      LogText "  Found known binary: zypper (package manager) - ${BINARY}"                                      ;;
                         esac
                     done
-                  else
+                else
                     LogText "Result: Directory ${SCANDIR} skipped"
                     if [ ! "${ORGPATH}" = "" ]; then TEXT="${ORGPATH} (links to ${SCANDIR})"; else TEXT="${SCANDIR}"; fi
                 fi
-              else
+            else
                 LogText "Result: Directory ${SCANDIR} does NOT exist"
             fi
         done
+        BINARY_SCAN_FINISHED=1
         BINARY_PATHS_FOUND=$(echo ${BINARY_PATHS_FOUND} | sed 's/^, //g' | sed 's/ //g')
         LogText "Discovered directories: ${BINARY_PATHS_FOUND}"
+        LogText "Result: found ${COUNT} binaries"
+        Report "binaries_count=${COUNT}"
         Report "binary_paths=${BINARY_PATHS_FOUND}"
-        BINARY_SCAN_FINISHED=1
-        LogText "Result: found ${N} binaries"
-        Report "binaries_count=${N}"
-
-      else
+    else
         LogText "Result: checking of binaries skipped in this mode"
     fi
 

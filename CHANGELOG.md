@@ -1,30 +1,31 @@
 Lynis Changelog
 ===============
 
-Pre announcement: run version 2.5.0 or later
+Security notice: run version 2.5.0 or later
 
 ---------------------------------------------------------------------------------
 
-Lynis 2.5.0 (2017-05-03) - Not released yet
+Lynis 2.5.0 (2017-05-03)
 
-This release is a maintenance release with focus on cleaning up the code for
-readability and future expansion. It includes:
+During the development of this release, the project got informed about a flaw
+that possibly could be abused by a local attacker. Even with the small risk of
+success, upgrading is highly recommended. See details on
+[CVE-2017-8108](https://cisofy.com/security/cve/cve-2017-8108/)
 
+This release is a special maintenance release with focus on cleaning up the code
+for readability and future expansion.
+
+Changes:
+--------
 * Use ROOTDIR variable instead of fixed paths
 * Introduction of IsEmpty and HasData functions for readability of code
 * Renamed some variables to better indicate their purpose (counting, data type)
 * Removal of unused code and comments
 * Deleted unused tests from database file
 * Correct levels of identation
-
-During the maintenance cycle, the project got informed about a flaw that could
-be possibly abused. This release is therefore highly recommended. See details on
-[CVE-2017-8108](https://cisofy.com/security/cve/cve-2017-8108/)
-
-Changes:
---------
 * Support for older mac OS X versions (Lion and Mountain Lion)
 * Initialized variables for more binaries
+* Additional sysctls are tested
 
 Tests:
 ------

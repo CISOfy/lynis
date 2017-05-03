@@ -57,10 +57,10 @@
             LogText "Result: console is secured against single user mode without password."
         else
             Display --indent 2 --text "- Checking console TTYs" --result "${STATUS_WARNING}" --color RED
-            LogText "Result: Found insecure console in /etc/ttys. Single user mode login without password allowed!"
-            LogText "Output /etc/ttys:"
+            LogText "Result: Found insecure console in ${ROOTDIR}etc/ttys. Single user mode login without password allowed!"
+            LogText "Output ${ROOTDIR}etc/ttys:"
             LogText "${FIND}"
-            ReportWarning ${TEST_NO} "Found unprotected console in /etc/ttys"
+            ReportWarning ${TEST_NO} "Found unprotected console in ${ROOTDIR}etc/ttys"
             LogText "Possible solution: Change the console line from 'secure' to 'insecure'."
         fi
     fi
@@ -72,12 +72,12 @@
     Register --test-no SHLL-6211 --weight L --network NO --category security --description "Checking available and valid shells"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for ${ROOTDIR}etc/shells"
-        if [ -f /etc/shells ]; then
-            LogText "Result: Found /etc/shells file"
-            LogText "Test: Reading available shells from /etc/shells"
+        if [ -f ${ROOTDIR}etc/shells ]; then
+            LogText "Result: Found ${ROOTDIR}etc/shells file"
+            LogText "Test: Reading available shells from ${ROOTDIR}etc/shells"
             SSHELLS=$(${GREPBINARY} "^/" ${ROOTDIR}etc/shells)
             CSSHELLS=0; CSSHELLS_ALL=0
-            Display --indent 2 --text "- Checking shells from /etc/shells"
+            Display --indent 2 --text "- Checking shells from ${ROOTDIR}etc/shells"
             for I in ${SSHELLS}; do
                 CSSHELLS_ALL=$((CSSHELLS_ALL + 1))
                 Report "available_shell[]=${I}"
@@ -91,7 +91,7 @@
             done
             Display --indent 4 --text "Result: found ${CSSHELLS_ALL} shells (valid shells: ${CSSHELLS})."
         else
-            LogText "Result: /etc/shells not found, skipping test"
+            LogText "Result: ${ROOTDIR}etc/shells not found, skipping test"
         fi
     fi
 #
@@ -119,7 +119,7 @@
             # Determine if we can find a TMOUT value
             FIND=$(${GREPBINARY} 'TMOUT=' ${ROOTDIR}etc/profile | ${TRBINARY} -d ' ' | ${TRBINARY} -d '\t' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/export//' | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} -F= '{ print $2 }')
             # Determine if the value is exported (with export, readonly, or typeset)
-            FIND2=$(${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' /etc/profile | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} '{ print $1 }')
+            FIND2=$(${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' ${ROOTDIR}etc/profile | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} '{ print $1 }')
             if [ ! -z "${FIND}" ]; then
                 N=0; IDLE_TIMEOUT=1
                 for I in ${FIND}; do
@@ -128,13 +128,13 @@
                     N=$((N + 1))
                 done
                 if [ ${N} -eq 1 ]; then
-                    LogText "Result: found TMOUT value configured in /etc/profile"
+                    LogText "Result: found TMOUT value configured in ${ROOTDIR}etc/profile"
                 else
-                    LogText "Result: found several TMOUT values configured in /etc/profile"
+                    LogText "Result: found several TMOUT values configured in ${ROOTDIR}etc/profile"
                 fi
                 Report "session_timeout_method[]=profile"
             else
-                LogText "Result: could not find TMOUT setting in /etc/profile"
+                LogText "Result: could not find TMOUT setting in ${ROOTDIR}etc/profile"
             fi
 
             if [ ! -z "${FIND2}" ]; then
@@ -146,17 +146,17 @@
                     fi
                 done
                 if [ ${N} -gt 0 ]; then
-                    LogText "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
+                    LogText "Result: found readonly setting in ${ROOTDIR}etc/profile (readonly or typeset -r)"
                     Report "session_timeout_set_readonly=1"
                 else
-                    LogText "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
+                    LogText "Result: NO readonly setting found in ${ROOTDIR}etc/profile (readonly or typeset -r)"
                     Report "session_timeout_set_readonly=0"
                 fi
             else
-                LogText "Result: could not find export, readonly or typeset -r in /etc/profile"
+                LogText "Result: could not find export, readonly or typeset -r in ${ROOTDIR}etc/profile"
             fi
         else
-            LogText "Result: skip /etc/profile test, file not available on this system"
+            LogText "Result: skip ${ROOTDIR}etc/profile test, file not available on this system"
         fi
 
         if [ -d ${ROOTDIR}etc/profile.d ]; then
@@ -175,13 +175,13 @@
                         N=$((N + 1))
                     done
                     if [ ${N} -eq 1 ]; then
-                        LogText "Result: found TMOUT value configured in one of the files in /etc/profile.d directory"
+                        LogText "Result: found TMOUT value configured in one of the files in ${ROOTDIR}etc/profile.d directory"
                     else
-                        LogText "Result: found several TMOUT values configured in one of the files in /etc/profile.d directory"
+                        LogText "Result: found several TMOUT values configured in one of the files in ${ROOTDIR}etc/profile.d directory"
                     fi
                     Report "session_timeout_method[]=profile"
                 else
-                    LogText "Result: could not find TMOUT setting in /etc/profile.d/*.sh"
+                    LogText "Result: could not find TMOUT setting in ${ROOTDIR}etc/profile.d/*.sh"
                 fi
                 # Check for readonly
                 if [ ! -z "${FIND2}" ]; then
@@ -193,18 +193,18 @@
                         fi
                     done
                     if [ ${N} -gt 0 ]; then
-                        LogText "Result: found readonly setting in /etc/profile (readonly or typeset -r)"
+                        LogText "Result: found readonly setting in ${ROOTDIR}etc/profile (readonly or typeset -r)"
                         Report "session_timeout_set_readonly=1"
                     else
-                        LogText "Result: NO readonly setting found in /etc/profile (readonly or typeset -r)"
+                        LogText "Result: NO readonly setting found in ${ROOTDIR}etc/profile (readonly or typeset -r)"
                         Report "session_timeout_set_readonly=0"
                     fi
                 else
-                    LogText "Result: could not find export, readonly or typeset -r in /etc/profile"
+                    LogText "Result: could not find export, readonly or typeset -r in ${ROOTDIR}etc/profile"
                 fi
             fi
         else
-            LogText "Result: skip /etc/profile.d directory test, directory not available on this system"
+            LogText "Result: skip ${ROOTDIR}etc/profile.d directory test, directory not available on this system"
         fi
 
         if [ ${IDLE_TIMEOUT} -eq 1 ]; then
@@ -220,7 +220,7 @@
 #
     # Test        : SHLL-6230
     # Description : Check for umask values in shell configurations
-    SHELL_CONFIG_FILES="/etc/bashrc /etc/bash.bashrc /etc/csh.cshrc /etc/profile"
+    SHELL_CONFIG_FILES="${ROOTDIR}etc/bashrc ${ROOTDIR}etc/bash.bashrc ${ROOTDIR}etc/csh.cshrc ${ROOTDIR}etc/profile"
     Register --test-no SHLL-6230 --weight H --network NO --category security --description "Perform umask check for shell configurations"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
@@ -232,7 +232,7 @@
                 LogText "Result: file ${FILE} exists"
                 FOUND=1
                 FIND=$(${GREPBINARY} umask ${FILE} | ${SEDBINARY} 's/^[ \t]*//g' | ${SEDBINARY} 's/#.*$//' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ print $2 }')
-                if [ -z "${FIND}" ]; then
+                if IsEmpty "${FIND}"; then
                     LogText "Result: did not find umask configured in ${FILE}"
                     Display --indent 4 --text "- Checking default umask in ${FILE}" --result "${STATUS_NONE}" --color YELLOW
                 else

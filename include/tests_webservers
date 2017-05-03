@@ -57,12 +57,12 @@
     Register --test-no HTTP-6622 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Apache presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${OS}" = "OpenBSD" -a "${HTTPDBINARY}" = "/usr/sbin/httpd" ]; then HTTPDBINARY=""; fi
-        if [ -z "${HTTPDBINARY}" ]; then
+        if IsEmpty "${HTTPDBINARY}"; then
             Display --indent 2 --text "- Checking Apache" --result "${STATUS_NOT_FOUND}" --color WHITE
         else
             LogText "Test: Scanning for Apache binary"
             IS_APACHE=$(${HTTPDBINARY} -v 2> /dev/null | ${EGREPBINARY} '[aA]pache')
-            if [ -z "${IS_APACHE}" ]; then
+            if IsEmpty "${IS_APACHE}"; then
                 LogText "Result: ${HTTPDBINARY} is not Apache"
                 Display --indent 2 --text "- Checking Apache (binary ${HTTPDBINARY})" --result "NO MATCH" --color WHITE
             else
@@ -95,7 +95,7 @@
         APACHE_CONFIGFILE=""
         APACHE_TEST=$(${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D SERVER_CONFIG_FILE=" | ${SEDBINARY} 's/[ ]-D SERVER_CONFIG_FILE=//' | ${TRBINARY} -d '"' | ${TRBINARY} -d ' ' | ${TRBINARY} -d '[:cntrl:]')
 
-        if [ -z "${APACHE_TEST}" ]; then
+        if IsEmpty "${APACHE_TEST}"; then
             LogText "Result: Can't find the configuration file, so skipping some Apache related tests"
         else
             # We found a possible match. Checking if it's valid filename. If not, we need to add a prefix
@@ -105,8 +105,6 @@
             else
                 # Probably the prefix is missing, so we are going to search that
                 APACHE_HTTPDROOT=$(${HTTPDBINARY} -V 2> /dev/null | ${GREPBINARY} "\-D HTTPD_ROOT=" | ${SEDBINARY} 's/[ ]-D HTTPD_ROOT=//' | ${TRBINARY} -d '"' | ${TRBINARY} -d ' ')
-                #echo "Apache root prefix: ${APACHE_HTTPDROOT}"
-                #echo "Complete path to configuration file: ${APACHE_HTTPDROOT}/${APACHE_TEST}"
                 APACHE_TESTFILE="${APACHE_HTTPDROOT}/${APACHE_TEST}"
                 if [ -f ${APACHE_TESTFILE} ]; then
                     APACHE_CONFIGFILE="${APACHE_TESTFILE}"
@@ -128,10 +126,9 @@
     if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no HTTP-6626 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Testing other Apache configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        #Display --indent 4 --text "- Searching Apache virtual hosts"
-        for I in ${sTEST_APACHE_TARGETS}; do
-            if [ -d ${I} ]; then
-                find ${I} -name "*.conf" -print >> ${TMPFILE2}
+        for DIR in ${sTEST_APACHE_TARGETS}; do
+            if [ -d ${DIR} ]; then
+                find ${DIR} -name "*.conf" -print >> ${TMPFILE2}
             fi
         done
 
@@ -150,7 +147,7 @@
             if [ ${CANREAD} -eq 1 ]; then
                 # Search Virtual Hosts
                 for J in $(${GREPBINARY} "ServerName" ${I} | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ if ($1=="ServerName" && $2!="*" && $2!="default") print $2 }'); do
-                    if [ ! -z ${J} ]; then
+                    if HasData "${J}"; then
                         tVHOSTS="${tVHOSTS} ${J}"
                         cVHOSTS=$((cVHOSTS + 1))
                     fi
@@ -201,17 +198,17 @@
     #if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     #Register --test-no HTTP-6630 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining all loaded Apache modules"
     #if [ ${SKIPTEST} -eq 0 ]; then
-        # Testing Debian style
-        #LogText "Test: searching loaded/enabled Apache modules"
-        #apachectl -t -D DUMP_MODULES 2>&1 | ${EGREPBINARY} -v "(Loaded Modules|Syntax OK)" | ${SEDBINARY} 's/(\(shared\|static\))//' | ${SEDBINARY} 's/ //'
-        #for I in ${APACHE_MODULES_ENABLED_LOCS}; do
-            #LogText "Test: checking ${I}"
-            #if [ -d ${I} ]; then
-                #FIND=$(${GREPBINARY} -r LoadModule ${I}/* | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2":"$3 }')
-              #else
-                #LogText "Result: ${I} does not exist"
-            #fi
-        #done
+    #    # Testing Debian style
+    #    LogText "Test: searching loaded/enabled Apache modules"
+    #    apachectl -t -D DUMP_MODULES 2>&1 | ${EGREPBINARY} -v "(Loaded Modules|Syntax OK)" | ${SEDBINARY} 's/(\(shared\|static\))//' | ${SEDBINARY} 's/ //'
+    #    for I in ${APACHE_MODULES_ENABLED_LOCS}; do
+    #        LogText "Test: checking ${I}"
+    #        if [ -d ${I} ]; then
+    #            FIND=$(${GREPBINARY} -r LoadModule ${I}/* | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2":"$3 }')
+    #          else
+    #            LogText "Result: ${I} does not exist"
+    #        fi
+    #    done
     #fi
 #
 #################################################################################
@@ -587,7 +584,7 @@
             if [ -d ${DIR} ]; then
                 LogText "Result: Directory ${DIR} exists, so will be used as search path"
                 FIND=$(find ${DIR} -type f -exec ${GREPBINARY} access_log \{\} \; | ${GREPBINARY} -v "#" | ${AWKBINARY} '{ if($1=="access_log") { print $2 } }' | ${SEDBINARY} 's/;$//g' | ${SORTBINARY} -u)
-                if [ -z "${FIND}" ]; then
+                if IsEmpty "${FIND}"; then
                     LogText "Result: no log files found"
                 else
                     LogText "Result: found one or more log files"

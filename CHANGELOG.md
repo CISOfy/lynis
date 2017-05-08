@@ -9,7 +9,7 @@ Lynis 2.5.1 (not released yet)
 Changes:
 --------
 * BOOT-5104 - Added support for macOS
-* HTTP-6717 - Improved log message
+* HTTP-6716 - Improved log message
 
 ---------------------------------------------------------------------------------
 

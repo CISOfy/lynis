@@ -1,7 +1,15 @@
 Lynis Changelog
 ===============
 
-Security notice: run version 2.5.0 or later
+Security notice: please run version 2.5.0 or later
+
+
+Lynis 2.5.1 (not released yet)
+
+Changes:
+--------
+* BOOT-5104 - Added support for macOS
+* HTTP-6717 - Improved log message
 
 ---------------------------------------------------------------------------------
 

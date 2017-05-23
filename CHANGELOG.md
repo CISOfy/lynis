@@ -7,6 +7,10 @@ Security notice: please run version 2.5.0 or later
 Lynis 2.5.1 (not released yet)
 
 Changes:
+- Hebrew translation by Dolev Farhi
+- Improved detection of SSL certificate files
+
+Tests:
 --------
 * BOOT-5104 - Added support for macOS
 * HTTP-6716 - Improved log message

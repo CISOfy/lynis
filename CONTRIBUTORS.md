@@ -51,6 +51,7 @@ These people made a significant impact to the development of Lynis:
 * Finnish               - Juha, Newman101 (GitHub)
 * French                - DocEmmetBrown (GitHub)
 * German                - Kai Raven
+* Hebrew                - Dolev Farhi, dolevf (GitHub)
 * Hungarian             - Zoltan Paldi, paldiz (GitHub)
 * Italian               - Stefano Marty, stefanomarty (GitHub)
 * Japanese              - Yukio Takahara, port80takahara (GitHub)

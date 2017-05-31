@@ -3,16 +3,19 @@ Lynis Changelog
 
 Security notice: please run version 2.5.0 or later
 
+---------------------------------------------------------------------------------
 
-Lynis 2.5.1 (not released yet)
+Lynis 2.5.1 (2017-05-31)
 
 Changes:
 - Hebrew translation by Dolev Farhi
 - Improved detection of SSL certificate files
+- Minor changes to improve logging and results
 
 Tests:
 --------
 * BOOT-5104 - Added support for macOS
+* FIRE-4524 - Determine if CSF is in testing mode
 * HTTP-6716 - Improved log message
 
 ---------------------------------------------------------------------------------

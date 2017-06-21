@@ -10,6 +10,9 @@ Lynis 2.5.2 (not released yet)
 Changes:
 --------
 - Support for PHP on CloudLinux
+- Check for presence of locale binary
+- Generic code improvements
+- Changed 'lynis audit system remote' routine
 
 Tests:
 ------

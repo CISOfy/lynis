@@ -14,6 +14,10 @@ Changes:
 - Generic code improvements
 - Changed 'lynis audit system remote' routine
 
+Lynis Enterprise:
+-----------------
+- Allow 'tags' and 'system-customer-name' to be specified via Lynis client
+
 Tests:
 ------
 * PKGS-2379 - New test for PHP suhosin extension status

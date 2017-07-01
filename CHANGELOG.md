@@ -13,6 +13,8 @@ Changes:
 - Check for presence of locale binary
 - Generic code improvements
 - Changed 'lynis audit system remote' routine
+- Support for macOS High Sierra
+- French translation updated
 
 Lynis Enterprise:
 -----------------

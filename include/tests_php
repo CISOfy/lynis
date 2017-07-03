@@ -300,6 +300,7 @@
     Register --test-no PHP-2379 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP suhosin extension status"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
+        SIMULATION=0
         for I in ${PHPINI_ALLFILES}; do
             LogText "Test: Checking for PHP suhosin extension status in file ${I}"
             FIND=$(${GREPBINARY} -oP '^extension=.*?suhosin.so.*$' ${I})
@@ -308,6 +309,14 @@
             else
                 LogText "Result: ${I}: suhosin is enabled"
                 FOUND=1
+            fi
+
+            LogText "Test: Check Suhosin simulation mode status"
+            SIMULATION=$(${GREPBINARY} -oP '^suhosin.simulation.*$' ${I} | ${CUTBINARY} -d= -f2 | ${GREPBINARY} -io 'off' | ${TRBINARY} '[:upper:]' '[:lower:]')
+            if [ "${SIMULATION}" = "off" ]; then
+                LogText "Result: ${I}: suhosin simulation mode is not active"
+            else
+                LogText "Result: ${I}: suhosin simulation mode is active"
             fi
         done
 
@@ -322,6 +331,18 @@
             LogText "Result: Suhosin extension is enabled"
             Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_FOUND}" --color GREEN
             AddHP 2 2
+        fi
+
+        if [ "${SIMULATION}" = "off" ]; then
+            LogText "Result: Suhosin simulation mode is not active"
+            Display --indent 4 --text "- Suhosin simulation mode status" --result "${STATUS_OK}" --color GREEN
+            AddHP 2 2
+        else
+            LogText "Result: Suhosin simulation mode is active"
+            Display --indent 4 --text "- Suhosin simulation mode status" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion ${TEST_NO} "Harden PHP by deactivating suhosin simulation mode"
+            LogText "suhosin simulation mode is active"
+            AddHP 0 1
         fi
     fi
 #

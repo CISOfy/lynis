@@ -321,6 +321,13 @@
             else
                 Display --indent 4 --text "- Check if CSF testing mode is disabled" --result "${STATUS_WARNING}" --color RED
             fi
+
+            LogText "Test: check if CSF is running"
+            if [ ! -f /etc/csf/csf.disable ]; then
+                Display --indent 4 --text "- Check if CSF is running" --result "${STATUS_OK}" --color GREEN
+            else
+                Display --indent 4 --text "- Check if CSF is running" --result "${STATUS_WARNING}" --color RED
+            fi
         else
             LogText "Result: ${FILE} does NOT exist"
         fi
@@ -508,6 +515,42 @@
             LogText "Result: no host based firewall/packet filter found or configured"
             ReportSuggestion ${TEST_NO} "Configure a firewall/packet filter to filter incoming and outgoing traffic"
             AddHP 0 5
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FIRE-4594
+    # Description : Check for APF (Advanced Policy Firewall)
+    Register --test-no FIRE-4592 --weight L --network NO --category security --description "Check for APF presence"
+    if [ ! -z "${IPTABLESBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FILE="/etc/apf/conf.apf"
+        LogText "Test: check ${FILE}"
+        if [ -f ${FILE} ]; then
+            LogText "Result: ${FILE} exists"
+            FIREWALL_ACTIVE=1
+            FIREWALL_SOFTWARE="apf"
+            Report "firewall_software[]=apf"
+            Display --indent 2 --text "- Checking APF status (configuration file)" --result "${STATUS_FOUND}" --color GREEN
+
+            LogText "Test: check if APF testing mode is disabled"
+            FIND=$(${GREPBINARY} -P "^DEVEL_MODE(\s|=)" ${FILE} | ${CUTBINARY} -d= -f2 | ${XARGSBINARY})
+            if [ "${FIND}" = "0" ]; then
+                Display --indent 4 --text "- Check if APF testing mode is disabled" --result "${STATUS_OK}" --color GREEN
+            else
+                Display --indent 4 --text "- Check if APF testing mode is disabled" --result "${STATUS_WARNING}" --color RED
+            fi
+
+            LogText "Test: check if APF is running"
+            FIND=$(${IPTABLESBINARY} -L -n | ${GREPBINARY} -iom1 sanity | ${WCBINARY} -l)
+            if [ "${FIND}" = "1" ]; then
+                Display --indent 4 --text "- Check if APF is running" --result "${STATUS_OK}" --color GREEN
+            else
+                Display --indent 4 --text "- Check if APF is running" --result "${STATUS_WARNING}" --color RED
+            fi
+        else
+            LogText "Result: ${FILE} does NOT exist"
         fi
     fi
 #

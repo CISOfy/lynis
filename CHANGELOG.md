@@ -5,12 +5,13 @@ Security notice: please run version 2.5.0 or later
 
 ---------------------------------------------------------------------------------
 
-Lynis 2.5.2 (not released yet)
+Lynis 2.5.2 (2017-07-10)
 
 Changes:
 --------
 - Support for PHP on CloudLinux
 - Check for presence of locale binary
+- Suhosin detection improvements
 - Generic code improvements
 - Changed 'lynis audit system remote' routine
 - Support for macOS High Sierra
@@ -22,7 +23,10 @@ Lynis Enterprise:
 
 Tests:
 ------
+* CONT-8102 - Check for dockerd instead of docker -d
+* FIRE-4594 - Check for presence Advanced Policy Firewall (APF)
 * PKGS-2379 - New test for PHP suhosin extension status
+* PKGS-7370 - Only use debsums on Debian
 * KRNL-6000 - Added kernel.dmesg_restrict testing
 
 ---------------------------------------------------------------------------------

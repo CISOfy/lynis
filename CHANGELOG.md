@@ -5,6 +5,15 @@ Security notice: please run version 2.5.0 or later
 
 ---------------------------------------------------------------------------------
 
+Lynis 2.5.3 (not released yet)
+
+Changes:
+--------
+* DirectAdmin location added
+* Small adjustments to text
+
+---------------------------------------------------------------------------------
+
 Lynis 2.5.2 (2017-07-10)
 
 Changes:

@@ -12,6 +12,10 @@ Changes:
 * DirectAdmin location added
 * Small adjustments to text
 
+Tests:
+------
+* CRYP-7902 - prevent test from showing error on screen
+
 ---------------------------------------------------------------------------------
 
 Lynis 2.5.2 (2017-07-10)

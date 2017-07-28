@@ -48,16 +48,16 @@
                 Display --indent 4 --text "- Checking ${I} mount point" --result SYMLINK --color WHITE
             elif [ -d ${I} ]; then
                 LogText "Result: directory ${I} exists"
-                FIND=$(${MOUNTBINARY} | ${GREPBINARY} "${I}")
-                if [ ! -z "${FIND}" ]; then
-                    LogText "Result: found ${I} as a separated mount point"
-                    Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_OK}" --color GREEN
-                    AddHP 10 10
-                else
+                FIND=$(${MOUNTBINARY} | ${AWKBINARY} -v MP=${I} '{ if ($3==MP) { print $3 }}')
+                if IsEmpty "${FIND}"; then
                     LogText "Result: ${I} not found in mount list. Directory most likely stored on / file system"
                     Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_SUGGESTION}" --color YELLOW
                     ReportSuggestion ${TEST_NO} "To decrease the impact of a full ${I} file system, place ${I} on a separated partition"
                     AddHP 9 10
+                else
+                    LogText "Result: found ${I} as a separated mount point"
+                    Display --indent 4 --text "- Checking ${I} mount point" --result "${STATUS_OK}" --color GREEN
+                    AddHP 10 10
                 fi
             else
                 LogText "Result: directory ${I} does not exist"

@@ -301,24 +301,29 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         SIMULATION=0
-        for I in ${PHPINI_ALLFILES}; do
-            LogText "Test: Checking for PHP suhosin extension status in file ${I}"
-            FIND=$(${GREPBINARY} -oP '^extension=.*?suhosin.so.*$' ${I})
-            if [ -z "${FIND}" ]; then
-                LogText "Result: ${I}: suhosin is not enabled"
-            else
-                LogText "Result: ${I}: suhosin is enabled"
-                FOUND=1
-            fi
+        if [ "${OS}" = "OpenBSD" ]; then
+            FOUND=1                    # On OpenBSD, Suhosin is hard linked into PHP
+            SIMULATION=off
+        else
+            for I in ${PHPINI_ALLFILES}; do
+                LogText "Test: Checking for PHP suhosin extension status in file ${I}"
+                FIND=$(${GREPBINARY} -oP '^extension=.*?suhosin.so.*$' ${I})
+                if [ -z "${FIND}" ]; then
+                    LogText "Result: ${I}: suhosin is not enabled"
+                else
+                    LogText "Result: ${I}: suhosin is enabled"
+                    FOUND=1
+                fi
 
-            LogText "Test: Check Suhosin simulation mode status"
-            SIMULATION=$(${GREPBINARY} -oP '^suhosin.simulation.*$' ${I} | ${CUTBINARY} -d= -f2 | ${GREPBINARY} -io 'off' | ${TRBINARY} '[:upper:]' '[:lower:]')
-            if [ "${SIMULATION}" = "off" ]; then
-                LogText "Result: ${I}: suhosin simulation mode is not active"
-            else
-                LogText "Result: ${I}: suhosin simulation mode is active"
-            fi
-        done
+                LogText "Test: Check Suhosin simulation mode status"
+                SIMULATION=$(${GREPBINARY} -oP '^suhosin.simulation.*$' ${I} | ${CUTBINARY} -d= -f2 | ${GREPBINARY} -io 'off' | ${TRBINARY} '[:upper:]' '[:lower:]')
+                if [ "${SIMULATION}" = "off" ]; then
+                    LogText "Result: ${I}: suhosin simulation mode is not active"
+                else
+                    LogText "Result: ${I}: suhosin simulation mode is active"
+                fi
+            done
+        fi
 
         if [ ${FOUND} -eq 0 ]; then
             LogText "Result: Suhosin extension is not enabled"

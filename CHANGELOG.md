@@ -12,9 +12,12 @@ Changes:
 * DirectAdmin location added
 * Small adjustments to text
 
+
 Tests:
 ------
-* CRYP-7902 - prevent test from showing error on screen
+* CRYP-7902 - Prevent test from showing error on screen
+* FILE-6310 - Detection of mount point now match exact name
+* PKGS-2379 - Improvement for OpenBSD usage of PHP suhosin
 
 ---------------------------------------------------------------------------------
 

@@ -11,7 +11,7 @@ Changes:
 --------
 * DirectAdmin location added
 * Small adjustments to text
-
+* Enhanced detection for LXC and LXC
 
 Tests:
 ------

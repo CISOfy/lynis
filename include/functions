@@ -1165,6 +1165,14 @@
                 EXITCODE=0
             fi
         fi
+        if [ -e /proc/1/environ ]; then
+            FIND=$(grep -qa 'container=lxc' /proc/1/environ)
+            if [ $? -eq 0 ]; then
+                LogText "Result: found LXC in environnement (/proc/1/environ), so we are running in LXC container"
+                CONTAINER_TYPE="LXC"; FOUND=1
+                EXITCODE=0
+            fi
+        fi
         if [ ${FOUND} -eq 0 ]; then
             CONTAINER_TYPE=""
             EXITCODE=1
@@ -1331,6 +1339,18 @@
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
         SHORT=""
 
+        # lxc environ detection
+        if [ "${SHORT}" = "" ]; then
+            if [ -f /proc/1/environ ]; then
+                if grep -qa 'container=lxc' /proc/1/environ; then
+                    SHORT=lxc
+                    LogText "Result: found ${SHORT}"
+                fi
+            fi
+        else
+            LogText "Result: skipped lxc environ detection test, as we already found machine type"
+        fi
+
         # facter
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/facter ] || [ -x /usr/local/bin/facter ]; then
@@ -1371,7 +1391,7 @@
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/lscpu ]; then
                 LogText "Test: trying to guess virtualization with lscpu"
-                FIND=$(lscpu | grep "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
+                FIND=$(lscpu | grep -i "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"

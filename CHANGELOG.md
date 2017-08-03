@@ -12,11 +12,13 @@ Changes:
 * DirectAdmin location added
 * Small adjustments to text
 * Enhanced detection for LXC and LXC
+* Added /opt/apache as a target location
 
 Tests:
 ------
 * CRYP-7902 - Prevent test from showing error on screen
 * FILE-6310 - Detection of mount point now match exact name
+* NETW-3006 - Updated detection of MAC addresses on Linux
 * PKGS-2379 - Improvement for OpenBSD usage of PHP suhosin
 
 ---------------------------------------------------------------------------------

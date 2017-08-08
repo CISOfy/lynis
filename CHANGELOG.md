@@ -13,6 +13,7 @@ Changes:
 * Small adjustments to text
 * Enhanced detection for LXC and LXC
 * Added /opt/apache as a target location
+* Default log directory set for HP-UX
 
 Tests:
 ------

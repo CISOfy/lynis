@@ -1157,8 +1157,9 @@
 
     IsContainer() {
         FOUND=0
+        # Early on we can't use FileIsReadable yet
         if [ -e /proc/1/cgroup ]; then
-            FIND=$(cat /proc/1/cgroup | grep -i docker)
+            FIND=$(cat ${ROOTDIR}proc/1/cgroup 2> /dev/null | grep -i docker)
             if [ $? -eq 0 ]; then
                 LogText "Result: found Docker in control groups (/proc/1/cgroup), so we are running in Docker container"
                 CONTAINER_TYPE="Docker"; FOUND=1
@@ -1166,7 +1167,7 @@
             fi
         fi
         if [ -e /proc/1/environ ]; then
-            FIND=$(grep -qa 'container=lxc' /proc/1/environ)
+            FIND=$(grep -qa 'container=lxc' ${ROOTDIR}proc/1/environ 2> /dev/null)
             if [ $? -eq 0 ]; then
                 LogText "Result: found LXC in environnement (/proc/1/environ), so we are running in LXC container"
                 CONTAINER_TYPE="LXC"; FOUND=1
@@ -1342,7 +1343,8 @@
         # lxc environ detection
         if [ "${SHORT}" = "" ]; then
             if [ -f /proc/1/environ ]; then
-                if grep -qa 'container=lxc' /proc/1/environ; then
+                FIND=$(grep -qa 'container=lxc' /proc/1/environ 2> /dev/null)
+                if [ $? -eq 0 ]; then
                     SHORT=lxc
                     LogText "Result: found ${SHORT}"
                 fi

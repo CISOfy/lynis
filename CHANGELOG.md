@@ -5,7 +5,7 @@ Security notice: please run version 2.5.0 or later
 
 ---------------------------------------------------------------------------------
 
-Lynis 2.5.3 (not released yet)
+Lynis 2.5.3 (2017-08-17)
 
 Changes:
 --------
@@ -14,13 +14,16 @@ Changes:
 * Enhanced detection for LXC and LXC
 * Added /opt/apache as a target location
 * Default log directory set for HP-UX
+* Screen output improvements
 
 Tests:
 ------
 * CRYP-7902 - Prevent test from showing error on screen
 * FILE-6310 - Detection of mount point now match exact name
+* HRDN-7230 - Show single line when no malware scanner was detected
 * NETW-3006 - Updated detection of MAC addresses on Linux
 * PKGS-2379 - Improvement for OpenBSD usage of PHP suhosin
+* TOOL-5002 - Detection capabilities for Ansible added
 
 ---------------------------------------------------------------------------------
 

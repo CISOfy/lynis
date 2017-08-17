@@ -5,6 +5,14 @@ Security notice: please run version 2.5.0 or later
 
 ---------------------------------------------------------------------------------
 
+Lynis 2.5.4 (not released yet)
+
+Tests:
+------
+* TOOL-5002 - Improved detection of Ansible directories and files
+
+---------------------------------------------------------------------------------
+
 Lynis 2.5.3 (2017-08-17)
 
 Changes:

@@ -7,6 +7,10 @@ Security notice: please run version 2.5.0 or later
 
 Lynis 2.5.4 (not released yet)
 
+Changes:
+--------
+* Improve systemd detection
+
 Tests:
 ------
 * TOOL-5002 - Improved detection of Ansible directories and files

@@ -53,18 +53,19 @@
         Display --indent 2 --text "- Checking automation tooling"
 
         # Ansible
-        LIST="~/.ansible ~/.ansible-retry ${ROOTDIR}etc/ansible ${ROOTDIR}root/.ansible ${ROOTDIR}tmp/.ansible ${ROOTDIR}var/log/ansible.log"
+        FOUND=0
+        LIST="~/.ansible ~/.ansible-retry ${ROOTDIR}etc/ansible ${ROOTDIR}root/.ansible ${ROOTDIR}tmp/.ansible"
+        for ITEM in ${LIST}; do if DirectoryExists ${ITEM}; then FOUND=1; fi; done
+        LIST="${ROOTDIR}var/log/ansible.log"
+        for ITEM in ${LIST}; do if FileExists ${ITEM}; then FOUND=1; fi; done
 
-        for ITEM in ${LIST}; do
-            if FileIsReadable ${ITEM}; then
-                LogText "Result: found a possible trace of Ansible"
-                AUTOMATION_TOOL_FOUND=1
-                ANSIBLE_ARTIFACT_FOUND=1
-                Report "automation_tool_running[]=ansible"
-                Display --indent 4 --text "- Ansible artifact" --result "${STATUS_FOUND}" --color GREEN
-                break
-            fi
-        done
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: found a possible trace of Ansible"
+            AUTOMATION_TOOL_FOUND=1
+            ANSIBLE_ARTIFACT_FOUND=1
+            Report "automation_tool_running[]=ansible"
+            Display --indent 4 --text "- Ansible artifact" --result "${STATUS_FOUND}" --color GREEN
+        fi
 
         # Cfengine
         if [ ! -z "${CFAGENTBINARY}" ]; then

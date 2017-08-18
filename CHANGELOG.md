@@ -13,6 +13,7 @@ Changes:
 
 Tests:
 ------
+* CRYP-7902 - certificate validation changed
 * TOOL-5002 - Improved detection of Ansible directories and files
 
 ---------------------------------------------------------------------------------

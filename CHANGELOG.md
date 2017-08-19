@@ -10,6 +10,7 @@ Lynis 2.5.4 (not released yet)
 Changes:
 --------
 * Improve systemd detection
+* Detect Linux Mint version
 
 Tests:
 ------

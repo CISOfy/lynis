@@ -12,6 +12,7 @@ Changes:
 * Improve systemd detection
 * Detect Linux Mint version
 * Older versions of Mac OS X are detected as well
+* Added Norwegian translation
 
 Tests:
 ------

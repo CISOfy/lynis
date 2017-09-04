@@ -61,14 +61,21 @@
 
     # Test        : PLGN-0010
     # Description : Check PAM configuration
-    if [ -f ${ROOTDIR}etc/pam.conf -o -d ${ROOTDIR}etc/pam.d ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -f ${ROOTDIR}etc/pam.conf -o -d ${PAM_DIRECTORY} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PLGN-0010 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check PAM configuration" --progress
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUNDPROBLEM=0
         # Check if the PAM directory structure exists
         if [ -d ${PAM_DIRECTORY} ]; then
-            LogText "Result: /etc/pam.d exists"
-            FIND_FILES=$(find ${PAM_DIRECTORY} -type f -print)
+            LogText "Result: ${PAM_DIRECTORY} exists"
+            if [ ! "${OS}" = "FreeBSD" -a ! "${OS}" = "NetBSD" ]; then
+                FIND_FILES=$(find ${PAM_DIRECTORY} -type f -print)
+            else
+                if [ -f ${PAM_DIRECTORY}/README ]; then
+                    LogText "Skipped checking ${OS} ${PAM_DIRECTORY}/README as a PAM file"
+                fi
+                FIND_FILES=$(find ${PAM_DIRECTORY} -type f -print | grep -v "README")
+            fi
 
             for PAM_FILE in ${FIND_FILES}; do
                 LogText "Now checking PAM file ${PAM_FILE}"
@@ -115,6 +122,13 @@
                             PAM_MODULE=$(echo ${LINE} | awk '{ print $3 }')
                             PAM_MODULE_OPTIONS=$(echo ${LINE} | cut -d ' ' -f 4-)
                             PAM_CONTROL_FLAG=$(echo ${LINE} | awk '{ print $2 }')
+                            if [ ${PAM_CONTROL_FLAG} = "include" ]; then
+                                FILE=$(echo ${LINE} | awk '{ print $3 }')
+                                Debug "Result: Found include in ${PAM_FILE}. Does include PAM settings from file ${FILE} (which is individually processed)"
+                                PARSELINE=0
+                            fi
+                        fi
+                        if [ ${PARSELINE} -eq 1 ]; then
                             case ${PAM_CONTROL_FLAG} in
                                     "optional"|"required"|"requisite"|"sufficient")
                                         #Debug "Found a common control flag: ${PAM_CONTROL_FLAG} for ${PAM_MODULE}"
@@ -138,31 +152,53 @@
                             #
                             # Specific PAMs are commonly seen on these platforms:
                             #
-                            #                           FreeBSD          Linux
-                            # pam_access                                   v
-                            # pam_deny                    v                v
-                            # pam_group                   v
-                            # pam_krb5                    v
-                            # pam_lastlog                 v
-                            # pam_login_access            v
-                            # pam_nologin                 v
-                            # pam_opie                    v
-                            # pam_opieaccess              v
-                            # pam_passwdqc                v
-                            # pam_permit                  v
-                            # pam_rhosts                  v
-                            # pam_rootok                  v
-                            # pam_securetty               v
-                            # pam_self                    v
-                            # pam_ssh                     v
-                            # pam_unix                    v
+                            #                     FreeBSD  Linux  macOS  NetBSD
+                            # pam_access                     v
+                            # pam_afpmount                          v
+                            # pam_afslog                                   v
+                            # pam_deny               v       v      v      v
+                            # pam_env                               v
+                            # pam_chroot             v                     v
+                            # pam_echo               v       ?             v
+                            # pam_exec               v       ?             v
+                            # pam_ftpusers                                 v
+                            # pam_group              v              v      v
+                            # pam_guest                                    v
+                            # pam_krb5               v              v      v
+                            # pam_ksu                v                     v
+                            # pam_lastlog            v                     v
+                            # pam_launchd                           v
+                            # pam_login_access       v                     v
+                            # pam_mount                             v
+                            # pam_nologin            v              v      v
+                            # pam_ntlm                              v
+                            # pam_opendirectory                     v
+                            # pam_opie               v
+                            # pam_opieaccess         v
+                            # pam_passwdqc           v
+                            # pam_permit             v              v      v
+                            # pam_radius             v                     v
+                            # pam_rhosts             v                     v
+                            # pam_rootok             v              v      v
+                            # pam_sacl                              v
+                            # pam_securetty          v              v      v
+                            # pam_securityserver                    v
+                            # pam_self               v                     v
+                            # pam_skey                                     v
+                            # pam_ssh                v                     v
+                            # pam_tacplus            v
+                            # pam_unix               v              v      v
+                            # pam_uwtmp                             v
+                            # pam_wheel                             v
+                            # pam_winbind                           v
 
                             case ${PAM_MODULE_NAME} in
                                 pam_access) ;;
+                                pam_afpmount | pam_afslog) ;;
                                 pam_cap) ;;
                                 pam_debug | pam_deny) ;;
                                 pam_echo| pam_env | pam_exec |  pam_faildelay) ;;
-                                pam_filter | pam_ftp) ;;
+                                pam_filter | pam_ftp | pam_ftpusers) ;;
                                 # Google Authenticator / YubiKey
                                 # Common to find it only enabled for SSH
                                 pam_google_authenticator | pam_yubico)
@@ -181,16 +217,20 @@
                                     fi
                                 ;;
                                 pam_group) ;;
+                                pam_guest) ;;
                                 pam_issue) ;;
-                                pam_keyinit | pam_krb5) ;;
+                                pam_keyinit | pam_krb5 | pam_ksu) ;;
+                                pam_launchd) ;;
                                 pam_lastlog | pam_limits) ;;
+                                pam_login_access) ;;
                                 # Log UID for auditd
                                 pam_loginuid)
                                     PAM_LOGINUID_FOUND=1
                                 ;;
-                                pam_listfile |  pam_localuser) ;;
+                                pam_listfile | pam_localuser) ;;
                                 pam_mail | pam_mkhomedir | pam_motd) ;;
-                                pam_namespace | pam_nologin) ;;
+                                pam_namespace | pam_nologin | pam_ntlm) ;;
+                                pam_opendirectory) ;;
                                 pam_permit) ;;
 
                                 # Password history - Can be configured via pam_unix or pam_pwhistory
@@ -216,11 +256,19 @@
                                     fi
                                 ;;
 
-                                pam_rootok) ;;
+                                pam_radius) ;;
                                 pam_rhosts) ;;
+                                pam_rootok) ;;
+                                pam_sacl) ;;
                                 pam_securetty) ;;
+                                pam_securityserver) ;;
                                 pam_self) ;;
                                 pam_shells) ;;
+                                pam_skey) ;;
+                                pam_ssh)
+                                    LogText "Result: found ${PAM_MODULE} module (SSH authentication/session management)"
+                                    ReportWarning ${TEST_NO} "Potential security risks using of pam_ssh(8) module."
+                                ;;
                                 pam_stress | pam_succeed_if | pam_systemd) ;;
                                 pam_time | pam_timestamp) ;;
                                 pam_umask) ;;
@@ -247,8 +295,10 @@
                                 ;;
 
                                 pam_unix_acct| pam_unix_auth | pam_unix_passwd | pam_unix_session | pam_unix2) ;;
+                                pam_uwtmp) ;;
                                 pam_vbox) ;;
                                 pam_warn | pam_wheel) ;;
+                                pam_winbind) ;;
                                 pam_xauth) ;;
 
                                 # Password strength testing

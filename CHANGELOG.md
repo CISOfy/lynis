@@ -1,22 +1,20 @@
 Lynis Changelog
 ===============
 
-Security notice: please run version 2.5.0 or later
-
----------------------------------------------------------------------------------
-
-Lynis 2.5.4 (not released yet)
+Lynis 2.5.4 (2017-09-05)
 
 Changes:
 --------
 * Improve systemd detection
 * Detect Linux Mint version
 * Older versions of Mac OS X are detected as well
-* Added Norwegian translation
+* Norwegian translation added
+* PAM plugin extended
 
 Tests:
 ------
 * CRYP-7902 - certificate validation changed
+* FIRE-4508 - Improved screen output
 * PKGS-7380 - NetBSD vulnerability detection adjusted
 * TOOL-5002 - Improved detection of Ansible directories and files
 

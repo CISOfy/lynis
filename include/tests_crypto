@@ -31,6 +31,7 @@
     if [ ! -z "${OPENSSLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CRYP-7902 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check expire date of SSL certificates"
     if [ ${SKIPTEST} -eq 0 ]; then
+        COUNT_EXPIRED=0
         COUNT_TOTAL=0
         FOUNDPROBLEM=0
         sSSL_PATHS=$(echo ${SSL_CERTIFICATE_PATHS} | ${SEDBINARY} 's/:/ /g')
@@ -43,13 +44,15 @@
                 FileIsReadable ${DIR}
                 if [ ${CANREAD} -eq 1 ]; then
                     LogText "Result: found directory ${DIR}"
-                    # Search for CRT files
-                    ${FINDBINARY} ${DIR} -type f -print0 | ${EGREPBINARY} -z ".crt$|.pem$|^cert" | ${SORTBINARY} -z | while IFS= read -r -d $'\0' FILE; do                    
+                    # Search for certificate files
+                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".crt$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /:space:/g')
+                    for FILE in ${FILES}; do
+                        FILE=$(echo ${FILE} |${SEDBINARY} 's/:space:/ /g')
+                        COUNT_DIR=$((COUNT_DIR + 1))
                         FileIsReadable "${FILE}"
                         if [ ${CANREAD} -eq 1 ]; then
                             # Only check the files that are not installed by a package
                             if ! FileInstalledByPackage "${FILE}"; then
-                                COUNT_DIR=$((COUNT_DIR + 1))
                                 LogText "Test: checking file and determining if it is certificate ${FILE}"
                                 FIND=$(${OPENSSLBINARY} x509 -noout -in "${FILE}" -enddate 2> /dev/null | ${GREPBINARY} "^notAfter")
                                 if [ $? -eq 0 ]; then
@@ -59,10 +62,11 @@
                                     CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in "${FILE}" 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
                                     CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in "${FILE}" 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
                                     Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
-                                    if [ ${EXIT_CODE} -eq 0 ]; then
+                                    if [ ${EXIT_CODE} -eq 0 ]; then 
                                         LogText "Result: certificate ${FILE} seems to be correct and still valid"
                                     else
                                         FOUNDPROBLEM=1
+                                        COUNT_EXPIRED=$((COUNT_EXPIRED + 1))
                                         LogText "Result: certificate ${FILE} has been expired"
                                     fi
                                 else
@@ -73,25 +77,22 @@
                             LogText "Result: can not read file ${FILE} (no permission)"
                         fi
                     done
-                    if [ -z "$(${FINDBINARY} ${DIR} -type f  2> /dev/null | ${EGREPBINARY} ".crt$|.pem$|^cert")" ]; then
-                        LogText "Result: no certificates found in directory ${DIR}"
-                    fi
+                    COUNT_TOTAL=$((COUNT_TOTAL + COUNT_DIR))
+                    LogText "Result: found ${COUNT_DIR} certificates in ${DIR}"
                 else
                     LogText "Result: can not read path ${DIR} (no permission)"
                 fi
-                LogText "Result: found ${COUNT_DIR} certificates in ${DIR}"
             else
                 LogText "Result: SSL path ${DIR} does not exist"
             fi
-            COUNT_TOTAL=$((COUNT_TOTAL + COUNT_DIR))
         done
         Report "certificates=${COUNT_TOTAL}"
         LogText "Result: found a total of ${COUNT_TOTAL} certificates"
 
         if [ ${FOUNDPROBLEM} -eq 0 ]; then
-            Display --indent 2 --text "- Checking for expired SSL certificates" --result "${STATUS_NONE}" --color GREEN
+            Display --indent 2 --text "- Checking for expired SSL certificates [${COUNT_EXPIRED}/${COUNT_TOTAL}]" --result "${STATUS_NONE}" --color GREEN
         else
-            Display --indent 2 --text "- Checking for expired SSL certificates" --result "${STATUS_FOUND}" --color RED
+            Display --indent 2 --text "- Checking for expired SSL certificates [${COUNT_EXPIRED}/${COUNT_TOTAL}]" --result "${STATUS_FOUND}" --color RED
             ReportSuggestion ${TEST_NO} "Check available certificates for expiration"
         fi
     fi

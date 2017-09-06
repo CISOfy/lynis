@@ -1,6 +1,14 @@
 Lynis Changelog
 ===============
 
+Lynis 2.5.5 (version not released yet)
+
+Tests:
+------
+* CRYP-7902 - certificate validation changed
+
+---------------------------------------------------------------------------------
+
 Lynis 2.5.4 (2017-09-05)
 
 Changes:

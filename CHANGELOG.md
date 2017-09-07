@@ -1,7 +1,11 @@
 Lynis Changelog
 ===============
 
-Lynis 2.5.5 (version not released yet)
+Lynis 2.5.5 (2017-09-07)
+
+Changes:
+--------
+Minor release to solve errors on screen
 
 Tests:
 ------

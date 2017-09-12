@@ -1,11 +1,22 @@
 Lynis Changelog
 ===============
 
+Lynis 2.5.6 (not released)
+
+Changes:
+--------
+* Added additional keywords for banners
+
+Tests:
+------
+
+---------------------------------------------------------------------------------
+
 Lynis 2.5.5 (2017-09-07)
 
 Changes:
 --------
-Minor release to solve errors on screen
+* Minor release to solve errors on screen
 
 Tests:
 ------

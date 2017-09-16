@@ -1245,10 +1245,15 @@
     IsRunning() {
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling IsRunning function"; fi
         RUNNING=0
-        PSOPTIONS=" -o args="
-        if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" -o args= -C $1"; fi
-        FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)$1" | grep -v "grep")
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${PGREPBINARY}" ]; then
+            FIND=$(${PGREPBINARY} -x $1)
+        else
+            PSOPTIONS=" -o args="
+            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" -o args= -C $1"; fi
+            FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)$1" | grep -v "grep")
+        fi
+
+        if [ ! -z "${FIND}" ]; then
             RUNNING=1
             LogText "IsRunning: process '$1' found (${FIND})"
             return 0

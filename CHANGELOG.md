@@ -1,14 +1,16 @@
 Lynis Changelog
 ===============
 
-Lynis 2.5.6 (not released)
+Lynis 2.5.6 (not released yet)
 
 Changes:
 --------
 * Added additional keywords for banners
+* Enhancements to process detection
 
 Tests:
 ------
+* [NETW-2705] Allow local resolvers to bypass requirement for 2+ name servers
 
 ---------------------------------------------------------------------------------
 

@@ -7,6 +7,7 @@ Changes:
 --------
 * Added additional keywords for banners
 * Enhancements to process detection
+* Spanish translation extended
 
 Tests:
 ------

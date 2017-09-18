@@ -101,18 +101,23 @@
     # Description : check for idle session killing tools or settings
     Register --test-no SHLL-6220 --weight L --network NO --category security --description "Checking available and valid shells"
     if [ ${SKIPTEST} -eq 0 ]; then
+
+        IDLE_TIMEOUT_METHOD=""
+        IDLE_TIMEOUT_READONLY=""
+
         LogText "Test: Search for session timeout tools or settings in shell"
         IsRunning timeoutd
         if [ ${RUNNING} -eq 1 ]; then
             IDLE_TIMEOUT=1
             LogText "Result: found timeoutd process to kill idle sesions"
-            Report="session_timeout_method=timeout daemon"
+            IDLE_TIMEOUT_METHOD="timeout-daemon"
         fi
         IsRunning autolog
         if [ ${RUNNING} -eq 1 ]; then
             IDLE_TIMEOUT=1
             LogText "Result: found autolog process to kill idle sesions"
             Report="session_timeout_method[]=autolog"
+            IDLE_TIMEOUT_METHOD="autolog"
         fi
 
         if [ -f ${ROOTDIR}etc/profile ]; then
@@ -132,7 +137,7 @@
                 else
                     LogText "Result: found several TMOUT values configured in ${ROOTDIR}etc/profile"
                 fi
-                Report "session_timeout_method[]=profile"
+                IDLE_TIMEOUT_METHOD="profile"
             else
                 LogText "Result: could not find TMOUT setting in ${ROOTDIR}etc/profile"
             fi
@@ -147,10 +152,10 @@
                 done
                 if [ ${N} -gt 0 ]; then
                     LogText "Result: found readonly setting in ${ROOTDIR}etc/profile (readonly or typeset -r)"
-                    Report "session_timeout_set_readonly=1"
+                    IDLE_TIMEOUT_READONLY=1
                 else
                     LogText "Result: NO readonly setting found in ${ROOTDIR}etc/profile (readonly or typeset -r)"
-                    Report "session_timeout_set_readonly=0"
+                    IDLE_TIMEOUT_READONLY=0
                 fi
             else
                 LogText "Result: could not find export, readonly or typeset -r in ${ROOTDIR}etc/profile"
@@ -163,10 +168,9 @@
             FIND=$(${LSBINARY} ${ROOTDIR}etc/profile.d/*.sh 2> /dev/null)
             if [ ! -z "${FIND}" ]; then
                 # Determine if we can find a TMOUT value
-                FIND=$(${CATBINARY} ${ROOTDIR}etc/profile.d/*.sh 2> /dev/null | ${GREPBINARY} 'TMOUT=' | ${TRBINARY} -d ' ' | ${TRBINARY} -d '\t' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/export//' | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} -F= '{ print $2 }')
+                FIND=$(${FINDBINARY} ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec cat {} \; 2> /dev/null | ${GREPBINARY} 'TMOUT=' | ${TRBINARY} -d ' ' | ${TRBINARY} -d '\t' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/export//' | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} -F= '{ print $2 }')
                 # Determine if the value is exported (with export, readonly, or typeset)
-                FIND2=$(${CATBINARY} ${ROOTDIR}etc/profile.d/*.sh 2> /dev/null | ${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} '{ print $1 }')
-
+                FIND2=$(${FINDBINARY} ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec cat {} \; 2> /dev/null | ${GREPBINARY} '\(export\|readonly\|typeset -r\)[ \t]*TMOUT' | ${GREPBINARY} -v "^#" | ${SEDBINARY} 's/#.*//' | ${AWKBINARY} '{ print $1 }')
                 if [ ! -z "${FIND}" ]; then
                     N=0; IDLE_TIMEOUT=1
                     for I in ${FIND}; do
@@ -179,7 +183,7 @@
                     else
                         LogText "Result: found several TMOUT values configured in one of the files in ${ROOTDIR}etc/profile.d directory"
                     fi
-                    Report "session_timeout_method[]=profile"
+                    IDLE_TIMEOUT_METHOD="profile.d"
                 else
                     LogText "Result: could not find TMOUT setting in ${ROOTDIR}etc/profile.d/*.sh"
                 fi
@@ -194,10 +198,10 @@
                     done
                     if [ ${N} -gt 0 ]; then
                         LogText "Result: found readonly setting in ${ROOTDIR}etc/profile (readonly or typeset -r)"
-                        Report "session_timeout_set_readonly=1"
+                        IDLE_TIMEOUT_READONLY=1
                     else
                         LogText "Result: NO readonly setting found in ${ROOTDIR}etc/profile (readonly or typeset -r)"
-                        Report "session_timeout_set_readonly=0"
+                        IDLE_TIMEOUT_READONLY=0
                     fi
                 else
                     LogText "Result: could not find export, readonly or typeset -r in ${ROOTDIR}etc/profile"
@@ -205,6 +209,13 @@
             fi
         else
             LogText "Result: skip ${ROOTDIR}etc/profile.d directory test, directory not available on this system"
+        fi
+
+        if [ ! -z "${IDLE_TIMEOUT_METHOD}" ]; then
+            Report "session_timeout_method[]=${IDLE_TIMEOUT_METHOD}"
+        fi
+        if [ ! -z "${IDLE_TIMEOUT_READONLY}" ]; then
+            Report "session_timeout_set_readonly=${IDLE_TIMEOUT_READONLY}"
         fi
 
         if [ ${IDLE_TIMEOUT} -eq 1 ]; then

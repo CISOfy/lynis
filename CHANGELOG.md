@@ -13,6 +13,7 @@ Tests:
 ------
 * [NETW-2705] - Allow local resolvers to bypass requirement for 2+ name servers
 * [SSH-7408]  - Define default 'delayed' compression as a sane value for SSH tests
+* [SHLL-6220] - Improved detection of shell settings
 
 ---------------------------------------------------------------------------------
 

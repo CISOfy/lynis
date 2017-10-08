@@ -98,7 +98,7 @@ Lynis is collecting some awards and we are proud of that.
 
 Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
 
-More details can be found in the [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md).
+More details can be found in the [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTING.md).
 
 You can also simply contribute to the project by _starring_ the project and show your appreciation that way.
 

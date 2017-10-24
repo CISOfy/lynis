@@ -6,6 +6,7 @@ Lynis 2.5.6 (not released yet)
 Changes:
 --------
 * Added additional keywords for banners
+* DirectAdmin extensions
 * Enhancements to process detection
 * Spanish translation extended
 * Extended HP-UX support

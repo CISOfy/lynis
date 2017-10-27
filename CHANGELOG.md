@@ -1,7 +1,7 @@
 Lynis Changelog
 ===============
 
-Lynis 2.5.6 (not released yet)
+Lynis 2.5.6 (2017-10-27)
 
 Changes:
 --------
@@ -10,6 +10,7 @@ Changes:
 * Enhancements to process detection
 * Spanish translation extended
 * Extended HP-UX support
+* Only show relevant messages in report
 
 Tests:
 ------

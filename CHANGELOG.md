@@ -1,6 +1,21 @@
 Lynis Changelog
 ===============
 
+Lynis 2.5.7 (2017-10-29)
+
+Changes:
+--------
+* Update of Portuguese translation
+* Added --silent as alias for --quiet
+* Reduced screen output when running non-privileged
+* IsRunning function now allows full name process match
+
+Tests:
+------
+* [TOOL-
+
+---------------------------------------------------------------------------------
+
 Lynis 2.5.6 (2017-10-27)
 
 Changes:

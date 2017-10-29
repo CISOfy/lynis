@@ -1257,21 +1257,36 @@
 
     IsRunning() {
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling IsRunning function"; fi
+        pgrep_options="-x"
+        search=""
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --full)
+                    pgrep_options="-f" # replace -x with -f
+                ;;
+                *)
+                    search="$1"
+                ;;
+            esac
+            shift  # Go to next parameter
+        done
+
+        if [ -z "${search}" ]; then ExitFatal "Missing process to search for when using IsRunning function"; fi
         RUNNING=0
         if [ ! -z "${PGREPBINARY}" ]; then
-            FIND=$(${PGREPBINARY} -x $1)
+            FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
         else
             PSOPTIONS=" -o args="
-            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" -o args= -C $1"; fi
-            FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)$1" | grep -v "grep")
+            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" -o args= -C ${search}"; fi
+            FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
         fi
 
         if [ ! -z "${FIND}" ]; then
             RUNNING=1
-            LogText "IsRunning: process '$1' found (${FIND})"
+            LogText "IsRunning: process '${search}' found (${FIND})"
             return 0
         else
-            LogText "IsRunning: process '$1' not found"
+            LogText "IsRunning: process '${search}' not found"
             return 1
         fi
     }

@@ -46,7 +46,7 @@ Typical users of the software:
         git clone https://github.com/CISOfy/lynis
 
 2. Execute:
-
+        cd lynis
         ./lynis audit system
 
 If you want to run the software as `root`, we suggest changing the ownership of the files. Use `chown -R 0:0` to recursively alter the owner and group and set it to user ID `0` (`root`).

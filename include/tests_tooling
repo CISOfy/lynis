@@ -18,6 +18,7 @@
 #
 #################################################################################
 #
+    ANSIBLE_ARTIFACT_FOUND=0
     AUTOMATION_TOOL_FOUND=0
     AUTOMATION_TOOL_RUNNING=""
     CFENGINE_AGENT_FOUND=0
@@ -51,13 +52,31 @@
 
         Display --indent 2 --text "- Checking automation tooling"
 
+        # Ansible
+        FOUND=0
+        LIST="~/.ansible ${ROOTDIR}etc/ansible ${ROOTDIR}root/.ansible ${ROOTDIR}tmp/.ansible"
+        for ITEM in ${LIST}; do if DirectoryExists ${ITEM}; then FOUND=1; break; fi; done
+        # Test for files (only if no match was found)
+        if [ ${FOUND} -eq 0 ]; then
+            LIST="${ROOTDIR}var/log/ansible.log ~/.ansible-retry"
+            for ITEM in ${LIST}; do if FileExists ${ITEM}; then FOUND=1; break; fi; done
+        fi
+
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: found a possible trace of Ansible"
+            AUTOMATION_TOOL_FOUND=1
+            ANSIBLE_ARTIFACT_FOUND=1
+            Report "automation_tool_running[]=ansible"
+            Display --indent 4 --text "- Ansible artifact" --result "${STATUS_FOUND}" --color GREEN
+        fi
+
         # Cfengine
         if [ ! -z "${CFAGENTBINARY}" ]; then
             LogText "Result: CFEngine (cfagent) is installed (${CFAGENTBINARY})"
             AUTOMATION_TOOL_FOUND=1
             CFENGINE_AGENT_FOUND=1
             Report "automation_tool_running[]=cf-agent"
-            Display --indent 4 --text "Found: Cfengine (cfagent)" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- Cfengine (cfagent)" --result "${STATUS_FOUND}" --color GREEN
         fi
         OTHER_CFENGINE_LOCATIONS="/var/cfengine/bin /var/rudder/cfengine-community/bin"
         for I in ${OTHER_CFENGINE_LOCATIONS}; do
@@ -67,15 +86,14 @@
                     AUTOMATION_TOOL_FOUND=1
                     CFENGINE_AGENT_FOUND=1
                     Report "automation_tool_running[]=cf-agent"
-                    Display --indent 4 --text "Found: CFEngine (cf-agent)" --result "${STATUS_FOUND}" --color GREEN
+                    Display --indent 4 --text "- CFEngine (cf-agent)" --result "${STATUS_FOUND}" --color GREEN
                 fi
-                IsRunning "cf-server"
-                if [ ${RUNNING} -eq 1 ]; then
+                if IsRunning "cf-server"; then
                     LogText "Result: found CFEngine server"
                     AUTOMATION_TOOL_FOUND=1
                     CFENGINE_SERVER_RUNNING=1
                     Report "automation_tool_running[]=cf-server"
-                    Display --indent 4 --text "Found: CFEngine (cf-server)" --result "${STATUS_FOUND}" --color GREEN
+                    Display --indent 4 --text "- CFEngine (cf-server)" --result "${STATUS_FOUND}" --color GREEN
                 fi
             fi
         done
@@ -88,7 +106,7 @@
                     CHEFCLIENTBINARY="${I}/chef-client"
                     AUTOMATION_TOOL_FOUND=1
                     Report "automation_tool_running[]=chef-client"
-                    Display --indent 4 --text "Found: Chef client (chef-client)" --result "${STATUS_FOUND}" --color GREEN
+                    Display --indent 4 --text "- Chef client (chef-client)" --result "${STATUS_FOUND}" --color GREEN
                     LogText "Result: found chef-client (chef client daemon) in ${I}"
                 fi
                 if [ -f ${I}/erchef ]; then
@@ -96,7 +114,7 @@
                     LogText "Result: Chef Server (erchef) is installed (${CHEFSERVERBINARY})"
                     AUTOMATION_TOOL_FOUND=1
                     Report "automation_tool_running[]=chef-server"
-                    Display --indent 4 --text "Found: Chef Server (erchef)" --result "${STATUS_FOUND}" --color GREEN
+                    Display --indent 4 --text "- Chef Server (erchef)" --result "${STATUS_FOUND}" --color GREEN
                     LogText "Result: found erchef (chef server daemon) in ${I}"
                 fi
             fi
@@ -115,16 +133,15 @@
             LogText "Result: Puppet is installed (${PUPPETBINARY})"
             AUTOMATION_TOOL_FOUND=1
             Report "automation_tool_running[]=puppet-agent"
-            Display --indent 4 --text "Found: Puppet (agent)" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- Puppet (agent)" --result "${STATUS_FOUND}" --color GREEN
         fi
 
-        IsRunning "puppet master"
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning --full "puppet master"; then
             LogText "Result: found puppet master"
             AUTOMATION_TOOL_FOUND=1
             PUPPET_MASTER_RUNNING=1
             Report "automation_tool_running[]=puppet-master"
-            Display --indent 4 --text "Found: Puppet (master)" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- Puppet (master)" --result "${STATUS_FOUND}" --color GREEN
         fi
 
         # SaltStack
@@ -133,22 +150,21 @@
             AUTOMATION_TOOL_FOUND=1
             SALT_MINION_RUNNING=1
             Report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "Found: SaltStack minion (salt-minion)" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- SaltStack minion (salt-minion)" --result "${STATUS_FOUND}" --color GREEN
         fi
         if [ ! -z "${SALTMASTERBINARY}" ]; then
             LogText "Result: SaltStack (salt-master) is installed (${SALTMASTERBINARY})"
             AUTOMATION_TOOL_FOUND=1
             SALT_MASTER_RUNNING=1
             Report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "Found: SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
         else
-            IsRunning "salt-master"
-            if [ ${RUNNING} -eq 1 ]; then
+            if IsRunning "salt-master"; then
                 LogText "Result: found SaltStack (master)"
                 AUTOMATION_TOOL_FOUND=1
                 SALT_MASTER_RUNNING=1
                 Report "automation_tool_running[]=saltstack-master"
-                Display --indent 4 --text "Found: SaltStack (master)" --result "${STATUS_FOUND}" --color GREEN
+                Display --indent 4 --text "- SaltStack (master)" --result "${STATUS_FOUND}" --color GREEN
             fi
         fi
 
@@ -316,8 +332,7 @@
             Display --indent 2 --text "- Checking presence of Snort" --result "${STATUS_FOUND}" --color GREEN
         fi
 
-        IsRunning snort
-        if [ ${SNORT_RUNNING} -eq 1 ]; then
+        if IsRunning "snort"; then
             SNORT_FOUND=1
             SNORT_RUNNING=1
             SNORT_LOG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/snort/ {print $4}' | ${HEADBINARY} -1)

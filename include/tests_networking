@@ -131,7 +131,7 @@
                     LogText "Found nameserver: ${I}"
                     Report "nameserver[]=${I}"
                     # Check if a local resolver is available (like DNSMasq)
-                    if [ "${I}" = "::1" -o "${I}" = "127.0.0.1" -o "${I}" = "0.0.0.0" ]; then
+                    if [ "${I}" = "::1" -o "${I}" = "127.0.0.1" -o "${I}" = "127.0.1.1" -o "${I}" = "0.0.0.0" ]; then
                         LOCAL_DNSRESOLVER_FOUND=1
                     fi
                     if [ ! -z "${DIGBINARY}" ]; then
@@ -166,6 +166,7 @@
     if [ ${LOCAL_DNSRESOLVER_FOUND} -eq 0  ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-2705 --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check availability two nameservers"
     if [ ${SKIPTEST} -eq 0 ]; then
+        SKIP=0
         if [ ! -z "${DIGBINARY}" ]; then
             if [ ${NUMBERACTIVENS} -lt 2 ]; then
                 Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result "${STATUS_WARNING}" --color RED
@@ -266,6 +267,10 @@
             Linux)
                 if [ ! -z "${IFCONFIGBINARY}" ]; then
                     FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "HWaddr" | ${AWKBINARY} '{ if ($4=="HWaddr") print $5 }' | ${SORTBINARY} -u)
+                    # CentOS 7.x and others may return nothing. Let's retry with 'ether' field.
+                    if [ -z "${FIND}" ]; then
+                        FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u)
+                    fi
                 else
                     if [ ! -z "${IPBINARY}" ]; then
                         LogText "Test: Using ip binary to gather hardware addresses"

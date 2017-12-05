@@ -1,19 +1,135 @@
 Lynis Changelog
 ===============
 
-Security notice: please run version 2.5.0 or later
+Lynis 2.5.8 (not released yet)
+
+Changes:
+--------
+* Check for empty files improved on several locations
+* New allow-auto-purge setting in profile for short-lived systems
+* Additional checks for log and report file
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.7 (2017-10-29)
+
+Changes:
+--------
+* Update of Portuguese translation
+* Added --silent as alias for --quiet
+* Reduced screen output when running non-privileged
+* IsRunning function now allows full name process match
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.6 (2017-10-27)
+
+Changes:
+--------
+* Added additional keywords for banners
+* DirectAdmin extensions
+* Enhancements to process detection
+* Spanish translation extended
+* Extended HP-UX support
+* Only show relevant messages in report
+
+Tests:
+------
+* [NETW-2705] - Allow local resolvers to bypass requirement for 2+ name servers
+* [SSH-7408]  - Define default 'delayed' compression as a sane value for SSH tests
+* [SHLL-6220] - Improved detection of shell settings
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.5 (2017-09-07)
+
+Changes:
+--------
+* Minor release to solve errors on screen
+
+Tests:
+------
+* CRYP-7902 - certificate validation changed
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.4 (2017-09-05)
+
+Changes:
+--------
+* Improve systemd detection
+* Detect Linux Mint version
+* Older versions of Mac OS X are detected as well
+* Norwegian translation added
+* PAM plugin extended
+
+Tests:
+------
+* CRYP-7902 - certificate validation changed
+* FIRE-4508 - Improved screen output
+* PKGS-7380 - NetBSD vulnerability detection adjusted
+* TOOL-5002 - Improved detection of Ansible directories and files
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.3 (2017-08-17)
+
+Changes:
+--------
+* DirectAdmin location added
+* Small adjustments to text
+* Enhanced detection for LXC and LXC
+* Added /opt/apache as a target location
+* Default log directory set for HP-UX
+* Screen output improvements
+
+Tests:
+------
+* CRYP-7902 - Prevent test from showing error on screen
+* FILE-6310 - Detection of mount point now match exact name
+* HRDN-7230 - Show single line when no malware scanner was detected
+* NETW-3006 - Updated detection of MAC addresses on Linux
+* PKGS-2379 - Improvement for OpenBSD usage of PHP suhosin
+* TOOL-5002 - Detection capabilities for Ansible added
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.2 (2017-07-10)
+
+Changes:
+--------
+- Support for PHP on CloudLinux
+- Check for presence of locale binary
+- Suhosin detection improvements
+- Generic code improvements
+- Changed 'lynis audit system remote' routine
+- Support for macOS High Sierra
+- French translation updated
+
+Lynis Enterprise:
+-----------------
+- Allow 'tags' and 'system-customer-name' to be specified via Lynis client
+
+Tests:
+------
+* CONT-8102 - Check for dockerd instead of docker -d
+* FIRE-4594 - Check for presence Advanced Policy Firewall (APF)
+* PKGS-2379 - New test for PHP suhosin extension status
+* PKGS-7370 - Only use debsums on Debian
+* KRNL-6000 - Added kernel.dmesg_restrict testing
 
 ---------------------------------------------------------------------------------
 
 Lynis 2.5.1 (2017-05-31)
 
 Changes:
+--------
 - Hebrew translation by Dolev Farhi
 - Improved detection of SSL certificate files
 - Minor changes to improve logging and results
 
 Tests:
---------
+------
 * BOOT-5104 - Added support for macOS
 * FIRE-4524 - Determine if CSF is in testing mode
 * HTTP-6716 - Improved log message

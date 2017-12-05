@@ -278,6 +278,22 @@
 #
 #################################################################################
 #
+    # TODO
+
+    ## Test        : PKGS-7318
+    ## Description : APT configuration
+    #if [ -x ${ROOTDIR}usr/bin/apt-config ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #Register --test-no PKGS-7318 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "APT configuration"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    #    LogText "Test: check APT configuration"
+    #    if ! SkipAtomicTest ${TEST_NO}:atomicname; then
+    #    # Acquire::AllowInsecureRepositories should be 0 (could be 1)
+    #    # Acquire::AllowDowngradeToInsecureRepositories should be 0
+    #    # Binary::apt::Acquire::AllowInsecureRepositories should be 0
+    #fi
+#
+#################################################################################
+#
     # Test        : PKGS-7320
     # Description : Check available of arch-audit
     if [ "${OS_FULLNAME}" = "Arch Linux" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="Test only applies to Arch Linux"; fi
@@ -677,7 +693,7 @@
         if [ -x ${ROOTDIR}usr/sbin/pkg_admin ]; then
             PACKAGE_AUDIT_TOOL_FOUND=1
             PACKAGE_AUDIT_TOOL="pkg_admin audit"
-            if [ -f ${ROOTDIR}var/db/pkg/pkgs-vulnerabilities ]; then
+            if [ -f ${ROOTDIR}var/db/pkg/pkg-vulnerabilities ]; then
                 FIND=$(${ROOTDIR}usr/sbin/pkg_admin audit)
                 if [ -z "${FIND}" ]; then
                     LogText "Result: pkg_admin audit results are clean"
@@ -749,7 +765,7 @@
             fi
         else
             LogText "Result: could not find vulnerability database"
-            ReportWarning "${TEST_NO}" "No vulnerability database available" "pkg audit" "text:Run pkg audit -f"
+            ReportWarning "${TEST_NO}" "No vulnerability database available" "pkg audit" "text:Run pkg audit -F"
         fi
     fi
 #
@@ -931,7 +947,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! -z "${PYTHONBINARY}" ]; then
             LogText "Test: checking enabled repositories"
-            REPOS=$(${PYTHONBINARY} -c 'import yum ; yb = yum.YumBase() ; print [(r.id + "=" + str(r.gpgcheck)) for r in yb.repos.listEnabled()]' | ${GREPBINARY} "^\[" | ${TRBINARY} -d '[] ' | ${TRBINARY} -d "'" | ${SEDBINARY} 's/,/ /g')
+            REPOS=$(${PYTHONBINARY} -c 'import yum ; yb = yum.YumBase() ; yb.conf ; print [(r.id + "=" + str(r.gpgcheck)) for r in yb.repos.listEnabled()]' | ${GREPBINARY} "^\[" | ${TRBINARY} -d '[] ' | ${TRBINARY} -d "'" | ${SEDBINARY} 's/,/ /g')
             if [ -z "${REPOS}" ]; then LogText "Result: found no repositories"; fi
             for I in ${REPOS}; do
                 REPO=$(echo ${I} | ${AWKBINARY} -F= '{print $1}')

@@ -28,16 +28,17 @@
 #
 #################################################################################
 #
+
     # Program information
     PROGRAM_NAME="Lynis"
     PROGRAM_AUTHOR="CISOfy"
     PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2017-05-31"
-    PROGRAM_RELEASE_TIMESTAMP=1496238458
-    PROGRAM_RELEASE_TYPE="final" # dev or final
-    PROGRAM_VERSION="2.5.1"
+    PROGRAM_RELEASE_DATE="2017-10-29"
+    PROGRAM_RELEASE_TIMESTAMP=1509268838
+    PROGRAM_RELEASE_TYPE="dev" # dev or final
+    PROGRAM_VERSION="2.5.8"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
@@ -109,7 +110,9 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     fi
 
     # Auto detection of language based on locale (first two characters). Set to English when nothing found.
-    LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
+    if [ -x "$(command -v locale)" ]; then
+        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
+    fi
     if [ -z "${LANGUAGE}" ]; then
         #Debug "Result: no (valid) language found, setting to default language (en)"
         LANGUAGE="en"
@@ -235,15 +238,21 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
         if [ -z "${LOGFILE}" ]; then
             # Try creating a log file in temporary directory
             if [ ! -f /tmp/lynis.log ]; then
+                if [ -L /tmp/lynis.log ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
                 touch /tmp/lynis.log
                 if [ $? -eq 0 ]; then LOGFILE="/tmp/lynis.log"; else LOGFILE="/dev/null"; fi
             else
                 LOGFILE="/tmp/lynis.log"
             fi
+        else
+            if [ -L "${LOGFILE}" ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi
         if [ -z "${REPORTFILE}" ]; then
             touch /tmp/lynis-report.dat
+            if [ -L /tmp/lynis-report.dat ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
             if [ $? -eq 0 ]; then REPORTFILE="/tmp/lynis-report.dat"; else REPORTFILE="/dev/null"; fi
+        else
+            if [ -L "${REPORTFILE}" ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi
     fi
 #
@@ -294,9 +303,10 @@ ${NORMAL}
     DiscoverProfiles
 
     # Initialize and check profile file, auditor name, log file and report file
+    if [ -z "${LOGDIR}" ];            then LOGDIR="/var/log"; fi
     if [ -z "${AUDITORNAME}" ];       then AUDITORNAME="[Not Specified]"; fi
-    if [ -z "${LOGFILE}" ];           then LOGFILE="/var/log/lynis.log"; fi
-    if [ -z "${REPORTFILE}" ];        then REPORTFILE="/var/log/lynis-report.dat"; fi
+    if [ -z "${LOGFILE}" ];           then LOGFILE="${LOGDIR}/lynis.log"; fi
+    if [ -z "${REPORTFILE}" ];        then REPORTFILE="${LOGDIR}/lynis-report.dat"; fi
 #
 #################################################################################
 #
@@ -385,7 +395,6 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
 
     ${CYAN}update${NORMAL}
         update info                   : Show update details
-        update release                : Update Lynis release
 
 
   ${WHITE}Options:${NORMAL}
@@ -431,7 +440,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
 #
 #################################################################################
 #
-    if [ ${PRIVILEGED} -eq 0 -a ${CHECK} -eq 1 ]; then
+    if [ ${PRIVILEGED} -eq 0 -a ${CHECK} -eq 1 -a ${QUIET} -eq 0 ]; then
         printf "%s" "${WHITE}
   ###################################################################
   #                                                                 #
@@ -451,8 +460,6 @@ ${NORMAL}
   ${RED}WARNING:${NORMAL}
   ${WHITE}*${NORMAL} No suggestions or warnings will be displayed in report (due to missing log file)"
         fi
-        #printf "\n\n%s" "  ${WHITE}Press [ENTER] to continue or [CTRL] + C to break${NORMAL}"
-        #if [ ${QUICKMODE} -eq 0 ]; then read void; fi
     fi
 #
 #################################################################################
@@ -614,6 +621,7 @@ ${NORMAL}
         echo "  Plugin directory:          ${PLUGINDIR}"
         echo "  ---------------------------------------------------"
         echo "  Auditor:                   ${AUDITORNAME}"
+        echo "  Language:                  ${LANGUAGE}"
         echo "  Test category:             ${TEST_CATEGORY_TO_CHECK}"
         echo "  Test group:                ${TEST_GROUP_TO_CHECK}"
         if [ ! "${ROOTDIR}" = "/" ]; then echo "  Root directory (custom):   ${ROOTDIR}"; fi
@@ -779,13 +787,22 @@ ${NORMAL}
 #
 #################################################################################
 #
-    # Check for systemd presence
-    if [ -d ${ROOTDIR}lib/systemd/system -a -f ${ROOTDIR}usr/lib/systemd/systemd ]; then
-        LogText "Result: systemd is using systemd"
+    # Check for systemd presence (already tested via binaries: systemctl)
+    if [ ${HAS_SYSTEMD} -eq 0 ]; then
+        FOUND=0
+        # Backup option to do additional testing for systemd
+        LIST="${ROOTDIR}lib/systemd/system"; for ITEM in ${LIST}; do if [ -d ${ITEM} ]; then FOUND=1; break; fi; done
+        LIST="${ROOTDIR}usr/lib/systemd/systemd"
+        if [ ${FOUND} -eq 0 ]; then for ITEM in ${LIST}; do if [ -f ${ITEM} ]; then FOUND=1; break; fi; done; fi
+    else
+        FOUND=1
+    fi
+    if [ ${FOUND} -eq 1 ]; then
+        LogText "Result: system is using systemd"
         HAS_SYSTEMD=1
         Report "systemd=1"
     else
-        LogText "Result: systemd not found, or partially"
+        LogText "Result: systemd not found"
         Report "systemd=0"
     fi
 #

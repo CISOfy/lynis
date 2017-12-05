@@ -39,22 +39,44 @@
                 ${ROOTDIR}etc/php5/apache2/php.ini \
                 ${ROOTDIR}etc/php5/fpm/php.ini \
                 ${ROOTDIR}private/etc/php.ini \
+                ${ROOTDIR}etc/php/7.0/cli/php.ini ${ROOTDIR}etc/php/7.0/fpm/php.ini \
                 ${ROOTDIR}var/www/conf/php.ini \
                 ${ROOTDIR}usr/local/etc/php.ini ${ROOTDIR}usr/local/lib/php.ini \
+                ${ROOTDIR}usr/local/etc/php5/cgi/php.ini \
+                ${ROOTDIR}usr/local/php54/lib/php.ini \
+                ${ROOTDIR}usr/local/php56/lib/php.ini \
+                ${ROOTDIR}usr/local/php70/lib/php.ini \
+                ${ROOTDIR}usr/local/php71/lib/php.ini \
                 ${ROOTDIR}usr/local/zend/etc/php.ini \
                 ${ROOTDIR}usr/pkg/etc/php.ini \
                 ${ROOTDIR}opt/cpanel/ea-php54/root/etc/php.ini \
                 ${ROOTDIR}opt/cpanel/ea-php55/root/etc/php.ini \
                 ${ROOTDIR}opt/cpanel/ea-php56/root/etc/php.ini \
                 ${ROOTDIR}opt/cpanel/ea-php70/root/etc/php.ini \
-                ${ROOTDIR}opt/cpanel/ea-php71/root/etc/php.ini"
+                ${ROOTDIR}opt/cpanel/ea-php71/root/etc/php.ini \
+                ${ROOTDIR}opt/alt/php44/etc/php.ini \
+                ${ROOTDIR}opt/alt/php51/etc/php.ini \
+                ${ROOTDIR}opt/alt/php52/etc/php.ini \
+                ${ROOTDIR}opt/alt/php53/etc/php.ini \
+                ${ROOTDIR}opt/alt/php54/etc/php.ini \
+                ${ROOTDIR}opt/alt/php55/etc/php.ini \
+                ${ROOTDIR}opt/alt/php56/etc/php.ini \
+                ${ROOTDIR}opt/alt/php70/etc/php.ini \
+                ${ROOTDIR}opt/alt/php71/etc/php.ini"
 
     PHPINIDIRS="${ROOTDIR}etc/php5/conf.d \
                 ${ROOTDIR}etc/php.d \
                 ${ROOTDIR}opt/cpanel/ea-php54/root/etc/php.d ${ROOTDIR}opt/cpanel/ea-php55/root/etc/php.d ${ROOTDIR}opt/cpanel/ea-php56/root/etc/php.d ${ROOTDIR}opt/cpanel/ea-php70/root/etc/php.d \
-                ${ROOTDIR}opt/cpanel/ea-php71/root/etc/php.d"
-
-    PHPVERSION=""
+                ${ROOTDIR}opt/cpanel/ea-php71/root/etc/php.d \
+                ${ROOTDIR}opt/alt/php44/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php51/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php52/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php53/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php54/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php55/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php56/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php70/etc/php.d.all \
+                ${ROOTDIR}opt/alt/php71/etc/php.d.all"
 #
 #################################################################################
 #
@@ -271,6 +293,65 @@
             Display --indent 4 --text "- Checking allow_url_include option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'allow_url_include' in disabled state (0, no, or off)"
             AddHP 2 2
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : PHP-2379
+    # Description : Check PHP suhosin extension status
+    if [ ! -z "${PHPINI_ALLFILES}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PHP-2379 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP suhosin extension status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        SIMULATION=0
+        if [ "${OS}" = "OpenBSD" ]; then
+            FOUND=1                    # On OpenBSD, Suhosin is hard linked into PHP
+            SIMULATION=off
+        else
+            for I in ${PHPINI_ALLFILES}; do
+                LogText "Test: Checking for PHP suhosin extension status in file ${I}"
+                FIND=$(${GREPBINARY} -oP '^extension=.*?suhosin.so.*$' ${I})
+                if [ -z "${FIND}" ]; then
+                    LogText "Result: ${I}: suhosin is not enabled"
+                else
+                    LogText "Result: ${I}: suhosin is enabled"
+                    FOUND=1
+                fi
+
+                LogText "Test: Check Suhosin simulation mode status"
+                SIMULATION=$(${GREPBINARY} -oP '^suhosin.simulation.*$' ${I} | ${CUTBINARY} -d= -f2 | ${GREPBINARY} -io 'off' | ${TRBINARY} '[:upper:]' '[:lower:]')
+                if [ "${SIMULATION}" = "off" ]; then
+                    LogText "Result: ${I}: suhosin simulation mode is not active"
+                else
+                    LogText "Result: ${I}: suhosin simulation mode is active"
+                fi
+            done
+        fi
+
+        if [ ${FOUND} -eq 0 ]; then
+            LogText "Result: Suhosin extension is not enabled"
+            Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion ${TEST_NO} "Harden PHP by enabling suhosin extension"
+            LogText "suhosin extension is not enabled"
+            AddHP 0 1
+
+        else
+            LogText "Result: Suhosin extension is enabled"
+            Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_OK}" --color GREEN
+            AddHP 2 2
+        fi
+
+        if [ "${SIMULATION}" = "off" ]; then
+            LogText "Result: Suhosin simulation mode is not active"
+            Display --indent 6 --text "- Suhosin simulation mode status" --result "${STATUS_OK}" --color GREEN
+            AddHP 2 2
+        else
+            LogText "Result: Suhosin simulation mode is active"
+            Display --indent 6 --text "- Suhosin simulation mode status" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion ${TEST_NO} "Harden PHP by deactivating suhosin simulation mode"
+            LogText "suhosin simulation mode is active"
+            AddHP 0 1
         fi
     fi
 #

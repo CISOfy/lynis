@@ -12,7 +12,7 @@ The Lynis project is very thankful to the individuals who contributed to the pro
   - Share missing results and findings
   - Check for grammar issues
 
-  See https://github.com/CISOfy/lynis/CONTRIBUTIONS.md for more details
+  See [CONTRIBUTING.md](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTING.md) for more details.
 
 ==========================================================================================
 

@@ -511,7 +511,7 @@
             shift
         done
 
-        if [ "${RESULT}" = "" ]; then
+        if [ -z "${RESULT}" ]; then
             RESULTPART=""
         else
             if [ ${CRONJOB} -eq 0 ]; then
@@ -521,7 +521,7 @@
             fi
         fi
 
-        if [ ! "${TEXT}" = "" ]; then
+        if [ ! -z "${TEXT}" ]; then
             SHOW=0
             if [ ${SHOW_WARNINGS_ONLY} -eq 1 ]; then
                 if [ "${RESULT}" = "WARNING" ]; then SHOW=1; fi
@@ -530,8 +530,8 @@
 
             if [ ${SHOW} -eq 1 ]; then
                 # Display:
-                # - counting with -m instead of -c, to support language locale
-                # - wc needs LANG to deal with multi-bytes characters but LANG has been unset in include/consts...
+                # - for full shells, count with -m instead of -c, to support language locale (older busybox does not have -m)
+                # - wc needs LANG to deal with multi-bytes characters but LANG has been unset in include/consts
                 LINESIZE=$(export LC_ALL= ; export LANG="${DISPLAY_LANG}";echo "${TEXT}" | wc -m | tr -d ' ')
                 if [ ${SHOWDEBUG} -eq 1 ]; then DEBUGTEXT=" [${PURPLE}DEBUG${NORMAL}]"; else DEBUGTEXT=""; fi
                 if [ ${INDENT} -gt 0 ]; then SPACES=$((62 - INDENT - LINESIZE)); fi
@@ -699,15 +699,15 @@
         file=$1
         find=""
         if [ ! -z "${DPKGBINARY}" ]; then
-            find=$(${DPKGBINARY} -S ${file} 2> /dev/null | ${AWKBINARY} -F: '{print $1}')
+            find=$(${DPKGBINARY} -S "${file}" 2> /dev/null | ${AWKBINARY} -F: '{print $1}')
         elif [ ! -z "${RPMBINARY}" ]; then
-            find=$(${RPMBINARY} -qf ${file} 2> /dev/null | ${AWKBINARY} -F- '{print $1}')
+            find=$(${RPMBINARY} -qf "${file}" 2> /dev/null | ${AWKBINARY} -F- '{print $1}')
         fi
         if [ ! -z "${find}" ]; then
-            LogText "Result: file ${file} belongs to package (${find})"
+            LogText "Result: file '${file}' belongs to package (${find})"
             exitcode=0
         else
-            LogText "Result: file ${file} does most likely not belong to a package"
+            LogText "Result: file '${file}' does most likely not belong to a package"
         fi
         return ${exitcode}
     }
@@ -726,7 +726,7 @@
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling FileIsEmpty function"; fi
         EMPTY=0
         LogText "Test: checking if file $1 is empty"
-        if [ -z $1 ]; then
+        if [ ! -s "$1" ]; then
             LogText "Result: file $1 is empty"
             EMPTY=1
             return 0
@@ -754,35 +754,35 @@
         LogText "Test: check if we can access ${sFILE} (escaped: ${escaped_file})"
 
         # Check for symlink
-        if [ -L ${escaped_file} ]; then
+        if [ -L "${escaped_file}" ]; then
             ShowSymlinkPath ${escaped_file}
             if [ ! -z "${SYMLINK}" ]; then escaped_file="${SYMLINK}"; fi
         fi
 
         # Only check the file if it isn't a symlink (after previous check)
-        if [ -L ${escaped_file} ]; then
+        if [ -L "${escaped_file}" ]; then
             OTHERPERMS="-"
             LogText "Result: unclear if we can read this file, as this is a symlink"
             ReportException "FileIsReadable" "Can not determine symlink ${sFILE}"
-        elif [ -d ${escaped_file} ]; then
-            OTHERPERMS=$(${LSBINARY} -d -l ${escaped_file} | ${CUTBINARY} -c 8)
-        elif [ -f ${escaped_file} ]; then
-            OTHERPERMS=$(${LSBINARY} -d -l ${escaped_file} | ${CUTBINARY} -c 8)
+        elif [ -d "${escaped_file}" ]; then
+            OTHERPERMS=$(${LSBINARY} -d -l "${escaped_file}" 2> /dev/null | ${CUTBINARY} -c 8)
+        elif [ -f "${escaped_file}" ]; then
+            OTHERPERMS=$(${LSBINARY} -d -l "${escaped_file}" 2> /dev/null | ${CUTBINARY} -c 8)
         else
             OTHERPERMS="-"
         fi
 
         # Also check if we are the actual owner of the file (use -d to get directory itself, if its a directory)
-        FILEOWNER=$(ls -dln ${escaped_file} | ${AWKBINARY} -F" " '{ print $3 }')
+        FILEOWNER=$(ls -dln "${escaped_file}" 2> /dev/null | ${AWKBINARY} -F" " '{ print $3 }')
         if [ "${FILEOWNER}" = "${MYID}" ]; then
             LogText "Result: file is owned by our current user ID (${MYID}), checking if it is readable"
-            if [ -L ${sFILE} ]; then
+            if [ -L "${sFILE}" ]; then
                 LogText "Result: unclear if we can read this file, as this is a symlink"
                 ReportException "FileIsReadable" "Can not determine symlink ${escaped_file}"
-            elif [ -d ${escaped_file} ]; then
-                OTHERPERMS=$(${LSBINARY} -d -l ${escaped_file} | ${CUTBINARY} -c 2)
-            elif [ -f ${escaped_file} ]; then
-                OTHERPERMS=$(${LSBINARY} -l ${escaped_file} | ${CUTBINARY} -c 2)
+            elif [ -d "${escaped_file}" ]; then
+                OTHERPERMS=$(${LSBINARY} -d -l "${escaped_file}" 2> /dev/null | ${CUTBINARY} -c 2)
+            elif [ -f "${escaped_file}" ]; then
+                OTHERPERMS=$(${LSBINARY} -l "${escaped_file}" 2> /dev/null | ${CUTBINARY} -c 2)
             fi
         else
             LogText "Result: file is not owned by current user ID (${MYID}), but UID ${FILEOWNER}"
@@ -864,6 +864,19 @@
                         HOSTID=$(echo ${FIND} | sha1)
                     else
                         ReportException "GetHostID" "No MAC address returned on DragonFly or FreeBSD"
+                    fi
+                ;;
+
+                "HP-UX")
+                    FIND=$(nwmgr -q info -c lan0 2> /dev/null | awk '{ if ($1=="MAC" && $2=="Address") { print $4 }}')
+                    if HasData "${FIND}"; then
+                        if [ ! -z "${OPENSSLBINARY}" ]; then
+                            HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
+                        else
+                            ReportException "GetHostID" "No openssl binary available on this HP-UX system"
+                        fi
+                    else
+                        ReportException "GetHostID" "No MAC address found by using nwmgr"
                     fi
                 ;;
 
@@ -1157,11 +1170,20 @@
 
     IsContainer() {
         FOUND=0
+        # Early on we can't use FileIsReadable yet
         if [ -e /proc/1/cgroup ]; then
-            FIND=$(cat /proc/1/cgroup | grep -i docker)
+            FIND=$(cat ${ROOTDIR}proc/1/cgroup 2> /dev/null | grep -i docker)
             if [ $? -eq 0 ]; then
                 LogText "Result: found Docker in control groups (/proc/1/cgroup), so we are running in Docker container"
                 CONTAINER_TYPE="Docker"; FOUND=1
+                EXITCODE=0
+            fi
+        fi
+        if [ -e /proc/1/environ ]; then
+            FIND=$(grep -qa 'container=lxc' ${ROOTDIR}proc/1/environ 2> /dev/null)
+            if [ $? -eq 0 ]; then
+                LogText "Result: found LXC in environnement (/proc/1/environ), so we are running in LXC container"
+                CONTAINER_TYPE="LXC"; FOUND=1
                 EXITCODE=0
             fi
         fi
@@ -1235,16 +1257,36 @@
 
     IsRunning() {
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling IsRunning function"; fi
+        pgrep_options="-x"
+        search=""
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --full)
+                    pgrep_options="-f" # replace -x with -f
+                ;;
+                *)
+                    search="$1"
+                ;;
+            esac
+            shift  # Go to next parameter
+        done
+
+        if [ -z "${search}" ]; then ExitFatal "Missing process to search for when using IsRunning function"; fi
         RUNNING=0
-        PSOPTIONS=""
-        if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" ax"; fi
-        FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)$1" | grep -v "grep")
-        if [ ! "${FIND}" = "" ]; then
+        if [ ! -z "${PGREPBINARY}" ]; then
+            FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
+        else
+            PSOPTIONS=" -o args="
+            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" -o args= -C ${search}"; fi
+            FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
+        fi
+
+        if [ ! -z "${FIND}" ]; then
             RUNNING=1
-            LogText "IsRunning: process '$1' found (${FIND})"
+            LogText "IsRunning: process '${search}' found (${FIND})"
             return 0
         else
-            LogText "IsRunning: process '$1' not found"
+            LogText "IsRunning: process '${search}' not found"
             return 1
         fi
     }
@@ -1331,6 +1373,19 @@
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
         SHORT=""
 
+        # lxc environ detection
+        if [ "${SHORT}" = "" ]; then
+            if [ -f /proc/1/environ ]; then
+                FIND=$(grep -qa 'container=lxc' /proc/1/environ 2> /dev/null)
+                if [ $? -eq 0 ]; then
+                    SHORT=lxc
+                    LogText "Result: found ${SHORT}"
+                fi
+            fi
+        else
+            LogText "Result: skipped lxc environ detection test, as we already found machine type"
+        fi
+
         # facter
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/facter ] || [ -x /usr/local/bin/facter ]; then
@@ -1371,7 +1426,7 @@
         if [ "${SHORT}" = "" ]; then
             if [ -x /usr/bin/lscpu ]; then
                 LogText "Test: trying to guess virtualization with lscpu"
-                FIND=$(lscpu | grep "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
+                FIND=$(lscpu | grep -i "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
@@ -1434,7 +1489,7 @@
         # Amazon EC2
         if [ "${SHORT}" = "" ]; then
             LogText "Test: checking specific files for Amazon"
-            if [ -f /etc/ec2_version -a ! -z /etc/ec2_version ]; then
+            if [ -f /etc/ec2_version -a -s /etc/ec2_version ]; then
                 SHORT="amazon-ec2"
             else
                 LogText "Result: system not hosted on Amazon"

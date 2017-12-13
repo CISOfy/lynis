@@ -23,6 +23,11 @@
     USBGUARD_FOUND=0
     USBGUARD_CONFIG=""
     USBGUARD_RULES=""
+    USBGUARD_RESTORE_POLICY=""
+    USBGUARD_CONTROLLER_POLICY=""
+    USBGUARD_DEVICE_POLICY=""
+    USBGUARD_INSERTED_POLICY=""
+    USBGUARD_DEFAULT_POLICY=""
 
 #
 #################################################################################
@@ -32,45 +37,174 @@
 #################################################################################
 #
 
-    # PLACEHOLDER DUSB-0000 used until a good test name & number can be
+    # PLACEHOLDER USB-0000 used until a good test name & number can be
     # assigned.
 
-    # Test        : DUSB-0000
+    # Test        : USB-0000
     # Description : Perform file permissions check
-    Register --test-no DUSB-0000  --os Linux --weight L --network NO --category security --description "Check for presence of USBGuard"
+    Register --test-no USB-0000  --os Linux --weight L --network NO --category security --description "Check for presence of USBGuard"
     if [ ${SKIPTEST} -eq 0 ]; then
 
         if [ ! -z "${USBGUARDBINARY}" ]; then
             USBGUARD_FOUND=1
+            AddHP 1 1
             LogText "Result: USBGuard is installed (${USBGUARDBINARY})"
-            Display --indent 2 --text "- Checking presence of USBGuard" --result "${STATUS_FOUND}" --color GREEN
-        else
-            LogText "Result: USBGuard not found"
-        fi
+            Display --indent 2 --text "- Checking USBGuard" --result "${STATUS_FOUND}" --color GREEN
 
-        LogText "Checking USBGuard configuration file"
-        if [ -f /etc/usbguard/usbguard-daemon.conf ]; then
-            USBGUARD_CONFIG="/etc/usbguard/usbguard-daemon.conf"
-        else
-            USBGUARD_CONFIG=""
-        fi
-
-        if [ ! -z "${USBGUARD_CONFIG}" ]; then
-            LogText "Result: USBGuard configuration found (${USBGUARD_CONFIG})"
-            Display --indent 4 --text "- USBGuard Configuration" --result "${STATUS_FOUND}" --color GREEN
-
-            USBGUARD_RULES=$(${AWKBINARY} -F '=' -v OPT="RuleFile" 'index($0, OPT) == 1 {print $2}' ${USBGUARD_CONFIG})
-            if [ ! -z "${USBGUARD_RULES}" ] && [ -f "${USBGUARD_RULES}" ]; then
-                LogText "Result: USBGuard RuleFile found (${USBGUARD_RULES})"
-                Display --indent 4 --text "- USBGuard RuleFile" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Checking USBGuard configuration file"
+            if [ -f /etc/usbguard/usbguard-daemon.conf ]; then
+                USBGUARD_CONFIG="/etc/usbguard/usbguard-daemon.conf"
             else
-                LogText "Result: USBGuard RuleFile not found"
-                Display --indent 4 --text "- USBGuard RuleFile" --result "${STATUS_NOT_FOUND}" --color WHITE
+                USBGUARD_CONFIG=""
             fi
 
+            if [ ! -z "${USBGUARD_CONFIG}" ]; then
+                AddHP 1 1
+                LogText "Result: USBGuard configuration found (${USBGUARD_CONFIG})"
+                Display --indent 4 --text "- Configuration" --result "${STATUS_FOUND}" --color GREEN
+
+                LogText "Checking USBGuard restore controller device state (RestoreControllerDeviceState)"
+                USBGUARD_RESTORE_POLICY=$(${AWKBINARY} -F '=' -v OPT="RestoreControllerDeviceState" 'index($0, OPT) == 1 {print toupper($2)}' ${USBGUARD_CONFIG})
+                if [ ! -z "${USBGUARD_RESTORE_POLICY}" ]; then
+                    LogText "Result: RestoreControllerDeviceState found (${USBGUARD_RESTORE_POLICY})"
+                    case "${USBGUARD_RESTORE_POLICY}" in
+                        "TRUE")
+                            AddHP 0 1
+                            Display --indent 6 --text "- Restore controller device state" --result "${USBGUARD_RESTORE_POLICY}" --color YELLOW
+                            ;;
+                        "FALSE")
+                            AddHP 1 1
+                            Display --indent 6 --text "- Restore controller device state" --result "${USBGUARD_RESTORE_POLICY}" --color GREEN
+                            ;;
+                        *)
+                            AddHP 0 1
+                            Display --indent 6 --text "- Restore controller device state" --result "Invalid (${USBGUARD_RESTORE_POLICY})" --color RED
+                            ;;
+                    esac
+
+                else
+                    AddHP 0 1
+                    LogText "Result: RestoreControllerDeviceState not found"
+                    Display --indent 6 --text "- Restore controller device state" --result "NOT FOUND" --color WHITE
+                fi
+
+                LogText "Checking USBGuard rule for controllers connected before daemon starts (PresentControllerPolicy)"
+                USBGUARD_CONTROLLER_POLICY=$(${AWKBINARY} -F '=' -v OPT="PresentControllerPolicy" 'index($0, OPT) == 1 {print toupper($2)}' ${USBGUARD_CONFIG})
+                if [ ! -z "${USBGUARD_CONTROLLER_POLICY}" ]; then
+                    LogText "Result: PresentControllerPolicy found (${USBGUARD_CONTROLLER_POLICY})"
+                    case "${USBGUARD_CONTROLLER_POLICY}" in
+                        "ALLOW"|"KEEP")
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for controllers connected before daemon start" --result "${USBGUARD_CONTROLLER_POLICY}" --color YELLOW
+                            ;;
+                        "APPLY-POLICY"|"BLOCK"|"REJECT")
+                            AddHP 1 1
+                            Display --indent 6 --text "- Rule for controllers connected before daemon start" --result "${USBGUARD_CONTROLLER_POLICY}" --color GREEN
+                            ;;
+                        *)
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for controllers connected before daemon start" --result "Invalid (${USBGUARD_CONTROLLER_POLICY})" --color RED
+                            ;;
+                    esac
+                else
+                    AddHP 0 1
+                    LogText "Result: PresentControllerPolicy not found"
+                    Display --indent 6 --text "- Rule for controllers connected before daemon start" --result "NOT FOUND" --color WHITE
+                fi
+
+                LogText "Checking USBGuard rule for devices connected before daemon starts (PresentDevicePolicy)"
+                USBGUARD_DEVICE_POLICY=$(${AWKBINARY} -F '=' -v OPT="PresentDevicePolicy" 'index($0, OPT) == 1 {print toupper($2)}' ${USBGUARD_CONFIG})
+                if [ ! -z "${USBGUARD_DEVICE_POLICY}" ]; then
+                    LogText "Result: PresentDevicePolicy found (${USBGUARD_DEVICE_POLICY})"
+                    case "${USBGUARD_DEVICE_POLICY}" in
+                        "ALLOW"|"KEEP")
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for devices connected before daemon start" --result "${USBGUARD_DEVICE_POLICY}" --color YELLOW
+                            ;;
+                        "APPLY-POLICY"|"BLOCK"|"REJECT")
+                            AddHP 1 1
+                            Display --indent 6 --text "- Rule for devices connected before daemon start" --result "${USBGUARD_DEVICE_POLICY}" --color GREEN
+                            ;;
+                        *)
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for devices connected before daemon start" --result "Invalid (${USBGUARD_DEVICE_POLICY})" --color RED
+                            ;;
+                    esac
+                else
+                    AddHP 0 1
+                    LogText "Result: PresentDevicePolicy not found"
+                    Display --indent 6 --text "- Rule for devices connected before daemon start" --result "NOT FOUND" --color WHITE
+                fi
+
+                LogText "Checking USBGuard rule for devices inserted after daemon starts (InsertedDevicePolicy)"
+                USBGUARD_INSERTED_POLICY=$(${AWKBINARY} -F '=' -v OPT="InsertedDevicePolicy" 'index($0, OPT) == 1 {print toupper($2)}' ${USBGUARD_CONFIG})
+                if [ ! -z "${USBGUARD_INSERTED_POLICY}" ]; then
+                    LogText "Result: InsertedDevicePolicy found (${USBGUARD_INSERTED_POLICY})"
+                    case "${USBGUARD_INSERTED_POLICY}" in
+                        "ALLOW"|"KEEP")
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for devices inserted after daemon starts" --result "${USBGUARD_INSERTED_POLICY}" --color YELLOW
+                            ;;
+                        "APPLY-POLICY"|"BLOCK"|"REJECT")
+                            AddHP 1 1
+                            Display --indent 6 --text "- Rule for devices inserted after daemon starts" --result "${USBGUARD_INSERTED_POLICY}" --color GREEN
+                            ;;
+                        *)
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for devices inserted after daemon starts" --result "Invalid (${USBGUARD_INSERTED_POLICY})" --color RED
+                            ;;
+                    esac
+                else
+                    AddHP 0 1
+                    LogText "Result: InsertedDevicePolicy not found"
+                    Display --indent 6 --text "- Rule for devices inserted after daemon starts" --result "NOT FOUND" --color WHITE
+                fi
+
+                LogText "Checking USBGuard rule for devices not in RuleFile (ImplicitPolicyTarget)"
+                USBGUARD_DEFAULT_POLICY=$(${AWKBINARY} -F '=' -v OPT="ImplicitPolicyTarget" 'index($0, OPT) == 1 {print toupper($2)}' ${USBGUARD_CONFIG})
+                if [ ! -z "${USBGUARD_DEFAULT_POLICY}" ]; then
+                    LogText "Result: ImplicitPolicyTarget found (${USBGUARD_DEFAULT_POLICY})"
+                    case "${USBGUARD_DEFAULT_POLICY}" in
+                        "ALLOW")
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for devices not in RuleFile" --result "${USBGUARD_DEFAULT_POLICY}" --color YELLOW
+                            ;;
+                        "BLOCK"|"REJECT")
+                            AddHP 1 1
+                            Display --indent 6 --text "- Rule for devices not in RuleFile" --result "${USBGUARD_DEFAULT_POLICY}" --color GREEN
+                            ;;
+                        *)
+                            AddHP 0 1
+                            Display --indent 6 --text "- Rule for devices not in RuleFile" --result "Invalid (${USBGUARD_DEFAULT_POLICY})" --color GREEN
+                            ;;
+                    esac
+                else
+                    AddHP 0 1
+                    LogText "Result: ImplicitPolicyTarget not found"
+                    Display --indent 4 --text "- Rule for devices not in RuleFile" --result "NOT FOUND" --color WHITE
+                fi
+
+                LogText "Checking RuleFile"
+                USBGUARD_RULES=$(${AWKBINARY} -F '=' -v OPT="RuleFile" 'index($0, OPT) == 1 {print $2}' ${USBGUARD_CONFIG})
+                if [ ! -z "${USBGUARD_RULES}" ] && [ -f "${USBGUARD_RULES}" ]; then
+                    AddHP 1 1
+                    LogText "Result: RuleFile found (${USBGUARD_RULES})"
+                    Display --indent 4 --text "- RuleFile" --result "${STATUS_FOUND}" --color GREEN
+                else
+                    AddHP 0 1
+                    LogText "Result: RuleFile not found"
+                    Display --indent 4 --text "- RuleFile" --result "${STATUS_NOT_FOUND}" --color WHITE
+                fi
+
+            else
+                AddHP 0 6
+                Display --indent 4 --text "- Configuration" --result "${STATUS_NOT_FOUND}" --color WHITE
+                LogText "Result: Configuration not found"
+            fi
         else
-            Display --indent 4 --text "- USBGuard Configuration" --result "${STATUS_NOT_FOUND}" --color WHITE
-            LogText "Result: USBGuard configuration not found"
+            AddHP 0 7
+            LogText "Result: USBGuard not found"
+            Display --indent 2 --text "- Checking USBGuard" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
     fi

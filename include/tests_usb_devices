@@ -1,0 +1,85 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+#################################################################################
+#
+#  USB Devices
+#
+#################################################################################
+#
+
+    USBGUARD_FOUND=0
+    USBGUARD_CONFIG=""
+    USBGUARD_RULES=""
+
+#
+#################################################################################
+#
+    InsertSection "USB Devices"
+#
+#################################################################################
+#
+
+    # PLACEHOLDER DUSB-0000 used until a good test name & number can be
+    # assigned.
+
+    # Test        : DUSB-0000
+    # Description : Perform file permissions check
+    Register --test-no DUSB-0000  --os Linux --weight L --network NO --category security --description "Check for presence of USBGuard"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        if [ ! -z "${USBGUARDBINARY}" ]; then
+            USBGUARD_FOUND=1
+            LogText "Result: USBGuard is installed (${USBGUARDBINARY})"
+            Display --indent 2 --text "- Checking presence of USBGuard" --result "${STATUS_FOUND}" --color GREEN
+        else
+            LogText "Result: USBGuard not found"
+        fi
+
+        LogText "Checking USBGuard configuration file"
+        if [ -f /etc/usbguard/usbguard-daemon.conf ]; then
+            USBGUARD_CONFIG="/etc/usbguard/usbguard-daemon.conf"
+        else
+            USBGUARD_CONFIG=""
+        fi
+
+        if [ ! -z "${USBGUARD_CONFIG}" ]; then
+            LogText "Result: USBGuard configuration found (${USBGUARD_CONFIG})"
+            Display --indent 4 --text "- USBGuard Configuration" --result "${STATUS_FOUND}" --color GREEN
+
+            USBGUARD_RULES=$(${AWKBINARY} -F '=' -v OPT="RuleFile" 'index($0, OPT) == 1 {print $2}' ${USBGUARD_CONFIG})
+            if [ ! -z "${USBGUARD_RULES}" ] && [ -f "${USBGUARD_RULES}" ]; then
+                LogText "Result: USBGuard RuleFile found (${USBGUARD_RULES})"
+                Display --indent 4 --text "- USBGuard RuleFile" --result "${STATUS_FOUND}" --color GREEN
+            else
+                LogText "Result: USBGuard RuleFile not found"
+                Display --indent 4 --text "- USBGuard RuleFile" --result "${STATUS_NOT_FOUND}" --color WHITE
+            fi
+
+        else
+            Display --indent 4 --text "- USBGuard Configuration" --result "${STATUS_NOT_FOUND}" --color WHITE
+            LogText "Result: USBGuard configuration not found"
+        fi
+
+    fi
+
+#
+#################################################################################
+#
+
+WaitForKeyPress
+
+#
+#================================================================================

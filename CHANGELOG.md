@@ -8,6 +8,11 @@ Changes:
 * Check for empty files improved on several locations
 * New allow-auto-purge setting in profile for short-lived systems
 * Additional checks for log and report file
+* Changes to support time synchronization in old and newer systemd releases
+
+Plugins:
+--------
+* New class (hardware) added and enabled in default profile
 
 ---------------------------------------------------------------------------------
 

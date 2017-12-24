@@ -1253,6 +1253,7 @@
     # Description : Check if a process is running
     # Returns     : 0 (process is running), 1 (process not running)
     #               RUNNING (1 = running, 0 = not running) - will be deprecated
+    # Notes       : PSOPTIONS are declared globally, to prevent testing each call
     ################################################################################
 
     IsRunning() {
@@ -1276,8 +1277,16 @@
         if [ ! -z "${PGREPBINARY}" ]; then
             FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
         else
-            PSOPTIONS=" -o args="
-            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" -o args= -C ${search}"; fi
+            if [ -z "${PSOPTIONS}" ]; then
+                PSOPTIONS=" -o args="
+                if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                    case "${OS}" in
+                        "Linux")
+                            PSOPTIONS=" -o args= -C ${search}"
+                        ;;
+                    esac
+                fi
+            fi
             FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
         fi
 

@@ -1,6 +1,14 @@
 Lynis Changelog
 ===============
 
+Lynis 2.5.9 (not released yet)
+
+Changes:
+--------
+* Don't show upgrade notice when being quiet/silent
+
+---------------------------------------------------------------------------------
+
 Lynis 2.5.8 (2017-12-28)
 
 Changes:

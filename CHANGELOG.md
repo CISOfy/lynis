@@ -7,6 +7,7 @@ Changes:
 --------
 * Don't show upgrade notice when being quiet/silent
 * Added --noplugins as an alias to skip plugins
+* Use PATH variable for path detection, with predefined list as backup
 
 Tests:
 ------

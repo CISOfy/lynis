@@ -6,6 +6,13 @@ Lynis 2.5.9 (not released yet)
 Changes:
 --------
 * Don't show upgrade notice when being quiet/silent
+* Added --noplugins as an alias to skip plugins
+
+Tests:
+------
+* [KRNL-6000] Multiple values are now allowed per sysctl key
+* [KRNL-6000] Individual tests can be skipped (skip-test=KRNL-6000:<sysctl-key>)
+* [KRNL-6000] Solution text has been added
 
 ---------------------------------------------------------------------------------
 

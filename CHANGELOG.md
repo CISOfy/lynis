@@ -1,13 +1,13 @@
 Lynis Changelog
 ===============
 
-Lynis 2.5.9 (not released yet)
+Lynis 2.5.9 (2018-01-12)
 
 Changes:
 --------
 * Don't show upgrade notice when being quiet/silent
-* Added --noplugins as an alias to skip plugins
-* Use PATH variable for path detection, with predefined list as backup
+* Added --noplugins as an alias to skip execution of plugins
+* Use PATH variable for path detection, with predefined list as a backup
 
 Tests:
 ------

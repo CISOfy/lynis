@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2018, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -41,6 +41,10 @@
         BINARY_PATHS_FOUND=""; COUNT=0
         Display --indent 2 --text "- Checking system binaries..."
         LogText "Status: Starting binary scan..."
+
+        # Test if our PATH variable provides a set of paths (otherwise we use predefined list in include/consts)
+        if [ ! -z "${PATH}" ]; then BIN_PATHS=$(echo ${PATH} | tr ':' ' '); fi
+
         for SCANDIR in ${BIN_PATHS}; do
             LogText "Test: Checking binaries in directory ${SCANDIR}"
             ORGPATH=""
@@ -121,6 +125,7 @@
                             debsecan)               DEBSECANBINARY="${BINARY}";                                                                           LogText "  Found known binary: debsecan (package vulnerability checking) - ${BINARY}"                     ;;
                             debsums)                DEBSUMSBINARY="${BINARY}";                                                                            LogText "  Found known binary: debsums (package integrity checking) - ${BINARY}"                          ;;
                             dig)                    if [ -f ${BINARY} ]; then DIGFOUND=1;                          DIGBINARY=${BINARY};                   LogText "  Found known binary: dig (network/dns tool) - ${BINARY}";                                    fi ;;
+                            dmidecode)              DMIDECODEBINARY=${BINARY};                                  LogText "  Found known binary: dmidecode (hardware collector tool) - ${BINARY}";                                                                    ;;
                             dnf)                    DNFBINARY="${BINARY}";                                                                                LogText "  Found known binary: dnf (package manager) - ${BINARY}";                                        ;;
                             dnsdomainname)          DNSDOMAINNAMEFOUND=1;  DNSDOMAINNAMEBINARY="${BINARY}";                                               LogText "  Found known binary: dnsdomainname (DNS domain) - ${BINARY}"                                    ;;
                             docker)                 if [ -f ${BINARY} ]; then DOCKERBINARY="${BINARY}";                                                   LogText "  Found known binary: docker (container technology) - ${BINARY}";                             fi ;;
@@ -173,7 +178,7 @@
                             lsattr)                 LSATTRFOUND=1;         LSATTRBINARY="${BINARY}";                                                      LogText "  Found known binary: lsattr (file attributes) - ${BINARY}"                                      ;;
                             lsmod)                  LSMODFOUND=1;          LSMODBINARY="${BINARY}";                                                       LogText "  Found known binary: lsmod (kernel modules) - ${BINARY}"                                        ;;
                             lsof)                   LSOFFOUND=1;           LSOFBINARY="${BINARY}";                                                        LogText "  Found known binary: lsof (open files) - ${BINARY}"                                             ;;
-                            lynx)                   LYNXFOUND=1;           LYNXBINARY="${BINARY}"; LYNXVERSION=$(${BINARY} -version | grep "^Lynx Version" | cut -d ' ' -f3); LogText "Found known binary: lynx (browser) - ${BINARY} (version ${LYNXVERSION})"      ;;
+                            lynx)                   LYNXFOUND=1;           LYNXBINARY="${BINARY}"; LYNXVERSION=$(${BINARY} -version | grep "^Lynx Version" | cut -d ' ' -f3); LogText "Found known binary: lynx (browser) - ${BINARY} (version ${LYNXVERSION})"     ;;
                             maldet)                 LMDFOUND=1;            LMDBINARY="${BINARY}";                  MALWARE_SCANNER_INSTALLED=1;           LogText "  Found known binary: maldet (Linux Malware Detect, malware scanner) - ${BINARY}"                ;;
                             md5)                    MD5FOUND=1;            MD5BINARY="${BINARY}";                                                         LogText "  Found known binary: md5 (hash tool) - ${BINARY}"                                               ;;
                             md5sum)                 MD5FOUND=1;            MD5BINARY="${BINARY}";                                                         LogText "  Found known binary: md5sum (hash tool) - ${BINARY}"                                            ;;
@@ -185,13 +190,13 @@
                             mysql)                  MYSQLCLIENTFOUND=1;    MYSQLCLIENTBINARY="${BINARY}"; MYSQLCLIENTVERSION=$(${BINARY} -V | awk '{ if ($4=="Distrib") { print $5 }}' | sed 's/,//g') ;  LogText "Found ${BINARY} (version: ${MYSQLCLIENTVERSION})" ;;
                             netstat)                NETSTATFOUND=1;        NETSTATBINARY="${BINARY}";                                                     LogText "  Found known binary: netstat (network statistics) - ${BINARY}"                                  ;;
                             nft)                    NFTFOUND=1;            NFTBINARY="${BINARY}";                                                         LogText "  Found known binary: nft (nftables client) - ${BINARY}"                                         ;;
-                            nmap)                   NMAPFOUND=1;           NMAPBINARY="${BINARY}"; NMAPVERSION=$(${BINARY} -V | grep "^Nmap version" | awk '{ print $3 }'); LogText "Found ${BINARY} (version ${NMAPVERSION})"                                       ;;
+                            nmap)                   NMAPFOUND=1;           NMAPBINARY="${BINARY}"; NMAPVERSION=$(${BINARY} -V | grep "^Nmap version" | awk '{ print $3 }'); LogText "Found ${BINARY} (version ${NMAPVERSION})"                                      ;;
                             ntpq)                   NTPQFOUND=1;           NTPQBINARY="${BINARY}";                                                        LogText "  Found known binary ntpq (time daemon client) - ${BINARY}"                                      ;;
                             osiris)                 OSIRISFOUND=1;         OSIRISBINARY="${BINARY}";                                                      LogText "  Found known binary: osiris - ${BINARY}"                                                        ;;
-                            openssl)                OPENSSLFOUND=1;        OPENSSLBINARY="${BINARY}"; OPENSSLVERSION=$(${BINARY} version 2> /dev/null | head -n 1 | awk '{ print $2 }' | xargs); LogText "Found ${BINARY} (version ${OPENSSLVERSION})"               ;;
+                            openssl)                OPENSSLFOUND=1;        OPENSSLBINARY="${BINARY}"; OPENSSLVERSION=$(${BINARY} version 2> /dev/null | head -n 1 | awk '{ print $2 }' | xargs); LogText "Found ${BINARY} (version ${OPENSSLVERSION})"              ;;
                             pacman)                 PACMANFOUND=1;         PACMANBINARY="${BINARY}";                                                      LogText "  Found known binary: pacman (package manager) - ${BINARY}"                                      ;;
-                            perl)                   PERLFOUND=1;           PERLBINARY="${BINARY}"; PERLVERSION=$(${BINARY} -V:version | sed 's/^version=//' | sed 's/;//' | xargs); LogText "Found ${BINARY} (version ${PERLVERSION})"                               ;;
-                            pgrep)                  PGREPBINARY=${BINARY};                                                                                LogText "  Found known binary: pgrep (search in process list) - ${BINARY}"                                ;;
+                            perl)                   PERLFOUND=1;           PERLBINARY="${BINARY}"; PERLVERSION=$(${BINARY} -V:version | sed 's/^version=//' | sed 's/;//' | xargs); LogText "Found ${BINARY} (version ${PERLVERSION})"                              ;;
+                            pgrep)                  PGREPBINARY="${BINARY}";                                                                              LogText "  Found known binary: pgrep (search in process list) - ${BINARY}"                                ;;
                             php)                    PHPFOUND=1;            PHPBINARY="${BINARY}"; PHPVERSION=$(${BINARY} -v | awk '{ if ($1=="PHP") { print $2 }}' | head -1); LogText "Found known binary: php (programming language interpreter) - ${BINARY} (version ${PHPVERSION})" ;;
                             pkg)
                                                     PKG_BINARY="${BINARY}"
@@ -231,7 +236,7 @@
                             sort)                   SORTBINARY="${BINARY}";                                                                               LogText "  Found known binary: sort (sort data streams) - ${BINARY}"                                      ;;
                             squid)                  SQUIDFOUND=1;          SQUIDBINARY="${BINARY}";                                                       LogText "  Found known binary: squid (proxy) - ${BINARY}"                                                 ;;
                             ss)                     SSFOUND=1;             SSBINARY="${BINARY}";                                                          LogText "  Found known binary: ss (show sockets) - ${BINARY}"                                             ;;
-                            sshd)                   SSHDFOUND=1;           SSHDBINARY="${BINARY}"; SSHDVERSION=$(${BINARY} -t -d 2>&1 | head -n 1 | awk '{ print $4 }' | cut -d '_' -f2 | tr -d ',' | tr -d '\r'); LogText "Found ${BINARY} (version ${SSHDVERSION})"            ;;
+                            sshd)                   SSHDFOUND=1;           SSHDBINARY="${BINARY}"; SSHDVERSION=$(${BINARY} -t -d 2>&1 | grep 'sshd version' | awk '{ print $4 }' | cut -d '_' -f2 | tr -d ',' | tr -d '\r'); LogText "Found ${BINARY} (version ${SSHDVERSION})"            ;;
                             stat)                   STATFOUND=1;           STATBINARY="${BINARY}";                                                        LogText "  Found known binary: stat (file information) - ${BINARY}"                                       ;;
                             strings)                STRINGSFOUND=1;        STRINGSBINARY="${BINARY}";                                                     LogText "  Found known binary: strings (text strings search) - ${BINARY}"                                 ;;
                             sha1|sha1sum|shasum)    SHA1SUMFOUND=1;        SHA1SUMBINARY="${BINARY}";                                                     LogText "  Found known binary: sha1/sha1sum/shasum (crypto hashing) - ${BINARY}"                          ;;

@@ -1,21 +1,94 @@
 Lynis Changelog
 ===============
 
-Security notice: please run version 2.5.0 or later
+Lynis 2.5.9 (not released yet)
+
+Changes:
+--------
+* Don't show upgrade notice when being quiet/silent
+* Added --noplugins as an alias to skip plugins
+* Use PATH variable for path detection, with predefined list as backup
+
+Tests:
+------
+* [KRNL-6000] Multiple values are now allowed per sysctl key
+* [KRNL-6000] Individual tests can be skipped (skip-test=KRNL-6000:<sysctl-key>)
+* [KRNL-6000] Solution text has been added
 
 ---------------------------------------------------------------------------------
 
-Lynis 2.5.4 (not released yet)
+Lynis 2.5.8 (2017-12-28)
+
+Changes:
+--------
+* Check for empty files improved on several locations
+* New allow-auto-purge setting in profile for short-lived systems
+* Additional checks for log and report file
+* Changes to support time synchronization in old and newer systemd releases
+* Enhanced output for systems other than Linux
+
+Plugins:
+--------
+* New class (hardware) added and enabled in default profile
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.7 (2017-10-29)
+
+Changes:
+--------
+* Update of Portuguese translation
+* Added --silent as alias for --quiet
+* Reduced screen output when running non-privileged
+* IsRunning function now allows full name process match
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.6 (2017-10-27)
+
+Changes:
+--------
+* Added additional keywords for banners
+* DirectAdmin extensions
+* Enhancements to process detection
+* Spanish translation extended
+* Extended HP-UX support
+* Only show relevant messages in report
+
+Tests:
+------
+* [NETW-2705] - Allow local resolvers to bypass requirement for 2+ name servers
+* [SSH-7408]  - Define default 'delayed' compression as a sane value for SSH tests
+* [SHLL-6220] - Improved detection of shell settings
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.5 (2017-09-07)
+
+Changes:
+--------
+* Minor release to solve errors on screen
+
+Tests:
+------
+* CRYP-7902 - certificate validation changed
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.4 (2017-09-05)
 
 Changes:
 --------
 * Improve systemd detection
 * Detect Linux Mint version
 * Older versions of Mac OS X are detected as well
+* Norwegian translation added
+* PAM plugin extended
 
 Tests:
 ------
 * CRYP-7902 - certificate validation changed
+* FIRE-4508 - Improved screen output
 * PKGS-7380 - NetBSD vulnerability detection adjusted
 * TOOL-5002 - Improved detection of Ansible directories and files
 

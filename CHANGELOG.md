@@ -8,7 +8,8 @@ Changes:
 
 Tests:
 ------
-* [PHP-2379]
+* [PHP-2379]  - Small enhancement to resolve error on screen in some cases
+* [MALW-3280] - Improved detection for BitDefender tooling
 
 ---------------------------------------------------------------------------------
 
@@ -22,9 +23,9 @@ Changes:
 
 Tests:
 ------
-* [KRNL-6000] Multiple values are now allowed per sysctl key
-* [KRNL-6000] Individual tests can be skipped (skip-test=KRNL-6000:<sysctl-key>)
-* [KRNL-6000] Solution text has been added
+* [KRNL-6000] - Multiple values are now allowed per sysctl key
+* [KRNL-6000] - Individual tests can be skipped (skip-test=KRNL-6000:<sysctl-key>)
+* [KRNL-6000] - Solution text has been added
 
 ---------------------------------------------------------------------------------
 

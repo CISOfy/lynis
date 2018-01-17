@@ -5,8 +5,9 @@ Lynis 2.6.0 (not released yet)
 
 Changes:
 --------
-* Binary paths are sorted
+* Binary paths are sorted and code enhancements
 * Greek language added
+* systemd detection improved
 
 Tests:
 ------

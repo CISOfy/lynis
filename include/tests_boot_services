@@ -30,7 +30,9 @@
     BOOT_LOADER_FOUND=0
     BOOT_LOADER_SEARCHED=0
     GRUB_VERSION=0
-    SERVICE_MANAGER="unknown"
+    if [ -z "${SERVICE_MANAGER}" ]; then
+        SERVICE_MANAGER="unknown"
+    fi
 #
 #################################################################################
 #
@@ -85,27 +87,29 @@
                     if [ ! -z "${FILENAME}" ]; then
                         SHORTNAME=$(echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }')
                         LogText "Found: ${SHORTNAME}"
-                        case ${SHORTNAME} in
-                            "init" | "initsplash")
-                                SERVICE_MANAGER="SysV Init"
-                            ;;
-                            systemd)
-                                SERVICE_MANAGER="systemd"
-                            ;;
-                            upstart)
-                                SERVICE_MANAGER="upstart"
-                            ;;
-                            *)
-                                CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
-
-                                if [ ! -z "${CONTAINS_SYSTEMD}" ]; then
+                        if [ "${SERVICE_MANAGER}" = "unknown" ]; then
+                            case ${SHORTNAME} in
+                                "init" | "initsplash")
+                                    SERVICE_MANAGER="SysV Init"
+                                ;;
+                                systemd)
                                     SERVICE_MANAGER="systemd"
-                                else
-                                    LogText "Found ${SHORTNAME}. Unclear what service manager this is"
-                                    ReportException "${TEST_NO}:001" "Unknown service manager"
-                                fi
-                            ;;
-                        esac
+                                ;;
+                                upstart)
+                                    SERVICE_MANAGER="upstart"
+                                ;;
+                                *)
+                                    CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
+    
+                                    if [ ! -z "${CONTAINS_SYSTEMD}" ]; then
+                                        SERVICE_MANAGER="systemd"
+                                    else
+                                        LogText "Found ${SHORTNAME}. Unclear what service manager this is"
+                                        ReportException "${TEST_NO}:001" "Unknown service manager"
+                                    fi
+                                ;;
+                            esac
+                        fi
                     else
                         LogText "Result: /proc/1/cmdline seems to be empty"
                         ReportException "${TEST_NO}:002" "No data found in /proc/1/cmdline"

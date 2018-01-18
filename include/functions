@@ -1253,43 +1253,24 @@
     # Description : Check if a process is running
     # Returns     : 0 (process is running), 1 (process not running)
     #               RUNNING (1 = running, 0 = not running) - will be deprecated
-    # Notes       : PSOPTIONS are declared globally, to prevent testing each call
+    # Notes       : Fill a temporary file with process listings to be searched
     ################################################################################
 
     IsRunning() {
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling IsRunning function"; fi
-        pgrep_options="-x"
-        search=""
-        while [ $# -ge 1 ]; do
-            case $1 in
-                --full)
-                    pgrep_options="-f" # replace -x with -f
-                ;;
-                *)
-                    search="$1"
-                ;;
-            esac
-            shift  # Go to next parameter
-        done
-
-        if [ -z "${search}" ]; then ExitFatal "Missing process to search for when using IsRunning function"; fi
-        RUNNING=0
-        if [ ! -z "${PGREPBINARY}" ]; then
-            FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
-        else
-            if [ -z "${PSOPTIONS}" ]; then
-                PSOPTIONS=" -o args="
-                if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
-                    case "${OS}" in
-                        "Linux")
-                            PSOPTIONS=" -o args= -C ${search}"
-                        ;;
-                    esac
-                fi
-            fi
-            FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
+        if [ -z "${PSLISTING_FILE}" ]; then
+            # get a process listing, considering all OS flavors, one time
+            CreateTempFile
+            PSLISTING_FILE="${TEMP_FILE}"
+            (
+                ps
+                ps ax
+                ps -ef
+            ) 2>/dev/null | grep -v grep > ${PSLISTING_FILE}
         fi
-
+        search="$1"
+        RUNNING=0
+        FIND=$(egrep "( |/)${search}" ${PSLISTING_FILE} | head -1)
         if [ ! -z "${FIND}" ]; then
             RUNNING=1
             LogText "IsRunning: process '${search}' found (${FIND})"

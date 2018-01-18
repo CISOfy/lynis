@@ -22,6 +22,7 @@ The Lynis project is very thankful to the individuals who contributed to the pro
 * Arch Linux            - Levente Polyak
 * Debian / Ubuntu       - Francisco Manuel Garcia Claramonte
 * Fedora / EPEL         - Athmane Madjoudj
+* Slackware             - Eric Hameleers
 
 
 ## Special Contributors
@@ -37,6 +38,7 @@ These people made a significant impact to the development of Lynis:
 * Dave Vehrs
 * Eric Light, New Zealand
 * Kamil Boratyński, Poland
+* Mike Slifcak, US
 * Mikko Lehtisalo, Finland
 * Steve Bosek, France
 * Thomas Siebel, Germany

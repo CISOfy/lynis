@@ -5,7 +5,7 @@ Lynis 2.6.1 (not released yet)
 
 Changes:
 --------
-
+* [TIME-3170] - Added chrony configuration file for NetBSD
 
 ---------------------------------------------------------------------------------
 

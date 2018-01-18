@@ -1,11 +1,11 @@
 Lynis Changelog
 ===============
 
-Lynis 2.6.0 (not released yet)
+Lynis 2.6.0 (2018-01-18)
 
 Changes:
 --------
-* Binary paths are sorted
+* Binary paths are now sorted
 * Greek language added
 * systemd detection improved
 * VirtualBox detection extended

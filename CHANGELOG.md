@@ -6,6 +6,7 @@ Lynis 2.6.1 (not released yet)
 Changes:
 --------
 * Tests can have more than 1 required OS (e.g. Linux OR NetBSD)
+* Added 'system-groups' option to profile (Enterprise users)
 
 Tests:
 ------

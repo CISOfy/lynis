@@ -22,6 +22,7 @@ The Lynis project is very thankful to the individuals who contributed to the pro
 * Arch Linux            - Levente Polyak
 * Debian / Ubuntu       - Francisco Manuel Garcia Claramonte
 * Fedora / EPEL         - Athmane Madjoudj
+* NetBSD                - Stephen Borrill
 * Slackware             - Eric Hameleers
 
 

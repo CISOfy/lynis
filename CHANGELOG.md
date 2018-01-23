@@ -7,6 +7,8 @@ Changes:
 --------
 * Tests can have more than 1 required OS (e.g. Linux OR NetBSD)
 * Added 'system-groups' option to profile (Enterprise users)
+* Overhaul of default profile
+* Show warning if old profile options are being used
 
 Tests:
 ------

@@ -14,6 +14,7 @@ Tests:
 ------
 * [MAIL-8802] - Added exim4 process name to improve detection of Exim
 * [NETW-3030] - Changed name of dhcp client name process and added udhcpc
+* [SSH-7408]  - Restored UsePrivilegeSeparation
 * [TIME-3170] - Added chrony configuration file for NetBSD
 
 ---------------------------------------------------------------------------------

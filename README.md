@@ -5,7 +5,7 @@
 
 [Documentation]: https://cisofy.com/documentation/lynis/
 
-**Do you like this software? Star the project and become a [![stargazer](https://github.com/CISOfy/lynis/stargazers).**
+Do you like this software? **Star the project** and become a [stargazer](https://github.com/CISOfy/lynis/stargazers).
 
 ----
 

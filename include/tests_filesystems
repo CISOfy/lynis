@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2018, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -397,6 +397,29 @@
         unset FIND
     else
         LogText "Result: Sticky bit test (on /tmp) skipped. Possible reason: missing directory, or symlinked directory, or test skipped."
+    fi
+#
+#################################################################################
+#
+    # Test        : FILE-6363
+    # Description : Check for sticky bit on /var/tmp
+    if [ -d ${ROOTDIR}var/tmp -a ! -L ${ROOTDIR}var/tmp ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No /var/tmp or /var/tmp is symlinked"; fi
+    Register --test-no FILE-6363 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking /var/tmp sticky bit"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Depending on OS, number of field with 'tmp' differs
+        FIND=$(${LSBINARY} -ld ${ROOTDIR}var/tmp | ${AWKBINARY} '$1 ~ /[tT]/ { print 1 }')
+        if [ "${FIND}" = "1" ]; then
+            Display --indent 2 --text "- Checking ${ROOTDIR}var/tmp sticky bit" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: sticky bit found on ${ROOTDIR}var/tmp directory"
+            AddHP 3 3
+        else
+            Display --indent 2 --text "- Checking ${ROOTDIR}var/tmp sticky bit" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion ${TEST_NO} "Set the sticky bit on ${ROOTDIR}var/tmp, to prevent users deleting (by other owned) files in the /var/tmp directory." "/var/tmp" "text:Set sticky bit"
+            AddHP 0 3
+        fi
+        unset FIND
+    else
+        LogText "Result: Sticky bit test (on /var/tmp) skipped. Possible reason: missing directory, or symlinked directory, or test skipped."
     fi
 #
 #################################################################################

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2018, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -1253,6 +1253,7 @@
     # Description : Check if a process is running
     # Returns     : 0 (process is running), 1 (process not running)
     #               RUNNING (1 = running, 0 = not running) - will be deprecated
+    # Notes       : PSOPTIONS are declared globally, to prevent testing each call
     ################################################################################
 
     IsRunning() {
@@ -1276,8 +1277,16 @@
         if [ ! -z "${PGREPBINARY}" ]; then
             FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
         else
-            PSOPTIONS=" -o args="
-            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then PSOPTIONS=" -o args= -C ${search}"; fi
+            if [ -z "${PSOPTIONS}" ]; then
+                PSOPTIONS=" -o args="
+                if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                    case "${OS}" in
+                        "Linux")
+                            PSOPTIONS=" -o args= -C ${search}"
+                        ;;
+                    esac
+                fi
+            fi
             FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
         fi
 
@@ -1374,7 +1383,7 @@
         SHORT=""
 
         # lxc environ detection
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             if [ -f /proc/1/environ ]; then
                 FIND=$(grep -qa 'container=lxc' /proc/1/environ 2> /dev/null)
                 if [ $? -eq 0 ]; then
@@ -1387,7 +1396,7 @@
         fi
 
         # facter
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             if [ -x /usr/bin/facter ] || [ -x /usr/local/bin/facter ]; then
                 case "$(facter is_virtual)" in
                 "true")
@@ -1406,11 +1415,11 @@
         fi
 
         # systemd
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             if [ -x /usr/bin/systemd-detect-virt ]; then
                 LogText "Test: trying to guess virtualization technology with systemd-detect-virt"
                 FIND=$(/usr/bin/systemd-detect-virt)
-                if [ ! "${FIND}" = "" ]; then
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 fi
@@ -1423,11 +1432,11 @@
 
         # lscpu
         # Values: VMware
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             if [ -x /usr/bin/lscpu ]; then
                 LogText "Test: trying to guess virtualization with lscpu"
                 FIND=$(lscpu | grep -i "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
-                if [ ! "${FIND}" = "" ]; then
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 else
@@ -1442,7 +1451,7 @@
 
         # dmidecode
         # Values: VMware Virtual Platform / VirtualBox
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             if [ -x /usr/bin/dmidecode ]; then DMIDECODE_BINARY="/usr/bin/dmidecode"
             elif [ -x /usr/sbin/dmidecode ]; then DMIDECODE_BINARY="/usr/sbin/dmidecode"
             else
@@ -1451,7 +1460,7 @@
             if [ ! "${DMIDECODE_BINARY}" = "" -a ${PRIVILEGED} -eq 1 ]; then
                 LogText "Test: trying to guess virtualization with dmidecode"
                 FIND=$(/usr/sbin/dmidecode -s system-product-name | awk '{ print $1 }')
-                if [ ! "${FIND}" = "" ]; then
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 else
@@ -1468,26 +1477,25 @@
         # < needs snippet >
 
         # Try common guest processes
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             LogText "Test: trying to guess virtual machine type by running processes"
 
             # VMware
-                IsRunning vmware-guestd
-                if [ ${RUNNING} -eq 1 ]; then SHORT="vmware"; fi
-                IsRunning vmtoolsd
-                if [ ${RUNNING} -eq 1 ]; then SHORT="vmware"; fi
+            if IsRunning vmware-guestd; then SHORT="vmware"
+            elif IsRunning vmtoolsd; then SHORT="vmware"
+            fi
 
             # VirtualBox based on guest services
-                IsRunning vboxguest-service
-                if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
-                IsRunning VBoxClient
-                if [ ${RUNNING} -eq 1 ]; then SHORT="virtualbox"; fi
+            if IsRunning vboxguest-service; then SHORT="virtualbox"
+            elif IsRunning VBoxClient; then SHORT="virtualbox"
+            elif IsRunning VBoxService; then SHORT="virtualbox"
+            fi
         else
             LogText "Result: skipped processes test, as we already found platform"
         fi
 
         # Amazon EC2
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             LogText "Test: checking specific files for Amazon"
             if [ -f /etc/ec2_version -a -s /etc/ec2_version ]; then
                 SHORT="amazon-ec2"
@@ -1499,7 +1507,7 @@
         fi
 
         # sysctl values
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             LogText "Test: trying to guess virtual machine type by sysctl keys"
 
             # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
@@ -1514,7 +1522,7 @@
         fi
 
         # lshw
-        if [ "${SHORT}" = "" ]; then
+        if [ -z "${SHORT}" ]; then
             if [ ${PRIVILEGED} -eq 1 ]; then
                 if [ -x /usr/bin/lshw ]; then
                     LogText "Test: trying to guess virtualization with lshw"
@@ -2135,11 +2143,15 @@
         if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "H" -a "${SCAN_TEST_HEAVY}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (H)"; fi
         if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "M" -a "${SCAN_TEST_MEDIUM}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (M)"; fi
 
-        # Skip test if OS is different than requested
-        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_OS}" -a ! "${OS}" = "${TEST_NEED_OS}" ]; then
-            SKIPTEST=1; SKIPREASON="Incorrect guest OS (${TEST_NEED_OS} only)"
-            if [ ${LOG_INCORRECT_OS} -eq 0 ]; then
-                SKIPLOGTEST=1
+        # Test if our OS is the same as the requested OS (can be multiple values)
+        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_OS}" ]; then
+            HASMATCH=0
+            for I in ${TEST_NEED_OS}; do
+                if [ "${I}" = "${OS}" ]; then HASMATCH=1; fi
+            done
+            if [ ${HASMATCH} -eq 0 ]; then
+                SKIPTEST=1; SKIPREASON="Incorrect guest OS (${TEST_NEED_OS} only)"
+                if [ ${LOG_INCORRECT_OS} -eq 0 ]; then SKIPLOGTEST=1; fi
             fi
         fi
 
@@ -2793,9 +2805,9 @@
             STRING=""
             RETVAL=1
             # Check if this test is on the list to skip
-            for I in ${SKIP_TESTS}; do
+            for item in ${SKIP_TESTS}; do
                 STRING=$(echo $1 | tr '[:lower:]' '[:upper:]')
-                if [ "${I}" = "${STRING}" ]; then RETVAL=0; LogText "Atomic test ($1) skipped by configuration (skip-test)"; fi
+                if [ "${item}" = "${STRING}" ]; then RETVAL=0; LogText "Atomic test ($1) skipped by configuration (skip-test)"; fi
             done
         else
             ReportException "SkipAtomicTest()" "Function called without right number of arguments (1)"
@@ -2997,18 +3009,16 @@
         else
             LogText "${FUNCNAME}: checking value for application ${APP}"
             LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-
             LogText "${FUNCNAME}: check if ${1} is equal to ${2}"
 
-            if [ "$1" == "$2" ]; then
+            if [ "$1" = "$2" ]; then
                 LogText "${FUNCNAME}: ${1} is equal to ${2}"
                 RETVAL=0
             fi
 
             if ! [ -z ${3+x} ]; then
                 LogText "${FUNCNAME}: ${1} is equal to ${3}"
-                if [ "$2" == "$3" ]; then
+                if [ "$2" = "$3" ]; then
                     LogText "${FUNCNAME}: ${OPTION} is equal to ${3}"
                     RETVAL=1
                 fi
@@ -3173,4 +3183,4 @@
 
 #================================================================================
 # Lynis is part of Lynis Enterprise and released under GPLv3 license
-# Copyright 2007-2017 - Michael Boelen, CISOfy - https://cisofy.com
+# Copyright 2007-2018 - Michael Boelen, CISOfy - https://cisofy.com

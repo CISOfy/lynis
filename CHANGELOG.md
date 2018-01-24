@@ -1,7 +1,58 @@
 Lynis Changelog
 ===============
 
-Lynis 2.5.8 (not released yet)
+Lynis 2.6.1 (not released yet)
+
+Changes:
+--------
+* Tests can have more than 1 required OS (e.g. Linux OR NetBSD)
+* Added 'system-groups' option to profile (Enterprise users)
+* Overhaul of default profile
+* Show warning if old profile options are being used
+
+Tests:
+------
+* [MAIL-8802] - Added exim4 process name to improve detection of Exim
+* [NETW-3030] - Changed name of dhcp client name process and added udhcpc
+* [SSH-7408]  - Restored UsePrivilegeSeparation
+* [TIME-3170] - Added chrony configuration file for NetBSD
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.0 (2018-01-18)
+
+Changes:
+--------
+* Binary paths are now sorted
+* Greek language added
+* systemd detection improved
+* VirtualBox detection extended
+* Several code enhancements
+
+Tests:
+------
+* [PHP-2379]  - Small enhancement to resolve error on screen in some cases
+* [MALW-3280] - Improved detection for BitDefender tooling
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.9 (2018-01-12)
+
+Changes:
+--------
+* Don't show upgrade notice when being quiet/silent
+* Added --noplugins as an alias to skip execution of plugins
+* Use PATH variable for path detection, with predefined list as a backup
+
+Tests:
+------
+* [KRNL-6000] - Multiple values are now allowed per sysctl key
+* [KRNL-6000] - Individual tests can be skipped (skip-test=KRNL-6000:<sysctl-key>)
+* [KRNL-6000] - Solution text has been added
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.8 (2017-12-28)
 
 Changes:
 --------
@@ -9,6 +60,7 @@ Changes:
 * New allow-auto-purge setting in profile for short-lived systems
 * Additional checks for log and report file
 * Changes to support time synchronization in old and newer systemd releases
+* Enhanced output for systems other than Linux
 
 Plugins:
 --------

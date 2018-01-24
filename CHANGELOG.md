@@ -7,11 +7,12 @@ Changes:
 --------
 * Tests can have more than 1 required OS (e.g. Linux OR NetBSD)
 * Added 'system-groups' option to profile (Enterprise users)
-* Overhaul of default profile
-* Show warning if old profile options are being used
+* Overhaul of default profile and migrate to new style (setting=value)
+* Show warning if old profile options are used
 
 Tests:
 ------
+* [FILE-6363] - New test for /var/tmp (sticky bit)
 * [MAIL-8802] - Added exim4 process name to improve detection of Exim
 * [NETW-3030] - Changed name of dhcp client name process and added udhcpc
 * [SSH-7408]  - Restored UsePrivilegeSeparation

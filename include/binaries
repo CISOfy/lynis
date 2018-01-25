@@ -42,10 +42,19 @@
         Display --indent 2 --text "- Checking system binaries..."
         LogText "Status: Starting binary scan..."
 
-        # Test if our PATH variable provides a set of paths (otherwise we use predefined list in include/consts)
-        if [ ! -z "${PATH}" ]; then BIN_PATHS=$(echo "${BIN_PATHS} ${PATH}" | tr ':' ' '); fi
-        SORTED_BIN_PATHS=$(echo ${BIN_PATHS} | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
-        for SCANDIR in ${SORTED_BIN_PATHS}; do
+        # Test if our PATH variable provides a set of paths
+        # If so, reverse the order. If we discover the same binary multiple times, the one first in PATH
+        # should be used.
+        # If PATH is empty, we use the predefined list in include/consts. Common paths first, then followed
+        # by more specific paths. This helps on the slightly ancient UNIX derivatives.
+        if [ ! -z "${PATH}" ]; then
+            PATH_REVERSED=$(echo ${PATH} | awk -F: '{ for (i=NF; i>1; i--) printf("%s ",$i); print $1; }')
+            BIN_PATHS=$(echo "${PATH_REVERSED} ${BIN_PATHS}" | tr ':' ' ')
+        fi
+
+        # Avoid sorting, as this might result in incorrect order of finding binaries (e.g. awk binary)
+        #SORTED_BIN_PATHS=$(echo ${BIN_PATHS} | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
+        for SCANDIR in ${BIN_PATHS}; do
             LogText "Test: Checking binaries in directory ${SCANDIR}"
             ORGPATH=""
             if [ -d ${SCANDIR} ]; then
@@ -239,7 +248,7 @@
                 LogText "Result: Directory ${SCANDIR} does NOT exist"
             fi
         done
-        unset SORTED_BIN_PATHS
+        # unset SORTED_BIN_PATHS
         BINARY_SCAN_FINISHED=1
         BINARY_PATHS_FOUND=$(echo ${BINARY_PATHS_FOUND} | sed 's/^, //g' | sed 's/ //g')
         LogText "Discovered directories: ${BINARY_PATHS_FOUND}"

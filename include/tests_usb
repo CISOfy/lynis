@@ -40,6 +40,16 @@
 #################################################################################
 #
 
+    # Test to determine if USBGuard is installed.  If it is, we will limit
+    # suggestions from other tests.
+    if [ ! -z "${USBGUARDBINARY}" ]; then
+        USBGUARD_FOUND=1
+    fi
+
+#
+#################################################################################
+#
+
     # Test        : USB-0100
     # Description : Check for disabled USB storage
     Register --test-no USB-0100 --os Linux --weight L --network NO --category security --description "Check if USB storage is disabled"
@@ -69,7 +79,9 @@
         if [ ${FOUND} -eq 0 ]; then
             LogText "Result: usb-storage driver is not explicitly disabled"
             Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "NOT DISABLED" --color WHITE
-            ReportSuggestion ${TEST_NO} "Disable drivers like USB storage when not used, to prevent unauthorized storage or data theft"
+            if [ "${USBGUARD_FOUND}" -eq "0" ]; then
+                ReportSuggestion ${TEST_NO} "Disable drivers like USB storage when not used, to prevent unauthorized storage or data theft"
+            fi
             AddHP 2 3
         else
             LogText "Result: usb-storage driver is disabled"
@@ -107,7 +119,9 @@
             LogText "Result: Some USB devices are authorized by default (or temporary) to connect to the system"
             Display --indent 2 --text "- Checking USB devices authorization" --result "${STATUS_ENABLED}" --color YELLOW
             # To-Be-Added: create documentation and enable the suggestion
-            #ReportSuggestion ${TEST_NO} "Disable USB devices authorization, to prevent unauthorized storage or data theft"
+            #if [ "${USBGUARD_FOUND}" -eq "0" ]; then
+            #   ReportSuggestion ${TEST_NO} "Disable USB devices authorization, to prevent unauthorized storage or data theft"
+            #fi
             AddHP 0 3
         else
             LogText "Result: None USB devices are authorized by default (or temporary) to connect to the system"
@@ -124,9 +138,7 @@
     # Description : Perform USBGuard check
     Register --test-no USB-0300  --os Linux --weight L --network NO --category security --description "Check for presence of USBGuard"
     if [ ${SKIPTEST} -eq 0 ]; then
-
-        if [ ! -z "${USBGUARDBINARY}" ]; then
-            USBGUARD_FOUND=1
+        if [ "${USBGUARD_FOUND}" -gt "0" ]; then
             LogText "Result: USBGuard is installed (${USBGUARDBINARY})"
             Display --indent 2 --text "- Checking USBGuard" --result "${STATUS_FOUND}" --color GREEN
             AddHP 1 1

@@ -9,6 +9,7 @@ Changes:
 * Added 'system-groups' option to profile (Enterprise users)
 * Overhaul of default profile and migrate to new style (setting=value)
 * Show warning if old profile options are used
+* Improved detection of binaries
 
 Tests:
 ------

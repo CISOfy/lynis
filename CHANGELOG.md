@@ -1,7 +1,7 @@
 Lynis Changelog
 ===============
 
-Lynis 2.6.1 (not released yet)
+Lynis 2.6.1 (2018-01-26)
 
 Changes:
 --------

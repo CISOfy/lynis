@@ -5,10 +5,20 @@ Lynis 2.6.1 (not released yet)
 
 Changes:
 --------
+* Bugfix for Arch Linux (binary detection)
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.1 (2018-01-26)
+
+Changes:
+--------
 * Tests can have more than 1 required OS (e.g. Linux OR NetBSD)
 * Added 'system-groups' option to profile (Enterprise users)
 * Overhaul of default profile and migrate to new style (setting=value)
 * Show warning if old profile options are used
+* Improved detection of binaries
+* New group 'usb' for tests related to USB devices
 
 Tests:
 ------

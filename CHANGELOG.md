@@ -1,11 +1,13 @@
 Lynis Changelog
 ===============
 
-Lynis 2.6.1 (not released yet)
+Lynis 2.6.2 (not released yet)
 
 Changes:
 --------
 * Bugfix for Arch Linux (binary detection)
+* Textual changes for several tests
+* Update of tests database
 
 ---------------------------------------------------------------------------------
 

@@ -3,6 +3,10 @@ Lynis Changelog
 
 Lynis 2.6.3 (not released yet)
 
+Changes:
+--------
+* Change in routine for host identifiers
+
 Plugins:
 --------
 [PLGN-2680] - cron file permissions

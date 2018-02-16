@@ -1,6 +1,14 @@
 Lynis Changelog
 ===============
 
+Lynis 2.6.3 (not released yet)
+
+Plugins:
+--------
+[PLGN-2680] - cron file permissions
+
+---------------------------------------------------------------------------------
+
 Lynis 2.6.2 (2018-02-13)
 
 Changes:

@@ -7,6 +7,10 @@ Changes:
 --------
 * Change in routine for host identifiers
 
+Tests:
+------
+* [PKGS-7384] - Changes to detect yum-utils package and related tooling
+
 Plugins:
 --------
 [PLGN-2680] - cron file permissions

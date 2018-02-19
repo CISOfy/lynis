@@ -68,6 +68,7 @@
 #    IsWorldWritable            Check if a file is world writable
 #    LogText                    Log text strings to logfile, prefixed with date/time
 #    LogTextBreak               Insert a separator in log file
+#    PackageIsInstalled         Test for installed package
 #    ParseNginx                 Parse nginx configuration lines
 #    ParseProfiles              Parse all available profiles
 #    ParseTestValues            Parse a set of values
@@ -1692,6 +1693,40 @@
             CDATE=$(date "+%Y-%m-%d %H:%M:%S")
             echo "${CDATE} ===---------------------------------------------------------------===" >> ${LOGFILE}
         fi
+    }
+
+
+    ################################################################################
+    # Name        : PackageIsInstalled()
+    # Description : Add a separator to log file between sections, tests etc
+    # Returns     : exit code
+    # Notes       : this function is not used yet, but created in advance to allow
+    #               the addition of support for all operating systems
+    ################################################################################
+
+    PackageIsInstalled() {
+        exit_code=255
+
+        if [ $# -eq 1 ]; then
+            package="$1"
+        else
+            Fatal "Incorrect usage of PackageIsInstalled function"
+        fi
+
+        if [ ! -z "${RPMBINARY}" ]; then
+            output=$(${RPMBINARY} --quiet -q ${package} 2> /dev/null)
+            exit_code=$?
+        elif ! -z "${DPKGBINARY}" ]; then
+            output=$(${DPKGBINARY} -l ${package} 2> /dev/null)
+            exit_code=$?
+        elif [ ! -z "${ZYPPERBINARY}" ]; then
+            output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${PACKAGE} 2> /dev/null | grep "^i")
+            if [ ! -z "${output}" ]; then exit_code=0; else exit_code=1; fi
+        else
+            ReportException "PackageIsInstalled:01"
+        fi
+
+        return ${exit_code}
     }
 
 

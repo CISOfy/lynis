@@ -826,11 +826,12 @@
     if [ ! -z "${YUMBINARY}" -a -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7384 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --category security --description "Check for YUM utils package"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -x ${ROOTDIR}usr/bin/package-cleanup ]; then
-            LogText "Result: found YUM utils package (${ROOTDIR}usr/bin/package-cleanup)"
+        # package-cleanup tool can be found in different locations
+        if [ -x ${ROOTDIR}bin/package-cleanup -o -x ${ROOTDIR}usr/bin/package-cleanup ]; then
+            LogText "Result: found YUM utils package (package-cleanup)"
             # Check for duplicates
             LogText "Test: Checking for duplicate packages"
-            FIND=$(${ROOTDIR}usr/bin/package-cleanup -q --dupes > /dev/null; echo $?)
+            FIND=$(package-cleanup -q --dupes > /dev/null; echo $?)
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: No duplicate packages found"
                 Display --indent 2 --text "- Checking package database duplicates" --result "${STATUS_OK}" --color GREEN
@@ -843,7 +844,7 @@
 
             # Check for package database problems
             LogText "Test: Checking for database problems"
-            FIND=$(${ROOTDIR}usr/bin/package-cleanup --problems > /dev/null; echo $?)
+            FIND=$(package-cleanup --problems > /dev/null; echo $?)
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: No package database problems found"
                 Display --indent 2 --text "- Checking package database for problems" --result "${STATUS_OK}" --color GREEN

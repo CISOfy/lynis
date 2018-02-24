@@ -1,11 +1,29 @@
 Lynis Changelog
 ===============
 
-Lynis 2.6.1 (not released yet)
+Lynis 2.6.3 (not released yet)
+
+Changes:
+--------
+* Change in routine for host identifiers
+
+Tests:
+------
+* [PKGS-7384] - Changes to detect yum-utils package and related tooling
+
+Plugins:
+--------
+[PLGN-2680] - cron file permissions
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.2 (2018-02-13)
 
 Changes:
 --------
 * Bugfix for Arch Linux (binary detection)
+* Textual changes for several tests
+* Update of tests database
 
 ---------------------------------------------------------------------------------
 

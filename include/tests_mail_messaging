@@ -28,6 +28,7 @@
 #
     DOVECOT_RUNNING=0
     EXIM_RUNNING=0
+    EXIM_TYPE=""
     IMAP_DAEMON=""
     OPENSMTPD_RUNNING=0
     POP3_DAEMON=""
@@ -55,6 +56,142 @@
             if IsVerbose; then Display --indent 2 --text "- Exim status" --result "${STATUS_NOT_FOUND}" --color WHITE; fi
         fi
     fi
+
+    # Test        : MAIL-8804
+    # Description : Check Exim configuration type
+    Register --test-no MAIL-8804 --weight L --network NO --category security --description "Check Exim configuration type"
+    if [ ${SKIPTEST} -eq 0 -a ${EXIM_RUNNING} -eq 1 ]; then
+        LogText "Test: check Exim configuration type"
+
+        EXIM_ROUTERS=$(exim -bP router_list)
+
+        unset FIND FIND2 FIND3 FIND4
+
+        # Local Only
+        FIND=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^nonlocal')
+        # Internet Host
+        FIND2=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^dnslookup_relay_to_domains')
+        # Smarthost or Satellite
+        FIND3=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^smarthost')
+
+        if [ ! -z "${FIND}" ]; then
+            EXIM_TYPE="Local Only"
+        elif [ ! -z "${FIND2}" ]; then
+            EXIM_TYPE="Internet Host"
+        elif [ ! -z "${FIND3}" ]; then
+            FIND4=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^hub_user_smarthost')
+            if [ ! -z "${FIND4}" ]; then
+                EXIM_TYPE="Satellite"
+            else
+                EXIM_TYPE="Smarthost"
+            fi
+        fi
+
+        if [ ! -z "${EXIM_TYPE}" ]; then
+            LogText "Result: Exim Type - ${EXIM_TYPE}"
+            Display --indent 4 --text "- Type" --result "${EXIM_TYPE}" --color GREEN
+        else
+            LogText "Result: Exim Type - Not Configured"
+            Display --indent 4 --text "- Type" --result "Not Configured" --color WHITE
+        fi
+    fi
+
+    # Test        : MAIL-8805
+    # Description : Check Exim Internet Host tests
+    Register --test-no MAIL-8805 --weight L --network NO --category security --description "Check Exim Internet Host tests"
+    if [ ${SKIPTEST} -eq 0 -a "${EXIM_TYPE}" == "Internet Host" ]; then
+        LogText "Test: Exim Public Interfaces"
+        EXIM_IP=$(exim -bP local_interfaces | cut -d '=' -f2 | sed -e 's/\s*<\s*\;\?//' -e 's/\s*::0\s*\;\?//' -e 's/\s*127.0.0.1\s*\;\?//' -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_IP}" ]; then
+            LogText "Result: ${EXIM_IP}"
+            Display --indent 4 --text "- Public Interface(s)" --result "${EXIM_IP}" --color GREEN
+        else
+            LogText "Result: None"
+            Display --indent 4 --text "- Public Interface(s)" --result "None" --color RED
+        fi
+
+        LogText "Test: Exim TLS State"
+        EXIM_TLS=$(exim -bP tls_advertise_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_TLS}" ]; then
+            LogText "Result: Enabled"
+            Display --indent 4 --text "- TLS" --result "Enabled" --color GREEN
+        else
+            LogText "Result: Not enabled"
+            Display --indent 4 --text "- TLS" --result "Not enabled" --color RED
+        fi
+
+        LogText "Test: Exim Certificate"
+        EXIM_CERTIFICATE=$(exim -bP tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_CERTIFICATE}" ]; then
+            LogText "Result: ${EXIM_CERTIFICATE}"
+            Display --indent 4 --text "- Certificate" --result "Configured" --color GREEN
+        else
+            LogText "Result: Not configured"
+            Display --indent 4 --text "- Certificate" --result "Not configured" --color RED
+        fi
+
+        LogText "Test: Exim Private Key"
+        EXIM_PRIVATEKEY=$(exim -bP tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_PRIVATEKEY}" ]; then
+            LogText "Result: ${EXIM_PRIVATEKEY}"
+            Display --indent 4 --text "- Private Key" --result "Configured" --color GREEN
+        else
+            LogText "Result: Not configured"
+            Display --indent 4 --text "- Private Key" --result "Not configured" --color RED
+        fi
+    fi
+
+    # Test        : MAIL-8806
+    # Description : Check Exim Smarthost tests
+    Register --test-no MAIL-8806 --weight L --network NO --category security --description "Check Exim Smarthost tests"
+    if [ ${SKIPTEST} -eq 0 -a "${EXIM_TYPE}" == "Smarthost" ]; then
+        LogText "Test: Exim Public Interfaces"
+        EXIM_IP=$(exim -bP local_interfaces | cut -d '=' -f2 | sed -e 's/\s*<\s*\;\?//' -e 's/\s*::0\s*\;\?//' -e 's/\s*127.0.0.1\s*\;\?//' -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_IP}" ]; then
+            LogText "Result: ${EXIM_IP}"
+            Display --indent 4 --text "- Public Interface(s)" --result "${EXIM_IP}" --color GREEN
+        else
+            LogText "Result: None"
+            Display --indent 4 --text "- Public Interface(s)" --result "None" --color RED
+        fi
+
+        LogText "Test: Exim TLS State"
+        EXIM_TLS=$(exim -bP tls_advertise_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_TLS}" ]; then
+            LogText "Result: Enabled"
+            Display --indent 4 --text "- TLS" --result "Enabled" --color GREEN
+        else
+            LogText "Result: Not enabled"
+            Display --indent 4 --text "- TLS" --result "Not enabled" --color RED
+        fi
+
+        LogText "Test: Exim Certificate"
+        EXIM_CERTIFICATE=$(exim -bP tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_CERTIFICATE}" ]; then
+            LogText "Result: ${EXIM_CERTIFICATE}"
+            Display --indent 4 --text "- Certificate" --result "Configured" --color GREEN
+        else
+            LogText "Result: Not configured"
+            Display --indent 4 --text "- Certificate" --result "Not configured" --color RED
+        fi
+
+        LogText "Test: Exim Private Key"
+        EXIM_PRIVATEKEY=$(exim -bP tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+        if [ ! -z "${EXIM_PRIVATEKEY}" ]; then
+            LogText "Result: ${EXIM_PRIVATEKEY}"
+            Display --indent 4 --text "- Private Key" --result "Configured" --color GREEN
+        else
+            LogText "Result: Not configured"
+            Display --indent 4 --text "- Private Key" --result "Not configured" --color RED
+        fi
+    fi
+
+    # Test        : MAIL-8807
+    # Description : Check Exim Satellite tests
+    Register --test-no MAIL-8807 --weight L --network NO --category security --description "Check Exim Satellite tests"
+    if [ ${SKIPTEST} -eq 0 -a "${EXIM_TYPE}" == "Satellite" ]; then
+    fi
+
 #
 #################################################################################
 #

@@ -9,11 +9,12 @@ Changes:
 
 Tests:
 ------
+* [HRDN-7222] - Enhanced compiler permission test
 * [PKGS-7384] - Changes to detect yum-utils package and related tooling
 
 Plugins:
 --------
-[PLGN-2680] - cron file permissions
+* [PLGN-2680] - cron file permissions
 
 ---------------------------------------------------------------------------------
 

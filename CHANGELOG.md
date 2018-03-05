@@ -11,6 +11,7 @@ Tests:
 ------
 * [CRYP-7902] - Do prevalidation for certificates before testing them
 * [HRDN-7222] - Enhanced compiler permission test
+* [NAME-4402] - Improved test to filter out empty lines
 * [PKGS-7384] - Changes to detect yum-utils package and related tooling
 
 Plugins:

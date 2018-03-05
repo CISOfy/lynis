@@ -9,6 +9,7 @@ Changes:
 
 Tests:
 ------
+* [CRYP-7902] - Do prevalidation for certificates before testing them
 * [HRDN-7222] - Enhanced compiler permission test
 * [PKGS-7384] - Changes to detect yum-utils package and related tooling
 

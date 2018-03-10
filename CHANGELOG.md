@@ -1,6 +1,14 @@
 Lynis Changelog
 ===============
 
+Lynis 2.6.4 (not released yet, under development)
+
+Tests:
+------
+* [TIME-3160] - Improvements to detect step-tickers file and entries
+
+---------------------------------------------------------------------------------
+
 Lynis 2.6.3 (2018-03-07)
 
 Changes:

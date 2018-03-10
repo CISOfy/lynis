@@ -53,42 +53,31 @@
         if [ ${COMPILER_INSTALLED} -eq 0 ]; then
             LogText "Result: no compilers found"
         else
-            # as
-            if [ ! -z "${ASBINARY}" ]; then
-                LogText "Test: Check file permissions for as (Assembler)"
-                if IsWorldExecutable ${ASBINARY}; then
-                    LogText "Binary: found ${ASBINARY} (world executable)"
-                    Report "compiler_world_executable[]=${ASBINARY}"
+            # TODO - c89 c99 cpp ld
+            TEST_BINARIES="${ASBINARY} ${GCCBINARY}"
+            for ITEM in ${TEST_BINARIES}; do
+                FILE="${ITEM}"
+                LogText "Test: Check file permissions for ${ITEM}"
+                ShowSymlinkPath ${ITEM}
+                if [ ! -z "${SYMLINK}" ]; then
+                    FILE="${SYMLINK}"
+                fi
+
+                if IsWorldExecutable ${FILE}; then
+                    LogText "Binary: found ${FILE} (world executable)"
+                    Report "compiler_world_executable[]=${FILE}"
                     AddHP 2 3
                     HARDEN_COMPILERS_NEEDED=1
                 else
                     AddHP 3 3
                 fi
-            fi
-            # gcc
-            if [ ! -z "${GCCBINARY}" ]; then
-                LogText "Test: Check file permissions for GCC compiler"
-                if IsWorldExecutable ${GCCBINARY}; then
-                    LogText "Binary: found ${GCCBINARY} (world executable)"
-                    Report "compiler_world_executable[]=${GCCBINARY}"
-                    AddHP 2 3
-                    HARDEN_COMPILERS_NEEDED=1
-                else
-                    AddHP 3 3
-                fi
-            fi
+            done
+
             # Report suggestion is one or more compilers can be better hardened
             if [ ${HARDEN_COMPILERS_NEEDED} -eq 1 ]; then
                 LogText "Result: at least one compiler could be better hardened by restricting executable access to root or group only"
                 ReportSuggestion ${TEST_NO} "Harden compilers like restricting access to root user only"
             fi
-
-            # TODO check if compilers have a specific group (like compiler, or NOT root/wheel)
-            # Display --indent 4 --text "- Installed compiler(s)" --result "${STATUS_FOUND}" --color RED
-            # /usr/bin/*cc*
-            # /usr/bin/*++*
-            # /usr/bin/ld
-            # (and 700 or 750 permissions)
         fi
     fi
 #

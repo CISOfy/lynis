@@ -6,6 +6,7 @@ Lynis 2.6.4 (not released yet, under development)
 Tests:
 ------
 * [TIME-3160] - Improvements to detect step-tickers file and entries
+* [DNS-1600] - Add DNSSEC validation
 
 ---------------------------------------------------------------------------------
 

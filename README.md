@@ -13,9 +13,9 @@ Do you like this software? **Star the project** and become a [stargazer](https:/
 
 > Lynis - Security auditing and hardening tool, for UNIX-based systems.
 
-Lynis is a security auditing for system based on UNIX like Linux, macOS, BSD, and others. It performs an **in-depth security scan** and runs on the system itself. The primary goal is to test security defenses and **provide tips for further system hardening**. It will also scan for general system information, vulnerable software packages, and possible configuration issues. Lynis was commonly used by system administrators and auditors to assess the security defenses of their systems. Besides the "blue team", nowadays penetration testers also have Lynis in their toolkit.
+Lynis is a security auditing for system based on UNIX like Linux, macOS, BSD, and others. It performs an **in-depth security scan** and runs on the system itself. The primary goal is to test security defenses and **provide tips for further system hardening**. It also scans for general system information, vulnerable software packages, and possible configuration issues. Lynis is commonly used by system administrators and auditors to assess the security defenses of their systems. Besides the "blue team", nowadays penetration testers also have Lynis in their toolkit.
 
-We believe software should be **simple**, **updated on a regular basis**, and **open**. You should be able to trust, understand, and have the option to change the software. Many agree with us, as the software is being used by thousands every day to protect their systems.
+Software should be **simple**, **updated on a regular basis**, and **open**. You should be able to trust, understand, and have the option to change the software. Many agree with us, as the software is being used by thousands every day to protect their systems.
 
 ## Goals
 

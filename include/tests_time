@@ -422,44 +422,41 @@
     # Test        : TIME-3160
     # Description : Check empty NTP step-tickers
     # Notes       : Mostly applies to Red Hat and clones
-    if [ "${NTPD_RUNNING}" -eq 1 -a ! -z "${NTPQBINARY}" -a ! -z "${CHKCONFIGBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    FILE="${ROOTDIR}etc/ntp/step-tickers"
+    if [ "${NTPD_RUNNING}" -eq 1 -a ! -z "${NTPQBINARY}" -a -f "${FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3160 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check empty NTP step-tickers"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        FILE="/etc/ntp/step-tickers"
-        if [ -f ${FILE} ]; then
-            if [ ! -s "${FILE}" ]; then
-                LogText "Result: ${FILE} is empty. The step-tickers contain no configured NTP servers"
-                Display --indent 2 --text "- Checking NTP step-tickers file" --result "EMPTY FILE" --color YELLOW
-                ReportSuggestion ${TEST_NO} "Use step-tickers file for quicker time synchronization"
-            else
-                LogText "Result: /etc/ntp/step-tickers is not empty, which is fine"
-                Display --indent 2 --text "- Checking NTP step-tickers file" --result "${STATUS_OK}" --color GREEN
-                sFIND=$(${AWKBINARY} '/^server/ { print $2 }' /etc/ntp.conf | ${GREPBINARY} -v '127.127.1.0')
-                for I in ${sFIND}; do
-                    FIND=$(${GREPBINARY} ^${I} ${FILE} | wc -l)
-                    if [ ${FIND} -gt 0 ]; then
-                        LogText "Result: $I exist in ${FILE}"
-                    else
-                        LogText "Result: ${I} does NOT exist in ${FILE}"
-                        FOUND=1
-                    fi
-                done
-                if [ ${FOUND} -eq 1 ]; then
-                    Display --indent 4 --text "- Checking step-tickers ntp servers entries" --result "SOME MISSING" --color YELLOW
-                    ReportSuggestion ${TEST_NO} "Some time servers missing in step-tickers file"
-                    AddHP 3 4
-                else
-                    Display --indent 4 --text "- Checking step-tickers ntp servers entries" --result "${STATUS_OK}" --color GREEN
-                    LogText "Result: all time servers are in step-tickers file"
-                    AddHP 4 4
-                fi
-            fi
-            LogText "Information: step-tickers is used by ntpdate where as ntp.conf is the configuration file for the ntpd daemon. ntpdate is initially run to set the clock before ntpd to make sure time is within 1000 sec."
-            LogText "Risk: ntp will not run at boot if the time difference between the server and client by more then 1000 sec."
+        OUTPUT=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE})
+        if [ -z "${OUTPUT}" ]; then
+            LogText "Result: ${FILE} is empty. The step-tickers contain no configured NTP servers"
+            Display --indent 2 --text "- Checking NTP step-tickers file" --result "EMPTY FILE" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Use step-tickers file for quicker time synchronization"
         else
-            LogText "Result: test skipped because ${FILE} not found"
+            LogText "Result: ${FILE} is not empty, which is fine"
+            Display --indent 2 --text "- Checking NTP step-tickers file" --result "${STATUS_OK}" --color GREEN
+            sFIND=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE} | ${EGREPBINARY} -v "^127." | ${EGREPBINARY} -v "^::1")
+            for I in ${sFIND}; do
+                FIND=$(${GREPBINARY} ^${I} ${FILE} | wc -l)
+                if [ ${FIND} -gt 0 ]; then
+                    LogText "Result: $I exist in ${FILE}"
+                else
+                    LogText "Result: ${I} does NOT exist in ${FILE}"
+                    FOUND=1
+                fi
+            done
+            if [ ${FOUND} -eq 1 ]; then
+                Display --indent 4 --text "- Checking step-tickers ntp servers entries" --result "SOME MISSING" --color YELLOW
+                ReportSuggestion ${TEST_NO} "Some time servers missing in step-tickers file"
+                AddHP 3 4
+            else
+                Display --indent 4 --text "- Checking step-tickers ntp servers entries" --result "${STATUS_OK}" --color GREEN
+                LogText "Result: all time servers are in step-tickers file"
+                AddHP 4 4
+            fi
         fi
+        LogText "Information: step-tickers is used by ntpdate where as ntp.conf is the configuration file for the ntpd daemon. ntpdate is initially run to set the clock before ntpd to make sure time is within 1000 sec."
+        LogText "Risk: ntp will not run at boot if the time difference between the server and client by more then 1000 sec."
     fi
 #
 #################################################################################

@@ -10,6 +10,7 @@ Changes:
 Tests:
 ------
 * [AUTH-9308] - Made 'sulogin' more generic for systemd rescue shell
+* [PHP-2379]  - Suhosin test disbled
 * [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
 * [TIME-3160] - Improvements to detect step-tickers file and entries
 

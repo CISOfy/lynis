@@ -3,9 +3,16 @@ Lynis Changelog
 
 Lynis 2.6.4 (not released yet, under development)
 
+Changes:
+--------
+* Several contributions merged, including grammar improvements
+
 Tests:
 ------
+* [AUTH-9308] - Made 'sulogin' more generic for systemd rescue shell
+* [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
 * [TIME-3160] - Improvements to detect step-tickers file and entries
+
 
 ---------------------------------------------------------------------------------
 

@@ -6,10 +6,12 @@ Lynis 2.6.4 (not released yet, under development)
 Changes:
 --------
 * Several contributions merged, including grammar improvements
+* Initial support for Ubuntu 18.04 LTS
 
 Tests:
 ------
 * [AUTH-9308] - Made 'sulogin' more generic for systemd rescue shell
+* [NETW-2704] - Added support for local resolver 127.0.0.53
 * [PHP-2379]  - Suhosin test disbled
 * [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
 * [TIME-3160] - Improvements to detect step-tickers file and entries

@@ -15,6 +15,7 @@ Tests:
 * [PHP-2379]  - Suhosin test disbled
 * [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
 * [TIME-3160] - Improvements to detect step-tickers file and entries
+* [DNS-1600] - Add DNSSEC validation
 
 
 ---------------------------------------------------------------------------------

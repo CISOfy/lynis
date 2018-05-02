@@ -7,6 +7,7 @@ Changes:
 --------
 * Several contributions merged, including grammar improvements
 * Initial support for Ubuntu 18.04 LTS
+* Small enhancements for usage
 
 Tests:
 ------

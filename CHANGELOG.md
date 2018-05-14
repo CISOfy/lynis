@@ -1,6 +1,15 @@
 Lynis Changelog
 ===============
 
+Lynis 2.6.5 (not released yet)
+
+Tests:
+------
+
+* [SSH-7402]  - improved test to allow configurations with a Match block
+
+---------------------------------------------------------------------------------
+
 Lynis 2.6.4 (2018-05-02)
 
 Changes:

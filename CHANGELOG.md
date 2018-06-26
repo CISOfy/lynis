@@ -1,12 +1,14 @@
 Lynis Changelog
 ===============
 
-Lynis 2.6.5 (not released yet)
+Lynis 2.6.5 (2018-06-26)
 
 Tests:
 ------
 
-* [SSH-7402]  - improved test to allow configurations with a Match block
+* [MAIL-8804] - Exim configuration test
+* [NETW-2704] - Use FQDN to test status of a nameserver instead of own IP address
+* [SSH-7402]  - Improved test to allow configurations with a Match block
 
 ---------------------------------------------------------------------------------
 

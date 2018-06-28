@@ -1,5 +1,18 @@
-Lynis Changelog
+# Lynis Changelog
 ===============
+
+This log entry shows the upcoming changes:
+
+## Lynis 2.6.6 (not released yet)
+
+### Improvements
+* New format of changelog (https://keepachangelog.com/en/1.0.0/)
+
+### Fixed
+* Under some condition no hostid2 value was reported
+
+
+---------------------------------------------------------------------------------
 
 Lynis 2.6.5 (2018-06-26)
 

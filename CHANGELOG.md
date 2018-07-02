@@ -7,6 +7,7 @@ This log entry shows the upcoming changes:
 
 ### Improvements
 * New format of changelog (https://keepachangelog.com/en/1.0.0/)
+* KRNL-5830 - improved log text about running kernel version
 
 ### Fixed
 * Under some condition no hostid2 value was reported

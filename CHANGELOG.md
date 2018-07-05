@@ -11,7 +11,7 @@ This log entry shows the upcoming changes:
 
 ### Fixed
 * Under some condition no hostid2 value was reported
-
+* Solved 'extra operand' issue with tr command
 
 ---------------------------------------------------------------------------------
 

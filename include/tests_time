@@ -360,10 +360,10 @@
         FIND=$(${NTPQBINARY} -p -n | ${EGREPBINARY} '^x')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking falsetickers" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: No falsetickers found (items preceeding with an 'x')"
+            LogText "Result: No falsetickers found (items preceding with an 'x')"
         else
             Display --indent 2 --text "- Checking falsetickers" --result "${STATUS_NONE}" --color YELLOW
-            LogText "Result: Found one or more falsetickers  (items preceeding with an 'x')"
+            LogText "Result: Found one or more falsetickers  (items preceding with an 'x')"
             for I in ${FIND}; do
                 I=$(echo ${I} | ${SEDBINARY} 's/x//g')
                 LogText "Falseticker found: ${I}"
@@ -429,9 +429,15 @@
         FOUND=0
         OUTPUT=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE})
         if [ -z "${OUTPUT}" ]; then
-            LogText "Result: ${FILE} is empty. The step-tickers contain no configured NTP servers"
-            Display --indent 2 --text "- Checking NTP step-tickers file" --result "EMPTY FILE" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Use step-tickers file for quicker time synchronization"
+            if [ ${OS_REDHAT_OR_CLONE} -eq 1 -a -f "${FILE}" ]; then
+                # On RedHat if step-ticker file exists but is empty, the ntpdate start script uses the servers listed in ntp.conf for the initial time synchronization
+                LogText "Result: ${FILE} exists and it is empty. On RedHat the initial time synchronization will be done with the servers listed in ntp.conf."
+                Display --indent 2 --text "- Checking NTP step-tickers file" --result "${STATUS_OK}" --color GREEN
+            else
+                LogText "Result: ${FILE} is empty. The step-tickers contain no configured NTP servers"
+                Display --indent 2 --text "- Checking NTP step-tickers file" --result "EMPTY FILE" --color YELLOW
+                ReportSuggestion ${TEST_NO} "Use step-tickers file for quicker time synchronization"
+            fi
         else
             LogText "Result: ${FILE} is not empty, which is fine"
             Display --indent 2 --text "- Checking NTP step-tickers file" --result "${STATUS_OK}" --color GREEN

@@ -1,10 +1,43 @@
-Lynis Changelog
-===============
+# Lynis Changelog
 
-Lynis 2.6.4 (not released yet, under development)
+## Lynis 2.6.6 (2018-07-06)
+
+### Improvements
+* New format of changelog (https://keepachangelog.com/en/1.0.0/)
+* KRNL-5830 - improved log text about running kernel version
+
+### Fixed
+* Under some condition no hostid2 value was reported
+* Solved 'extra operand' issue with tr command
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.5 (2018-06-26)
 
 Tests:
 ------
+
+* [MAIL-8804] - Exim configuration test
+* [NETW-2704] - Use FQDN to test status of a nameserver instead of own IP address
+* [SSH-7402]  - Improved test to allow configurations with a Match block
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.4 (2018-05-02)
+
+Changes:
+--------
+* Several contributions merged, including grammar improvements
+* Initial support for Ubuntu 18.04 LTS
+* Small enhancements for usage
+
+Tests:
+------
+* [AUTH-9308] - Made 'sulogin' more generic for systemd rescue shell
+* [DNS-1600]  - Initial work on DNSSEC validation testing
+* [NETW-2704] - Added support for local resolver 127.0.0.53
+* [PHP-2379]  - Suhosin test disbled
+* [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
 * [TIME-3160] - Improvements to detect step-tickers file and entries
 
 ---------------------------------------------------------------------------------

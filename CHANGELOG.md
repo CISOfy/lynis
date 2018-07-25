@@ -3,7 +3,9 @@
 ## Lynis 2.6.7 (not released yet
 
 ### Improvements
-* LOGG-2190 - ignore /dev/zero and /dev/[aio] as deleted files
+* KRNL-5677 - Limit PAE and no-execute test to AMD64 hardware only
+* LOGG-2190 - Ignore /dev/zero and /dev/[aio] as deleted files
+
 
 ---------------------------------------------------------------------------------
 
@@ -11,7 +13,7 @@
 
 ### Improvements
 * New format of changelog (https://keepachangelog.com/en/1.0.0/)
-* KRNL-5830 - improved log text about running kernel version
+* KRNL-5830 - Improved log text about running kernel version
 
 ### Fixed
 * Under some condition no hostid2 value was reported

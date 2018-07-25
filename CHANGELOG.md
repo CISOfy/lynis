@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 2.6.7 (not released yet
+
+### Improvements
+* LOGG-2190 - ignore /dev/zero and /dev/[aio] as deleted files
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.6.6 (2018-07-06)
 
 ### Improvements

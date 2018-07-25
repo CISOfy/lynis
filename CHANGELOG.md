@@ -6,7 +6,7 @@
 * BOOT-5104 - Added busybox as a service manager
 * KRNL-5677 - Limit PAE and no-execute test to AMD64 hardware only
 * LOGG-2190 - Ignore /dev/zero and /dev/[aio] as deleted files
-
+* SSH-7408  - Changed classification of SSH root login with keys
 
 ---------------------------------------------------------------------------------
 

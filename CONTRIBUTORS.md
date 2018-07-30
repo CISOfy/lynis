@@ -25,6 +25,7 @@ The Lynis project is very thankful to the individuals who contributed to the pro
 * FreeBSD port          - Lars Engels
 * NetBSD                - Stephen Borrill
 * Slackware             - Eric Hameleers
+* OpenBSD port          - Gonzalo Rodriguez
 
 
 ## Special Contributors

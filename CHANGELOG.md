@@ -1,12 +1,13 @@
 # Lynis Changelog
 
-## Lynis 2.6.7 (not released yet)
+## Lynis 2.6.7 (2018-08-09)
 
 ### Changed
 - BOOT-5104 - Added busybox as a service manager
 - KRNL-5677 - Limit PAE and no-execute test to AMD64 hardware only
 - LOGG-2190 - Ignore /dev/zero and /dev/[aio] as deleted files
 - SSH-7408  - Changed classification of SSH root login with keys
+- Docker scan uses new format for maintainer value
 - New URL structure on CISOfy website implemented for Lynis controls
 
 ---------------------------------------------------------------------------------

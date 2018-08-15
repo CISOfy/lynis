@@ -1,10 +1,31 @@
 # Lynis Changelog
 
+## Lynis 2.6.8 (not released yet)
+
+### Changed
+- Alpine Linux detection for Docker audit
+- Docker check now tests also for CMD, ENTRYPOINT, and USER configuration
+- Improved display in Docker output for showing which keys are used for signing
+
+---------------------------------------------------------------------------------
+
+## Lynis 2.6.7 (2018-08-09)
+
+### Changed
+- BOOT-5104 - Added busybox as a service manager
+- KRNL-5677 - Limit PAE and no-execute test to AMD64 hardware only
+- LOGG-2190 - Ignore /dev/zero and /dev/[aio] as deleted files
+- SSH-7408  - Changed classification of SSH root login with keys
+- Docker scan uses new format for maintainer value
+- New URL structure on CISOfy website implemented for Lynis controls
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.6.6 (2018-07-06)
 
-### Improvements
+### Changed
 * New format of changelog (https://keepachangelog.com/en/1.0.0/)
-* KRNL-5830 - improved log text about running kernel version
+* KRNL-5830 - Improved log text about running kernel version
 
 ### Fixed
 * Under some condition no hostid2 value was reported

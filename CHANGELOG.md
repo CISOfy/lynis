@@ -1,5 +1,14 @@
 # Lynis Changelog
 
+## Lynis 2.6.8 (not released yet)
+
+### Changed
+- Alpine Linux detection for Docker audit
+- Docker check now tests also for CMD, ENTRYPOINT, and USER configuration
+- Improved display in Docker output for showing which keys are used for signing
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.6.7 (2018-08-09)
 
 ### Changed

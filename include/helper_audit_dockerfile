@@ -63,17 +63,21 @@ fi
         IMAGE=$(echo ${I} | sed 's/:space:/ /g' | awk '{ if ($1=="FROM") { print $2 }}')
         Display --indent 2 --text "Found image:" --result "${IMAGE}"
 
+        IS_DEBIAN=$(echo ${IMAGE} | grep -i debian)
+        IS_FEDORA=$(echo ${IMAGE} | grep -i fedora)
         IS_UBUNTU=$(echo ${IMAGE} | grep -i ubuntu)
+        IS_ALPINE=$(echo ${IMAGE} | grep -i alpine)
+
         if [ ! "${IS_DEBIAN}" = "" ]; then IMAGE="debian"; fi
         if [ ! "${IS_FEDORA}" = "" ]; then IMAGE="fedora"; fi
         if [ ! "${IS_UBUNTU}" = "" ]; then IMAGE="ubuntu"; fi
+        if [ ! "${IS_ALPINE}" = "" ]; then IMAGE="alpine"; fi
 
         case ${IMAGE} in
             "debian")
                 LogText "Image = Debian based"
                 PKGMGR="apt"
                 ;;
-
             "fedora*")
                 LogText "  Image = Fedora based"
                 PKGMGR="yum"
@@ -81,6 +85,10 @@ fi
             "ubuntu")
                 LogText "  Image = Ubuntu based"
                 PKGMGR="apt"
+                ;;
+            "alpine")
+                LogText "  Image = Alpine based"
+                PKGMGR="apk"
                 ;;
             *)
                 Display --indent 2 --text "Unknown image" --result "" --color YELLOW
@@ -117,6 +125,14 @@ InsertSection "Basics"
             LogText "Found installation via apt-get"
         else
             LogText "No installations found via apt-get"
+        fi
+        ;;
+     "apk")
+        FIND=$(egrep "apk(.*) add" ${AUDIT_FILE})
+        if [ ! "${FIND}" = "" ]; then
+            LogText "Found installation via apk"
+        else
+            LogText "No installations found via apk"
         fi
         ;;
     *)

@@ -3,6 +3,7 @@
 ## Lynis 2.6.8 (not released yet)
 
 ### Changed
+- BOOT-5104 - improved parsing of boot parameters to init process
 - Alpine Linux detection for Docker audit
 - Docker check now tests also for CMD, ENTRYPOINT, and USER configuration
 - Improved display in Docker output for showing which keys are used for signing

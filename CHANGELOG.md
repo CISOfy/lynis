@@ -1,9 +1,10 @@
 # Lynis Changelog
 
-## Lynis 2.6.8 (not released yet)
+## Lynis 2.6.8 (2018-08-23)
 
 ### Changed
 - BOOT-5104 - improved parsing of boot parameters to init process
+- PHP-2372  - test all PHP files for expose_php and improved logging
 - Alpine Linux detection for Docker audit
 - Docker check now tests also for CMD, ENTRYPOINT, and USER configuration
 - Improved display in Docker output for showing which keys are used for signing

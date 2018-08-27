@@ -1,5 +1,15 @@
 # Lynis Changelog
 
+## Lynis 2.6.9 (not released yet)
+
+### Changed
+- Man page has been updated
+- Command 'lynis show options' provides up-to-date list
+- Option '--dump-options' is deprecated
+- Several options and commands have been extended with more examples
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.6.8 (2018-08-23)
 
 ### Changed

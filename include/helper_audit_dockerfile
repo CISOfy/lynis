@@ -61,17 +61,23 @@ fi
     FIND=$(grep "^FROM" ${AUDIT_FILE} | sed 's/ /:space:/g')
     for I in ${FIND}; do
         IMAGE=$(echo ${I} | sed 's/:space:/ /g' | awk '{ if ($1=="FROM") { print $2 }}')
+        TAG=$(echo ${IMAGE} | cut -d':' -f2)
         Display --indent 2 --text "Found image:" --result "${IMAGE}"
 
         IS_DEBIAN=$(echo ${IMAGE} | grep -i debian)
         IS_FEDORA=$(echo ${IMAGE} | grep -i fedora)
         IS_UBUNTU=$(echo ${IMAGE} | grep -i ubuntu)
         IS_ALPINE=$(echo ${IMAGE} | grep -i alpine)
+        IS_LATEST=$(echo ${TAG} | grep -i latest)
 
         if [ ! "${IS_DEBIAN}" = "" ]; then IMAGE="debian"; fi
         if [ ! "${IS_FEDORA}" = "" ]; then IMAGE="fedora"; fi
         if [ ! "${IS_UBUNTU}" = "" ]; then IMAGE="ubuntu"; fi
         if [ ! "${IS_ALPINE}" = "" ]; then IMAGE="alpine"; fi
+        
+        if [ ! "${IS_LATEST}" = "" ]; then 
+            ReportWarning "dockerfile" "latest TAG used. Specifying the version is better."
+        fi
 
         case ${IMAGE} in
             "debian")

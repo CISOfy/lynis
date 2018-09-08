@@ -7,7 +7,8 @@
 - Command 'lynis show options' provides up-to-date list
 - Option '--dump-options' is deprecated
 - Several options and commands have been extended with more examples
-- OS detection with `/etc/os-release` now supports openSUSE
+- OS detection now supports openSUSE specific distribution names
+- Changed command output when using 'lynis audit system remote'
 
 ---------------------------------------------------------------------------------
 

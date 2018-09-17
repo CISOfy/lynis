@@ -370,11 +370,13 @@
     if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no KRNL-5788 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking availability new Linux kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
+        HAS_VMLINUZ=0
         LogText "Test: Searching apt-cache, to determine if a newer kernel is available"
         if [ -x ${ROOTDIR}usr/bin/apt-cache ]; then
             LogText "Result: found ${ROOTDIR}usr/bin/apt-cache"
             LogText "Test: checking readlink location of ${ROOTDIR}vmlinuz"
             if [ -f ${ROOTDIR}vmlinuz ]; then
+                HAS_VMLINUZ=1
                 FINDKERNFILE=$(readlink -f ${ROOTDIR}vmlinuz)
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
                 LogText "Test: checking package from dpkg -S"
@@ -395,9 +397,11 @@
             if IsEmpty "${FINDINST}"; then
                 Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
                 LogText "Result: Exception occurred, no output from apt-cache policy"
-                ReportException "${TEST_NO}:01"
-                LogText "Exception: apt-cache policy did not return an installed kernel version"
-                ReportSuggestion ${TEST_NO} "Check the output of apt-cache policy manually to determine why output is empty"
+                if [ ${HAS_VMLINUZ} -eq 1 ]; then
+                    ReportException "${TEST_NO}:01"
+                    ReportSuggestion ${TEST_NO} "Check the output of apt-cache policy to determine why its output is empty"
+                fi
+                LogText "Result: apt-cache policy did not return an installed kernel version"
             else
                 if [ "${FINDINST}" = "${FINDCAND}" ]; then
                     if [ -e /dev/grsec ]; then

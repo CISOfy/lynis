@@ -9,6 +9,7 @@
 - Several options and commands have been extended with more examples
 - OS detection now supports openSUSE specific distribution names
 - Changed command output when using 'lynis audit system remote'
+- PKGS-7322 - updated solution text
 
 ---------------------------------------------------------------------------------
 

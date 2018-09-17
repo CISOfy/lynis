@@ -10,6 +10,7 @@
 - OS detection now supports openSUSE specific distribution names
 - Changed command output when using 'lynis audit system remote'
 - PKGS-7322 - updated solution text
+- KRNL-5788 - ignore exception when no vmlinuz file was discovered
 
 ---------------------------------------------------------------------------------
 

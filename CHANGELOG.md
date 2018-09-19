@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 2.6.9 (not released yet)
+## Lynis 2.6.9 (2018-09-19)
 
 ### Changed
 - Man page has been updated
@@ -9,8 +9,10 @@
 - Several options and commands have been extended with more examples
 - OS detection now supports openSUSE specific distribution names
 - Changed command output when using 'lynis audit system remote'
+- DBS-1882  - added /usr/local/redis/etc path and QNAP support
 - PKGS-7322 - updated solution text
 - KRNL-5788 - ignore exception when no vmlinuz file was discovered
+- TIME-3104 - extended logging for test
 
 ---------------------------------------------------------------------------------
 

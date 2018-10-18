@@ -1,5 +1,17 @@
 # Lynis Changelog
 
+## Lynis 2.7.0
+
+### Added
+- MACF-6240 - Detection of TOMOYO binary
+- MACF-6242 - Status of TOMOYO framework
+
+### Changed
+- Changed several warning labels on screen
+- AUTH-9308 - More generic sulogin for systemd rescue.service
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.6.9 (2018-09-19)
 
 ### Changed

@@ -5,6 +5,7 @@
 ### Added
 - MACF-6240 - Detection of TOMOYO binary
 - MACF-6242 - Status of TOMOYO framework
+- TOOL-5160 - Check active OSSEC analysis daemon
 
 ### Changed
 - Changed several warning labels on screen

@@ -5,6 +5,7 @@
 ### Added
 - MACF-6240 - Detection of TOMOYO binary
 - MACF-6242 - Status of TOMOYO framework
+- SSH-7406  - OpenSSH server version detection
 - TOOL-5160 - Check active OSSEC analysis daemon
 
 ### Changed

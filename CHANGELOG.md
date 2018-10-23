@@ -9,6 +9,7 @@
 ### Changed
 - Changed several warning labels on screen
 - AUTH-9308 - More generic sulogin for systemd rescue.service
+- OS detection now ignores quotes for getting the OS ID.
 
 ---------------------------------------------------------------------------------
 

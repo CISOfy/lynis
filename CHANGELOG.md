@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 2.7.0
+## Lynis 2.7.0 (2018-10-26)
 
 ### Added
 - MACF-6240 - Detection of TOMOYO binary

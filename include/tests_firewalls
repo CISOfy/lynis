@@ -412,22 +412,70 @@
 #################################################################################
 #
     # Test        : FIRE-4534
-    # Description : Check Little Snitch Daemon on macOS
-    Register --test-no FIRE-4534 --weight L --os "macOS" --network NO --category security --description "Check for presence of Little Snitch on macOS"
+    # Description : Check outbound firewalls on macOS
+    Register --test-no FIRE-4534 --weight L --os "macOS" --network NO --category security --description "Check for presence of outbound firewalls on macOS"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if IsRunning --full "Little Snitch Daemon"; then
+
+        # Little Snitch Daemon (macOS)
+        LogText "Test: checking process Little Snitch Daemon"
+        IsRunning --full "Little Snitch Daemon"
+        if [ ${RUNNING} -eq 1 ]; then
             Display --indent 2 --text "- Checking Little Snitch Daemon" --result "${STATUS_ENABLED}" --color GREEN
-            AddHP 3 3
-            LogText "Result: little Snitch found"
+            LogText "Result: Little Snitch found"
+            FOUND=1
             FIREWALL_ACTIVE=1
             APPLICATION_FIREWALL_ACTIVE=1
             Report "app_fw[]=little-snitch"
             Report "firewall_software[]=little-snitch"
-        else
-            if IsVerbose; then Display --indent 2 --text "- Checking Little Snitch Daemon" --result "${STATUS_DISABLED}" --color YELLOW; fi
-            AddHP 1 3
-            LogText "Result: could not find Little Snitch"
         fi
+
+        # HandsOff! Daemon (macOS)
+        LogText "Test: checking process HandsOffDaemon"
+        IsRunning HandsOffDaemon
+        if [ ${RUNNING} -eq 1 ]; then
+            Display --indent 2 --text "- Checking Hands Off! Daemon" --result "${STATUS_ENABLED}" --color GREEN
+            LogText "Result: Hands Off! found"
+            FOUND=1
+            FIREWALL_ACTIVE=1
+            APPLICATION_FIREWALL_ACTIVE=1
+            Report "app_fw[]=hands-off"
+            Report "firewall_software[]=hands-off"
+        fi
+
+        # LuLu Daemon (macOS)
+        LogText "Test: checking process LuLu"
+        IsRunning LuLu
+        if [ ${RUNNING} -eq 1 ]; then
+            Display --indent 2 --text "- Checking LuLu Daemon" --result "${STATUS_ENABLED}" --color GREEN
+            LogText "Result: LuLu found"
+            FOUND=1
+            FIREWALL_ACTIVE=1
+            APPLICATION_FIREWALL_ACTIVE=1
+            Report "app_fw[]=lulu"
+            Report "firewall_software[]=lulu"
+        fi
+
+        # Radio Silence (macOS)
+        LogText "Test: checking process Radio Silence"
+        IsRunning --full "Radio Silence"
+        if [ ${RUNNING} -eq 1 ]; then
+            Display --indent 2 --text "- Checking Radio Silence" --result "${STATUS_ENABLED}" --color GREEN
+            LogText "Result: Radio Silence found"
+            FOUND=1
+            FIREWALL_ACTIVE=1
+            APPLICATION_FIREWALL_ACTIVE=1
+            Report "app_fw[]=radio-silence"
+            Report "firewall_software[]=radio-silence"
+        fi
+
+        if [ ${FOUND} -eq 0 ]; then
+            LogText "Result: outbound firewall not found"
+            AddHP 1 3
+        else
+            LogText "Result: found one or more macOS outbound firewall"
+            AddHP 3 3
+        fi
+
     fi
 #
 #################################################################################

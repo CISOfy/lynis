@@ -4,6 +4,10 @@
 
 ### Added
 - Support for macOS Mojave
+- Translation: Slovak
+
+### Changed
+- SHLL-6230 - Add /etc/bash.bashrc.local to umask check
 
 ---------------------------------------------------------------------------------
 

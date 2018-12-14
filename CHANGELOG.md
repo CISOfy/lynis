@@ -8,6 +8,7 @@
 
 ### Changed
 - SHLL-6230 - Add /etc/bash.bashrc.local to umask check
+- Small improvements to logging
 
 ---------------------------------------------------------------------------------
 

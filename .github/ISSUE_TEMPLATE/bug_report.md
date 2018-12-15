@@ -9,7 +9,7 @@ A clear and concise description of what the bug is.
 
 **Version**
  - Distribution [e.g. Ubuntu 18.04]
- - Lynis version [e.g. 22]
+ - Lynis version [e.g. 2.7.0]
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.

@@ -7,6 +7,7 @@
 - Translation: Slovak
 
 ### Changed
+- AUTH-9282 - Improve support for Red Hat and clones
 - FIRE-4534 - Additional support for Hands Off!, LuLu, and Radio Silence
 - SHLL-6230 - Add /etc/bash.bashrc.local to umask check
 - Small improvements to logging

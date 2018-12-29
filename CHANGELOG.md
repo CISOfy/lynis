@@ -9,6 +9,7 @@
 ### Changed
 - AUTH-9282 - Improve support for Red Hat and clones
 - FIRE-4534 - Additional support for Hands Off!, LuLu, and Radio Silence
+- LOGG-2190 - Added MariaDB filter for deleted files (tested on CentOS)
 - SHLL-6230 - Add /etc/bash.bashrc.local to umask check
 - Small improvements to logging
 

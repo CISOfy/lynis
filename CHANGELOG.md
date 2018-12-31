@@ -11,6 +11,7 @@
 - FIRE-4534 - Additional support for Hands Off!, LuLu, and Radio Silence
 - LOGG-2190 - Added MariaDB filter for deleted files (tested on CentOS)
 - SHLL-6230 - Add /etc/bash.bashrc.local to umask check
+- Minor cleanups and enhancements
 - Small improvements to logging
 
 ---------------------------------------------------------------------------------

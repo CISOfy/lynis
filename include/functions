@@ -888,12 +888,15 @@
                 ;;
 
                 "Linux")
-                    # Define preferred interfaces
-                    #PREFERRED_INTERFACES="eth0 eth1 eth2 enp0s25"
 
-                    # Only use ifconfig if no ip binary has been found
-                    if [ ! "${IFCONFIGBINARY}" = "" ]; then
-                        # Determine if we have ETH0 at all (not all Linux distro have this, e.g. Arch)
+                    # Future change
+                    # Show brief output of ip of links that are UP. Filter out items like 'UNKNOWN' in col 2
+                    # Using the {2} syntax does not work on all systems
+                    # ip -br link show up | sort | awk '$2=="UP" && $3 ~ /^[a-f0-9][a-f0-9]:/ {print $3}'
+
+                    # Use ifconfig
+                    if [ ! -z "${IFCONFIGBINARY}" ]; then
+                        # Determine if we have the eth0 interface (not all Linux distro have this, e.g. Arch)
                         HASETH0=$(${IFCONFIGBINARY} | grep "^eth0")
                         # Check if we can find it with HWaddr on the line
                         FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "^eth0" | grep -v "eth0:" | grep HWaddr | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
@@ -919,21 +922,20 @@
                                 LogText "GetHostID: No eth0 found (but HWaddr was found), using first network interface to determine hostid, with ifconfig"
                             fi
                         fi
-                    else
-                        # See if we can use ip binary instead
-                        if [ ! "${IPBINARY}" = "" ]; then
-                            # Determine if we have the common available eth0 interface
-                            FIND=$(${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+
+                    elif [ ! -z "${IPBINARY}" ]; then
+                        # Determine if we have the common available eth0 interface
+                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                        if IsEmpty "${FIND}"; then
+                            # Determine the MAC address of first interface with the ip command
+                            FIND=$(${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                             if IsEmpty "${FIND}"; then
-                                # Determine the MAC address of first interface with the ip command
-                                FIND=$(${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
-                                if IsEmpty "${FIND}"; then
-                                    ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
-                                fi
+                                ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
                             fi
-                        else
-                            ReportException "GetHostID" "Can't create hostid, missing both ifconfig and ip binary"
                         fi
+                    else
+                        ReportException "GetHostID" "Both ip and ifconfig tools are missing"
+
                     fi
 
                     # Check if we found a HostID

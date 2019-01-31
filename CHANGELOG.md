@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 2.7.1 (not released yet)
+## Lynis 2.7.1 (2019-01-30)
 
 ### Added
 - Support for macOS Mojave

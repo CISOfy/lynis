@@ -490,6 +490,16 @@
       SUDO_CONFIG_FILES="${SUDOERS_FILE}"
       SUDOERS_D="${SUDOERS_FILE}.d"
       if [ -d "${SUDOERS_D}" ]; then
+	LogText "Test: checking drop-in directory (${SUDOERS_D}) permissions"
+	FIND=$(ls -ld ${SUDOERS_D} | ${CUTBINARY} -c 2-10)
+	LogText "Result: Found directory permissions: ${FIND}"
+	if [ "${FIND}" = "rwxrwx---" -o "${FIND}" = "rwxr-x---" -o "${FIND}" = "rwx------" ]; then
+	  LogText "Result: directory ${SUDOERS_D} permissions OK"
+	  Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_OK}" --color GREEN
+	else
+	  LogText "Result: directory has possibly unsafe permissions"
+          Display --indent 4 --text "- Permissions for: ${SUDOERS_D}" --result "${STATUS_WARNING}" --color RED
+	fi
 	SUDO_CONFIG_FILES="${SUDO_CONFIG_FILES} $(${FINDBINARY} ${SUDOERS_D} -type f -print)"
       fi
       for f in ${SUDO_CONFIG_FILES}; do
@@ -497,7 +507,7 @@
         FIND=$(ls -l ${f} | ${CUTBINARY} -c 2-10)
         LogText "Result: Found file permissions: ${FIND}"
         if [ "${FIND}" = "rw-------" -o "${FIND}" = "rw-rw----" -o "${FIND}" = "r--r-----" ]; then
-            LogText "Result: file ${f} has correct permissions"
+            LogText "Result: file ${f} permissions OK"
 	    Display --indent 4 --text "- Permissions for: ${f}" --result "${STATUS_OK}" --color GREEN
         else
             LogText "Result: file has possibly unsafe permissions"

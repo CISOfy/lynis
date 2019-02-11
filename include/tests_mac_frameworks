@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -22,6 +22,7 @@
     MAC_FRAMEWORK_ACTIVE=0              # Default no MAC framework active
     RBAC_FRAMEWORK_ACTIVE=0             # Default no RBAC framework active
     SELINUXFOUND=0
+    TOMOYOFOUND=0
 
     InsertSection "Security frameworks"
 #
@@ -154,6 +155,46 @@
         else
             LogText "Result: SELinux framework is disabled"
             Display --indent 4 --text "- Checking SELinux status" --result "${STATUS_DISABLED}" --color YELLOW
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MACF-6240
+    # Description : Check if the tomoyo-init binary is available on the system
+    Register --test-no MACF-6240 --weight L --network NO --category security --description "Check TOMOYO Linux presence"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: checking if we have tomoyo-init binary"
+        if [ -z "${TOMOYOINITBINARY}" ]; then
+            TOMOYOFOUND=0
+            LogText "Result: tomoyo-init binary not found"
+            Display --indent 2 --text "- Checking presence TOMOYO Linux" --result "${STATUS_NOT_FOUND}" --color WHITE
+        else
+            TOMOYOFOUND=1
+            LogText "Result: tomoyo-init binary found"
+            Display --indent 2 --text "- Checking presence TOMOYO Linux" --result "${STATUS_FOUND}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : MACF-6242
+    # Description : Check TOMOYO Linux status
+    if [ ${TOMOYOFOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no MACF-6242 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check TOMOYO Linux status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FILE="/sys/kernel/security/tomoyo/stat"
+        if [ -f ${FILE} ]; then
+            MAC_FRAMEWORK_ACTIVE=1
+            LogText "Result: TOMOYO Linux is enabled"
+            Display --indent 4 --text "- Checking TOMOYO Linux status" --result "${STATUS_ENABLED}" --color GREEN
+            Report "tomoyo_enabled=1"
+            AddHP 3 3
+        else
+            LogText "Result: TOMOYO Linux is disabled"
+            Display --indent 4 --text "- Checking TOMOYO Linux status" --result "${STATUS_DISABLED}" --color YELLOW
+            Report "tomoyo_enabled=0"
+            AddHP 0 3
         fi
     fi
 #

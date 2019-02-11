@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -61,19 +61,29 @@ fi
     FIND=$(grep "^FROM" ${AUDIT_FILE} | sed 's/ /:space:/g')
     for I in ${FIND}; do
         IMAGE=$(echo ${I} | sed 's/:space:/ /g' | awk '{ if ($1=="FROM") { print $2 }}')
+        TAG=$(echo ${IMAGE} | cut -d':' -f2)
         Display --indent 2 --text "Found image:" --result "${IMAGE}"
 
+        IS_DEBIAN=$(echo ${IMAGE} | grep -i debian)
+        IS_FEDORA=$(echo ${IMAGE} | grep -i fedora)
         IS_UBUNTU=$(echo ${IMAGE} | grep -i ubuntu)
+        IS_ALPINE=$(echo ${IMAGE} | grep -i alpine)
+        IS_LATEST=$(echo ${TAG} | grep -i latest)
+
         if [ ! "${IS_DEBIAN}" = "" ]; then IMAGE="debian"; fi
         if [ ! "${IS_FEDORA}" = "" ]; then IMAGE="fedora"; fi
         if [ ! "${IS_UBUNTU}" = "" ]; then IMAGE="ubuntu"; fi
+        if [ ! "${IS_ALPINE}" = "" ]; then IMAGE="alpine"; fi
+        
+        if [ ! "${IS_LATEST}" = "" ]; then 
+            ReportWarning "dockerfile" "latest TAG used. Specifying the version is better."
+        fi
 
         case ${IMAGE} in
             "debian")
                 LogText "Image = Debian based"
                 PKGMGR="apt"
                 ;;
-
             "fedora*")
                 LogText "  Image = Fedora based"
                 PKGMGR="yum"
@@ -81,6 +91,10 @@ fi
             "ubuntu")
                 LogText "  Image = Ubuntu based"
                 PKGMGR="apt"
+                ;;
+            "alpine")
+                LogText "  Image = Alpine based"
+                PKGMGR="apk"
                 ;;
             *)
                 Display --indent 2 --text "Unknown image" --result "" --color YELLOW
@@ -94,13 +108,40 @@ fi
 
 InsertSection "Basics"
 
-    FIND=$(egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g')
+    #FIND=$(egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g')
+    FIND=$(egrep -i "*MAINTAINER" ${AUDIT_FILE}  |  sed 's/=/ /g' | cut -d'"' -f 2)
     if [ "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "No maintainer found. Unclear who created this file."
     else
-        MAINTAINER=$(echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}')
+        #MAINTAINER=$(echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}')
+        MAINTAINER=$(echo ${FIND})
         Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
     fi
+    
+    FIND=$(grep "^ENTRYPOINT" ${AUDIT_FILE} | cut -d' ' -f2 )
+    if [ "${FIND}" = "" ]; then
+        ReportWarning "dockerfile" "No ENTRYPOINT defined in Dockerfile."
+    else
+        ENTRYPOINT=$(echo ${FIND})
+        Display --indent 2 --text "ENTRYPOINT" --result "${ENTRYPOINT}"
+    fi
+
+    FIND=$(grep "^CMD" ${AUDIT_FILE} | cut -d' ' -f2 )
+    if [ "${FIND}" = "" ]; then
+        ReportWarning "dockerfile" "No CMD defines in Dockerfile."
+    else
+        CMD=$(echo ${FIND})
+        Display --indent 2 --text "CMD" --result "${CMD}"
+    fi
+
+    FIND=$(grep "^USER" ${AUDIT_FILE} | cut -d' ' -f2 )
+    if [ "${FIND}" = "" ]; then
+        ReportWarning "dockerfile" "No user declared in Dockerfile. Container will execute command as root"
+    else
+        USER=$(echo ${FIND})
+        Display --indent 2 --text "User" --result "${USER}"
+    fi
+
 
 #
 ##################################################################################################
@@ -115,6 +156,14 @@ InsertSection "Basics"
             LogText "Found installation via apt-get"
         else
             LogText "No installations found via apt-get"
+        fi
+        ;;
+     "apk")
+        FIND=$(egrep "apk(.*) add" ${AUDIT_FILE})
+        if [ ! "${FIND}" = "" ]; then
+            LogText "Found installation via apk"
+        else
+            LogText "No installations found via apk"
         fi
         ;;
     *)
@@ -178,8 +227,8 @@ InsertSection "Basics"
         Display --indent 2 --text "Integrity testing performed" --result "${SSL_USED}" --color ${COLOR}
         HASHING_USED=$(egrep "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE})
         Display --indent 2 --text "Hashing" --result "${HASHING_USED}"
-        KEYS_USED=$(egrep "(apt-key adv)" ${AUDIT_FILE})
-        Display --indent 2 --text "Signing keys used" --result ${KEYS_USED}
+        KEYS_USED=$(egrep "(apt-key adv)" ${AUDIT_FILE}| sed 's/RUN apt-key adv//g'| sed 's/--keyserver/Key Server:/g' | sed 's/--recv/Key Value:/g')
+        Display --indent 2 --text "Signing keys used" --result "${KEYS_USED}"
         Display --indent 2 --text "All downloads properly checked" --result "?"
     else
         Display --indent 2 --text "No files seems to be downloaded in this Dockerfile"

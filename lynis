@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-#           2013-2016, CISOfy
+#           2013-now, CISOfy
 #
 # Web site: https://cisofy.com
 #
@@ -35,15 +35,15 @@
     PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2017-09-12"
-    PROGRAM_RELEASE_TIMESTAMP=1504688399
-    PROGRAM_RELEASE_TYPE="dev" # dev or final
-    PROGRAM_VERSION="2.5.6"
+    PROGRAM_RELEASE_DATE="2019-01-31"
+    PROGRAM_RELEASE_TIMESTAMP=1548942179
+    PROGRAM_RELEASE_TYPE="final" # dev or final
+    PROGRAM_VERSION="2.7.1"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
     PROGRAM_WEBSITE="https://cisofy.com/lynis/"
-    PROGRAM_COPYRIGHT="2007-2017, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
+    PROGRAM_COPYRIGHT="2007-2019, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
     PROGRAM_LICENSE="${PROGRAM_NAME} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
   welcome to redistribute it under the terms of the GNU General Public License.
   See the LICENSE file for details about using this software."
@@ -110,7 +110,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     fi
 
     # Auto detection of language based on locale (first two characters). Set to English when nothing found.
-    if [ -x "$(command -v locale)" ]; then
+    if [ -x "$(command -v locale 2> /dev/null)" ]; then
         LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
     fi
     if [ -z "${LANGUAGE}" ]; then
@@ -130,7 +130,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     else
         MYID=$(id -u 2> /dev/null)
     fi
-    if [ -z "${MYID}" ]; then Display "Could not find user ID with id command. Want to help improving Lynis? Raise a ticket at ${PROGRAM_SOURCE}"; ExitFatal; fi
+    if [ -z "${MYID}" ]; then Display "Could not find user ID with id command. Want to help improve Lynis? Raise a ticket at ${PROGRAM_SOURCE}"; ExitFatal; fi
 #
 #################################################################################
 #
@@ -238,15 +238,21 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
         if [ -z "${LOGFILE}" ]; then
             # Try creating a log file in temporary directory
             if [ ! -f /tmp/lynis.log ]; then
+                if [ -L /tmp/lynis.log ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
                 touch /tmp/lynis.log
                 if [ $? -eq 0 ]; then LOGFILE="/tmp/lynis.log"; else LOGFILE="/dev/null"; fi
             else
                 LOGFILE="/tmp/lynis.log"
             fi
+        else
+            if [ -L "${LOGFILE}" ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi
         if [ -z "${REPORTFILE}" ]; then
             touch /tmp/lynis-report.dat
+            if [ -L /tmp/lynis-report.dat ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
             if [ $? -eq 0 ]; then REPORTFILE="/tmp/lynis-report.dat"; else REPORTFILE="/dev/null"; fi
+        else
+            if [ -L "${REPORTFILE}" ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi
     fi
 #
@@ -327,9 +333,9 @@ ${NORMAL}
 
 ${WARNING}Warning${NORMAL}: ${WHITE}PID file exists, probably another Lynis process is running.${NORMAL}
 ------------------------------------------------------------------------------
-If you are unsure another Lynis process is running currently, you are advised
-to stop current process and check the process list first. If you cancelled
-(by using CTRL+C) a previous instance, you can ignore this message.
+If you are unsure if another Lynis process is running currently, you are advised
+to stop the current process and check the process list first. If you cancelled
+a previous instance (by using CTRL+C), you can ignore this message.
 
 You are advised to check for temporary files after program completion.
 ------------------------------------------------------------------------------
@@ -342,7 +348,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
             echo "Quitting, to prevent multiple cron jobs running at the same time"
             exit 1 # Manually exit, no cleanups to prevent deleting an active PID file
         else
-            wait_for_keypress
+            WaitForKeyPress
         fi
 
         # Deleting any stale PID files that might exist. Note: Display function does not work yet at this point
@@ -410,7 +416,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
     ${GRAY}--version (-V)${NORMAL}                    : Display version number and quit
 
     ${WHITE}Enterprise options${NORMAL}
-    ${GRAY}--plugin-dir ${BROWN}\"<path>\"${NORMAL}             : Define path of available plugins
+    ${GRAY}--plugindir ${BROWN}<path>${NORMAL}                : Define path of available plugins
     ${GRAY}--upload${NORMAL}                          : Upload data to central node
 
     More options available. Run '$0 show options', or use the man page.
@@ -434,7 +440,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
 #
 #################################################################################
 #
-    if [ ${PRIVILEGED} -eq 0 -a ${CHECK} -eq 1 ]; then
+    if [ ${PRIVILEGED} -eq 0 -a ${CHECK} -eq 1 -a ${QUIET} -eq 0 ]; then
         printf "%s" "${WHITE}
   ###################################################################
   #                                                                 #
@@ -454,8 +460,6 @@ ${NORMAL}
   ${RED}WARNING:${NORMAL}
   ${WHITE}*${NORMAL} No suggestions or warnings will be displayed in report (due to missing log file)"
         fi
-        #printf "\n\n%s" "  ${WHITE}Press [ENTER] to continue or [CTRL] + C to break${NORMAL}"
-        #if [ ${QUICKMODE} -eq 0 ]; then read void; fi
     fi
 #
 #################################################################################
@@ -551,7 +555,7 @@ ${NORMAL}
         Display --indent 2 --text "- Detecting language and localization" --result "${LANGUAGE}" --color WHITE
         if [ ! -f ${DBDIR}/languages/${LANGUAGE} ]; then
             Display --indent 4 --text "${YELLOW}Notice:${NORMAL} no language file found for '${LANGUAGE}' (tried: ${DBDIR}/languages/${LANGUAGE})"
-            if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/documentation/10-translations.md for more details to help translating Lynis"; fi
+            if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/documentation/10-translations.md for more details to help translate Lynis"; fi
             sleep 5
         else
             LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
@@ -728,8 +732,8 @@ ${NORMAL}
         OLD_RELEASE=1
     fi
 
-    # Show on screen message if release is very outdated
-    if [ ${UPDATE_AVAILABLE} -eq 1 ]; then
+    # Show on screen message if release is very outdated (unless --quiet/--silent is used)
+    if [ ${UPDATE_AVAILABLE} -eq 1 -a ${QUIET} -eq 0 ]; then
         echo ""
         echo "      ==============================================================================="
         echo "        ${CYAN}${PROGRAM_NAME} ${TEXT_UPDATE_AVAILABLE}${NORMAL}"
@@ -744,12 +748,13 @@ ${NORMAL}
             echo ""
         fi
         echo "        ${WHITE}Please update to the latest version.${NORMAL}"
-        echo "        New releases include additional features, bug fixes, tests and baselines.${NORMAL}"
+        echo "        New releases include additional features, bug fixes, tests, and baselines.${NORMAL}"
         echo ""
         echo "        Download the latest version:"
+        echo ""
         echo "        Packages (DEB/RPM) -  https://packages.cisofy.com"
-        echo "        Website            -  https://cisofy.com/downloads/"
-        echo "        GitHub             -  https://github.com/CISOfy/lynis"
+        echo "        Website (TAR)      -  https://cisofy.com/downloads/"
+        echo "        GitHub (source)    -  https://github.com/CISOfy/lynis"
         echo ""
         echo "      ==============================================================================="
         echo ""
@@ -783,22 +788,14 @@ ${NORMAL}
 #
 #################################################################################
 #
-    # Check for systemd presence (already tested via binaries: systemctl)
-    if [ ${HAS_SYSTEMD} -eq 0 ]; then
-        FOUND=0
-        # Backup option to do additional testing for systemd
-        LIST="${ROOTDIR}lib/systemd/system"; for ITEM in ${LIST}; do if [ -d ${ITEM} ]; then FOUND=1; break; fi; done
-        LIST="${ROOTDIR}usr/lib/systemd/systemd"
-        if [ ${FOUND} -eq 0 ]; then for ITEM in ${LIST}; do if [ -f ${ITEM} ]; then FOUND=1; break; fi; done; fi
-    else
-        FOUND=1
-    fi
-    if [ ${FOUND} -eq 1 ]; then
+    # Check for systemd active
+    if [ -d /run/systemd/system ]; then
         LogText "Result: system is using systemd"
         HAS_SYSTEMD=1
         Report "systemd=1"
     else
         LogText "Result: systemd not found"
+        HAS_SYSTEMD=0
         Report "systemd=0"
     fi
 #
@@ -910,6 +907,9 @@ ${NORMAL}
     else
         LogText "Info: no HostID found or invalid one"
     fi
+    if [ ! "${HOSTID2}" = "" ]; then
+        Report "hostid2=${HOSTID2}"
+    fi
     if [ ! "${MACHINEID}" = "" ]; then
         LogText "Info: found a machine ID ${MACHINEID}"
         Report "machineid=${MACHINEID}"
@@ -928,7 +928,7 @@ ${NORMAL}
             LogText "Info: perform tests from all categories"
 
             INCLUDE_TESTS="boot_services kernel memory_processes authentication shells \
-                           filesystems storage storage_nfs nameservices ports_packages networking printers_spools \
+                           filesystems usb storage storage_nfs nameservices dns ports_packages networking printers_spools \
                            mail_messaging firewalls webservers ssh snmp databases ldap php squid logging \
                            insecure_services banners scheduling accounting time crypto virtualization containers \
                            mac_frameworks file_integrity tooling malware file_permissions homedirs \
@@ -1075,4 +1075,4 @@ ${NORMAL}
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2017, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2019, Michael Boelen, CISOfy - https://cisofy.com

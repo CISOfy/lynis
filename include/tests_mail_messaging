@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -28,6 +28,7 @@
 #
     DOVECOT_RUNNING=0
     EXIM_RUNNING=0
+    EXIM_TYPE=""
     IMAP_DAEMON=""
     OPENSMTPD_RUNNING=0
     POP3_DAEMON=""
@@ -43,7 +44,7 @@
     Register --test-no MAIL-8802 --weight L --network NO --category security --description "Check Exim status"
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check Exim status"
-        IsRunning exim
+        IsRunning exim4 || IsRunning exim
         if [ ${RUNNING} -eq 1 ]; then
             LogText "Result: found running Exim process"
             Display --indent 2 --text "- Exim status" --result "${STATUS_RUNNING}" --color GREEN
@@ -55,6 +56,114 @@
             if IsVerbose; then Display --indent 2 --text "- Exim status" --result "${STATUS_NOT_FOUND}" --color WHITE; fi
         fi
     fi
+#
+#################################################################################
+#
+    # Test        : MAIL-8804
+    # Description : Exim configuration options
+    if [ ${EXIM_RUNNING} -eq 1 -a ! "${EXIMBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no MAIL-8803 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Exim configuration options"
+    if [ ${SKIPTEST} -eq 0 -a ${EXIM_RUNNING} -eq 1 ]; then
+        LogText "Test: Exim configuration options"
+
+        EXIM_ROUTERS=$(exim -bP router_list)
+
+        unset FIND FIND2 FIND3 FIND4
+
+        # Local Only
+        FIND=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^nonlocal')
+        # Internet Host
+        FIND2=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^dnslookup_relay_to_domains')
+        # Smarthost or Satellite
+        FIND3=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^smarthost')
+
+        if [ ! -z "${FIND}" ]; then
+            EXIM_TYPE="LOCAL ONLY"
+        elif [ ! -z "${FIND2}" ]; then
+            EXIM_TYPE="INTERNET HOST"
+        elif [ ! -z "${FIND3}" ]; then
+            FIND4=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^hub_user_smarthost')
+            if [ ! -z "${FIND4}" ]; then
+                EXIM_TYPE="SATELLITE"
+            else
+                EXIM_TYPE="SMARTHOST"
+            fi
+        fi
+
+        if [ ! -z "${EXIM_TYPE}" ]; then
+            LogText "Result: Exim Type - ${EXIM_TYPE}"
+            Display --indent 4 --text "- Type" --result "${EXIM_TYPE}" --color GREEN
+        else
+            LogText "Result: Exim Type - Not Configured"
+            Display --indent 4 --text "- Type" --result "Not Configured" --color WHITE
+        fi
+
+        if [ "${EXIM_TYPE}" = "INTERNET HOST" -o "${EXIM_TYPE}" = "SMARTHOST" ]; then
+            LogText "Test: Exim Public Interfaces"
+            EXIM_IP=$(exim -bP local_interfaces | cut -d '=' -f2 | sed -e 's/\s*<\s*\;\?//' -e 's/\s*::0\s*\;\?//' -e 's/\s*127.0.0.1\s*\;\?//' -e 's/^\s*//' -e 's/\s*$//')
+            if [ ! -z "${EXIM_IP}" ]; then
+                LogText "Result: ${EXIM_IP}"
+                Display --indent 4 --text "- Public Interface(s)" --result "${EXIM_IP}" --color GREEN
+            else
+                LogText "Result: None"
+                Display --indent 4 --text "- Public Interface(s)" --result "NONE" --color WHITE
+            fi
+
+            LogText "Test: Exim TLS State"
+            EXIM_TLS=$(exim -bP tls_advertise_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+            if [ ! -z "${EXIM_TLS}" ]; then
+                LogText "Result: Enabled"
+                Display --indent 4 --text "- TLS" --result "ENABLED" --color GREEN
+            else
+                LogText "Result: Not enabled"
+                Display --indent 4 --text "- TLS" --result "NOT ENABLED" --color WHITE
+            fi
+        fi
+
+        if [ ! -z "${EXIM_TYPE}" -a "${EXIM_TYPE}" != "LOCAL ONLY" ]; then
+            LogText "Test: Exim Certificate and Private Key"
+
+            case "${EXIM_TYPE}" in
+                "INTERNET HOST" | "SMARTHOST" )
+                    EXIM_CERTIFICATE=$(exim -bP tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_PRIVATEKEY=$(exim -bP tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+                "SATELLITE" )
+                    EXIM_CERTIFICATE=$(exim -bP transport remote_smtp_smarthost | grep tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_PRIVATEKEY=$(exim -bP transport remote_smtp_smarthost | grep tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+            esac
+
+            if [ ! -z "${EXIM_CERTIFICATE}" ]; then
+                LogText "Result: ${EXIM_CERTIFICATE}"
+                if [ -f "${EXIM_CERTIFICATE}" ]; then
+                    Display --indent 4 --text "- Certificate" --result "${STATUS_FOUND}" --color GREEN
+                    LogText "Result: Certificate found."
+                else
+                    Display --indent 4 --text "- Certificate" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    LogText "Result: Certificate not found."
+                fi
+            else
+                LogText "Result: Certificate not set."
+                Display --indent 4 --text "- Certificate not set" --result "${STATUS_WARNING}" --color WHITE
+            fi
+
+            if [ ! -z "${EXIM_PRIVATEKEY}" ]; then
+                LogText "Result: ${EXIM_PRIVATEKEY}"
+                if [ -f "${EXIM_PRIVATEKEY}" ]; then
+                    LogText "Result: Private Key found."
+                    Display --indent 4 --text "- Private Key" --result "${STATUS_FOUND}" --color GREEN
+                else
+                    Display --indent 4 --text "- Private Key" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    LogText "Result: Private Key not found."
+                fi
+            else
+                LogText "Result: Private Key not set."
+                Display --indent 4 --text "- Private Key not set" --result "${STATUS_WARNING}" --color WHITE
+            fi
+        fi
+    fi
+
 #
 #################################################################################
 #

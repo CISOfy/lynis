@@ -1,13 +1,238 @@
-Lynis Changelog
-===============
+# Lynis Changelog
 
-Lynis 2.5.6 (not released yet)
+## Lynis 2.7.1 (2019-01-30)
+
+### Added
+- Support for macOS Mojave
+- Translation: Slovak
+
+### Changed
+- AUTH-9282 - Improve support for Red Hat and clones
+- FIRE-4534 - Additional support for Hands Off!, LuLu, and Radio Silence
+- LOGG-2190 - Added MariaDB filter for deleted files (tested on CentOS)
+- SHLL-6230 - Add /etc/bash.bashrc.local to umask check
+- Removed shift statement that did not work on all operating systems
+- Minor cleanups and enhancements
+- Small improvements to logging
+
+---------------------------------------------------------------------------------
+
+## Lynis 2.7.0 (2018-10-26)
+
+### Added
+- MACF-6240 - Detection of TOMOYO binary
+- MACF-6242 - Status of TOMOYO framework
+- SSH-7406  - OpenSSH server version detection
+- TOOL-5160 - Check active OSSEC analysis daemon
+
+### Changed
+- Changed several warning labels on screen
+- AUTH-9308 - More generic sulogin for systemd rescue.service
+- OS detection now ignores quotes for getting the OS ID.
+
+---------------------------------------------------------------------------------
+
+## Lynis 2.6.9 (2018-09-19)
+
+### Changed
+- Man page has been updated
+- Command 'lynis show options' provides up-to-date list
+- Option '--dump-options' is deprecated
+- Several options and commands have been extended with more examples
+- OS detection now supports openSUSE specific distribution names
+- Changed command output when using 'lynis audit system remote'
+- DBS-1882  - added /usr/local/redis/etc path and QNAP support
+- PKGS-7322 - updated solution text
+- KRNL-5788 - ignore exception when no vmlinuz file was discovered
+- TIME-3104 - extended logging for test
+
+---------------------------------------------------------------------------------
+
+## Lynis 2.6.8 (2018-08-23)
+
+### Changed
+- BOOT-5104 - improved parsing of boot parameters to init process
+- PHP-2372  - test all PHP files for expose_php and improved logging
+- Alpine Linux detection for Docker audit
+- Docker check now tests also for CMD, ENTRYPOINT, and USER configuration
+- Improved display in Docker output for showing which keys are used for signing
+
+---------------------------------------------------------------------------------
+
+## Lynis 2.6.7 (2018-08-09)
+
+### Changed
+- BOOT-5104 - Added busybox as a service manager
+- KRNL-5677 - Limit PAE and no-execute test to AMD64 hardware only
+- LOGG-2190 - Ignore /dev/zero and /dev/[aio] as deleted files
+- SSH-7408  - Changed classification of SSH root login with keys
+- Docker scan uses new format for maintainer value
+- New URL structure on CISOfy website implemented for Lynis controls
+
+---------------------------------------------------------------------------------
+
+## Lynis 2.6.6 (2018-07-06)
+
+### Changed
+* New format of changelog (https://keepachangelog.com/en/1.0.0/)
+* KRNL-5830 - Improved log text about running kernel version
+
+### Fixed
+* Under some condition no hostid2 value was reported
+* Solved 'extra operand' issue with tr command
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.5 (2018-06-26)
+
+Tests:
+------
+
+* [MAIL-8804] - Exim configuration test
+* [NETW-2704] - Use FQDN to test status of a nameserver instead of own IP address
+* [SSH-7402]  - Improved test to allow configurations with a Match block
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.4 (2018-05-02)
+
+Changes:
+--------
+* Several contributions merged, including grammar improvements
+* Initial support for Ubuntu 18.04 LTS
+* Small enhancements for usage
+
+Tests:
+------
+* [AUTH-9308] - Made 'sulogin' more generic for systemd rescue shell
+* [DNS-1600]  - Initial work on DNSSEC validation testing
+* [NETW-2704] - Added support for local resolver 127.0.0.53
+* [PHP-2379]  - Suhosin test disbled
+* [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
+* [TIME-3160] - Improvements to detect step-tickers file and entries
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.3 (2018-03-07)
+
+Changes:
+--------
+* Change in routine for host identifiers
+
+Tests:
+------
+* [CRYP-7902] - Do prevalidation for certificates before testing them
+* [HRDN-7222] - Enhanced compiler permission test
+* [NAME-4402] - Improved test to filter out empty lines
+* [PKGS-7384] - Changes to detect yum-utils package and related tooling
+
+Plugins:
+--------
+* [PLGN-2680] - cron file permissions
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.2 (2018-02-13)
+
+Changes:
+--------
+* Bugfix for Arch Linux (binary detection)
+* Textual changes for several tests
+* Update of tests database
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.1 (2018-01-26)
+
+Changes:
+--------
+* Tests can have more than 1 required OS (e.g. Linux OR NetBSD)
+* Added 'system-groups' option to profile (Enterprise users)
+* Overhaul of default profile and migrate to new style (setting=value)
+* Show warning if old profile options are used
+* Improved detection of binaries
+* New group 'usb' for tests related to USB devices
+
+Tests:
+------
+* [FILE-6363] - New test for /var/tmp (sticky bit)
+* [MAIL-8802] - Added exim4 process name to improve detection of Exim
+* [NETW-3030] - Changed name of dhcp client name process and added udhcpc
+* [SSH-7408]  - Restored UsePrivilegeSeparation
+* [TIME-3170] - Added chrony configuration file for NetBSD
+
+---------------------------------------------------------------------------------
+
+Lynis 2.6.0 (2018-01-18)
+
+Changes:
+--------
+* Binary paths are now sorted
+* Greek language added
+* systemd detection improved
+* VirtualBox detection extended
+* Several code enhancements
+
+Tests:
+------
+* [PHP-2379]  - Small enhancement to resolve error on screen in some cases
+* [MALW-3280] - Improved detection for BitDefender tooling
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.9 (2018-01-12)
+
+Changes:
+--------
+* Don't show upgrade notice when being quiet/silent
+* Added --noplugins as an alias to skip execution of plugins
+* Use PATH variable for path detection, with predefined list as a backup
+
+Tests:
+------
+* [KRNL-6000] - Multiple values are now allowed per sysctl key
+* [KRNL-6000] - Individual tests can be skipped (skip-test=KRNL-6000:<sysctl-key>)
+* [KRNL-6000] - Solution text has been added
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.8 (2017-12-28)
+
+Changes:
+--------
+* Check for empty files improved on several locations
+* New allow-auto-purge setting in profile for short-lived systems
+* Additional checks for log and report file
+* Changes to support time synchronization in old and newer systemd releases
+* Enhanced output for systems other than Linux
+
+Plugins:
+--------
+* New class (hardware) added and enabled in default profile
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.7 (2017-10-29)
+
+Changes:
+--------
+* Update of Portuguese translation
+* Added --silent as alias for --quiet
+* Reduced screen output when running non-privileged
+* IsRunning function now allows full name process match
+
+---------------------------------------------------------------------------------
+
+Lynis 2.5.6 (2017-10-27)
 
 Changes:
 --------
 * Added additional keywords for banners
+* DirectAdmin extensions
 * Enhancements to process detection
 * Spanish translation extended
+* Extended HP-UX support
+* Only show relevant messages in report
 
 Tests:
 ------

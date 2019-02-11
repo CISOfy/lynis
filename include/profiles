@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -25,6 +25,7 @@
     # Set default values (should be equal to default.prf)
     SETTING_LOG_TESTS_INCORRECT_OS=1
     SETTING_SHOW_REPORT_SOLUTION=0
+    DEPRECATED_OPTION=""
 #
 #################################################################################
 #
@@ -37,6 +38,7 @@
                 # Old style configuration
                 OPTION=$(echo ${CONFIGOPTION} | cut -d ':' -f2)
                 VALUE=$(echo ${CONFIGOPTION} | cut -d ':' -f3 | sed 's/!space!/ /g')
+                DEPRECATED_OPTION="${OPTION}"
             else
                 OPTION=$(echo ${CONFIGOPTION} | cut -d '=' -f1)
                 VALUE=$(echo ${CONFIGOPTION} | cut -d '=' -f2 | sed 's/!space!/ /g')
@@ -45,9 +47,19 @@
 
             case ${OPTION} in
 
+                # Is Lynis Enterprise allowed to purge this system when it is becomes outdated?
+                allow-auto-purge)
+                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$")
+                    if [ ! -z "${FIND}" ]; then
+                        Report "allow-auto-purge=1"
+                    else
+                        Report "allow-auto-purge=0"
+                    fi
+                ;;
+
                 # Define which compliance standards are enabled
                 # For this to work, the Enterprise plugins are needed
-                compliance_standards | check-compliance)
+                compliance_standards | compliance-standards | check-compliance)  # deprecated: compliance_standards
                     COMPLIANCE_STANDARDS_ENABLED=$(echo ${VALUE} | tr ',' ' ')
                     for STANDARD in ${COMPLIANCE_STANDARDS_ENABLED}; do
                         case ${STANDARD} in
@@ -157,10 +169,11 @@
                     OPTION_FREEBSD_SKIP_PORTAUDIT="${VALUE}"
                 ;;
 
-                # Lynis Enterprise: group name
+                # Lynis Enterprise: group name - deprecrated option
                 group)
                     GROUP_NAME="${VALUE}"
                     AddSetting "group" "${GROUP_NAME}" "Group"
+                    DEPRECATED_OPTION="group"
                 ;;
 
                 hostalias | host-alias)
@@ -175,6 +188,11 @@
                     HOSTID2="${VALUE}"
                 ;;
 
+                # Home directories to ignore during scans
+                ignore-home-dir)
+                    Report "ignore-home-dir[]=${VALUE}"
+                ;;
+
                 # Language
                 language | lang)
                     LogText "Language set via profile to '${VALUE}'"
@@ -183,8 +201,8 @@
                 ;;
 
                 # Lynis Enterprise license key
-                 license-key | license_key)
-                    if [ ! "${VALUE}" = "" ]; then
+                license-key | license_key)
+                    if [ ! -z "${VALUE}" ]; then
                         LICENSE_KEY="${VALUE}"
                         Report "license_key=${VALUE}"
                     fi
@@ -291,13 +309,6 @@
                     AddSetting "skip-plugins" "${SETTING_SKIP_PLUGINS}" "Skip plugins"
                 ;;
 
-                # SSL paths
-                ssl-certificate-paths)
-                    SSL_CERTIFICATE_PATHS="${VALUE}"
-                    Debug "SSL paths set to ${SSL_CERTIFICATE_PATHS}"
-                    AddSetting "ssl-certificate-paths" "${SSL_CERTIFICATE_PATHS}" "Paths for SSL certificates"
-                ;;
-
                 # Which tests to skip (skip-test=ABCD-1234 or skip-test=ABCD-1234:subtest)
                 skip-test)
                     STRING=$(echo ${VALUE} | tr '[:lower:]' '[:upper:]')
@@ -310,6 +321,13 @@
                     Debug "Skip upgrade test set to ${SKIP_UPGRADE_TEST}"
                 ;;
 
+                # SSL paths
+                ssl-certificate-paths)
+                    SSL_CERTIFICATE_PATHS="${VALUE}"
+                    Debug "SSL paths set to ${SSL_CERTIFICATE_PATHS}"
+                    AddSetting "ssl-certificate-paths" "${SSL_CERTIFICATE_PATHS}" "Paths for SSL certificates"
+                ;;
+
                 # Set strict mode for development and quality purposes
                 strict)
                     FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && SET_STRICT=1
@@ -318,6 +336,11 @@
                 # The name of the customer/client that uses this system
                 system-customer-name)
                     if [ ! -z "${VALUE}" ]; then Report "system-customer-name=${VALUE}"; fi
+                ;;
+
+                # The groups linked to a system (system-groups=customers,webservers,production)
+                system-groups)
+                    if [ ! -z "${VALUE}" ]; then Report "system-groups=${VALUE}"; fi
                 ;;
 
                 # Tags (tags=db,production,ssn-1304)
@@ -333,43 +356,7 @@
                     AddSetting "test-scan-mode" "${VALUE}" "Scan mode"
                 ;;
 
-                # Server IP or hostname
-                update_server_address)
-                    UPDATE_SERVER_ADDRESS="${VALUE}"
-                    AddSetting "update-server-address" "${UPDATE_SERVER_ADDRESS}" "Update server (address)"
-                ;;
-
-                # Protocol (http, https)
-                update_server_protocol)
-                    UPDATE_SERVER_PROTOCOL="${VALUE}"
-                    AddSetting "update-server-protocol" "${UPDATE_SERVER_PROTOCOL}" "Update server (protocol)"
-                ;;
-
-                # File path to tarball on server
-                update_latest_version_download)
-                    UPDATE_LATEST_VERSION_DOWNLOAD="${VALUE}"
-                    AddSetting "update-latest-version-download" "${UPDATE_LATEST_VERSION_DOWNLOAD}" "Update information: file path to latest update"
-                ;;
-
-                # File path to information file
-                update_latest_version_info)
-                    UPDATE_LATEST_VERSION_INFO="${VALUE}"
-                    AddSetting "update-latest-version-info" "${UPDATE_LATEST_VERSION_INFO}" "Update information: file path to information file"
-                ;;
-
-                # Local directory where lynis directory will be placed
-                update_local_directory)
-                    UPDATE_LOCAL_DIRECTORY="${VALUE}"
-                    AddSetting "update-local-directory" "${UPDATE_LOCAL_DIRECTORY}" "Update information: local directory for updates"
-                ;;
-
-                # Local file to maintain current version
-                update_local_version_info)
-                    UPDATE_LOCAL_VERSION_INFO="${VALUE}"
-                    AddSetting "update-local-version-info" "${UPDATE_LOCAL_VERSION_INFO}" "Update information: local file for latest release"
-                ;;
-
-                # Colored output
+                # Perform upload
                 upload)
                     SETTING_UPLOAD=no # default
                     FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && UPLOAD_DATA=1
@@ -473,7 +460,7 @@
 #
 #################################################################################
 #
-    # Add group name to report
+    # Add group name to report - deprecated
     if [ ! -z "${GROUP_NAME}" ]; then Report "group=${GROUP_NAME}"; fi
 #
 #################################################################################
@@ -501,6 +488,13 @@
 #
 #################################################################################
 #
+    if [ ! -z "${DEPRECATED_OPTION}" ]; then
+        ReportWarning "LYNIS" "One or more deprecated options used" "${DEPRECATED_OPTION}" "Update your profile"
+    fi
+#
+#################################################################################
+#
+
     Display --indent 2 --text "- Checking profiles..." --result "DONE" --color GREEN
 
 LogTextBreak

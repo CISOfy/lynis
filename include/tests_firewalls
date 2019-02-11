@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -32,7 +32,6 @@
     IPTABLES_MODULE_ACTIVE=0
     FIREWALL_ACTIVE=0
     FIREWALL_EMPTY_RULESET=0
-    FIREWALL_SOFTWARE=""
     NFTABLES_ACTIVE=0
 #
 #################################################################################
@@ -44,7 +43,6 @@
         FIND=$(${LSMODBINARY} | ${AWKBINARY} '{ print $1 }' | ${GREPBINARY} "^ip*_tables")
         if [ ! -z "${FIND}" ]; then
             FIREWALL_ACTIVE=1
-            FIREWALL_SOFTWARE="iptables"
             IPTABLES_ACTIVE=1
             IPTABLES_MODULE_ACTIVE=1
             Display --indent 2 --text "- Checking iptables kernel module" --result "${STATUS_FOUND}" --color GREEN
@@ -56,7 +54,6 @@
             done
         elif [ -f ${ROOTDIR}proc/net/ip_tables_names ]; then
             FIREWALL_ACTIVE=1
-            FIREWALL_SOFTWARE="iptables"
             Report "firewall_software[]=iptables"
             IPTABLES_ACTIVE=1
             Display --indent 2 --text "- Checking iptables support" --result "${STATUS_FOUND}" --color GREEN
@@ -89,7 +86,6 @@
                             IPTABLES_ACTIVE=1
                             IPTABLES_INKERNEL_ACTIVE=1
                             FIREWALL_ACTIVE=1
-                            FIREWALL_SOFTWARE="iptables"
                             Display --indent 2 --text "- Checking iptables in config file" --result "${STATUS_FOUND}" --color GREEN
                         else
                             LogText "Result: no iptables found in Linux kernel config file"
@@ -108,6 +104,7 @@
     # Test        : FIRE-4508
     # Description : Check iptables chain policies
     # Notes       : Suggestions are currently disabled, until related page and documentation is available
+    # TODO        : grep -z is not supported on BusyBox
     if [ ! "${IPTABLESBINARY}" = "" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FIRE-4508 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Check used policies of iptables chains"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -115,7 +112,7 @@
         TABLES="filter"
         for TABLE in ${TABLES}; do
             LogText "Test: gathering information from table ${TABLE}"
-            FIND="$FIND""\n"$(${IPTABLESBINARY} -t ${TABLE} --numeric --list | ${EGREPBINARY}  -z -o -w  '[A-Z]+' | ${AWKBINARY} -v t=${TABLE} 'NR%2 {printf "%s %s ",t, $0 ; next;}1')
+            FIND="$FIND""\n"$(${IPTABLESBINARY} -t ${TABLE} --numeric --list | ${EGREPBINARY}  -z -o -w  '[A-Z]+' | tr -d '\0' | ${AWKBINARY} -v t=${TABLE} 'NR%2 {printf "%s %s ",t, $0 ; next;}1')
         done
 
         echo "${FIND}" | while read line; do
@@ -153,7 +150,7 @@
 #################################################################################
 #
     # Test        : FIRE-4512
-    # Description : Check iptables for empty ruleset (should have at least 10 or more rules)
+    # Description : Check iptables for empty ruleset (should have at least 5 or more rules)
     if [ ! -z "${IPTABLESBINARY}" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FIRE-4512 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Check iptables for empty ruleset"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -261,7 +258,6 @@
 
         if [ ${PFFOUND} -eq 1 ]; then
             FIREWALL_ACTIVE=1
-            FIREWALL_SOFTWARE="pf"
             Report "firewall_software[]=pf"
         else
             LogText "Result: pf not running on this system"
@@ -310,7 +306,6 @@
         if [ -f ${FILE} ]; then
             LogText "Result: ${FILE} exists"
             FIREWALL_ACTIVE=1
-            FIREWALL_SOFTWARE="csf"
             Report "firewall_software[]=csf"
             Display --indent 2 --text "- Checking CSF status (configuration file)" --result "${STATUS_FOUND}" --color GREEN
 
@@ -345,7 +340,6 @@
             Display --indent 4 --text "- Checking ipf status" --result "${STATUS_RUNNING}" --color GREEN
             LogText "Result: ipf is enabled and running"
             FIREWALL_ACTIVE=1
-            FIREWALL_SOFTWARE="ipf"
             Report "firewall_software[]=ipf"
         else
             Display --indent 4 --text "- Checking ipf status" --result "${STATUS_NOT_RUNNING}" --color YELLOW
@@ -366,7 +360,6 @@
                 Display --indent 2 --text "- Checking IPFW status" --result "${STATUS_RUNNING}" --color GREEN
                 LogText "Result: IPFW is running for IPv4"
                 FIREWALL_ACTIVE=1
-                FIREWALL_SOFTWARE="ipfw"
                 Report "firewall_software[]=ipfw"
                 IPFW_ENABLED=$(service -e | ${GREPBINARY} -o ipfw)
                 if [ "${IPFW_ENABLED}" = "ipfw" ]; then
@@ -411,22 +404,70 @@
 #################################################################################
 #
     # Test        : FIRE-4534
-    # Description : Check Little Snitch Daemon on macOS
-    Register --test-no FIRE-4534 --weight L --os "macOS" --network NO --category security --description "Check for presence of Little Snitch on macOS"
+    # Description : Check outbound firewalls on macOS
+    Register --test-no FIRE-4534 --weight L --os "macOS" --network NO --category security --description "Check for presence of outbound firewalls on macOS"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if IsRunning "Little Snitch Daemon"; then
+
+        # Little Snitch Daemon (macOS)
+        LogText "Test: checking process Little Snitch Daemon"
+        IsRunning --full "Little Snitch Daemon"
+        if [ ${RUNNING} -eq 1 ]; then
             Display --indent 2 --text "- Checking Little Snitch Daemon" --result "${STATUS_ENABLED}" --color GREEN
-            AddHP 3 3
-            LogText "Result: little Snitch found"
+            LogText "Result: Little Snitch found"
+            FOUND=1
             FIREWALL_ACTIVE=1
             APPLICATION_FIREWALL_ACTIVE=1
             Report "app_fw[]=little-snitch"
             Report "firewall_software[]=little-snitch"
-        else
-            if IsVerbose; then Display --indent 2 --text "- Checking Little Snitch Daemon" --result "${STATUS_DISABLED}" --color YELLOW; fi
-            AddHP 1 3
-            LogText "Result: could not find Little Snitch"
         fi
+
+        # HandsOff! Daemon (macOS)
+        LogText "Test: checking process HandsOffDaemon"
+        IsRunning HandsOffDaemon
+        if [ ${RUNNING} -eq 1 ]; then
+            Display --indent 2 --text "- Checking Hands Off! Daemon" --result "${STATUS_ENABLED}" --color GREEN
+            LogText "Result: Hands Off! found"
+            FOUND=1
+            FIREWALL_ACTIVE=1
+            APPLICATION_FIREWALL_ACTIVE=1
+            Report "app_fw[]=hands-off"
+            Report "firewall_software[]=hands-off"
+        fi
+
+        # LuLu Daemon (macOS)
+        LogText "Test: checking process LuLu"
+        IsRunning LuLu
+        if [ ${RUNNING} -eq 1 ]; then
+            Display --indent 2 --text "- Checking LuLu Daemon" --result "${STATUS_ENABLED}" --color GREEN
+            LogText "Result: LuLu found"
+            FOUND=1
+            FIREWALL_ACTIVE=1
+            APPLICATION_FIREWALL_ACTIVE=1
+            Report "app_fw[]=lulu"
+            Report "firewall_software[]=lulu"
+        fi
+
+        # Radio Silence (macOS)
+        LogText "Test: checking process Radio Silence"
+        IsRunning --full "Radio Silence"
+        if [ ${RUNNING} -eq 1 ]; then
+            Display --indent 2 --text "- Checking Radio Silence" --result "${STATUS_ENABLED}" --color GREEN
+            LogText "Result: Radio Silence found"
+            FOUND=1
+            FIREWALL_ACTIVE=1
+            APPLICATION_FIREWALL_ACTIVE=1
+            Report "app_fw[]=radio-silence"
+            Report "firewall_software[]=radio-silence"
+        fi
+
+        if [ ${FOUND} -eq 0 ]; then
+            LogText "Result: outbound firewall not found"
+            AddHP 1 3
+        else
+            LogText "Result: found one or more macOS outbound firewall"
+            AddHP 3 3
+        fi
+
     fi
 #
 #################################################################################
@@ -439,7 +480,6 @@
         FIND=$(${LSMODBINARY} | ${AWKBINARY} '{ print $1 }' | ${GREPBINARY} "^nf*_tables")
         if [ ! -z "${FIND}" ]; then
             LogText "Result: found nftables kernel module"
-            FIREWALL_SOFTWARE="nftables"
             FIREWALL_ACTIVE=1
             NFTABLES_ACTIVE=1
             Report "firewall_software[]=nftables"
@@ -522,7 +562,7 @@
 #
     # Test        : FIRE-4594
     # Description : Check for APF (Advanced Policy Firewall)
-    Register --test-no FIRE-4592 --weight L --network NO --category security --description "Check for APF presence"
+    Register --test-no FIRE-4594 --weight L --network NO --category security --description "Check for APF presence"
     if [ ! -z "${IPTABLESBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     if [ ${SKIPTEST} -eq 0 ]; then
         FILE="/etc/apf/conf.apf"
@@ -530,7 +570,6 @@
         if [ -f ${FILE} ]; then
             LogText "Result: ${FILE} exists"
             FIREWALL_ACTIVE=1
-            FIREWALL_SOFTWARE="apf"
             Report "firewall_software[]=apf"
             Display --indent 2 --text "- Checking APF status (configuration file)" --result "${STATUS_FOUND}" --color GREEN
 
@@ -561,7 +600,6 @@
 Report "firewall_active=${FIREWALL_ACTIVE}"
 Report "firewall_empty_ruleset=${FIREWALL_EMPTY_RULESET}"
 Report "firewall_installed=${FIREWALL_ACTIVE}"
-Report "firewall_software=${FIREWALL_SOFTWARE}"
 
 WaitForKeyPress
 

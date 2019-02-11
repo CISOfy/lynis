@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -69,34 +69,44 @@
         # Sort the results
         DATA_TO_SCAN=$(echo ${DATA_TO_SCAN} | ${TRBINARY} ' ' '\n' | sort)
 
-        for I in ${DATA_TO_SCAN}; do
-            tFINDkey=$(echo ${I} | ${AWKBINARY} -F\; '{ print $2 }')
-            tFINDexpvalue=$(echo ${I} | ${AWKBINARY} -F\; '{ print $3 }')
-            tFINDhp=$(echo ${I} | ${AWKBINARY} -F\; '{ print $4 }' | ${GREPBINARY} "[0-9]")
-            tFINDdesc=$(echo ${I} | ${AWKBINARY} -F\; '{ print $5 }' | ${SEDBINARY} 's/-space-/ /g')
-            tFINDcurvalue=$(${SYSCTL_READKEY} ${tFINDkey} 2> /dev/null)
-            if [ ! "${tFINDcurvalue}" = "" ]; then
-                if [ "${tFINDexpvalue}" = "${tFINDcurvalue}" ]; then
-                    LogText "Result: sysctl key ${tFINDkey} contains equal expected and current value (${tFINDexpvalue})"
-                    Display --indent 4 --text "- ${tFINDkey} (exp: ${tFINDexpvalue})" --result "${STATUS_OK}" --color GREEN
-                    AddHP ${tFINDhp} ${tFINDhp}
+        for line in ${DATA_TO_SCAN}; do
+            tFINDkey=$(echo ${line} | ${AWKBINARY} -F\; '{ print $2 }')
+            if ! SkipAtomicTest "${TEST_NO}:${tFINDkey}"; then
+                tFINDexpvalue=$(echo ${line} | ${AWKBINARY} -F\; '{ print $3 }' | ${TRBINARY} '|' ' ')
+                tFINDhp=$(echo ${line} | ${AWKBINARY} -F\; '{ print $4 }' | ${GREPBINARY} "[0-9]")
+                tFINDdesc=$(echo ${line} | ${AWKBINARY} -F\; '{ print $5 }' | ${SEDBINARY} 's/-space-/ /g')
+                tFINDcurvalue=$(${SYSCTL_READKEY} ${tFINDkey} 2> /dev/null)
+                if [ ! -z "${tFINDcurvalue}" ]; then
+                    positive_match=0
+                    for value in ${tFINDexpvalue}; do
+                        if [ "${value}" = "${tFINDcurvalue}" ]; then
+                            positive_match=1
+                        fi
+                    done
+                    if [ ${positive_match} -eq 1 ]; then
+                        LogText "Result: sysctl key ${tFINDkey} contains equal expected and current value (${tFINDexpvalue})"
+                        Display --indent 4 --text "- ${tFINDkey} (exp: ${tFINDexpvalue})" --result "${STATUS_OK}" --color GREEN
+                        AddHP ${tFINDhp} ${tFINDhp}
+                    else
+                        LogText "Result: sysctl key ${tFINDkey} has a different value than expected in scan profile. Expected=${tFINDexpvalue}, Real=${tFINDcurvalue}"
+                        Display --indent 4 --text "- ${tFINDkey} (exp: ${tFINDexpvalue})" --result DIFFERENT --color RED
+                        AddHP 0 ${tFINDhp}
+                        FOUND=1
+                        N=$((N + 1))
+                        ReportDetails --test "${TEST_NO}" --service "sysctl" --field "${tFINDkey}" --value "${tFINDcurvalue}" --preferredvalue "${tFINDexpvalue}" --description "${tFINDdesc}"
+                    fi
                 else
-                    LogText "Result: sysctl key ${tFINDkey} has a different value than expected in scan profile. Expected=${tFINDexpvalue}, Real=${tFINDcurvalue}"
-                    Display --indent 4 --text "- ${tFINDkey} (exp: ${tFINDexpvalue})" --result DIFFERENT --color RED
-                    AddHP 0 ${tFINDhp}
-                    FOUND=1
-                    N=$((N + 1))
-                    ReportDetails --test "${TEST_NO}" --service "sysctl" --field "${tFINDkey}" --value "${tFINDcurvalue}" --preferredvalue "${tFINDexpvalue}" --description "${tFINDdesc}"
+                    LogText "Result: key ${tFINDkey} does not exist on this machine"
                 fi
             else
-                LogText "Result: key ${tFINDkey} does not exist on this machine"
+                LogText "Skipped test for ${tFINDkey} via profile"
             fi
         done
 
         # Add suggestion if one or more sysctls have a different value than scan profile
         if [ ${FOUND} -eq 1 ]; then
             LogText "Result: found ${N} keys that can use tuning, according scan profile"
-            ReportSuggestion ${TEST_NO} "One or more sysctl values differ from the scan profile and could be tweaked"
+            ReportSuggestion ${TEST_NO} "One or more sysctl values differ from the scan profile and could be tweaked" "" "Change sysctl value or disable test (skip-test=${TEST_NO}:<sysctl-key>)"
         fi
     fi
 #

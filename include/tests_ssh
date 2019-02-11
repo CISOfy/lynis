@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -27,6 +27,9 @@
     SSH_DAEMON_PORT=""
     SSH_DAEMON_RUNNING=0
     SSH_DAEMON_OPTIONS_FILE=""
+    OPENSSHD_VERSION=0
+    OPENSSHD_VERSION_MAJOR=0
+    OPENSSHD_VERSION_MINOR=0
 #
 #################################################################################
 #
@@ -46,7 +49,8 @@
             # Store settings in a temporary file
             CreateTempFile
             SSH_DAEMON_OPTIONS_FILE="${TEMP_FILE}"
-            ${SSHDBINARY} -T 2> /dev/null > ${SSH_DAEMON_OPTIONS_FILE}
+            # Use a non-existing user, to ensure that systems that have a Match block configured, will be evaluated as well
+            ${SSHDBINARY} -T -C user=doesnotexist,host=none,addr=none 2> /dev/null > ${SSH_DAEMON_OPTIONS_FILE}
         else
             Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -89,6 +93,23 @@
 #
 #################################################################################
 #
+    # Test        : SSH-7406
+    # Description : Check OpenSSH version
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-7406 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determine OpenSSH version"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        OPENSSHD_VERSION=$(sshd -t -d 2>&1 | ${GREPBINARY} 'sshd version' | ${AWKBINARY} '{if($4~OpenSSH_){print $4}}' | ${AWKBINARY} -F_ '{print $2}' | ${TRBINARY} -d ',')
+        LogText "Result: discovered OpenSSH version is ${OPENSSHD_VERSION}"
+        if [ ! -z ${OPENSSHD_VERSION} ]; then
+            OPENSSHD_VERSION_MAJOR=$(echo ${OPENSSHD_VERSION} | ${AWKBINARY} -F. '{print $1}')
+            LogText "Result: OpenSSH major version: ${OPENSSHD_VERSION_MAJOR}"
+            OPENSSHD_VERSION_MINOR=$(echo ${OPENSSHD_VERSION} | ${AWKBINARY} -F. '{print $2}')
+            LogText "Result: OpenSSH minor version: ${OPENSSHD_VERSION_MINOR}"
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
     # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
@@ -110,7 +131,7 @@
         SSHOPS="AllowTcpForwarding:NO,LOCAL,YES:=\
                 ClientAliveCountMax:2,4,16:<\
                 ClientAliveInterval:300,600,900:<\
-                Compression:(DELAYED|NO),,YES:=\
+                Compression:NO,,YES:=\
                 FingerprintHash:SHA256,MD5,:=\
                 GatewayPorts:NO,,YES:=\
                 IgnoreRhosts:YES,,NO:=\
@@ -118,12 +139,11 @@
                 LogLevel:VERBOSE,INFO,:=\
                 MaxAuthTries:2,4,6:<\
                 MaxSessions:2,4,8:<\
-                PermitRootLogin:NO,(PROHIBIT-PASSWORD|WITHOUT-PASSWORD),YES:=\
+                PermitRootLogin:(NO|PROHIBIT-PASSWORD|WITHOUT-PASSWORD),,YES:=\
                 PermitUserEnvironment:NO,,YES:=\
                 PermitTunnel:NO,,YES:=\
                 Port:,,22:!\
                 PrintLastLog:YES,,NO:=\
-                Protocol:2,,1:=\
                 StrictModes:YES,,NO:=\
                 TCPKeepAlive:NO,,YES:=\
                 UseDNS:NO,,YES:=\
@@ -131,7 +151,23 @@
                 X11Forwarding:NO,,YES:=\
                 AllowAgentForwarding:NO,,YES:="
 
-        # Disabled        MaxStartups:4,8,16:<\ (needs fixing)
+
+        # OpenSSH had some options removed over time. Based on the version we add some additional options to check
+        if [ ${OPENSSHD_VERSION_MAJOR} -lt 7 ]; then
+            LogText "Result: added additional options for OpenSSH 6.x and lower"
+            SSHOPS="${SSHOPS} UsePrivilegeSeparation:SANDBOX,YES,NO:=  Protocol:2,,1:="
+        elif [ ${OPENSSHD_VERSION_MAJOR} -eq 7 ]; then
+            # Protocol 1 support removed (OpenSSH 7.4 and later)
+            if [ ${OPENSSHD_VERSION_MINOR} -lt 4 ]; then
+                LogText "Result: added additional options for OpenSSH < 7.4"
+                SSHOPS="${SSHOPS} Protocol:2,,1:="
+            fi
+            # UsePrivilegedSeparation removed (OpenSSH 7.5 and later)
+            if [ ${OPENSSHD_VERSION_MINOR} -lt 5 ]; then
+                LogText "Result: added additional options for OpenSSH < 7.5"
+                SSHOPS="${SSHOPS} UsePrivilegeSeparation:SANDBOX,YES,NO:="
+            fi
+        fi
 
         # Go through our list of options
         for I in ${SSHOPS}; do

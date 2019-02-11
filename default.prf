@@ -33,6 +33,9 @@ colors=yes
 # Compressed uploads (set to zero when errors with uploading occur)
 compressed-uploads=yes
 
+# Debug mode (for debugging purposes, extra data logged to screen)
+#debug=yes
+
 # Show non-zero exit code when warnings are found
 error-on-warnings=no
 
@@ -89,17 +92,22 @@ upload-options=
 # Verbose output
 verbose=no
 
+
 #################################################################################
 #
-# SUGGESTION
-# ----------
+# Upgrade and updating
+# --------------------
 #
-# Do NOT make changes to this file, instead copy your preferred settings to
-# custom.prf and put it in the same directory as default.prf
+# The old settings to do automatic updating are deprecated. It is suggested to
+# use a package or deploy your the tarball via a custom script.
 #
-# To discover where your profiles are located:  lynis show profiles
+# The latest packages can be found at: https://packages.cisofy.com
 #
 #################################################################################
+
+# Skip Lynis upgrade availability test (default: no)
+#skip-upgrade-test=yes
+
 
 #################################################################################
 #
@@ -126,6 +134,7 @@ plugin=file-integrity
 plugin=file-systems
 plugin=firewalls
 plugin=forensics
+plugin=hardware
 plugin=intrusion-detection
 plugin=intrusion-prevention
 plugin=kernel
@@ -139,27 +148,6 @@ plugin=software
 plugin=system-integrity
 plugin=systemd
 plugin=users
-
-
-#################################################################################
-#
-# Lynis Enterprise options
-#
-#################################################################################
-
-# Provide the name of the customer/client
-system-customer-name=
-
-# Provide tags (tags=db,production,ssn-1304)
-tags=
-
-
-
-#################################################################################
-#
-# Configuration (Old Style) - will be replaced in phases
-#
-#################################################################################
 
 
 #################################################################################
@@ -209,6 +197,7 @@ config-data=sysctl;kernel.randomize_va_space;2;1;Randomize of memory address loc
 config-data=sysctl;kernel.suid_dumpable;0;1;Restrict core dumps;sysctl -a;url:https;//kernel.org/doc/Documentation/sysctl/kernel.txt;category:security;
 config-data=sysctl;kernel.sysrq;0;1;Disable magic SysRQ;sysctl -a;url:https;//kernel.org/doc/Documentation/sysctl/kernel.txt;category:security;
 config-data=sysctl;kernel.use-nx;0;1;No description;sysctl -a;url:https;//kernel.org/doc/Documentation/sysctl/kernel.txt;category:security;
+config-data=sysctl;kernel.yama.ptrace_scope;1|2|3;1;Disable process tracing for everyone;-;category:security;
 
 # Network
 config-data=sysctl;net.inet.ip.linklocal.in.allowbadttl;0;
@@ -252,7 +241,7 @@ config-data=sysctl;net.ipv4.icmp_echo_ignore_broadcasts;1;1;Ignore ICMP packets 
 config-data=sysctl;net.ipv4.icmp_ignore_bogus_error_responses;1;1;Ignore-;category:security;
 #config-data=sysctl;net.ipv4.ip_forward;0;1;Do not forward traffic;-;category:security;
 config-data=sysctl;net.ipv4.tcp_syncookies;1;1;Use SYN cookies to prevent SYN attack;-;category:security;
-config-data=sysctl;net.ipv4.tcp_timestamps;0;1;Do not use TCP time stamps;-;category:security;
+config-data=sysctl;net.ipv4.tcp_timestamps;0|1;1;Disable TCP time stamps or enable them with different offsets;-;category:security;
 config-data=sysctl;net.ipv6.conf.all.send_redirects;0;1;Disable/ignore ICMP routing redirects;-;category:security;
 config-data=sysctl;net.ipv6.conf.all.accept_redirects;0;1;Disable/Ignore ICMP routing redirects;-;category:security;
 config-data=sysctl;net.ipv6.conf.all.accept_source_route;0;1;Disable IP source routing;-;category:security;
@@ -301,14 +290,6 @@ openldap:slapd.conf:permissions:640-600:
 openldap:slapd.conf:owner:ldap-root:
 
 
-#################################################################################
-#
-# SSL certificates
-#
-#################################################################################
-
-# Locations where to search for SSL certificates
-ssl-certificate-paths=/etc/apache2:/etc/dovecot:/etc/httpd:/etc/letsencrypt:/etc/pki:/etc/postfix:/etc/ssl:/opt/psa/var/certificates:/usr/local/psa/var/certificates:/usr/local/share/ca-certificates:/var/www:/srv/www
 
 
 #################################################################################
@@ -318,8 +299,7 @@ ssl-certificate-paths=/etc/apache2:/etc/dovecot:/etc/httpd:/etc/letsencrypt:/etc
 #################################################################################
 
 # Ignore some stratum 16 hosts (for example when running as time source itself)
-#ntp:ignore_stratum_16_peer:127.0.0.1:
-#ntp:ignore_stratum_16_peer:1.2.3.4:
+#ntp-ignore-stratum-16-peer=127.0.0.1
 
 
 #################################################################################
@@ -367,90 +347,63 @@ permdir:/root/.ssh:rwx------:root:-:WARN:
 # Scan for a program/binary in BINPATHs
 #scanbinary:Rootkit Hunter:rkhunter:
 
-
-#################################################################################
-#
-# Audit customizing
-# -----------------
-#
-# Most options can contain 'yes' or 'no'.
-#
-#################################################################################
-
 # Amount of connections in WAIT state before reporting it as a suggestion
-#config:connections_max_wait_state:5000:
+#connections-max-wait-state=5000
 
-# Skip security repository check for Debian based systems
-#config:debian_skip_security_repository:yes:
-
-# Debug mode (for debugging purposes, extra data logged to screen)
-#config:debug:yes:
-
-# Skip the FreeBSD portaudit test
-#config:freebsd_skip_portaudit:yes:
 
 # Ignore some specific home directories
 # One directory per line; directories will be skipped for home directory specific
 # checks, like file permissions, SSH and other configuration files
-#config:ignore_home_dir:/home/user:
+#ignore-home-dir=/home/user
 
 # Do not log tests with another guest operating system (default: yes)
-#config:log_tests_incorrect_os:no:
+#log-tests-incorrect-os=no
 
 # Define if available NTP daemon is configured as a server or client on the network
 # values: server or client (default: client)
-#config:ntpd_role:client:
+#ntpd-role=client
 
 # Allow promiscuous interfaces
 #   <option>:<promiscuous interface name>:<description>:
 #if_promisc:pflog0:pf log daemon interface:
 
-# Skip Lynis upgrade availability test (default: no)
-#config:skip_upgrade_test:yes:
+
+# The URL prefix and append to the URL for controls or your custom tests
+# Link will be formed as {control-url-protocol}://{control-url-prepend}CONTROL-ID{control-url-append}
+#control-url-protocol=https
+#control-url-prepend=cisofy.com/control/
+#control-url-append=/
 
 # The URL prefix and append to URL's for your custom tests
-# Link will be build with: {control_url_protocol}://{control_url_prepend}CONTROL-ID{control_url_append}
-#config:control_url_protocol:https:
-#config:control_url_prepend:cisofy.com/control/:
-#config:control_url_append:/:
-# The URL prefix and append to URL's for your custom tests
-#config:custom_url_protocol:https:
-#config:custom_url_prepend:your-domain.example.org/control-info/:
-#config:custom_url_append:/:
+#custom-url-protocol=https
+#custom-url-prepend=your-domain.example.org/control-info/
+#custom-url-append=/
+
 
 #################################################################################
 #
-# Automatic Updating
-# -------------------
-#
-# These settings can be used to create an option to do automatic updates.
-# By specifying local paths and your update server, the tool can do an update
-# check, compare versions and download a new version.
-#
-# If you installed Lynis as a package, then update via your package manager. See
-# https://packages.cisofy.com for more information.
+# Operating system specific
+# -------------------------
 #
 #################################################################################
 
-# Local directory (without slash at end) where lynis directory will be installed
-# Note: do not add full path to lynis, as subdirectory is part of tarball
-#config:update_local_directory:/usr/local:
-# Full path to local file. Change local path if Lynis is installed on a different place
-#config:update_local_version_info:/usr/local/lynis/client-version:
+# Skip the FreeBSD portaudit test
+#freebsd-skip-portaudit=yes
 
-# Download information
-# -----------------------------
-# Protocol to use: http, https
-#config:update_server_protocol:http:
+# Skip security repository check for Debian based systems
+#debian-skip-security-repository=yes
 
-# Address of update server
-#config:update_server_address:192.168.1.125:
 
-# Path to last stable release
-#config:update_latest_version_download:/files/lynis-latest.tar.gz:
 
-# Last part of URL (file to gather)
-#config:update_latest_version_info:/files/lynis-latest-version:
+#################################################################################
+#
+# SSL certificates
+#
+#################################################################################
+
+# Locations where to search for SSL certificates
+ssl-certificate-paths=/etc/apache2:/etc/dovecot:/etc/httpd:/etc/letsencrypt:/etc/pki:/etc/postfix:/etc/ssl:/opt/psa/var/certificates:/usr/local/psa/var/certificates:/usr/local/share/ca-certificates:/var/www:/srv/www
+
 
 
 #################################################################################
@@ -460,21 +413,38 @@ permdir:/root/.ssh:rwx------:root:-:WARN:
 #
 #################################################################################
 
+# Allow this system to be purged when it is outdated (default: not defined).
+# This is useful for ephemeral systems which are short-lived.
+#allow-auto-purge=yes
+
+# Sometimes it might be useful to override the host identifiers.
+# Use only hexadecimal values (0-9, a-f), with 40 and 64 characters in length.
+#
+#hostid=40-char-hash
+#hostid2=64-char-hash
 
 # Proxy settings
 # Protocol (http, https, socks5)
-#config:upload_proxy_protocol:https:
-# Address
-#config:upload_proxy_server:1.2.3.4:
-# Port
-#config:upload_proxy_port:3128:
+#proxy-protocol=https
 
-# Define groups
-#config:group:[group name]:
-#config:group:test:
+# Proxy server
+#proxy-server=10.0.1.250
+
+# Define proxy port to use
+#proxy-port=3128
+
+# Define the group names to link to this system (preferably single words). Default setting: append
+# To clear groups before assignment, add 'action:clear' as last groupname
+#system-groups=groupname1,groupname2,groupname3
 
 # Define which compliance standards are audited and reported on. Disable this if not required.
-config:compliance_standards:cis,hipaa,iso27001,pci-dss:
+compliance-standards=cis,hipaa,iso27001,pci-dss
+
+# Provide the name of the customer/client
+#system-customer-name=mycustomer
+
+# Link one or more tags to a system
+#tags=db,production,ssn-1304
 
 
 

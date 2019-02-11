@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -330,7 +330,7 @@
                 Report "vulnerable_package[]=${ITEM}"
                 AddHP 1 2
             done
-            ReportWarning "${TEST_NO}" "Vulnerable packages found" "arch-audit has output" "text:Update packages with pacman -Suy"
+            ReportWarning "${TEST_NO}" "Vulnerable packages found" "arch-audit has output" "text:Run arch-audit to see the output, and when needed update the packages with pacman -Suy"
         fi
     fi
 #
@@ -808,7 +808,7 @@
     Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
-        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/ //g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
+        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/[[:blank:]]//g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
         if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
             LogText "Result: YUM package update management failed"
             Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_WARNING}" --color RED
@@ -826,11 +826,12 @@
     if [ ! -z "${YUMBINARY}" -a -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7384 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --category security --description "Check for YUM utils package"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -x ${ROOTDIR}usr/bin/package-cleanup ]; then
-            LogText "Result: found YUM utils package (${ROOTDIR}usr/bin/package-cleanup)"
+        # package-cleanup tool can be found in different locations
+        if [ -x ${ROOTDIR}bin/package-cleanup -o -x ${ROOTDIR}usr/bin/package-cleanup ]; then
+            LogText "Result: found YUM utils package (package-cleanup)"
             # Check for duplicates
             LogText "Test: Checking for duplicate packages"
-            FIND=$(${ROOTDIR}usr/bin/package-cleanup -q --dupes > /dev/null; echo $?)
+            FIND=$(package-cleanup -q --dupes > /dev/null; echo $?)
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: No duplicate packages found"
                 Display --indent 2 --text "- Checking package database duplicates" --result "${STATUS_OK}" --color GREEN
@@ -843,7 +844,7 @@
 
             # Check for package database problems
             LogText "Test: Checking for database problems"
-            FIND=$(${ROOTDIR}usr/bin/package-cleanup --problems > /dev/null; echo $?)
+            FIND=$(package-cleanup --problems > /dev/null; echo $?)
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: No package database problems found"
                 Display --indent 2 --text "- Checking package database for problems" --result "${STATUS_OK}" --color GREEN
@@ -947,7 +948,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! -z "${PYTHONBINARY}" ]; then
             LogText "Test: checking enabled repositories"
-            REPOS=$(${PYTHONBINARY} -c 'import yum ; yb = yum.YumBase() ; print [(r.id + "=" + str(r.gpgcheck)) for r in yb.repos.listEnabled()]' | ${GREPBINARY} "^\[" | ${TRBINARY} -d '[] ' | ${TRBINARY} -d "'" | ${SEDBINARY} 's/,/ /g')
+            REPOS=$(${PYTHONBINARY} -c 'import yum ; yb = yum.YumBase() ; yb.conf ; print [(r.id + "=" + str(r.gpgcheck)) for r in yb.repos.listEnabled()]' | ${GREPBINARY} "^\[" | ${TRBINARY} -d '[] ' | ${TRBINARY} -d "'" | ${SEDBINARY} 's/,/ /g')
             if [ -z "${REPOS}" ]; then LogText "Result: found no repositories"; fi
             for I in ${REPOS}; do
                 REPO=$(echo ${I} | ${AWKBINARY} -F= '{print $1}')

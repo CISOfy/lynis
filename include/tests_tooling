@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -27,7 +27,7 @@
     PUPPET_MASTER_RUNNING=0
     SALT_MASTER_RUNNING=0
     SALT_MINION_RUNNING=0
-    IPS_TOOL_FOUND=0
+    IDS_IPS_TOOL_FOUND=0
     FAIL2BAN_FOUND=0
     FAIL2BAN_EMAIL=0
     FAIL2BAN_SILENT=0
@@ -88,8 +88,7 @@
                     Report "automation_tool_running[]=cf-agent"
                     Display --indent 4 --text "- CFEngine (cf-agent)" --result "${STATUS_FOUND}" --color GREEN
                 fi
-                IsRunning "cf-server"
-                if [ ${RUNNING} -eq 1 ]; then
+                if IsRunning "cf-server"; then
                     LogText "Result: found CFEngine server"
                     AUTOMATION_TOOL_FOUND=1
                     CFENGINE_SERVER_RUNNING=1
@@ -137,8 +136,7 @@
             Display --indent 4 --text "- Puppet (agent)" --result "${STATUS_FOUND}" --color GREEN
         fi
 
-        IsRunning "puppet master"
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning --full "puppet master"; then
             LogText "Result: found puppet master"
             AUTOMATION_TOOL_FOUND=1
             PUPPET_MASTER_RUNNING=1
@@ -161,8 +159,7 @@
             Report "automation_tool_running[]=saltstack-minion"
             Display --indent 4 --text "- SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
         else
-            IsRunning "salt-master"
-            if [ ${RUNNING} -eq 1 ]; then
+            if IsRunning "salt-master"; then
                 LogText "Result: found SaltStack (master)"
                 AUTOMATION_TOOL_FOUND=1
                 SALT_MASTER_RUNNING=1
@@ -335,8 +332,7 @@
             Display --indent 2 --text "- Checking presence of Snort" --result "${STATUS_FOUND}" --color GREEN
         fi
 
-        IsRunning snort
-        if [ ${SNORT_RUNNING} -eq 1 ]; then
+        if IsRunning "snort"; then
             SNORT_FOUND=1
             SNORT_RUNNING=1
             SNORT_LOG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/snort/ {print $4}' | ${HEADBINARY} -1)
@@ -362,6 +358,23 @@
                 fi
                 SNORT=$(which snort 2> /dev/null)
             fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-5160
+    # Description : Check for OSSEC
+    Register --test-no TOOL-5126 --weight L --network NO --category security --description "Check for active OSSEC analysis daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        if IsRunning "ossec-analysisd"; then
+            IDS_IPS_TOOL_FOUND=1
+            LogText "Result: OSSEC analysis daemon is active"
+            Report "ids_ips_tooling[]=ossec"
+            Display --indent 2 --text "- Checking presence of OSSEC" --result "${STATUS_FOUND}" --color GREEN
+        else
+            LogText "Result: OSSEC analysis daemon not active"
         fi
     fi
 #

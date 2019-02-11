@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -720,6 +720,10 @@
                     FIND2=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
                     ;;
             esac
+        elif [ ${OS_REDHAT_OR_CLONE} -eq 1 ]; then
+            PREQS_MET="YES"
+            FIND=$(for I in $(${AWKBINARY} -F: '{print $1}' ${ROOTDIR}etc/passwd) ; do passwd -S $I | ${AWKBINARY} '{ if ($2=="PS" && $5=="99999") print $1 }' ; done)
+            FIND2=$(for I in $(${AWKBINARY} -F: '{print $1}' ${ROOTDIR}etc/passwd) ; do passwd -S $I | ${AWKBINARY} '{ if ($2=="NP") print $1 }' ; done)
         else
             LogText "Result: skipping test for this Linux version"
             ReportManual "AUTH-9282:01"
@@ -756,7 +760,7 @@
     Register --test-no AUTH-9283 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking accounts without password"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking passwordless accounts"
-        if [ "${FIND2}" = "" ]; then
+        if [ -z "${FIND2}" ]; then
             LogText "Result: all accounts seem to have a password"
             Display --indent 2 --text "- Accounts without password" --result "${STATUS_OK}" --color GREEN
         else
@@ -776,7 +780,11 @@
     # Description : Check user password aging
     # Notes       : MIN = minimum age, avoid rotation of passwords too quickly
     #             : MAX = maximum age, ensure regular change of passwords
-    if [ -f ${ROOTDIR}etc/login.defs ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    PREQS_MET="NO"
+    if [ -f ${ROOTDIR}etc/login.defs ]; then
+        PREQS_MET="YES"
+        # Future TODO: check if PAM overrule these settings
+    fi
     Register --test-no AUTH-9286 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking user password aging"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PASS_MIN_DAYS option in ${ROOTDIR}etc/login.defs"
@@ -958,7 +966,7 @@
                     # Mark test as performed only when at least 1 target exists (e.g. Ubuntu 14.04 has limited systemd support)
                     TEST_PERFORMED=1
                     LogText "Result: found target ${I}"
-                    FIND=$(${EGREPBINARY} "^ExecStart=" ${FILE} | ${GREPBINARY} "/sulogin")
+                    FIND=$(${EGREPBINARY} "^ExecStart=" ${FILE} | ${GREPBINARY} "sulogin")
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: did not find sulogin specified, possible risk of getting into single user mode without authentication"
                     else
@@ -1196,8 +1204,8 @@
             if [ ${FOUND} -eq 1 ]; then
                 if [ ${WEAK_UMASK} -eq 0 ]; then
                     Display --indent 4 --text "- umask (/etc/login.conf)" --result "${STATUS_OK}" --color GREEN
-                  else
-                    Display --indent 4 --text "- umask (/etc/login.conf)" --result WEAK --color YELLOW
+                else
+                    Display --indent 4 --text "- umask (/etc/login.conf)" --result "${STATUS_WEAK}" --color YELLOW
                     ReportSuggestion ${TEST_NO} "Umask in /etc/login.conf could be more strict like 027"
                 fi
             else

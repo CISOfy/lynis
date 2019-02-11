@@ -14,7 +14,7 @@
 #
 # Options:
 
-    echo "[*] Activity [V] Succesful [X] Error [=] Result"
+    echo "[*] Activity [V] Successful [X] Error [=] Result"
     echo ""
 
     # Umask used when creating files/directories
@@ -227,7 +227,7 @@
 
         RPMFILE="${RPMWORKDIR}/RPMS/noarch/lynis-${LYNIS_VERSION}-1.noarch.rpm"
         if [ -f ${RPMFILE} ]; then
-            echo "[V] Building RPM succesful!"
+            echo "[V] Building RPM successful!"
           else
             echo "[X] Could not find RPM file, most likely failed"
             echo "    Expected: ${RPMFILE}"

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -98,11 +98,12 @@
 #
 #################################################################################
 #
-
     # Test        : KRNL-5677
     # Description : Check CPU options and support (PAE, No eXecute, eXecute Disable)
     # More info   : pae and nx bit are both visible on AMD and Intel CPU's if supported
-    Register --test-no KRNL-5677 --os Linux --weight L --network NO --category security --description "Check CPU options and support"
+
+    if [ "${HARDWARE}" = "x86_64" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no KRNL-5677 --preqs-met "${PREQS_MET}" --os Linux --weight L --network NO --category security --description "Check CPU options and support"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking CPU support (NX/PAE)"
         LogText "Test: Checking /proc/cpuinfo"
@@ -369,11 +370,13 @@
     if [ "${LINUX_VERSION}" = "Debian" -o "${LINUX_VERSION}" = "Ubuntu" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no KRNL-5788 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking availability new Linux kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
+        HAS_VMLINUZ=0
         LogText "Test: Searching apt-cache, to determine if a newer kernel is available"
         if [ -x ${ROOTDIR}usr/bin/apt-cache ]; then
             LogText "Result: found ${ROOTDIR}usr/bin/apt-cache"
             LogText "Test: checking readlink location of ${ROOTDIR}vmlinuz"
             if [ -f ${ROOTDIR}vmlinuz ]; then
+                HAS_VMLINUZ=1
                 FINDKERNFILE=$(readlink -f ${ROOTDIR}vmlinuz)
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
                 LogText "Test: checking package from dpkg -S"
@@ -394,9 +397,11 @@
             if IsEmpty "${FINDINST}"; then
                 Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
                 LogText "Result: Exception occurred, no output from apt-cache policy"
-                ReportException "${TEST_NO}:01"
-                LogText "Exception: apt-cache policy did not return an installed kernel version"
-                ReportSuggestion ${TEST_NO} "Check the output of apt-cache policy manually to determine why output is empty"
+                if [ ${HAS_VMLINUZ} -eq 1 ]; then
+                    ReportException "${TEST_NO}:01"
+                    ReportSuggestion ${TEST_NO} "Check the output of apt-cache policy to determine why its output is empty"
+                fi
+                LogText "Result: apt-cache policy did not return an installed kernel version"
             else
                 if [ "${FINDINST}" = "${FINDCAND}" ]; then
                     if [ -e /dev/grsec ]; then
@@ -584,14 +589,14 @@
                         for I in ${KERNELS}; do
                             # Check if we already found a kernel and it is not equal to what we run (e.g. double versions may exist)
                             if [ ${FOUND_KERNEL} -eq 1 -a ! "${MYKERNEL}" = "${I}" ]; then
-                                LogText "Result: found a kernel (${I}) later than running one (${MYKERNEL})"
+                                LogText "Result: found a kernel (${I}) later than active kernel (${MYKERNEL})"
                                 REBOOT_NEEDED=1
                             fi
                             if [ "${MYKERNEL}" = "${I}" ]; then
                                 FOUND_KERNEL=1
-                                LogText "Result: Found ${I} (= our kernel)"
+                                LogText "Result: found ${I} (= active kernel)"
                             else
-                                LogText "Result: Found ${I}"
+                                LogText "Result: found ${I}"
                             fi
                         done
                         # Check if we at least found the kernel on disk
@@ -600,7 +605,7 @@
                         else
                             # If we are not sure yet reboot it needed, but we found running kernel as last one on disk, we run latest kernel
                             if [ ${REBOOT_NEEDED} -eq 2 ]; then
-                                LogText "Result: we found our kernel on disk as last entry, so seems to be up-to-date"
+                                LogText "Result: found the running kernel on disk being the last entry, so it looks up-to-date"
                                 REBOOT_NEEDED=0
                             fi
                         fi
@@ -634,4 +639,4 @@ WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2017, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2019, CISOfy - https://cisofy.com

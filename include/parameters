@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -60,8 +60,7 @@
                                         shift; shift; shift  # shift out first three arguments
                                         EXTRA_PARAMS=""
                                         if [ ! "$1" = "" ]; then EXTRA_PARAMS=" $@"; fi
-                                        # --quick is added to be non-interactive
-                                        REMOTE_COMMAND="./lynis audit system --quick${EXTRA_PARAMS}"
+                                        REMOTE_COMMAND="./lynis audit system"
                                         echo ""
                                         echo "  How to perform a remote scan:"
                                         echo "  ============================="
@@ -235,6 +234,9 @@
                 for ITEM in ${OPTIONS}; do
                     echo "${ITEM}" | tr '_' ' '
                 done
+                echo "This option is deprecated"
+                echo "Use: lynis show options"
+
                 ExitClean
             ;;
 
@@ -279,27 +281,37 @@
 
             # Define a custom profile file
             --profile)
-                shift
-                SEARCH_PROFILES=$1
+                if [ $# -gt 1 ]; then
+                    shift
+                    SEARCH_PROFILES=$1
+                else
+                    echo "Specify the profile (lynis audit system --profile /home/michael/myprofile.prf)"
+                    exit 1
+                fi
             ;;
 
             # Define a custom plugin directory
             --plugindir | --plugin-dir | --plugins-dir)
-                shift
-                PLUGINDIR=$1
-                LASTCHAR=$(echo $1 | awk '{ print substr($0, length($0))}')
-                if [ "${LASTCHAR}" = "/" ]; then
-                    echo "${RED}Error:${WHITE} plugin directory path should not end with a slash${NORMAL}"
-                    ExitCustom 65
-                fi
-                if [ ! -d ${PLUGINDIR} ]; then
-                    echo "${RED}Error:${WHITE} invalid plugin directory ${PLUGINDIR}${NORMAL}"
-                    ExitCustom 66
+                if [ $# -gt 1 ]; then
+                    shift
+                    PLUGINDIR=$1
+                    LASTCHAR=$(echo $1 | awk '{ print substr($0, length($0))}')
+                    if [ "${LASTCHAR}" = "/" ]; then
+                        echo "${RED}Error:${WHITE} plugin directory path should not end with a slash${NORMAL}"
+                        ExitCustom 65
+                    fi
+                    if [ ! -d ${PLUGINDIR} ]; then
+                        echo "${RED}Error:${WHITE} invalid plugin directory ${PLUGINDIR}${NORMAL}"
+                        ExitCustom 66
+                    fi
+                else
+                    echo "Specify the plugin directory (lynis audit system --plugindir /home/michael/plugins)"
+                    exit 1
                 fi
             ;;
 
             # Quiet mode
-            --quiet | -q)
+            --quiet | -q | --silent)
                 QUIET=1
                 QUICKMODE=1 # Run non-interactive
             ;;
@@ -344,7 +356,7 @@
             ;;
 
             # Skip execution of plugins
-            --skip-plugins | --no-plugins)
+            --skip-plugins | --no-plugins | --noplugins)
                 SKIP_PLUGINS=1
             ;;
 

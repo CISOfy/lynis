@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -75,12 +75,15 @@
     Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking MySQL root password"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Trying to login to local MySQL server without password"
-        FIND=$(${MYSQLCLIENTBINARY} -u root --password= --silent --batch --execute="" 2> /dev/null; echo $?)
+
+        # "-u root --password=" avoids ~/.my.cnf authentication settings
+        # "plugin = 'mysql_native_password' AND authentication_string = ''" avoids false positives when secure plugins are used 
+        FIND=$(${MYSQLCLIENTBINARY} --no-defaults -u root --password= --silent --batch --execute="SELECT count(*) FROM mysql.user WHERE user = 'root' AND plugin = 'mysql_native_password' AND authentication_string = ''" mysql 2>/dev/null; echo $?)
         if [ "${FIND}" = "0" ]; then
-            LogText "Result: Login succeeded, no MySQL root password set!"
-            ReportWarning ${TEST_NO} "No MySQL root password set"
-            Display --indent 4 --text "- Checking empty MySQL root password" --result "${STATUS_WARNING}" --color RED
-            AddHP 0 5
+           LogText "Result: Login succeeded, no MySQL root password set!"
+           ReportWarning ${TEST_NO} "No MySQL root password set"
+           Display --indent 4 --text "- Checking empty MySQL root password" --result "${STATUS_WARNING}" --color RED
+           AddHP 0 5
         else
             LogText "Result: Login did not succeed, so a MySQL root password is set"
             if IsVerbose; then Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN; fi
@@ -256,7 +259,10 @@
     if [ ${REDIS_RUNNING} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running"; fi
     Register --test-no DBS-1882 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        PATHS="${ROOTDIR}etc/redis ${ROOTDIR}usr/local/etc/redis"
+        PATHS="${ROOTDIR}etc/redis ${ROOTDIR}usr/local/etc/redis ${ROOTDIR}usr/local/redis/etc"
+        if [ ${QNAP_DEVICE} -eq 1 ]; then
+            PATHS="${PATHS} ${ROOTDIR}share/CACHEDEV1_DATA/.qpkg/QKVM/usr/etc/redis.conf"
+        fi
         ALLFILES=$(${LSBINARY} ${ROOTDIR}etc/redis.conf 2> /dev/null)
         FOUND=0
         for DIR in ${PATHS}; do

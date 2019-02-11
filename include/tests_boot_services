@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -30,7 +30,9 @@
     BOOT_LOADER_FOUND=0
     BOOT_LOADER_SEARCHED=0
     GRUB_VERSION=0
-    SERVICE_MANAGER="unknown"
+    if [ -z "${SERVICE_MANAGER}" ]; then
+        SERVICE_MANAGER="unknown"
+    fi
 #
 #################################################################################
 #
@@ -69,8 +71,10 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    FILENAME=$(${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline)
-                    LogText "Result: cmdline found = ${FILENAME}"
+                    OUTPUT=$(${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline | ${TRBINARY} '\0' ' ' | ${SEDBINARY} 's/ $//')
+                    LogText "Result: cmdline found = ${OUTPUT}"
+                    FILENAME=$(echo "${OUTPUT}" | ${AWKBINARY} '{print $1}')
+                    LogText "Result: file on disk = ${FILENAME}"
                     ISFILE=$(echo ${FILENAME} | ${GREPBINARY} "^/")
                     if [ ! -z "${ISFILE}" ]; then
                         if [ -L ${ISFILE} ]; then
@@ -85,27 +89,32 @@
                     if [ ! -z "${FILENAME}" ]; then
                         SHORTNAME=$(echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }')
                         LogText "Found: ${SHORTNAME}"
-                        case ${SHORTNAME} in
-                            "init" | "initsplash")
-                                SERVICE_MANAGER="SysV Init"
-                            ;;
-                            systemd)
-                                SERVICE_MANAGER="systemd"
-                            ;;
-                            upstart)
-                                SERVICE_MANAGER="upstart"
-                            ;;
-                            *)
-                                CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
+                        if [ "${SERVICE_MANAGER}" = "unknown" ]; then
+                            case ${SHORTNAME} in
+                                busybox)
+                                    SERVICE_MANAGER="busybox"
+                                ;;
 
-                                if [ ! -z "${CONTAINS_SYSTEMD}" ]; then
+                                "init" | "initsplash")
+                                    SERVICE_MANAGER="SysV Init"
+                                ;;
+                                systemd)
                                     SERVICE_MANAGER="systemd"
-                                else
-                                    LogText "Found ${SHORTNAME}. Unclear what service manager this is"
-                                    ReportException "${TEST_NO}:001" "Unknown service manager"
-                                fi
-                            ;;
-                        esac
+                                ;;
+                                upstart)
+                                    SERVICE_MANAGER="upstart"
+                                ;;
+                                *)
+                                    CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
+                                    if [ ! -z "${CONTAINS_SYSTEMD}" ]; then
+                                        SERVICE_MANAGER="systemd"
+                                    else
+                                        LogText "Found ${SHORTNAME}. Unclear what service manager this is"
+                                        ReportException "${TEST_NO}:001" "Unknown service manager"
+                                    fi
+                                ;;
+                            esac
+                        fi
                     else
                         LogText "Result: /proc/1/cmdline seems to be empty"
                         ReportException "${TEST_NO}:002" "No data found in /proc/1/cmdline"
@@ -144,6 +153,7 @@
     # Description : Check if boot.efi is found on macOS/macOS
     Register --test-no BOOT-5106 --os "macOS" --weight L --network NO --root-only YES --category security --description "Check EFI boot file on Mac OS X/macOS"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         FileExists ${ROOTDIR}System/Library/CoreServices/boot.efi
         if [ ${FILE_FOUND} -eq 1 ]; then
             LogText "Result: found macOS/Mac OS X boot.efi file"
@@ -158,6 +168,7 @@
     # Description : Check for Syslinux
     Register --test-no BOOT-5108 --os "Linux" --weight L --network NO --root-only YES --category security --description "Check Syslinux as bootloader"
     if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
         FileExists ${ROOTDIR}boot/syslinux/syslinux.cfg
         if [ ${FILE_FOUND} -eq 1 ]; then
             LogText "Result: found Syslinux"
@@ -544,7 +555,7 @@
                 Report "running_service[]=${ITEM}"
                 COUNT=$((COUNT + 1))
             done
-            LogText "Note: Run systemctl --full --type=service to see all services"
+            LogText "Hint: Run systemctl --full --type=service to see all services"
             Display --indent 2 --text "- Check running services (systemctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} running services"
             LogText "Result: Found ${COUNT} enabled services"
@@ -559,7 +570,7 @@
                 Report "boot_service[]=${ITEM}"
                 COUNT=$((COUNT + 1))
             done
-            LogText "Note: Run systemctl list-unit-files --type=service to see all services"
+            LogText "Hint: Run systemctl list-unit-files --type=service to see all services"
             Display --indent 2 --text "- Check enabled services at boot (systemctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} enabled services"
             LogText "Result: Found ${COUNT} running services"
@@ -795,7 +806,7 @@
         if [ -f ${ROOTDIR}usr/lib/systemd/system/rescue.service ]; then
             LogText "Result: file /usr/lib/systemd/system/rescue.service"
             LogText "Test: checking presence sulogin for single user mode"
-            FIND=$(${EGREPBINARY} "^ExecStart=-(/bin/sh -c \")?(/usr)?/(s)?bin/sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
+            FIND=$(${EGREPBINARY} "^ExecStart=.*sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
             if [ ! -z "${FIND}" ]; then
                 FOUND=1
                 LogText "Result: found sulogin, so single user is protected"

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2017, CISOfy
+# Copyright 2007-2019, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -22,6 +22,9 @@
 #
 #################################################################################
 #
+    # Variables
+    PHPVERSION=""
+
     InsertSection "PHP"
 
     # Possible locations of php.ini
@@ -39,9 +42,16 @@
                 ${ROOTDIR}etc/php5/apache2/php.ini \
                 ${ROOTDIR}etc/php5/fpm/php.ini \
                 ${ROOTDIR}private/etc/php.ini \
+                ${ROOTDIR}etc/php/7.2/cli/php.ini ${ROOTDIR}etc/php/7.2/fpm/php.ini \
+                ${ROOTDIR}etc/php/7.1/cli/php.ini ${ROOTDIR}etc/php/7.1/fpm/php.ini \
                 ${ROOTDIR}etc/php/7.0/cli/php.ini ${ROOTDIR}etc/php/7.0/fpm/php.ini \
                 ${ROOTDIR}var/www/conf/php.ini \
                 ${ROOTDIR}usr/local/etc/php.ini ${ROOTDIR}usr/local/lib/php.ini \
+                ${ROOTDIR}usr/local/etc/php5/cgi/php.ini \
+                ${ROOTDIR}usr/local/php54/lib/php.ini \
+                ${ROOTDIR}usr/local/php56/lib/php.ini \
+                ${ROOTDIR}usr/local/php70/lib/php.ini \
+                ${ROOTDIR}usr/local/php71/lib/php.ini \
                 ${ROOTDIR}usr/local/zend/etc/php.ini \
                 ${ROOTDIR}usr/pkg/etc/php.ini \
                 ${ROOTDIR}opt/cpanel/ea-php54/root/etc/php.ini \
@@ -57,9 +67,19 @@
                 ${ROOTDIR}opt/alt/php55/etc/php.ini \
                 ${ROOTDIR}opt/alt/php56/etc/php.ini \
                 ${ROOTDIR}opt/alt/php70/etc/php.ini \
-                ${ROOTDIR}opt/alt/php71/etc/php.ini"
+                ${ROOTDIR}opt/alt/php71/etc/php.ini \
+                ${ROOTDIR}etc/opt/remi/php56/php.ini \
+                ${ROOTDIR}etc/opt/remi/php70/php.ini \
+                ${ROOTDIR}etc/opt/remi/php71/php.ini \
+                ${ROOTDIR}etc/opt/remi/php72/php.ini"
 
     PHPINIDIRS="${ROOTDIR}etc/php5/conf.d \
+                ${ROOTDIR}etc/php/7.0/cli/conf.d \
+                ${ROOTDIR}etc/php/7.1/cli/conf.d \
+                ${ROOTDIR}etc/php/7.2/cli/conf.d \
+                ${ROOTDIR}etc/php/7.0/fpm/conf.d \
+                ${ROOTDIR}etc/php/7.1/fpm/conf.d \
+                ${ROOTDIR}etc/php/7.2/fpm/conf.d \
                 ${ROOTDIR}etc/php.d \
                 ${ROOTDIR}opt/cpanel/ea-php54/root/etc/php.d ${ROOTDIR}opt/cpanel/ea-php55/root/etc/php.d ${ROOTDIR}opt/cpanel/ea-php56/root/etc/php.d ${ROOTDIR}opt/cpanel/ea-php70/root/etc/php.d \
                 ${ROOTDIR}opt/cpanel/ea-php71/root/etc/php.d \
@@ -203,25 +223,33 @@
 #################################################################################
 #
     # Test        : PHP-2372
-    # Description : Check php expose_php option
-    # Notes       : Extend test to check all PHP files YYY
-    if [ ! -z "${PHPINIFILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    # Description : Check PHP expose_php option
+    # Background  : When this option is turned on, PHP will show its version number in the HTTP headers
+    # Notes       : TODO - Extend test to check all PHP files
+    if [ ! -z "${PHPINI_ALLFILES}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PHP-2372 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP expose_php option"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking expose_php option"
-        FIND=$(${EGREPBINARY} -i 'expose_php.*(off|no|0)' ${PHPINIFILE} | ${GREPBINARY} -v '^;')
-        if [ -z "${FIND}" ]; then
+        FOUND=0
+        for FILE in ${PHPINI_ALLFILES}; do
+            LogText "Test: Checking file ${FILE}"
+            FIND=$(${EGREPBINARY} -i 'expose_php.*(on|yes|1)' ${FILE} | ${GREPBINARY} -v '^;')
+            if HasData "${FIND}"; then
+                LogText "Result: found a a possible match on expose_php setting"
+                LogText "Data: ${FIND}"
+                FOUND=1
+            fi
+        done
+
+        if [ ${FOUND} -eq 1 ]; then
             Display --indent 4 --text "- Checking expose_php option" --result "${STATUS_ON}" --color RED
-            ReportWarning ${TEST_NO} "PHP option expose_php is possibly turned on, which can reveal useful information for attackers."
-            ReportSuggestion ${TEST_NO} "Change the expose_php line to: expose_php = Off"
+            ReportSuggestion ${TEST_NO} "Turn off PHP information exposure" "expose_php = Off" "-"
             Report "Result: expose_php option is turned on, which can expose useful information for an attacker"
-            AddHP 1 2
+            AddHP 1 3
         else
             Display --indent 4 --text "- Checking expose_php option" --result "${STATUS_OFF}" --color GREEN
             LogText "Result: Found 'expose_php' in disabled state (0, no, or off)"
             AddHP 2 2
         fi
-        # TODO Check through all files
     fi
 #
 #################################################################################
@@ -293,62 +321,80 @@
 #
 #################################################################################
 #
+    # - test disabled for time being, as newer suhosin7 work is not stable enough -
     # Test        : PHP-2379
     # Description : Check PHP suhosin extension status
-    if [ ! -z "${PHPINI_ALLFILES}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PHP-2379 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP suhosin extension status"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        FOUND=0
-        SIMULATION=0
-        if [ "${OS}" = "OpenBSD" ]; then
-            FOUND=1                    # On OpenBSD, Suhosin is hard linked into PHP
-            SIMULATION=off
-        else
-            for I in ${PHPINI_ALLFILES}; do
-                LogText "Test: Checking for PHP suhosin extension status in file ${I}"
-                FIND=$(${GREPBINARY} -oP '^extension=.*?suhosin.so.*$' ${I})
-                if [ -z "${FIND}" ]; then
-                    LogText "Result: ${I}: suhosin is not enabled"
-                else
-                    LogText "Result: ${I}: suhosin is enabled"
-                    FOUND=1
-                fi
+    #if [ ! -z "${PHPINI_ALLFILES}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #Register --test-no PHP-2379 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check PHP suhosin extension status"
 
-                LogText "Test: Check Suhosin simulation mode status"
-                SIMULATION=$(${GREPBINARY} -oP '^suhosin.simulation.*$' ${I} | ${CUTBINARY} -d= -f2 | ${GREPBINARY} -io 'off' | ${TRBINARY} '[:upper:]' '[:lower:]')
-                if [ "${SIMULATION}" = "off" ]; then
-                    LogText "Result: ${I}: suhosin simulation mode is not active"
-                else
-                    LogText "Result: ${I}: suhosin simulation mode is active"
-                fi
-            done
-        fi
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    #    FOUND=0
+    #    SIMULATION=0
+    #    MAJOR_VERSION=$(echo ${PHPVERSION} | ${EGREPBINARY} "^7")
+    #    if [ "${OS}" = "OpenBSD" ]; then
+    #        FOUND=1                    # On OpenBSD, Suhosin is hard linked into PHP
+    #        SIMULATION=off
+    #    else
+    #        for I in ${PHPINI_ALLFILES}; do
+    #            LogText "Test: Checking for PHP suhosin extension status in file ${I}"
+    #            FIND=$(${GREPBINARY} -oP '^extension=.*?suhosin7?.so.*$' ${I})
+    #            if [ -z "${FIND}" ]; then
+    #                LogText "Result: ${I}: suhosin is not enabled"
+    #            else
+    #                LogText "Result: ${I}: suhosin is enabled"
+    #                FOUND=1
+    #            fi
 
-        if [ ${FOUND} -eq 0 ]; then
-            LogText "Result: Suhosin extension is not enabled"
-            Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_WARNING}" --color RED
-            ReportSuggestion ${TEST_NO} "Harden PHP by enabling suhosin extension"
-            LogText "suhosin extension is not enabled"
-            AddHP 0 1
+    #            LogText "Test: Check Suhosin simulation mode status"
+    #            SIMULATION=$(${GREPBINARY} -oP '^suhosin.simulation.*$' ${I} | ${CUTBINARY} -d= -f2 | ${GREPBINARY} -io 'off' | ${TRBINARY} '[:upper:]' '[:lower:]')
+    #            if [ "${SIMULATION}" = "off" ]; then
+    #                LogText "Result: ${I}: suhosin simulation mode is not active"
+    #            else
+    #                LogText "Result: ${I}: suhosin simulation mode is active"
+    #            fi
+    #        done
+    #    fi
 
-        else
-            LogText "Result: Suhosin extension is enabled"
-            Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_OK}" --color GREEN
-            AddHP 2 2
-        fi
+    #    # Check Suhosin for PHP 7
+    #    if [ ! -z "${MAJOR_VERSION}" -a ${FOUND} -eq 1 ]; then
+    #        LogText "Test: Check Suhosin for PHP 7 is not enabled"
+    #        LogText "Result: Suhosin for PHP 7 is in alpha stage and should not be used in production"
+    #        ReportSuggestion ${TEST_NO} "Disable Suhosin for PHP 7"
+    #        Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_WARNING}" --color RED
+    #        Display --indent 6 --text "- Suhosin is enabled for PHP 7" --result "${STATUS_WARNING}" --color RED
+    #        AddHP 0 1
+    #    elif [ ! -z "${MAJOR_VERSION}" -a ${FOUND} -eq 0 ]; then
+    #        LogText "Test: Check Suhosin for PHP 7 is not enabled"
+    #        LogText "Result: Suhosin for PHP 7 is not enabled"
+    #        Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_OK}" --color GREEN
+    #        Display --indent 6 --text "- Suhosin is not enabled for PHP 7" --result "${STATUS_OK}" --color GREEN
+    #        AddHP 1 1
+    #    else
+    #        if [ ${FOUND} -eq 0 ]; then
+    #            LogText "Result: Suhosin extension is not enabled"
+    #            Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_WARNING}" --color RED
+    #            ReportSuggestion ${TEST_NO} "Harden PHP by enabling suhosin extension"
+    #            LogText "suhosin extension is not enabled"
+    #            AddHP 0 1
+    #        else
+    #            LogText "Result: Suhosin extension is enabled"
+    #            Display --indent 4 --text "- Checking PHP suhosin extension status" --result "${STATUS_OK}" --color GREEN
+    #            AddHP 2 2
+    #        fi
 
-        if [ "${SIMULATION}" = "off" ]; then
-            LogText "Result: Suhosin simulation mode is not active"
-            Display --indent 6 --text "- Suhosin simulation mode status" --result "${STATUS_OK}" --color GREEN
-            AddHP 2 2
-        else
-            LogText "Result: Suhosin simulation mode is active"
-            Display --indent 6 --text "- Suhosin simulation mode status" --result "${STATUS_WARNING}" --color RED
-            ReportSuggestion ${TEST_NO} "Harden PHP by deactivating suhosin simulation mode"
-            LogText "suhosin simulation mode is active"
-            AddHP 0 1
-        fi
-    fi
+    #        if [ "${SIMULATION}" = "off" ]; then
+    #            LogText "Result: Suhosin simulation mode is not active"
+    #            Display --indent 6 --text "- Suhosin simulation mode status" --result "${STATUS_OK}" --color GREEN
+    #            AddHP 2 2
+    #        else
+    #            LogText "Result: Suhosin simulation mode is active"
+    #            Display --indent 6 --text "- Suhosin simulation mode status" --result "${STATUS_WARNING}" --color RED
+    #            ReportSuggestion ${TEST_NO} "Harden PHP by deactivating suhosin simulation mode"
+    #            LogText "suhosin simulation mode is active"
+    #            AddHP 0 1
+    #        fi
+    #    fi
+    #fi
 #
 #################################################################################
 #

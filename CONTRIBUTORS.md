@@ -12,7 +12,7 @@ The Lynis project is very thankful to the individuals who contributed to the pro
   - Share missing results and findings
   - Check for grammar issues
 
-  See [CONTRIBUTIONS.md](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTIONS.md) for more details.
+  See [CONTRIBUTING.md](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTING.md) for more details.
 
 ==========================================================================================
 
@@ -22,6 +22,10 @@ The Lynis project is very thankful to the individuals who contributed to the pro
 * Arch Linux            - Levente Polyak
 * Debian / Ubuntu       - Francisco Manuel Garcia Claramonte
 * Fedora / EPEL         - Athmane Madjoudj
+* FreeBSD port          - Lars Engels
+* NetBSD                - Stephen Borrill
+* Slackware             - Eric Hameleers
+* OpenBSD port          - Gonzalo Rodriguez
 
 
 ## Special Contributors
@@ -37,6 +41,7 @@ These people made a significant impact to the development of Lynis:
 * Dave Vehrs
 * Eric Light, New Zealand
 * Kamil Boratyński, Poland
+* Mike Slifcak, US
 * Mikko Lehtisalo, Finland
 * Steve Bosek, France
 * Thomas Siebel, Germany

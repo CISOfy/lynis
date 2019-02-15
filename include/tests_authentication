@@ -1371,6 +1371,50 @@
 #
 #################################################################################
 #
+    # Test        : AUTH-9409
+    # Description : Check for doas file
+    DOAS_FILE=""
+    Register --test-no AUTH-9409 --os OpenBSD --weight L --network NO --category security --description "Checking /etc/doas.conf file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        LogText "Test: checking presence /etc/doas.conf"
+        if [ -f /etc/doas.conf ]; then
+        DOAS_FILE=/etc/doas.conf
+            FOUND=1
+            LogText "Result: file /etc/doas.conf found"
+        else
+            LogText "Result: file /etc/doas.conf not found"
+        fi
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: /etc/doas.conf file found"
+            Display --indent 2 --text "- doas file" --result "${STATUS_FOUND}" --color GREEN
+        else
+            LogText "Result: doas file NOT found"
+            Display --indent 2 --text "- doas file" --result "${STATUS_NOT_FOUND}" --color YELLOW
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : AUTH-9410
+    # Description : Check for doas file permissions
+    if [ ! -z "${DOAS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no AUTH-9410 --os OpenBSD --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check /etc/doas.conf file permissions"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: checking /etc/doas.conf permissions"
+        FIND=$(ls -l ${DOAS_FILE} | ${CUTBINARY} -c 2-10)
+        LogText "Result: Found /etc/doas.conf file permissions: ${FIND}"
+        if [ "${FIND}" = "rw-------" -o "${FIND}" = "rw-rw----" -o "${FIND}" = "r--r-----" ]; then
+            LogText "Result: file /etc/doas.conf has correct permissions"
+            Display --indent 4 --text "- Check doas file permissions" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: file has possibly unsafe file permissions"
+            Display --indent 4 --text "- Check doas file permissions" --result "${STATUS_WARNING}" --color RED
+        fi
+    fi
+#
+#################################################################################
+#
 
 Report "auth_failed_logins_logged=${AUTH_FAILED_LOGINS_LOGGED}"
 Report "ldap_auth_enabled=${LDAP_AUTH_ENABLED}"

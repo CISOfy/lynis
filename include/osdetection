@@ -509,6 +509,27 @@
         QNAP_DEVICE=1
     fi
 
+    # Check if this OS is end-of-life
+    EOL=255
+    EOL_DATE=""
+    if [ ! -z "${OS_VERSION}" ]; then
+        if [ -f "${DBDIR}/software-eol.db" ]; then
+            FIND="${OS_FULLNAME}"
+            EOL_DATE=$(awk -v value="${FIND}" -F: '{if ($1=="os" && $2 ~ value){print $3}}' ${DBDIR}/software-eol.db | head -n 1)
+            if [ ! -z "${EOL_DATE}" ]; then
+                NOW=$(date "+%s")
+                FIND=$(date "+%s" --date=${EOL_DATE})
+                if [ ! -z "${FIND}" ]; then
+                    if [ ${NOW} -gt ${FIND} ]; then
+                        EOL=1
+                    else
+                        EOL=0
+                    fi
+                fi
+            fi
+        fi
+    fi
+
 
 #================================================================================
 # Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

@@ -1,5 +1,13 @@
 # Lynis Changelog
 
+## Lynis 2.7.2 (not released yet)
+
+### Added
+- Support for end-of-life detection of the operating system
+
+---------------------------------------------------------------------------------
+
+
 ## Lynis 2.7.1 (2019-01-30)
 
 ### Added

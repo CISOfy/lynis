@@ -5,8 +5,13 @@
 ### Added
 - Support for end-of-life detection of the operating system
 
----------------------------------------------------------------------------------
+### Changed
+- RPi/Raspian path to PAM_FILE_LOCATIONS
+- AUTH-9252 - Adds support for files in sudoers.d
+- AUTH-9252 - Test extended to check file and directory ownership
+- NETW-2704Ignore inline comments in /etc/resolv.conf
 
+---------------------------------------------------------------------------------
 
 ## Lynis 2.7.1 (2019-01-30)
 

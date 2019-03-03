@@ -374,10 +374,17 @@
         LogText "Test: Searching apt-cache, to determine if a newer kernel is available"
         if [ -x ${ROOTDIR}usr/bin/apt-cache ]; then
             LogText "Result: found ${ROOTDIR}usr/bin/apt-cache"
-            LogText "Test: checking readlink location of ${ROOTDIR}vmlinuz"
-            if [ -f ${ROOTDIR}vmlinuz ]; then
+            LogText "Test: checking presence of ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz"
+            if [ -f ${ROOTDIR}vmlinuz -o -f ${ROOTDIR}boot/vmlinuz ]; then
                 HAS_VMLINUZ=1
-                FINDKERNFILE=$(readlink -f ${ROOTDIR}vmlinuz)
+                if [ -f ${ROOTDIR}vmlinuz ]; then
+                    FINDVMLINUZ=${ROOTDIR}vmlinuz
+                else
+                    FINDVMLINUZ=${ROOTDIR}boot/vmlinuz
+                fi
+                LogText "Result: found ${FINDVMLINUZ}"
+                LogText "Test: checking readlink location of ${FINDVMLINUZ}"
+                FINDKERNFILE=$(readlink -f ${FINDVMLINUZ})
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
                 LogText "Test: checking package from dpkg -S"
                 FINDKERNEL=$(dpkg -S ${FINDKERNFILE} 2> /dev/null | ${AWKBINARY} -F : '{print $1}')
@@ -386,8 +393,8 @@
                 FINDKERNEL=linux-image-$(uname -r)
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
             else
-                LogText "This system is missing ${ROOTDIR}vmlinuz.  Unable to check whether kernel is up-to-date."
-                ReportSuggestion ${TEST_NO} "Determine why ${ROOTDIR}vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz"
+                LogText "This system is missing ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz.  Unable to check whether kernel is up-to-date."
+                ReportSuggestion ${TEST_NO} "Determine why ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz or /boot/vmlinuz"
             fi
             LogText "Test: Using apt-cache policy to determine if there is an update available"
             FINDINST=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')

@@ -4,6 +4,7 @@
 
 ### Added
 - Support for end-of-life detection of the operating system
+- New 'lynis show eol' command
 
 ### Changed
 - RPi/Raspian path to PAM_FILE_LOCATIONS

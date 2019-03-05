@@ -3,14 +3,20 @@
 ## Lynis 2.7.2 (not released yet)
 
 ### Added
+- AUTH-9409 - Support for doas (OpenBSD)
+- AUTH-9410 - Test file permissions of doas configuration
+- BOOT-5262 - Check OpenBSD boot daemons
+- BOOT-5263 - Test permissions for boot files and scripts
 - Support for end-of-life detection of the operating system
 - New 'lynis show eol' command
 
 ### Changed
-- RPi/Raspian path to PAM_FILE_LOCATIONS
 - AUTH-9252 - Adds support for files in sudoers.d
 - AUTH-9252 - Test extended to check file and directory ownership
+- FIRE-4540 - Modify test to better measure rules
 - NETW-2704Ignore inline comments in /etc/resolv.conf
+- RPi/Raspian path to PAM_FILE_LOCATIONS
+
 
 ---------------------------------------------------------------------------------
 

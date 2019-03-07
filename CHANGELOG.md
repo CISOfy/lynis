@@ -1,5 +1,13 @@
 # Lynis Changelog
 
+## Lynis 2.7.3 (not released yet)
+
+### Added
+
+### Changed
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.7.2 (2019-03-07)
 
 ### Added
@@ -22,7 +30,6 @@
 - NETW-2704 - Ignore inline comments in /etc/resolv.conf
 - PKGS-7388 - Improve detection for security archive
 - RPi/Raspian path to PAM_FILE_LOCATIONS
-
 
 ---------------------------------------------------------------------------------
 

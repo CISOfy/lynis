@@ -1,20 +1,26 @@
 # Lynis Changelog
 
-## Lynis 2.7.2 (not released yet)
+## Lynis 2.7.2 (2019-03-07)
 
 ### Added
 - AUTH-9409 - Support for doas (OpenBSD)
 - AUTH-9410 - Test file permissions of doas configuration
+- BOOT-5117 - Support for systemd-boot boot loader added
+- BOOT-5177 -  Simplify service filter and allow multiple dots in service names
 - BOOT-5262 - Check OpenBSD boot daemons
 - BOOT-5263 - Test permissions for boot files and scripts
 - Support for end-of-life detection of the operating system
 - New 'lynis show eol' command
+- Korean translation
 
 ### Changed
 - AUTH-9252 - Adds support for files in sudoers.d
 - AUTH-9252 - Test extended to check file and directory ownership
+- BOOT-5122 - Use NONE instead of WARNING if no password is set
 - FIRE-4540 - Modify test to better measure rules
-- NETW-2704Ignore inline comments in /etc/resolv.conf
+- KRNL-5788 - Resolve false positive warning on missing /vmlinuz
+- NETW-2704 - Ignore inline comments in /etc/resolv.conf
+- PKGS-7388 - Improve detection for security archive
 - RPi/Raspian path to PAM_FILE_LOCATIONS
 
 

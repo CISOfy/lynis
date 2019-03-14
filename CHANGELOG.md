@@ -3,8 +3,12 @@
 ## Lynis 2.7.3 (not released yet)
 
 ### Added
+- Detection for Lynis being scheduled (e.g. cronjob)
 
 ### Changed
+- KRNL-5820 - Changed color for default fs.suid_dumpable value
+- Improvements to allow tailored tool tips
+- Minor textual changes
 
 ---------------------------------------------------------------------------------
 

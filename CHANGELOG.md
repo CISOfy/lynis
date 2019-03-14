@@ -8,6 +8,7 @@
 ### Changed
 - KRNL-5820 - Changed color for default fs.suid_dumpable value
 - Improvements to allow tailored tool tips
+- Corrected detection of blkid binary
 - Minor textual changes
 
 ---------------------------------------------------------------------------------

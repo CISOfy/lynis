@@ -7,6 +7,7 @@
 
 ### Changed
 - KRNL-5820 - Changed color for default fs.suid_dumpable value
+- LOGG-2154 - Adjusted test to search in configuration file correctly
 - SQD-3610  - Description of test changed
 - SQD-3613  - Corrected description in code
 - SSH-7408  - Increased values for MaxAuthRetries

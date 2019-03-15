@@ -9,7 +9,8 @@
 - KRNL-5820 - Changed color for default fs.suid_dumpable value
 - SQD-3610  - Description of test changed
 - SQD-3613  - Corrected description in code
-- Improvements to allow tailored tool tips
+- SSH-7408  - Increased values for MaxAuthRetries
+- Improvements to allow tailored tool tips in future
 - Corrected detection of blkid binary
 - Minor textual changes
 

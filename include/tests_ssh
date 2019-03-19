@@ -98,12 +98,12 @@
     if [ ${SSH_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7406 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determine OpenSSH version"
     if [ ${SKIPTEST} -eq 0 ]; then
-        OPENSSHD_VERSION=$(sshd -t -d 2>&1 | ${GREPBINARY} 'sshd version' | ${AWKBINARY} '{if($4~OpenSSH_){print $4}}' | ${AWKBINARY} -F_ '{print $2}' | ${TRBINARY} -d ',')
+        OPENSSHD_VERSION=$(${SSHDBINARY} -t -d 2>&1 | ${GREPBINARY} 'sshd version' | ${AWKBINARY} '{if($4~OpenSSH_){print $4}}' | ${AWKBINARY} -F_ '{print $2}' | ${TRBINARY} -d ',' | ${TRBINARY} -d '\r')
         LogText "Result: discovered OpenSSH version is ${OPENSSHD_VERSION}"
         if [ ! -z ${OPENSSHD_VERSION} ]; then
-            OPENSSHD_VERSION_MAJOR=$(echo ${OPENSSHD_VERSION} | ${AWKBINARY} -F. '{print $1}')
+            OPENSSHD_VERSION_MAJOR=$(echo ${OPENSSHD_VERSION%%p*} | ${AWKBINARY} -F. '{print $1}')
             LogText "Result: OpenSSH major version: ${OPENSSHD_VERSION_MAJOR}"
-            OPENSSHD_VERSION_MINOR=$(echo ${OPENSSHD_VERSION} | ${AWKBINARY} -F. '{print $2}')
+            OPENSSHD_VERSION_MINOR=$(echo ${OPENSSHD_VERSION%%p*} | ${AWKBINARY} -F. '{print $2}')
             LogText "Result: OpenSSH minor version: ${OPENSSHD_VERSION_MINOR}"
         fi
     fi
@@ -113,7 +113,7 @@
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
     # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" -a ${OPENSSHD_VERSION_MAJOR} -ge 5 -a ${OPENSSHD_VERSION_MINOR} -ge 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking specific defined options in ${SSH_DAEMON_OPTIONS_FILE}"

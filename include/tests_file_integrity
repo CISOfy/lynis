@@ -99,6 +99,36 @@
 #
 #################################################################################
 #
+    # Test        : FINT-4316
+    # Description : Check if AIDE database exist
+    if [ ! -z "${AIDEBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FINT-4316 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check AIDE database"
+    if [ ${SKIPTEST} -eq 0 ]; then
+    	AIDE_DB=$(grep ^database= ${AIDECONFIG} | sed "s/.*://")
+	if case ${AIDE_DB} in @@*) ;; *) false;; esac; then
+    		AIDE_DB=$(echo ${AIDE_DB} | sed "s#.*}#$(grep  "@@define.*DBDIR" ${AIDECONFIG} | awk '{print $3}')#")
+	fi
+        LogText "Test: search for aide database ${AIDE_DB}"
+
+        if [ ! -e "${AIDE_DB}" ]; then
+            Display --indent 6 --text "- AIDE database" --result "${STATUS_NOT_FOUND}" --color RED
+            LogText "Result: AIDE database ${AIDE_DB} does not exist"
+            ReportWarning "${TEST_NO}" "No AIDE database was found, needed for AIDE functionality"
+        else
+            LogText "Checking database ${AIDE_DB} for errors"
+            if [ -s "${AIDE_DB}" ]; then
+                Display --indent 6 --text "- AIDE database" --result "${STATUS_FOUND}" --color GREEN
+                LogText "Result: AIDE database ${AIDE_DB} exist and has a size greater than zero"
+            else
+                Display --indent 6 --text "- AIDE database" --result "${STATUS_WARNING}" --color YELLOW
+                LogText "Result: AIDE database ${AIDE_DB} exist but has a size of zero"
+                ReportSuggestion "${TEST_NO}" "Check the AIDE database as it may contain errors"
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : FINT-4318
     # Description : Check if Osiris is installed
     Register --test-no FINT-4318 --weight L --network NO --category security --description "Osiris availability"

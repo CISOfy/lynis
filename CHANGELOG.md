@@ -6,6 +6,7 @@
 - Detection for Lynis being scheduled (e.g. cronjob)
 
 ### Changed
+- HTTP-6624 - Improved logging for test
 - KRNL-5820 - Changed color for default fs.suid_dumpable value
 - LOGG-2154 - Adjusted test to search in configuration file correctly
 - SQD-3610  - Description of test changed

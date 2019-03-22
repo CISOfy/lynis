@@ -507,35 +507,54 @@
 #
     # Test        : NETW-3015
     # Description : Checking promiscuous interfaces (Linux)
-    # Note        : Need ifconfig binary at this moment (does not work on Arch Linux)
-    if [ ! "${IFCONFIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (Linux)"
+    Register --test-no NETW-3015 --os Linux --weight L --network NO --category security --description "Checking promiscuous interfaces (Linux)"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking promiscuous interfaces (Linux)"
-        NETWORK=$(${IFCONFIGBINARY} 2> /dev/null | ${GREPBINARY} Link | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f1)
-        if [ ! "${NETWORK}" = "" ]; then
+        FOUNDPROMISC=99
+        NETWORK=""
+        USE_IP_INSTEAD_IFCONFIG=0
+
+        if [ ! -z "${IPBINARY}" ]; then
+            LogText "Test: Using ip binary to retrieve network interfaces"
+            NETWORK=$(${IPBINARY} -o link 2> /dev/null | ${GREPBINARY} "^[0-9]" | ${AWKBINARY} '{print $2 }' | ${TRBINARY} -d ':')
+            USE_IP_INSTEAD_IFCONFIG=1
+        elif [ ! -z "${IFCONFIGBINARY}" ]; then
+            LogText "Test: Using ifconfig binary to retrieve network interfaces"
+            NETWORK=$(${IFCONFIGBINARY} 2> /dev/null | ${GREPBINARY} Link | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f1)
+        fi
+
+        LogText "Test: Checking all interfaces to discover any with promiscuous mode enabled"
+        if [ ! -z "${NETWORK}" ]; then
+            FOUNDPROMISC=0
             for I in ${NETWORK}; do
-                FIND=$(${IFCONFIGBINARY} ${I} 2> /dev/null | ${GREPBINARY} PROMISC)
-                if [ ! "${FIND}" = "" ]; then
+                if [ ${USE_IP_INSTEAD_IFCONFIG} -eq 1 ]; then
+                    FIND=$(${IPBINARY} -o -d link show ${I} 2> /dev/null | ${GREPBINARY} 'promiscuity 1')
+                else
+                    FIND=$(${IFCONFIGBINARY} ${I} 2> /dev/null | ${GREPBINARY} PROMISC)
+                fi
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: Promiscuous interface: ${I}"
                     ISWHITELISTED=$(${GREPBINARY} "^if_promisc:${I}:" ${PROFILE})
-                    if [ "${ISWHITELISTED}" = "" ]; then
+                    if [ -z "${ISWHITELISTED}" ]; then
                         FOUNDPROMISC=1
-                        ReportWarning ${TEST_NO} "Found promiscuous interface (${I})"
+                        ReportWarning ${TEST_NO} "Found promiscuous interface" "${I}" "text:Determine if this mode is required or whitelist interface in profile"
                         LogText "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
                     else
                         LogText "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
                     fi
                 fi
             done
+        else
+            LogText "Result: no network interfaces discovered, so nothing tested"
         fi
 
         # Show result
         if [ ${FOUNDPROMISC} -eq 0 ]; then
             Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_OK}" --color GREEN
             LogText "Result: No promiscuous interfaces found"
-        else
+        elif [ ${FOUNDPROMISC} -eq 1 ]; then
             Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_WARNING}" --color RED
+        else
+            Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_UNKNOWN}" --color YELLOW
         fi
     fi
 #

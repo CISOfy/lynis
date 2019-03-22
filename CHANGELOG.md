@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 2.7.3 (not released yet)
+## Lynis 2.7.3 (2019-03-21)
 
 ### Added
 - Detection for Lynis being scheduled (e.g. cronjob)
@@ -9,12 +9,13 @@
 - HTTP-6624 - Improved logging for test
 - KRNL-5820 - Changed color for default fs.suid_dumpable value
 - LOGG-2154 - Adjusted test to search in configuration file correctly
+- NETW-3015 - Added support for ip binary
 - SQD-3610  - Description of test changed
 - SQD-3613  - Corrected description in code
 - SSH-7408  - Increased values for MaxAuthRetries
 - Improvements to allow tailored tool tips in future
 - Corrected detection of blkid binary
-- Minor textual changes
+- Minor textual changes and cleanups
 
 ---------------------------------------------------------------------------------
 

@@ -28,6 +28,9 @@
 #
     INETD_ACTIVE=0
     INETD_CONFIG_FILE="${ROOTDIR}etc/inetd.conf"
+    XINETD_ACTIVE=0
+    XINETD_CONFIG_FILE="${ROOTDIR}etc/xinetd.conf"
+    XINETD_CONFIG_DIR="${ROOTDIR}etc/xinetd.d"
 #
 #################################################################################
 #
@@ -103,6 +106,104 @@
             LogText "Result: telnet enabled in ${INETD_CONFIG_FILE}"
             Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion "${TEST_NO}" "Disable telnet in inetd configuration and use SSH instead"
+            AddHP 1 3
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8100
+    # Description : Check for installed xinetd daemon
+    Register --test-no INSE-8100 --weight L --network NO --category security --description "Check for installed xinetd daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check for installed xinetd daemon
+        LogText "Test: Checking for installed xinetd daemon"
+        PackageIsInstalled xinetd
+        if [ $? -eq 0 ]; then
+            LogText "Result: xinetd is installed"
+            Display --indent 2 --text "- Checking xinetd installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "If there are no xinetd services required, it is recommended that the daemon be removed"
+        else
+            LogText "Result: xinetd is NOT installed"
+            Display --indent 2 --text "- Checking xinetd installation" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8102
+    # Description : Check for xinetd status
+    Register --test-no INSE-8102 --weight L --network NO --category security --description "Check for enabled xinet daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check running processes
+        LogText "Test: Searching for active xinet daemon"
+        IsRunning xinetd
+        if [ ${RUNNING} -eq 1 ]; then
+            LogText "Result: xinetd is running"
+            Display --indent 4 --text "- Checking xinetd status" --result "ACTIVE" --color GREEN
+            XINETD_ACTIVE=1
+        else
+            LogText "Result: xinetd is NOT running"
+            Display --indent 4 --text "- Checking xinetd status" --result "NOT ACTIVE" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8104
+    # Description : Check for xinetd configuration file
+    if [ ${XINETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8104 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for enabled xinet daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check configuration file
+        LogText "Test: Searching for file ${XINETD_CONFIG_FILE}"
+        if [ -f ${XINETD_CONFIG_FILE} ]; then
+            LogText "Result: ${XINETD_CONFIG_FILE} exists"
+            Display --indent 6 --text "- Checking xinetd.conf" --result "${STATUS_FOUND}" --color WHITE
+        else
+            LogText "Result: ${XINETD_CONFIG_FILE} does not exist"
+            Display --indent 6 --text "- Checking xinetd.conf" --result "${STATUS_NOT_FOUND}" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8106
+    # Description : Check for xinetd configuration file contents if xinetd is NOT active
+    if [ ${XINETD_ACTIVE} -eq 0 -a -f ${XINETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check configuration of xinetd when disabled"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if any service is enabled in /etc/xinetd.d (xinetd is not active, see test 8102)
+        LogText "Test: check if all services are disabled if xinetd is disabled"
+        FIND=$(${GREPBINARY} -r "disable\s*=\s*no" ${XINETD_CONFIG_DIR})
+        if [ -z "${FIND}" ]; then
+            LogText "Result: no services found in ${XINETD_CONFIG_DIR}"
+            Display --indent 6 --text "- Checking xinetd.d services" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: found services in ${XINETD_CONFIG_DIR}, even though xinetd is not running"
+            Display --indent 6 --text "- Checking xinetd.d services" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Although xinetd is not running, make sure no services are enabled in ${XINETD_CONFIG_DIR}, or remove xinetd service"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8116
+    # Description : Check for telnet enabled via xinetd
+    TELNET_XINETD_CONFIG_FILE="${XINETD_CONFIG_DIR}/telnet"
+    if [ ${XINETD_ACTIVE} -eq 1 -a -f ${TELNET_XINETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for telnet via xinetd"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: checking telnet presence in xinetd configuration"
+        FIND=$(${GREPBINARY} "disable\s*=\s*no" ${TELNET_XINETD_CONFIG_FILE})
+        if [ "${FIND}" = "" ]; then
+            LogText "Result: telnet not enabled in ${TELNET_XINETD_CONFIG_FILE}"
+            Display --indent 6 --text "- Checking xinetd (telnet)" --result "${STATUS_DISABLED}" --color GREEN
+            AddHP 3 3
+        else
+            LogText "Result: telnet enabled in ${TELNET_XINETD_CONFIG_FILE}"
+            Display --indent 6 --text "- Checking xinetd (telnet)" --result "${STATUS_ENABLED}" --color RED
+            ReportSuggestion "${TEST_NO}" "Disable telnet in xinetd configuration and use SSH instead"
             AddHP 1 3
         fi
     fi

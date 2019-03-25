@@ -535,6 +535,28 @@
 #
 #################################################################################
 #
+    # Test        : INSE-8148
+    # Description : Check for tftp enabled via xinetd
+    TFTP_XINETD_CONFIG_FILE="${XINETD_CONFIG_DIR}/tftp"
+    if [ ${XINETD_ACTIVE} -eq 1 -a -f ${TFTP_XINETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8148 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for tftp via xinetd"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: checking tftp presence in xinetd configuration"
+        FIND=$(${GREPBINARY} "disable\s*=\s*no" ${TFTP_XINETD_CONFIG_FILE})
+        if [ "${FIND}" = "" ]; then
+            LogText "Result: tftp not enabled in ${TFTP_XINETD_CONFIG_FILE}"
+            Display --indent 6 --text "- Checking xinetd (tftp)" --result "${STATUS_DISABLED}" --color GREEN
+            AddHP 3 3
+        else
+            LogText "Result: tftp enabled in ${TFTP_XINETD_CONFIG_FILE}"
+            Display --indent 6 --text "- Checking xinetd (tftp)" --result "${STATUS_ENABLED}" --color RED
+            ReportSuggestion "${TEST_NO}" "Disable tftp in xinetd configuration"
+            AddHP 1 3
+        fi
+    fi
+#
+#################################################################################
+#
     if [ ! -z "${LAUNCHCTL_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No launchctl binary on this system"; fi
     Register --test-no INSE-8050 --os "macOS" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight M --network NO --category security --description "Check for insecure services on macOS"
     if [ ${SKIPTEST} -eq 0 ]; then

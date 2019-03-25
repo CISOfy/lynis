@@ -51,6 +51,65 @@
 #
 #################################################################################
 #
+    # Test        : HOME-9304
+    # Description : Check if users' home directories permissions are 750 or more restrictive
+    Register --test-no HOME-9304 --weight L --network NO --category security --description "Check if users' home directories permissions are 750 or more restrictive"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if users' home directories permissions are 750 or more restrictive
+        FOUND=0
+        for LINE in $(${CAT_BINARY} /etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }'); do
+            USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
+            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+            if [ -d ${DIR} ]; then
+                WRITE_GROUP_PERM=$(ls -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c6)
+                OTHER_PERMS=$(ls -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c8-10)
+                if [ ! ${WRITE_GROUP_PERM} = "-" -o ! ${OTHER_PERMS} = "---" ]; then
+                    LogText "Result: permissions of home directory ${DIR} of user ${USER} are not strict enough. Should be 750 or more restrictive. Change with: chmod 750 ${DIR}" 
+                    FOUND=1
+                fi
+            fi
+        done
+        # Result
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Checking users' home directories permissions" --result "${STATUS_WARNING}" --color RED
+            ReportWarning ${TEST_NO} "Permissions of some users' home directories are not strict enough. Should be 750 or more restrictive."
+        else
+            Display --indent 2 --text "- Checking users' home directories permissions" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: Ok, All users' home directories permissions are 750 or more restrictive"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : HOME-9306
+    # Description : Check if users own their home directories
+    Register --test-no HOME-9306 --weight L --network NO --category security --description "Check if users own their home directories"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if users own their home directories
+        FOUND=0
+        for LINE in $(${CAT_BINARY} /etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }'); do
+            USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
+            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+            if [ -d ${DIR} ]; then
+                OWNER=$(ls -ld ${DIR} | awk -F" " '{ print $3 }')
+                if [ ! ${OWNER} = ${USER} ]; then
+                    LogText "Result: The home directory ${DIR} of user ${USER} is owned by ${OWNER}. Change with: chown ${OWNER} ${DIR}" 
+                    FOUND=1
+                fi
+            fi
+        done
+        # Result
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Checking users' home directories ownership" --result "${STATUS_WARNING}" --color RED
+            ReportWarning ${TEST_NO} "Owner of some users' home directories are not correctly set"
+        else
+            Display --indent 2 --text "- Checking users' home directories ownership" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: Ok, All users own their home directories"
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : HOME-9310
     # Description : Check for suspicious shell history files
     Register --test-no HOME-9310 --weight L --network NO --category security --description "Checking for suspicious shell history files"

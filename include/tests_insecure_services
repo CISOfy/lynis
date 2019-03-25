@@ -577,6 +577,33 @@
 #
 #################################################################################
 #
+    # Test        : INSE-8200
+    # Description : Check if tcp_wrappers is installed when inetd/xinetd is active
+    if [ ${INETD_ACTIVE} -eq 1 -o ${XINETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8200 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check if tcp_wrappers is installed when inetd/xinetd is active"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if tcp_wrappers is installed when inetd/xinetd is active
+        LogText "Test: Checking if tcp_wrappers is installed"
+        FOUND=""
+        PACKAGES="tcp_wrappers tcpd"
+        for PACKAGE in ${PACKAGES}; do
+            PackageIsInstalled ${PACKAGE}
+            if [ $? -eq 0 ];then
+                FOUND=${PACKAGE}
+            fi
+        done
+        if [ ${FOUND} ]; then
+            LogText "Result: tcp_wrappers is installed"
+            Display --indent 2 --text "- Checking tcp_wrappers installation" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: tcp_wrappers is NOT installed"
+            Display --indent 2 --text "- Checking tcp_wrappers installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "When network services are using the inetd/xinetd service, the tcp_wrappers package should be installed"
+        fi
+    fi
+#
+#################################################################################
+#
     if [ ! -z "${LAUNCHCTL_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No launchctl binary on this system"; fi
     Register --test-no INSE-8050 --os "macOS" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight M --network NO --category security --description "Check for insecure services on macOS"
     if [ ${SKIPTEST} -eq 0 ]; then

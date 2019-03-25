@@ -604,6 +604,93 @@
 #
 #################################################################################
 #
+    # Test        : INSE-8300
+    # Description : Check if rsh client is installed
+    Register --test-no INSE-8300 --weight L --network NO --category security --description "Check if rsh client is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if rsh is installed
+        LogText "Test: Checking if rsh client is installed"
+        FOUND=""
+        PACKAGES="rsh rsh-client rsh-redone-client"
+        for PACKAGE in ${PACKAGES}; do
+            PackageIsInstalled ${PACKAGE}
+            if [ $? -eq 0 ];then
+                FOUND=${PACKAGE}
+            fi
+        done
+        if [ ${FOUND} ]; then
+            LogText "Result: rsh client is installed"
+            Display --indent 2 --text "- Checking rsh client installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Rsh client contain numerous security exposures and have been replaced with the more secure SSH package"
+        else
+            LogText "Result: rsh client is NOT installed"
+            Display --indent 2 --text "- Checking rsh client installation" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8302
+    # Description : Check presence of Rsh Trust Files
+    Register --test-no INSE-8302 --weight L --network NO --category security --description "Check presence of Rsh Trust Files"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check presence of Rsh Trust Files
+        FOUND=0
+        for LINE in $(${CAT_BINARY} /etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }'); do
+            USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
+            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+                if [ -d ${DIR} ]; then
+                    for RHOSTS in ${DIR}/.rhosts; do
+                        if [ ! -h ${RHOSTS} -a -f ${RHOSTS} ]; then
+                            LogText "FOUND .rhosts file in home directory ${DIR} of ${USER}"
+                            FOUND=1
+                        fi
+                    done
+                fi
+        done
+        if [ -f /etc/hosts.equiv ];then
+            LogText "FOUND /etc/hosts.equiv"
+            FOUND=1
+        fi
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: found one or more Rsh Trust Files"
+            Display --indent 4 --text "- Checking presence of Rsh Trust Files" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Remove every Rsh Trust Files as they can allow unauthenticated access to a system"
+        else
+            LogText "Result: no Rsh Trust Files found"
+            Display --indent 4 --text "- Checking presence of Rsh Trust Files" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8304
+    # Description : Check if rsh server is installed
+    Register --test-no INSE-8342 --weight L --network NO --category security --description "Check if rsh server is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if rsh server is installed
+        LogText "Test: Checking if rsh server is installed"
+        FOUND=""
+        PACKAGES="rsh-server rsh-redone-server"
+        for PACKAGE in ${PACKAGES}; do
+            PackageIsInstalled ${PACKAGE}
+            if [ $? -eq 0 ];then
+                FOUND=${PACKAGE}
+            fi
+        done
+        if [ ${FOUND} ]; then
+            LogText "Result: rsh server is installed"
+            Display --indent 2 --text "- Checking rsh server installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Removing the rsh-server package decreases the risk of the accidental (or intentional) activation of rsh services"
+            
+        else
+            LogText "Result: rsh server is NOT installed"
+            Display --indent 2 --text "- Checking rsh server installation" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
     if [ ! -z "${LAUNCHCTL_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No launchctl binary on this system"; fi
     Register --test-no INSE-8050 --os "macOS" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight M --network NO --category security --description "Check for insecure services on macOS"
     if [ ${SKIPTEST} -eq 0 ]; then

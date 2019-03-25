@@ -700,23 +700,29 @@
     # Description : Search LDAP support in PAM files
     Register --test-no AUTH-9278 --weight L --network NO --category security --description "Checking LDAP pam status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: checking presence /etc/pam.d/common-auth"
-        if [ -f /etc/pam.d/common-auth ]; then
-            LogText "Result: file /etc/pam.d/common-auth exists"
-            LogText "Test: checking presence LDAP module"
-            FIND=$(${GREPBINARY} "^auth.*ldap" /etc/pam.d/common-auth)
-            if [ ! "${FIND}" = "" ]; then
-                LogText "Result: LDAP module present"
-                LogText "Output: ${FIND}"
-                Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_FOUND}" --color GREEN
-                LDAP_AUTH_ENABLED=1
-                LDAP_PAM_ENABLED=1
+        AUTH_FILES="/etc/pam.d/common-auth /etc/pam.d/system-auth"
+        for FILE in ${AUTH_FILES}; do
+            LogText "Test: checking presence ${FILE}"
+            if [ -f ${FILE} ]; then
+                LogText "Result: file ${FILE} exists"
+                LogText "Test: checking presence LDAP module"
+                FIND=$(${GREPBINARY} "^auth.*ldap" ${FILE})
+                if [ ! "${FIND}" = "" ]; then
+                    LogText "Result: LDAP module present"
+                    LogText "Output: ${FIND}"
+                    LDAP_AUTH_ENABLED=1
+                    LDAP_PAM_ENABLED=1
+                 else
+                    LogText "Result: LDAP module not found"
+                fi
             else
-                LogText "Result: LDAP module not found"
-                Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_NOT_FOUND}" --color WHITE
+                LogText "Result: file ${FILE} not found, skipping test"
             fi
+        done
+        if [ ${LDAP_PAM_ENABLED} -eq 1 ]; then
+            Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_FOUND}" --color GREEN
         else
-            LogText "Result: file /etc/pam.d/common-auth not found, skipping test"
+            Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #

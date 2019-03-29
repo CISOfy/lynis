@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 2.7.4 (not released yet)
+
+### Changed
+- PKGS-7410 - add support for DPKG-based systems to gather installed kernel packages
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.7.3 (2019-03-21)
 
 ### Added

@@ -1278,6 +1278,46 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7420
+    # Description : Detect toolkit to automatically download and apply upgrades
+    Register --test-no PKGS-7420 --weight L --network NO --category security --description "Detect toolkit to automatically download and apply upgrades"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        UNATTENDED_UPGRADES_TOOLKIT=0
+        UNATTENDED_UPGRADES_TOOL=""
+        if [ -f "${ROOTDIR}bin/auter" ]; then
+            UNATTENDED_UPGRADES_TOOL="auter"
+            UNATTENDED_UPGRADES_TOOLKIT=1
+            LogText "Result: found ${UNATTENDED_UPGRADES_TOOL}"
+            Report "unattended_upgrade_tool[]=auter"
+        fi
+        if [ -f "${ROOTDIR}sbin/yum-cron" ]; then
+            UNATTENDED_UPGRADES_TOOL="yum-cron"
+            UNATTENDED_UPGRADES_TOOLKIT=1
+            LogText "Result: found ${UNATTENDED_UPGRADES_TOOL}"
+            Report "unattended_upgrade_tool[]=yum-cron"
+        fi
+        if [ -f "${ROOTDIR}usr/bin/unattended-upgrade" ]; then
+            UNATTENDED_UPGRADES_TOOL="unattended-upgrade"
+            UNATTENDED_UPGRADES_TOOLKIT=1
+            LogText "Result: found ${UNATTENDED_UPGRADES_TOOL}"
+            Report "unattended_upgrade_tool[]=unattended-upgrade"
+        fi
+        if [ ${UNATTENDED_UPGRADES_TOOLKIT} -eq 1 ]; then
+            AddHP 5 5
+            Display --indent 2 --text "- Toolkit for automatic upgrades (${UNATTENDED_UPGRADES_TOOL})" --result "${STATUS_FOUND}" --color GREEN
+        else
+            # TODO - Add logic to only display this when it is applicable as not all operating systems might support such tooling
+            AddHP 1 5
+            Display --indent 2 --text "- Toolkit for automatic upgrades" --result "${STATUS_NOTFOUND}" --color YELLOW
+            LogText "Result: no toolkit for automatic updates discovered"
+            # TODO - add suggestion
+        fi
+
+    fi
+#
+#################################################################################
+#
+
 
 if [ ! -z "${INSTALLED_PACKAGES}" ]; then Report "installed_packages_array=${INSTALLED_PACKAGES}"; fi
 

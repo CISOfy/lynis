@@ -698,27 +698,28 @@
 #
     # Test        : AUTH-9278
     # Description : Search LDAP support in PAM files
-    Register --test-no AUTH-9278 --weight L --network NO --category security --description "Checking LDAP pam status"
+    Register --test-no AUTH-9278 --weight L --network NO --category security --description "Determine LDAP support in PAM files"
     if [ ${SKIPTEST} -eq 0 ]; then
-        AUTH_FILES="/etc/pam.d/common-auth /etc/pam.d/system-auth"
+        AUTH_FILES="${ROOTDIR}etc/pam.d/common-auth ${ROOTDIR}etc/pam.d/system-auth"
         for FILE in ${AUTH_FILES}; do
             LogText "Test: checking presence ${FILE}"
             if [ -f ${FILE} ]; then
                 LogText "Result: file ${FILE} exists"
                 LogText "Test: checking presence LDAP module"
                 FIND=$(${GREPBINARY} "^auth.*ldap" ${FILE})
-                if [ ! "${FIND}" = "" ]; then
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: LDAP module present"
                     LogText "Output: ${FIND}"
                     LDAP_AUTH_ENABLED=1
                     LDAP_PAM_ENABLED=1
-                 else
+                else
                     LogText "Result: LDAP module not found"
                 fi
             else
                 LogText "Result: file ${FILE} not found, skipping test"
             fi
         done
+
         if [ ${LDAP_PAM_ENABLED} -eq 1 ]; then
             Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_FOUND}" --color GREEN
         else

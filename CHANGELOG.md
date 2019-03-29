@@ -3,6 +3,7 @@
 ## Lynis 2.7.4 (not released yet)
 
 ### Changed
+- AUTH-9278 - Test LDAP in all PAM components on Red Hat and other systems
 - PKGS-7410 - add support for DPKG-based systems to gather installed kernel packages
 
 ---------------------------------------------------------------------------------

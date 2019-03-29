@@ -1247,8 +1247,20 @@
     Register --test-no PKGS-7410 --weight L --network NO --category security --description "Count installed kernel packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         KERNELS=0
-        if [ ! -z "${RPMBINARY}" ]; then
-            LogText "Test: Checking how many kernel packages are installed"
+        LogText "Test: Checking how many kernel packages are installed"
+
+        if [ ! -z "${DPKGBINARY}" ]; then
+            KERNELS=$(${DPKGBINARY} -l 2> /dev/null | ${GREPBINARY} "linux-image-[0-9]" | ${WCBINARY} -l)
+            if [ ${KERNELS} -eq 0 ]; then
+                LogText "Result: found no kernels from dpkg -l output, which is unexpected"
+                ReportException "KRNL-5840:2" "Could not find any kernel packages from DPKG output"
+            elif [ ${KERNELS} -gt 5 ]; then
+                LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
+                ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages" "${KERNELS} kernels" "text:validate dpkg -l output and perform cleanup with apt autoremove"
+            else
+                LogText "Result: found ${KERNELS} kernel packages on the system, which is fine"
+            fi
+        elif [ ! -z "${RPMBINARY}" ]; then
             KERNELS=$(${RPMBINARY} -q kernel 2> /dev/null | ${WCBINARY} -l)
             if [ ${KERNELS} -eq 0 ]; then
                 LogText "Result: found no kernels from rpm -q kernel output, which is unexpected"
@@ -1256,12 +1268,12 @@
             elif [ ${KERNELS} -gt 5 ]; then
                 LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
                 ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages with package-cleanup utility (--old-kernels)"
-                AddHP 4 5
             else
-                LogText "Result: found ${KERNELS} on the system, which is fine"
-                AddHP 1 1
+                LogText "Result: found ${KERNELS} kernel packages on the system, which is fine"
             fi
         fi
+
+        Report "installed_kernel_packages=${KERNELS}"
     fi
 #
 #################################################################################

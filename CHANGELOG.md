@@ -2,6 +2,9 @@
 
 ## Lynis 2.7.4 (not released yet)
 
+### Added
+- FILE-6324 - Discover XFS mount points
+
 ### Changed
 - AUTH-9278 - Test LDAP in all PAM components on Red Hat and other systems
 - PKGS-7410 - Add support for DPKG-based systems to gather installed kernel packages

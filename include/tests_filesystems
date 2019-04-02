@@ -164,6 +164,28 @@
 #
 #################################################################################
 #
+    # Test        : FILE-6324
+    # Description : Checking Linux XFS file systems
+    Register --test-no FILE-6324 --os Linux --weight L --network NO --category security --description "Checking XFS file systems"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking for Linux XFS file systems"
+        FIND=$(${MOUNTBINARY} -t xfs | ${AWKBINARY} '{ print $3","$5 }')
+        if [ ! -z "${FIND}" ]; then
+            LogText "Result: found one or more XFS file systems"
+            for I in ${FIND}; do
+                FILESYSTEM=$(echo ${I} | ${CUTBINARY} -d ',' -f1)
+                FILETYPE=$(echo ${I} | ${CUTBINARY} -d ',' -f2)
+                LogText "File system: ${FILESYSTEM} (type: ${FILETYPE})"
+                Report "file_systems_xfs[]=${FILESYSTEM}|${FILETYPE}|"
+            done
+        else
+            LogText "Result: no XFS file systems found"
+            Report "file_systems_xfs[]=none"
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : FILE-6329
     # Description : Query all FFS/UFS mounts from /etc/fstab
     if [ -f /etc/fstab ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi

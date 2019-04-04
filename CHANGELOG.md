@@ -4,6 +4,14 @@
 
 ### Added
 - FILE-6324 - Discover XFS mount points
+- INSE-8000 - Installed inetd package
+- INSE-8100 - Installed xinetd package
+- INSE-8102 - Status of xinet daemon
+- INSE-8104 - xinetd configuration file
+- INSE-8106 - xinetd configuration for inactive daemon
+- INSE-8200 - Usage of TCP wrappers
+- INSE-8300 - Presence of rsh client
+- INSE-8302 - Presence of rsh server
 
 ### Changed
 - AUTH-9278 - Test LDAP in all PAM components on Red Hat and other systems

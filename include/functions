@@ -1714,11 +1714,20 @@
             Fatal "Incorrect usage of PackageIsInstalled function"
         fi
 
-        if [ ! -z "${RPMBINARY}" ]; then
-            output=$(${RPMBINARY} --quiet -q ${package} 2> /dev/null)
+        if [ ! -z "${DNFBINARY}" ]; then
+            output=$(${DNFBINARY} --quiet --cacheonly --noplugins --assumeno info --installed ${package} > /dev/null 2>&1)
             exit_code=$?
         elif [ ! -z "${DPKGBINARY}" ]; then
-            output=$(${DPKGBINARY} -l ${package} 2> /dev/null)
+            output=$(${DPKGBINARY} -l ${package} > /dev/null 2>&1)
+            exit_code=$?
+        elif [ ! -z "${EQUERYBINARY}" ]; then
+            output=$(${EQUERYBINARY} --quiet ${package} > /dev/null 2>&1)
+            exit_code=$?  # 0=package installed, 3=package not installed
+        elif [ ! -z "${PKG_BINARY}" ]; then
+            output=$(${PKG_BINARY} -N info ${package} >& /dev/null)
+            exit_code=$?  # 0=package installed, 70=invalid package
+        elif [ ! -z "${RPMBINARY}" ]; then
+            output=$(${RPMBINARY} --quiet -q ${package} > /dev/null 2>&1)
             exit_code=$?
         elif [ ! -z "${ZYPPERBINARY}" ]; then
             output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${PACKAGE} 2> /dev/null | grep "^i")

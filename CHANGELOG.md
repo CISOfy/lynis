@@ -12,12 +12,14 @@
 - INSE-8200 - Usage of TCP wrappers
 - INSE-8300 - Presence of rsh client
 - INSE-8302 - Presence of rsh server
+- Detect equery binary detection
 
 ### Changed
 - AUTH-9278 - Test LDAP in all PAM components on Red Hat and other systems
 - PKGS-7410 - Add support for DPKG-based systems to gather installed kernel packages
 - PKGS-7420 - Detect toolkit to automatically download and apply upgrades
 - Improve text output for AIX systems
+- Extended PackageIsInstalled function
 
 ---------------------------------------------------------------------------------
 

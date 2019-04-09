@@ -22,6 +22,7 @@
 - AIX enhancement for IsRunning function
 - Extended PackageIsInstalled function
 - Improve text output on AIX systems
+- Corrected lsvg binary detection
 
 ---------------------------------------------------------------------------------
 

@@ -805,15 +805,26 @@
     # Name        : GetHostID()
     # Description : Create an unique id for the system
     #
-    # Returns     : optional value
+    # Returns     : 0 = fetched or created IDs, 1 = failed, 2 = skipped
     # Usage       : GetHostID
     ################################################################################
 
     GetHostID() {
 
+        if [ ${SKIP_GETHOSTID} -eq 1 ]; then
+            return 2
+        fi
+
         if [ ! -z "${HOSTID}" -a ! -z "${HOSTID2}" ]; then
             Debug "Skipping creation of host identifiers, as they are already configured (via profile)"
-            return 1
+            return 2
+        fi
+
+        if [ -f "${ROOTDIR}etc/lynis/hostids" ]; then
+            Debug "Used hostids file to fetch values"
+            HOSTID=$(grep "^hostid=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
+            HOSTID2=$(grep "^hostid2=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
+            return 0
         fi
 
         FIND=""
@@ -1110,8 +1121,9 @@
         fi
 
         # Show an exception if no HostID could be created, to ensure each system (and scan) has one
-        if [ "${HOSTID}" = "" ]; then
+        if [ -z "${HOSTID}" ]; then
             ReportException "GetHostID" "No unique host identifier could be created."
+            return 1
         elif [ ! -z "${HOSTID2}" ]; then
             return 0
         fi
@@ -1392,6 +1404,10 @@
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
         SHORT=""
+
+        if [ ${SKIP_VM_DETECTION} -eq 1 ]; then
+            return 2
+        fi
 
         # lxc environ detection
         if [ -z "${SHORT}" ]; then

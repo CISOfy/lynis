@@ -1,0 +1,89 @@
+#!/bin/sh
+
+#################################################################################
+#
+#   Lynis
+# ------------------
+#
+# Copyright 2007-2013, Michael Boelen
+# Copyright 2007-2019, CISOfy
+#
+# Website  : https://cisofy.com
+# Blog     : http://linux-audit.com
+# GitHub   : https://github.com/CISOfy/lynis
+#
+# Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
+# welcome to redistribute it under the terms of the GNU General Public License.
+# See LICENSE file for usage of this software.
+#
+######################################################################
+#
+# Helper program to generate specific details such as host IDs
+#
+######################################################################
+#
+# How to use:
+# ------------
+# Run: lynis generate <option>
+#
+######################################################################
+
+SAVEFILE=0
+GENERATE_ARGS="hostids"
+
+if [ $# -gt 0 ]; then
+    case $1 in
+        "hostids")
+
+            if [ $# -gt 1 ]; then
+                shift
+                if [ $1 = "--save" ]; then
+                    SAVEFILE=1
+                fi
+            fi
+
+            # Generate random host IDs
+            HOSTID=$(head -c20 < /dev/urandom | xxd -c 20 -p)
+            HOSTID2=$(head -c32 < /dev/urandom | xxd -c 32 -p)
+
+            ${ECHOCMD} "Generated host identifiers"
+            ${ECHOCMD} "- hostid: ${HOSTID}"
+            ${ECHOCMD} "- hostid2: ${HOSTID2}"
+
+            if [ ${SAVEFILE} -eq 1 ]; then
+                FILE="${ROOTDIR}etc/lynis/hostids"
+                if [ -f ${FILE} ]; then
+                    ${ECHOCMD} "Error: hostids file already exists (${FILE})"
+                    ${ECHOCMD} "Remove the file first and rerun command"
+                    ExitFatal
+                else
+                    OUTPUT=$(touch ${FILE} 2> /dev/null)
+                    if [ $? -eq 0 ]; then
+                        ${ECHOCMD} "Created hostids file (${FILE})"
+                        echo "# generated using 'lynis generate hostids --save'" > ${FILE}
+                        echo "hostid=${HOSTID}" >> ${FILE}
+                        echo "hostid2=${HOSTID2}" >> ${FILE}
+                    else
+                        ExitFatal "Error: could not created hostids file (${FILE}). Issue with permissions?"
+                    fi
+                fi
+            fi
+
+            ExitClean
+            ;;
+        *)                      ${ECHOCMD} "Unknown argument '${RED}$1${NORMAL}' for lynis generate" ;;
+    esac
+else
+    ${ECHOCMD} "\n  ${WHITE}Provide an additional argument${NORMAL}\n\n"
+    for ITEM in ${GENERATE_ARGS}; do
+        ${ECHOCMD} "    lynis generate ${BROWN}${ITEM}${NORMAL}"
+    done
+    ${ECHOCMD} "\n"
+    ${ECHOCMD} ""
+    ${ECHOCMD} "Extended help about the generate command can be provided with: $0 show commands generate"
+fi
+
+
+ExitClean
+
+# The End

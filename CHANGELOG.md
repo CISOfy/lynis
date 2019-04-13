@@ -13,6 +13,7 @@
 - INSE-8300 - Presence of rsh client
 - INSE-8302 - Presence of rsh server
 - Detect equery binary detection
+- New 'generate' command
 
 ### Changed
 - AUTH-9278 - Test LDAP in all PAM components on Red Hat and other systems

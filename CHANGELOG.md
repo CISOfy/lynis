@@ -19,7 +19,8 @@
 - AUTH-9278 - Test LDAP in all PAM components on Red Hat and other systems
 - PKGS-7410 - Add support for DPKG-based systems to gather installed kernel packages
 - PKGS-7420 - Detect toolkit to automatically download and apply upgrades
-- Minor changes to improve text output and test descriptions
+- Minor changes to improve text output, test descriptions, and logging
+- Changed CentOS identifiers in end-of-life database
 - AIX enhancement for IsRunning function
 - Extended PackageIsInstalled function
 - Improve text output on AIX systems

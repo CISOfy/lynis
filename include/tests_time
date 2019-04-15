@@ -82,7 +82,8 @@
         fi
 
         # Check running processes
-        FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd" | ${GREPBINARY} -v "dntpd" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} 'ntpd' | ${EGREPBINARY} -v 'dntpd|grep|engine' );
+        LogText "debug: $( ${PSBINARY} ax | ${GREPBINARY} 'ntpd' | ${EGREPBINARY} -v 'dntpd|grep|engine' )":
         if [ ! -z "${FIND}" ]; then
             FOUND=1; NTPD_RUNNING=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1
             NTP_DAEMON="ntpd"
@@ -234,54 +235,107 @@
 #
     # Test        : TIME-3112
     # Description : Check for valid associations from ntpq peers list
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no TIME-3112 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check active NTP associations ID's"
+
+    # OpenNTP
+    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no TIME-3112 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check active NTP associations ID's";
+    LogText "debug: NTPD_RUNNING=$NTPD_RUNNING NTPCBINARY=$NTPCBINARY PREQS_MET=$PREQS_MET";
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking for NTP association ID's from ntpq peers list"
-        FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} "No association ID's returned")
-        if [ -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking valid association ID's" --result "${STATUS_FOUND}" --color GREEN
-            LogText "Result: Found one or more association ID's"
-        else
-            Display --indent 2 --text "- Checking valid association ID's" --result "${STATUS_WARNING}" --color RED
-            ReportSuggestion ${TEST_NO} "Check ntp.conf for properly configured NTP servers and a correctly functioning name service."
-        fi
+       LogText "Test: Checking for NTP association ID's from ntp peers list";
+
+       #   wt: weight (1..10)
+       #   tl: ?
+       #   st: stratum
+       # 
+       #   wt tl st  next  poll          offset       delay      jitter
+       # 193.204.114.232 from pool ntp1.inrim.it
+       #    1 10  1   27s   33s      7837.028ms    53.275ms    11.340ms
+       # 193.204.114.233 from pool ntp2.inrim.it
+       #    1 10  1   27s   34s      7806.054ms    51.123ms     5.878ms
+
+       FIND=$(${NTPCBINARY} -s peers | ${EGREPBINARY} '^[0-9\.]+\s' | wc -l | tr -d [:space:] )
+       if [ ${FIND} -ge 1 ]; then
+          Display --indent 2 --text "- Checking valid association ID's" --result "${STATUS_FOUND}" --color GREEN
+          LogText "Result: Found $FIND association ID's"
+       else
+          Display --indent 2 --text "- Checking valid association ID's" --result "${STATUS_WARNING}" --color RED
+          ReportSuggestion ${TEST_NO} "Check ntpd.conf for properly configured NTP servers and a correctly functioning name service."
+       fi
+    fi
+
+    # NTP
+    if [ -z "${NTPCBINARY}" ]; then
+       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       Register --test-no TIME-3112 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check active NTP associations ID's"
+       if [ ${SKIPTEST} -eq 0 ]; then
+          LogText "Test: Checking for NTP association ID's from ntpq peers list"
+          FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} "No association ID's returned")
+          if [ -z "${FIND}" ]; then
+             Display --indent 2 --text "- Checking valid association ID's" --result "${STATUS_FOUND}" --color GREEN
+             LogText "Result: Found one or more association ID's"
+          else
+             Display --indent 2 --text "- Checking valid association ID's" --result "${STATUS_WARNING}" --color RED
+             ReportSuggestion ${TEST_NO} "Check ntp.conf for properly configured NTP servers and a correctly functioning name service."
+          fi
+       fi
     fi
 #
 #################################################################################
 #
     # Test        : TIME-3116
     # Description : Check for stratum 16 peers
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+
+    # OpenNTP
+    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check peers with stratum value of 16"
     if [ ${SKIPTEST} -eq 0 ]; then
-        COUNT=0
-        LogText "Test: Checking stratum 16 sources from ntpq peers list"
-        FIND=$(${NTPQBINARY} -p -n | ${AWKBINARY} '{ if ($2!=".POOL." && $3=="16") { print $1 }}')
-        if [ -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: All peers are lower than stratum 16"
+        COUNT=0;
+        LogText "Test: Checking stratum 16 sources from ntp peers list";
+         FIND=$(${NTPCBINARY} -s peers | ${PERLBINARY} -nle '/^[\s\*]+([0-9]+\s){2}+(16)\s/ and print $2' | wc -l | tr -d [:space:] );
+        if [[ $FIND -eq 0 ]]; then
+            Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_OK}" --color GREEN;
+            LogText "Result: All peers are lower than stratum 16";
         else
-            for ITEM in ${FIND}; do
+           # simplified
+           Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_WARNING}" --color RED;
+           LogText "Result: Found $FIND high stratum (16) peers)";
+           ReportSuggestion ${TEST_NO} "Check ntp peers output for stratum 16 peers";
+        fi
+    fi
+
+    # NTP
+    if [ -z "${NTPCBINARY}" ]; then
+       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       Register --test-no TIME-3116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check peers with stratum value of 16"
+       if [ ${SKIPTEST} -eq 0 ]; then
+          COUNT=0
+          LogText "Test: Checking stratum 16 sources from ntpq peers list"
+          FIND=$(${NTPQBINARY} -p -n | ${AWKBINARY} '{ if ($2!=".POOL." && $3=="16") { print $1 }}')
+          if [ -z "${FIND}" ]; then
+             Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_OK}" --color GREEN
+             LogText "Result: All peers are lower than stratum 16"
+          else
+             for ITEM in ${FIND}; do
                 LogText "Found stratum 16 peer: ${ITEM}"
                 FIND2=$(${EGREPBINARY} "^ntp-ignore-stratum-16-peer=${ITEM}" ${PROFILE})
                 if IsEmpty "${FIND2}"; then
-                    COUNT=$((COUNT + 1))
-                    Report "ntp_stratum_16_peer[]=${ITEM}"
+                   COUNT=$((COUNT + 1))
+                   Report "ntp_stratum_16_peer[]=${ITEM}"
                 else
-                    LogText "Output: host ${ITEM} ignored by profile"
+                   LogText "Output: host ${ITEM} ignored by profile"
                 fi
-            done
-            # Check if one or more high stratum time servers are found
-            if [ ${COUNT} -eq 0 ]; then
+             done
+             # Check if one or more high stratum time servers are found
+             if [ ${COUNT} -eq 0 ]; then
                 Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: all non local servers are lower than stratum 16, or whitelisted within the scan profile"
-            else
+             else
                 Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Found ${COUNT} high stratum (16) peers)"
                 ReportSuggestion ${TEST_NO} "Check ntpq peers output for stratum 16 peers"
-            fi
-        fi
+             fi
+          fi
+       fi
     fi
 #
 #################################################################################
@@ -290,112 +344,206 @@
     # Description : Check unreliable peers from peer list
     # Notes       : Items with # are too far away (network distance)
     #               Items with - are not chosen due clustering algorithm
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+
+    # OpenNTP
+    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3120 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unreliable NTP peers"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking unreliable ntp peers"
-        FIND=$(${NTPQBINARY} -p -n | ${EGREPBINARY} "^(-|#)" | ${AWKBINARY} '{ print $1 }' | ${SEDBINARY} 's/^-//g')
-        if [ -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking unreliable ntp peers" --result "${STATUS_NONE}" --color GREEN
-            LogText "Result: No unreliable peers found"
-        else
-            Display --indent 2 --text "- Checking unreliable ntp peers" --result "${STATUS_FOUND}" --color YELLOW
-            LogText "Result: Found one or more unreliable peers (marked with a minus or dash sign)"
-            for I in ${FIND}; do
+       LogText "Test: Checking unreliable ntp peers";
+       FIND=$(${NTPCBINARY} -s status | $PERLBINARY -nle '/([0-9]+)\/([0-9]+) peers valid/ and print $1' );
+       FIND2=$(${NTPCBINARY} -s status | $PERLBINARY -nle '/([0-9]+)\/([0-9]+) peers valid/ and print $2' );
+       if [[ $FIND -eq $FIND2 ]]; then
+          Display --indent 2 --text "- Checking unreliable ntp peers" --result "${STATUS_NONE}" --color GREEN;
+          LogText "Result: No unreliable peers found";
+       else
+          Display --indent 2 --text "- Checking unreliable ntp peers" --result "${STATUS_FOUND}" --color YELLOW;
+          LogText "Result: Found $FIND unreliable peer(s)";
+#          for I in ${FIND}; do
+#             LogText "Unreliable peer: ${I}";
+#             Report "ntp_unreliable_peer[]=${I}";
+#          done
+          ReportSuggestion ${TEST_NO} "Check ntp peers output for unreliable ntp peers and correct/replace them";
+       fi
+    fi
+
+    # NTP
+    if [ -z $NTPCBINARY ]; then
+       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       Register --test-no TIME-3120 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unreliable NTP peers"
+       if [ ${SKIPTEST} -eq 0 ]; then
+          LogText "Test: Checking unreliable ntp peers";
+          FIND=$(${NTPQBINARY} -p -n | ${EGREPBINARY} "^(-|#)" | ${AWKBINARY} '{ print $1 }' | ${SEDBINARY} 's/^-//g');
+          if [ -z "${FIND}" ]; then
+             Display --indent 2 --text "- Checking unreliable ntp peers" --result "${STATUS_NONE}" --color GREEN
+             LogText "Result: No unreliable peers found"
+          else
+             Display --indent 2 --text "- Checking unreliable ntp peers" --result "${STATUS_FOUND}" --color YELLOW
+             LogText "Result: Found one or more unreliable peers (marked with a minus or dash sign)"
+             for I in ${FIND}; do
                 LogText "Unreliable peer: ${I}"
                 Report "ntp_unreliable_peer[]=${I}"
-            done
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for unreliable ntp peers and correct/replace them"
-        fi
+             done
+             ReportSuggestion ${TEST_NO} "Check ntpq peers output for unreliable ntp peers and correct/replace them"
+          fi
+       fi
     fi
 #
 #################################################################################
 #
     # Test        : TIME-3124
     # Description : Check selected time source
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no TIME-3124 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check selected time source"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking selected time source"
-        FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ if ($4=="l") { print $1 } }')
-        FIND2=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ print $1 }')
-        if [ -z "${FIND}" -a ! -z "${FIND2}" ]; then
-            Display --indent 2 --text "- Checking selected time source" --result "${STATUS_OK}" --color GREEN
-            FIND2=$(echo ${FIND2} | ${SEDBINARY} 's/*//g')
-            LogText "Result: Found selected time source (value: ${FIND2})"
-        else
-            Display --indent 2 --text "- Checking selected time source" --result "${STATUS_WARNING}" --color RED
-            LogText "Result: Found local source as selected time source. This could indicate that no external sources are available to sync with."
-            LogText "Local source: ${FIND}"
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for selected time source"
-        fi
+    #
+    # If only a local peer is being used on a system (selected), 
+    # then the external peers may not be reachable or usable. 
+    #
+
+    # OpenNTP
+    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no TIME-3124 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check selected time source";
+    LogText "Test: Checking selected time source";
+    Display --indent 2 --text "- Checking selected time source" --result "${STATUS_OK}" --color GREEN;
+    LogText "Result: Found automatically totating time sources";
+
+    # NTP
+    if [ -z $NTPCBINARY ]; then
+       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       Register --test-no TIME-3124 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check selected time source"
+       if [ ${SKIPTEST} -eq 0 ]; then
+          LogText "Test: Checking selected time source";
+
+#      remote           refid      st t when poll reach   delay   offset  jitter
+# ==============================================================================
+#  0.debian.pool.n .POOL.          16 p    -   64    0    0.000    0.000   0.000
+#  1.debian.pool.n .POOL.          16 p    -   64    0    0.000    0.000   0.000
+#  2.debian.pool.n .POOL.          16 p    -   64    0    0.000    0.000   0.000
+#  3.debian.pool.n .POOL.          16 p    -   64    0    0.000    0.000   0.000
+# -85.199.214.99   .GPS.            1 u   39   64    3   55.296   -2.737   3.995
+# +94.177.187.22   52.239.121.49    3 u   39   64    3   40.665   -3.384   6.278
+# +80.211.178.99   216.239.35.0     2 u   40   64    3   39.659   -3.122   8.327
+# +31.14.133.122   193.204.114.233  2 u   41   64    3   40.134   -4.613   6.749
+# +185.19.184.35   193.204.114.233  2 u   37   64    3   24.014   -5.686   2.705
+# *193.204.114.233 .CTD.            1 u   39   64    3   32.485   -8.755   7.517
+# +80.211.82.90    146.126.165.20   3 u   40   64    3   39.643   -5.152   4.767
+# #185.93.183.29   89.109.251.21    2 u   37   64    3   35.992   -1.910   7.971
+# +212.45.144.3    193.204.114.232  2 u   37   64    3   32.799   -5.236   7.755
+# +80.211.155.206  193.204.114.233  2 u   35   64    3   46.016    0.929   5.538
+# +80.211.171.177  105.237.207.28   3 u   39   64    3   40.679   -6.218   7.476
+
+           FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ if ($4=="l") { print $1 } }')
+          FIND2=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ print $1 }')
+          if [ -z "${FIND}" -a ! -z "${FIND2}" ]; then
+             Display --indent 2 --text "- Checking selected time source" --result "${STATUS_OK}" --color GREEN
+             FIND2=$(echo ${FIND2} | ${SEDBINARY} 's/*//g')
+             LogText "Result: Found selected time source (value: ${FIND2})"
+          else
+             Display --indent 2 --text "- Checking selected time source" --result "${STATUS_WARNING}" --color RED
+             LogText "Result: Found local source as selected time source. This could indicate that no external sources are available to sync with."
+             LogText "Local source: ${FIND}"
+             ReportSuggestion ${TEST_NO} "Check ntpq peers output for selected time source"
+          fi
+       fi
     fi
 #
 #################################################################################
 #
     # Test        : TIME-3128
-    # Description : Check time source candidates
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    # Description : Check preferred time source
+
+    # OpenNTP
+    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3128 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check preferred time source"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking preferred time source"
-        FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^+' | ${AWKBINARY} '{ print $1 }')
-        if [ -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking time source candidates" --result "${STATUS_NONE}" --color YELLOW
+        FIND=$(${NTPCBINARY} -s peers | ${PERLBINARY} -nle '/^[\s\*]+([0-9]{1,2})\s+/ and print $1' | sort -n -r -u );
+        if [ "$( echo "$FIND" | wc -l | tr -d [:space:] )" == "1" -a "$FIND" == "1" ]; then
+            Display --indent 2 --text "- Checking preferred time source" --result "${STATUS_NONE}" --color YELLOW
             LogText "Result: No other time source candidates found"
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for time source candidates"
+            ReportSuggestion ${TEST_NO} "Check ntp peers output for time source candidates"
         else
             Display --indent 2 --text "- Checking time source candidates" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: Found one or more candidates to synchronize time with."
-            for I in ${FIND}; do
+            LogText "Result: Found one or more preferred peers to synchronize time with."
+        fi
+    fi
+
+    # NTP
+    if [ -z "$NTPCBINARY" ]; then
+       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       Register --test-no TIME-3128 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check preferred time source"
+       if [ ${SKIPTEST} -eq 0 ]; then
+          LogText "Test: Checking preferred time source"
+          FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^+' | ${AWKBINARY} '{ print $1 }')
+          if [ -z "${FIND}" ]; then
+             Display --indent 2 --text "- Checking time source candidates" --result "${STATUS_NONE}" --color YELLOW
+             LogText "Result: No other time source candidates found"
+             ReportSuggestion ${TEST_NO} "Check ntpq peers output for time source candidates"
+          else
+             Display --indent 2 --text "- Checking time source candidates" --result "${STATUS_OK}" --color GREEN
+             LogText "Result: Found one or more candidates to synchronize time with."
+             for I in ${FIND}; do
                 I=$(echo ${I} | ${SEDBINARY} 's/+//g')
                 LogText "Candidate found: ${I}"
-            done
-        fi
+             done
+          fi
+       fi
     fi
 #
 #################################################################################
 #
     # Test        : TIME-3132
     # Description : Check ntpq falsetickers
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no TIME-3132 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP falsetickers"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking preferred time source"
-        FIND=$(${NTPQBINARY} -p -n | ${EGREPBINARY} '^x')
-        if [ -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking falsetickers" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: No falsetickers found (items preceding with an 'x')"
-        else
-            Display --indent 2 --text "- Checking falsetickers" --result "${STATUS_NONE}" --color YELLOW
-            LogText "Result: Found one or more falsetickers  (items preceding with an 'x')"
-            for I in ${FIND}; do
-                I=$(echo ${I} | ${SEDBINARY} 's/x//g')
-                LogText "Falseticker found: ${I}"
-                Report "ntp_falseticker[]=${I}"
-            done
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for falsetickers"
-        fi
+    #
+
+    # OpenNTP
+    # ???
+
+    # NTP
+    if [ -z "$NTPCBINARY" ]; then
+       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       Register --test-no TIME-3132 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP falsetickers";
+       if [ ${SKIPTEST} -eq 0 ]; then
+          LogText "Test: Checking falsetickers";
+          FIND=$(${NTPQBINARY} -p -n | ${EGREPBINARY} '^x');
+          if [ -z "${FIND}" ]; then
+             Display --indent 2 --text "- Checking falsetickers" --result "${STATUS_OK}" --color GREEN;
+             LogText "Result: No falsetickers found (items preceding with an 'x')";
+          else
+             Display --indent 2 --text "- Checking falsetickers" --result "${STATUS_NONE}" --color YELLOW;
+             LogText "Result: Found one or more falsetickers  (items preceding with an 'x')";
+             for I in ${FIND}; do
+                I=$(echo ${I} | ${SEDBINARY} 's/x//g');
+                LogText "Falseticker found: ${I}";
+                Report "ntp_falseticker[]=${I}";
+             done
+             ReportSuggestion ${TEST_NO} "Check ntpq peers output for falsetickers";
+          fi
+       fi
     fi
 #
 #################################################################################
 #
     # Test        : TIME-3136
     # Description : Check ntpq reported ntp version (Linux)
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no TIME-3136 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP protocol version"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking NTP protocol version (ntpq -c ntpversion)"
-        FIND=$(${NTPQBINARY} -c ntpversion | ${AWKBINARY} '{ if ($1=="NTP" && $2=="version" && $5=="is") { print $6 } }')
-        if [ -z "${FIND}" ]; then
-            Display --indent 2 --text "- Checking NTP version" --result "${STATUS_UNKNOWN}" --color YELLOW
-            LogText "Result: No NTP version found"
-            ReportSuggestion ${TEST_NO} "Check ntpq output for NTP protocol version"
-        else
-            Display --indent 2 --text "- Checking NTP version" --result "${STATUS_FOUND}" --color GREEN
-            LogText "Result: Found NTP version ${FIND}"
-            Report "ntp_version=${FIND}"
-        fi
+
+    # OpenNTP
+    # Simple Network Time Protocol version 4
+
+    # NTP
+    if [ -z "$NTPCBINARY" ]; then
+       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       Register --test-no TIME-3136 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP protocol version";
+       if [ ${SKIPTEST} -eq 0 ]; then
+          LogText "Test: Checking NTP protocol version (ntpq -c ntpversion)";
+          FIND=$(${NTPQBINARY} -c ntpversion | ${AWKBINARY} '{ if ($1=="NTP" && $2=="version" && $5=="is") { print $6 } }');
+          if [ -z "${FIND}" ]; then
+             Display --indent 2 --text "- Checking NTP version" --result "${STATUS_UNKNOWN}" --color YELLOW;
+             LogText "Result: No NTP version found";
+             ReportSuggestion ${TEST_NO} "Check ntpq output for NTP protocol version";
+          else
+             Display --indent 2 --text "- Checking NTP version" --result "${STATUS_FOUND}" --color GREEN;
+             LogText "Result: Found NTP version ${FIND}";
+             Report "ntp_version=${FIND}";
+          fi
+       fi
     fi
 #
 #################################################################################
@@ -410,8 +558,9 @@
 #################################################################################
 #
     # Test        : TIME-3148
-    # Description : Check if TZ variable is set (Linux)
+    # Description : Check if TZ variable is set
     # Notes       : without TZ variable set, a lot of unneeded calls might be performed.
+
     Register --test-no TIME-3148 --os Linux --weight L --network NO --category performance --description "Check TZ variable"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: testing for TZ variable"
@@ -427,12 +576,13 @@
     # Test        : TIME-3160
     # Description : Check empty NTP step-tickers
     # Notes       : Mostly applies to Red Hat and clones
-    FILE="${ROOTDIR}etc/ntp/step-tickers"
+
+    FILE="${ROOTDIR}etc/ntp/step-tickers";
     if [ "${NTPD_RUNNING}" -eq 1 -a ! -z "${NTPQBINARY}" -a -f "${FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no TIME-3160 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check empty NTP step-tickers"
+    Register --test-no TIME-3160 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check empty NTP step-tickers";
     if [ ${SKIPTEST} -eq 0 ]; then
-        FOUND=0
-        OUTPUT=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE})
+        FOUND=0;
+        OUTPUT=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE});
         if [ -z "${OUTPUT}" ]; then
             if [ ${OS_REDHAT_OR_CLONE} -eq 1 -a -f "${FILE}" ]; then
                 # On RedHat if step-ticker file exists but is empty, the ntpdate start script uses the servers listed in ntp.conf for the initial time synchronization
@@ -448,7 +598,7 @@
             Display --indent 2 --text "- Checking NTP step-tickers file" --result "${STATUS_OK}" --color GREEN
             sFIND=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE} | ${EGREPBINARY} -v "^127." | ${EGREPBINARY} -v "^::1")
             for I in ${sFIND}; do
-                FIND=$(${GREPBINARY} ^${I} ${FILE} | wc -l)
+                FIND=$(${GREPBINARY} ^${I} ${FILE} | wc -l | tr -d [:space:] )
                 if [ ${FIND} -gt 0 ]; then
                     LogText "Result: $I exist in ${FILE}"
                 else

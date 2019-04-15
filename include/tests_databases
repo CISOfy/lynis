@@ -35,18 +35,18 @@
 
     # Test        : DBS-1804
     # Description : Check if MySQL is being used
-    Register --test-no DBS-1804 --weight L --network NO --category security --description "Checking active MySQL process"
+    Register --test-no DBS-1804 --weight L --network NO --category security --description "Checking active MySQL process";
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "mysqld|mysqld_safe" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "mysqld|mysqld_safe" | ${GREPBINARY} -v "grep");
         if [ -z "${FIND}" ]; then
-            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- MySQL process status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
-            LogText "Result: MySQL process not active"
+           Display --indent 2 --text "- MySQL process status" --result "${STATUS_NOT_FOUND}" --color WHITE;
+           LogText "Result: MySQL process not active";
         else
-            Display --indent 2 --text "- MySQL process status" --result "${STATUS_FOUND}" --color GREEN
-            LogText "Result: MySQL is active"
-            MYSQL_RUNNING=1
-            DATABASE_ENGINE_RUNNING=1
-            Report "mysql_running=${MYSQL_RUNNING}"
+           Display --indent 2 --text "- MySQL process status" --result "${STATUS_FOUND}" --color GREEN;
+           LogText "Result: MySQL is active";
+           MYSQL_RUNNING=1;
+           DATABASE_ENGINE_RUNNING=1;
+           Report "mysql_running=${MYSQL_RUNNING}";
         fi
     fi
 #
@@ -74,86 +74,88 @@
     if [ ! -z "${MYSQLCLIENTBINARY}" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
     Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking MySQL root password"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Trying to login to local MySQL server without password"
+       LogText "Test: Trying to login to local MySQL server without password"
 
-        # "-u root --password=" avoids ~/.my.cnf authentication settings
-        # "plugin = 'mysql_native_password' AND authentication_string = ''" avoids false positives when secure plugins are used 
-        FIND=$(${MYSQLCLIENTBINARY} --no-defaults -u root --password= --silent --batch --execute="SELECT count(*) FROM mysql.user WHERE user = 'root' AND plugin = 'mysql_native_password' AND authentication_string = ''" mysql 2>/dev/null; echo $?)
-        if [ "${FIND}" = "0" ]; then
-           LogText "Result: Login succeeded, no MySQL root password set!"
-           ReportWarning ${TEST_NO} "No MySQL root password set"
-           Display --indent 4 --text "- Checking empty MySQL root password" --result "${STATUS_WARNING}" --color RED
-           AddHP 0 5
-        else
-            LogText "Result: Login did not succeed, so a MySQL root password is set"
-            if IsVerbose; then Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN; fi
-            AddHP 2 2
-        fi
+       # "-u root --password=" avoids ~/.my.cnf authentication settings
+       # "plugin = 'mysql_native_password' AND authentication_string = ''" avoids false positives when secure plugins are used 
+       FIND=$(${MYSQLCLIENTBINARY} --no-defaults -u root --password= --silent --batch --execute="SELECT count(*) FROM mysql.user WHERE user = 'root' AND plugin = 'mysql_native_password' AND authentication_string = ''" mysql 2>/dev/null; echo $?)
+       if [ "${FIND}" = "0" ]; then
+          LogText "Result: Login succeeded, no MySQL root password set!";
+          ReportWarning ${TEST_NO} "No MySQL root password set";
+          Display --indent 4 --text "- Checking empty MySQL root password" --result "${STATUS_WARNING}" --color RED;
+          AddHP 0 5;
+       else
+          LogText "Result: Login did not succeed, so a MySQL root password is set";
+          if IsVerbose; then Display --indent 4 --text "- Checking MySQL root password" --result "${STATUS_OK}" --color GREEN; fi
+          AddHP 2 2;
+       fi
     else
-        LogText "Test skipped, MySQL daemon not running or no MySQL client available"
+       LogText "Test skipped, MySQL daemon not running or no MySQL client available";
     fi
 #
 #################################################################################
 #
     # Test        : DBS-1818
     # Description : Check MongoDB status
-    Register --test-no DBS-1818 --weight L --network NO --category security --description "Check status of MongoDB server"
+    Register --test-no DBS-1818 --weight L --network NO --category security --description "Check status of MongoDB server";
     if [ ${SKIPTEST} -eq 0 ]; then
         if IsRunning "mongod"; then
-            MONGODB_RUNNING=1
-            DATABASE_ENGINE_RUNNING=1
-            Report "mongodb_running=1"
-            Display --indent 2 --text "- MongoDB status" --result "${STATUS_FOUND}" --color GREEN
+            MONGODB_RUNNING=1;
+            DATABASE_ENGINE_RUNNING=1;
+            Report "mongodb_running=1";
+            Display --indent 2 --text "- MongoDB status" --result "${STATUS_FOUND}" --color GREEN;
+        else
+            Display --indent 2 --text "- MongoDB status" --result "${STATUS_NOT_FOUND}" --color WHITE;
         fi
     fi
 
     # Test        : DBS-1820
     # Description : Check empty MongoDB authorization
     # Notes       : Authentication can be set via command line or configuration file
-    Register --test-no DBS-1820 --weight L --network NO --category security --description "Check for authorization in MongoDB"
+    Register --test-no DBS-1820 --weight L --network NO --category security --description "Check for authorization in MongoDB";
     if [ ${SKIPTEST} -eq 0 ]; then
-        MONGODB_AUTHORIZATION_ENABLED=0
+        MONGODB_AUTHORIZATION_ENABLED=0;
         if [ ${MONGODB_RUNNING} -eq 1 ]; then
 
-            MONGO_CONF_FILES="${ROOTDIR}etc/mongod.conf ${ROOTDIR}etc/mongodb.conf"
+            MONGO_CONF_FILES="${ROOTDIR}etc/mongod.conf ${ROOTDIR}etc/mongodb.conf";
             for FILE in ${MONGO_CONF_FILES}; do
                 if [ -f ${FILE} ]; then
-                    LogText "Result: found MongoDB configuration file (${FILE})"
-                    LogText "Test: determine authorization setting in new style YAML format"
-                    AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                    LogText "Result: found MongoDB configuration file (${FILE})";
+                    LogText "Test: determine authorization setting in new style YAML format";
+                    AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)");
                     if HasData "${AUTH_IN_CONFIG}"; then
-                        LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)"
-                        MONGODB_AUTHORIZATION_ENABLED=1
+                        LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)";
+                        MONGODB_AUTHORIZATION_ENABLED=1;
                     else
-                        LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)"
-                        LogText "Test: now searching for old style configuration (auth = true) in configuration file"
-                        AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")
+                        LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)";
+                        LogText "Test: now searching for old style configuration (auth = true) in configuration file";
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)");
                         if IsEmpty "${AUTH_IN_CONFIG}"; then
-                            LogText "Result: did NOT find auth = true in configuration file"
+                            LogText "Result: did NOT find auth = true in configuration file";
                         else
-                            LogText "Result: GOOD, found authorization option enabled in configuration file (old format)"
-                            MONGODB_AUTHORIZATION_ENABLED=1
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (old format)";
+                            MONGODB_AUTHORIZATION_ENABLED=1;
                         fi
                     fi
                 else
-                    LogText "Result: configuration file ${FILE} not found"
+                    LogText "Result: configuration file ${FILE} not found";
                 fi
             done
 
             # Now check authorization on the command line
             if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
                 if HasData "${PGREPBINARY}"; then
-                    AUTH_ON_CMDLINE=$(for I in $(${PGREPBINARY} mongo); do cat /proc/${I}/cmdline | xargs -0 echo | ${GREPBINARY} -E "\-\-auth( |$)"; done)
+                    AUTH_ON_CMDLINE=$(for I in $(${PGREPBINARY} mongo); do cat /proc/${I}/cmdline | xargs -0 echo | ${GREPBINARY} -E "\-\-auth( |$)"; done);
                     if [ ! -z "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authorization enabled via mongod parameter"; MONGODB_AUTHORIZATION_ENABLED=1; fi
                 else
-                    LogText "Result: skipped this part of the test, as pgrep is not available"
+                    LogText "Result: skipped this part of the test, as pgrep is not available";
                 fi
             fi
             if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
-                LogText "Result: no authorization enabled via parameter or configuration file"
-                Report "mongodb_authorization_disabled=1"
-                ReportWarning ${TEST_NO} "MongoDB instance allows any user to access databases"
-                Display --indent 4 --text "- Checking MongoDB authorization" --result "${STATUS_DISABLED}" --color RED
+                LogText "Result: no authorization enabled via parameter or configuration file";
+                Report "mongodb_authorization_disabled=1";
+                ReportWarning ${TEST_NO} "MongoDB instance allows any user to access databases";
+                Display --indent 4 --text "- Checking MongoDB authorization" --result "${STATUS_DISABLED}" --color RED;
             else
                 if IsVerbose; then Display --indent 4 --text "- Checking MongoDB authorization" --result "${STATUS_ENABLED}" --color GREEN; fi
             fi
@@ -164,17 +166,18 @@
 #
     # Test        : DBS-1826
     # Description : Check if PostgreSQL is being used
-    Register --test-no DBS-1826 --weight L --network NO --category security --description "Checking active PostgreSQL processes"
+    Register --test-no DBS-1826 --weight L --network NO --category security --description "Checking active PostgreSQL processes";
     if [ ${SKIPTEST} -eq 0 ]; then
-        if IsRunning "postgres:"; then
-            Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_FOUND}" --color GREEN
-            LogText "Result: PostgreSQL is active"
-            POSTGRESQL_RUNNING=1
-            DATABASE_ENGINE_RUNNING=1
-            Report "postgresql_running=${POSTGRESQL_RUNNING}"
+        #if IsRunning "postgres:"; then
+        if [[ $( ps ax | grep postgres: | grep -v grep | wc -l ) -gt 1 ]]; then
+            Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_FOUND}" --color GREEN;
+            LogText "Result: PostgreSQL is active";
+            POSTGRESQL_RUNNING=1;
+            DATABASE_ENGINE_RUNNING=1;
+            Report "postgresql_running=${POSTGRESQL_RUNNING}";
         else
-            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
-            LogText "Result: PostgreSQL process not active"
+            Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_NOT_FOUND}" --color WHITE;
+            LogText "Result: PostgreSQL process not active";
         fi
     fi
 #
@@ -194,7 +197,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
-            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
+            Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE; 
             LogText "Result: Oracle process(es) not active"
         else
             Display --indent 2 --text "- Oracle processes status" --result "${STATUS_FOUND}" --color GREEN
@@ -220,36 +223,36 @@
 #
     # Test        : DBS-1860
     # Description : Checks if a DB2 instance is currently runnigng
-    Register --test-no DBS-1860 --weight L --network NO --category security --description "Checking active DB2 instances"
+    Register --test-no DBS-1860 --weight L --network NO --category security --description "Checking active DB2 instances;"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if IsRunning db2sysc; then
-            Display --indent 2 --text "- DB2 instance running" --result "${STATUS_FOUND}" --color GREEN
-            LogText "Result: At least one DB2 instance is running"
-            DB2_RUNNING=1
-            DATABASE_ENGINE_RUNNING=1
-            Report "db2_running=${DB2_RUNNING}"
-        else
-            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- DB2 instance running" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
-            LogText "Result: No DB2 instances are running"
-        fi
+       if IsRunning db2sysc; then
+          Display --indent 2 --text "- DB2 instance running" --result "${STATUS_FOUND}" --color GREEN;
+          LogText "Result: At least one DB2 instance is running";
+          DB2_RUNNING=1;
+          DATABASE_ENGINE_RUNNING=1;
+          Report "db2_running=${DB2_RUNNING}";
+       else
+          Display --indent 2 --text "- DB2 instance running" --result "${STATUS_NOT_FOUND}" --color WHITE;
+          LogText "Result: No DB2 instances are running";
+       fi
     fi
 #
 #################################################################################
 #
     # Test        : DBS-1880
     # Description : Determine if redis is running
-    Register --test-no DBS-1880 --weight L --network NO --category security --description "Check for active Redis server"
+    Register --test-no DBS-1880 --weight L --network NO --category security --description "Check for active Redis server";
     if [ ${SKIPTEST} -eq 0 ]; then
-        if IsRunning redis-server; then
-            Display --indent 2 --text "- Redis (server) status" --result "${STATUS_FOUND}" --color GREEN
-            LogText "Result: Redis is running"
-            REDIS_RUNNING=1
-            DATABASE_ENGINE_RUNNING=1
-            Report "redis_server_running=${REDIS_RUNNING}"
-        else
-            if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Redis (server) status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
-            LogText "Result: No Redis processes are running"
-        fi
+       if IsRunning redis-server; then
+          Display --indent 2 --text "- Redis (server) status" --result "${STATUS_FOUND}" --color GREEN;
+          LogText "Result: Redis is running";
+          REDIS_RUNNING=1;
+          DATABASE_ENGINE_RUNNING=1;
+          Report "redis_server_running=${REDIS_RUNNING}";
+       else
+          Display --indent 2 --text "- Redis (server) status" --result "${STATUS_NOT_FOUND}" --color WHITE;
+          LogText "Result: No Redis processes are running";
+       fi
     fi
 #
 #################################################################################

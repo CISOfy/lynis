@@ -34,147 +34,13 @@
     PERFORM_FAIL2BAN_TESTS=0
     SNORT_FOUND=0
     SNORT_RUNNING=0
+    SURICATA_FOUND=0
+    BRO_FOUND=0
+
 #
 #################################################################################
 #
-    InsertSection "Software: System tooling"
-#
-#################################################################################
-#
-# Automation
-#
-#################################################################################
-#
-    # Test        : TOOL-5002
-    # Description : Check if automation tools are found
-    Register --test-no TOOL-5002 --weight L --network NO --category security --description "Checking for automation tools"
-    if [ ${SKIPTEST} -eq 0 ]; then
-
-        Display --indent 2 --text "- Checking automation tooling"
-
-        # Ansible
-        FOUND=0
-        LIST="~/.ansible ${ROOTDIR}etc/ansible ${ROOTDIR}root/.ansible ${ROOTDIR}tmp/.ansible"
-        for ITEM in ${LIST}; do if DirectoryExists ${ITEM}; then FOUND=1; break; fi; done
-        # Test for files (only if no match was found)
-        if [ ${FOUND} -eq 0 ]; then
-            LIST="${ROOTDIR}var/log/ansible.log ~/.ansible-retry"
-            for ITEM in ${LIST}; do if FileExists ${ITEM}; then FOUND=1; break; fi; done
-        fi
-
-        if [ ${FOUND} -eq 1 ]; then
-            LogText "Result: found a possible trace of Ansible"
-            AUTOMATION_TOOL_FOUND=1
-            ANSIBLE_ARTIFACT_FOUND=1
-            Report "automation_tool_running[]=ansible"
-            Display --indent 4 --text "- Ansible artifact" --result "${STATUS_FOUND}" --color GREEN
-        fi
-
-        # Cfengine
-        if [ ! -z "${CFAGENTBINARY}" ]; then
-            LogText "Result: CFEngine (cfagent) is installed (${CFAGENTBINARY})"
-            AUTOMATION_TOOL_FOUND=1
-            CFENGINE_AGENT_FOUND=1
-            Report "automation_tool_running[]=cf-agent"
-            Display --indent 4 --text "- Cfengine (cfagent)" --result "${STATUS_FOUND}" --color GREEN
-        fi
-        OTHER_CFENGINE_LOCATIONS="/var/cfengine/bin /var/rudder/cfengine-community/bin"
-        for I in ${OTHER_CFENGINE_LOCATIONS}; do
-            if [ -d ${I} ]; then
-                if [ -f ${I}/cf-agent ]; then
-                    LogText "Result: found CFEngine agent (cf-agent) in ${I}"
-                    AUTOMATION_TOOL_FOUND=1
-                    CFENGINE_AGENT_FOUND=1
-                    Report "automation_tool_running[]=cf-agent"
-                    Display --indent 4 --text "- CFEngine (cf-agent)" --result "${STATUS_FOUND}" --color GREEN
-                fi
-                if IsRunning "cf-server"; then
-                    LogText "Result: found CFEngine server"
-                    AUTOMATION_TOOL_FOUND=1
-                    CFENGINE_SERVER_RUNNING=1
-                    Report "automation_tool_running[]=cf-server"
-                    Display --indent 4 --text "- CFEngine (cf-server)" --result "${STATUS_FOUND}" --color GREEN
-                fi
-            fi
-        done
-
-        # Chef
-        CHEF_LOCATIONS="/opt/chef/bin /opt/chef-server/sv /opt/chefdk/bin"
-        for I in ${CHEF_LOCATIONS}; do
-            if [ -d ${I} ]; then
-                if [ -f ${I}/chef-client ]; then
-                    CHEFCLIENTBINARY="${I}/chef-client"
-                    AUTOMATION_TOOL_FOUND=1
-                    Report "automation_tool_running[]=chef-client"
-                    Display --indent 4 --text "- Chef client (chef-client)" --result "${STATUS_FOUND}" --color GREEN
-                    LogText "Result: found chef-client (chef client daemon) in ${I}"
-                fi
-                if [ -f ${I}/erchef ]; then
-                    CHEFSERVERBINARY="${I}/erchef"
-                    LogText "Result: Chef Server (erchef) is installed (${CHEFSERVERBINARY})"
-                    AUTOMATION_TOOL_FOUND=1
-                    Report "automation_tool_running[]=chef-server"
-                    Display --indent 4 --text "- Chef Server (erchef)" --result "${STATUS_FOUND}" --color GREEN
-                    LogText "Result: found erchef (chef server daemon) in ${I}"
-                fi
-            fi
-        done
-
-        # Puppet
-
-        # Check for Puppet installation provided by Puppetlabs package
-        if [ -z "${PUPPETBINARY}" ]; then
-            if [ -f ${ROOTDIR}opt/puppetlabs/puppet/bin/puppet ]; then
-                PUPPETBINARY="${ROOTDIR}opt/puppetlabs/puppet/bin/puppet"
-            fi
-        fi
-
-        if [ ! -z "${PUPPETBINARY}" ]; then
-            LogText "Result: Puppet is installed (${PUPPETBINARY})"
-            AUTOMATION_TOOL_FOUND=1
-            Report "automation_tool_running[]=puppet-agent"
-            Display --indent 4 --text "- Puppet (agent)" --result "${STATUS_FOUND}" --color GREEN
-        fi
-
-        if IsRunning --full "puppet master"; then
-            LogText "Result: found puppet master"
-            AUTOMATION_TOOL_FOUND=1
-            PUPPET_MASTER_RUNNING=1
-            Report "automation_tool_running[]=puppet-master"
-            Display --indent 4 --text "- Puppet (master)" --result "${STATUS_FOUND}" --color GREEN
-        fi
-
-        # SaltStack
-        if [ ! -z "${SALTMINIONBINARY}" ]; then
-            LogText "Result: SaltStack (salt-minion) is installed (${SALTMINIONBINARY})"
-            AUTOMATION_TOOL_FOUND=1
-            SALT_MINION_RUNNING=1
-            Report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "- SaltStack minion (salt-minion)" --result "${STATUS_FOUND}" --color GREEN
-        fi
-        if [ ! -z "${SALTMASTERBINARY}" ]; then
-            LogText "Result: SaltStack (salt-master) is installed (${SALTMASTERBINARY})"
-            AUTOMATION_TOOL_FOUND=1
-            SALT_MASTER_RUNNING=1
-            Report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "- SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
-        else
-            if IsRunning "salt-master"; then
-                LogText "Result: found SaltStack (master)"
-                AUTOMATION_TOOL_FOUND=1
-                SALT_MASTER_RUNNING=1
-                Report "automation_tool_running[]=saltstack-master"
-                Display --indent 4 --text "- SaltStack (master)" --result "${STATUS_FOUND}" --color GREEN
-            fi
-        fi
-
-        if [ ${AUTOMATION_TOOL_FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Automation tooling" --result "${STATUS_FOUND}" --color GREEN
-        else
-            Display --indent 2 --text "- Automation tooling" --result "${STATUS_NOT_FOUND}" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Determine if automation tools are present for system management"
-        fi
-    fi
+    InsertSection "Software: system integrity"
 #
 #################################################################################
 #
@@ -182,6 +48,8 @@
 #
 #################################################################################
 #
+    Display --indent 2 --text "- Checking presence of IDS/IPS tools";
+
     # Test        : TOOL-5102
     # Description : Check for Fail2ban
     Register --test-no TOOL-5102 --weight L --network NO --category security --description "Check for presence of Fail2ban"
@@ -193,10 +61,11 @@
             IDS_IPS_TOOL_FOUND=1
             LogText "Result: Fail2ban is installed (${FAIL2BANBINARY})"
             Report "ids_ips_tooling[]=fail2ban"
-            Display --indent 2 --text "- Checking presence of Fail2ban" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- Checking presence of Fail2ban" --result "${STATUS_FOUND}" --color GREEN
         else
-            LogText "Result: Fail2ban not present (fail2ban-server not found)"
-        fi
+            LogText "Result: Fail2ban not present (fail2ban-server not found)";
+            Display --indent 4 --text "- Checking presence of Fail2ban" --result "${STATUS_NOT_FOUND}"
+         fi
 
         # Fail2ban configuration
         LogText "Checking Fail2ban configuration file"
@@ -329,7 +198,7 @@
             IDS_IPS_TOOL_FOUND=1
             LogText "Result: Snort is installed (${SNORTBINARY})"
             Report "ids_ips_tooling[]=snort"
-            Display --indent 2 --text "- Checking presence of Snort" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- Checking presence of Snort" --result "${STATUS_FOUND}" --color GREEN
         fi
 
         if IsRunning "snort"; then
@@ -360,6 +229,105 @@
             fi
         fi
     fi
+
+#
+#################################################################################
+#
+    # Test        : TOOL-NNNN
+    # Description : Check for Suricata
+    Register --test-no TOOL-NNNN --weight L --network NO --category security --description "Check for presence of Suricata"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # Suricata presence
+        if [ -n "${SURICATABINARY}" ]; then
+           SURICATA_FOUND=1
+           IDS_IPS_TOOL_FOUND=1
+           LogText "Result: Suricata is installed (${SURICATABINARY})"
+           Report "ids_ips_tooling[]=suricata"
+           Display --indent 4 --text "- Checking presence of Suricata" --result "${STATUS_FOUND}" --color GREEN; 
+        else
+           Display --indent 4 --text "- Checking presence of Suricata" --result "${STATUS_NOT_FOUND}";
+           LogText "Result: Suricata not present";
+        fi
+
+        if IsRunning "suricata"; then
+           SURICATA_FOUND=1;
+           SURICATA_RUNNING=1;
+           SURICATA_LOG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/suricata/ {print $4}' | ${HEADBINARY} -1);
+        else
+           LogText "Result: Suricata not running";
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-NNNN
+    # Description : Check for Suricata configuration
+    Register --test-no TOOL-NNNN --weight L --network NO --category security --description "Check Suricata configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # Continue if tooling is available and suricata is running
+        if [ -n ${SURICATA_FOUND} ] || [ -n ${SURICATA_RUNNING} ]; then
+            if [ ${SURICATA_FOUND} -eq 1 ] && [ ${SURICATA_RUNNING} -eq 1 ]; then
+                SURICATA_CONFIG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/suricata/ {print $3}' | ${HEADBINARY} -1)
+                if HasData "${SURICATA_CONFIG}"; then
+                    LogText "Result: found Suricata configuration file: ${SURICATA_CONFIG}"
+                    Report "snort_config=${SURICATA_CONFIG}"
+                fi
+                SURICATA=$(which suricata 2> /dev/null)
+            fi
+        fi
+    fi
+
+#
+#################################################################################
+#
+    # Test        : TOOL-NNNN
+    # Description : Check for Bro
+    Register --test-no TOOL-NNNN --weight L --network NO --category security --description "Check for presence of Bro"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # Snort presence
+        if [ -n "${BROBINARY}" ]; then
+            BRO_FOUND=1
+            IDS_IPS_TOOL_FOUND=1
+            LogText "Result: Bro is installed (${BROBINARY})"
+            Report "ids_ips_tooling[]=bro"
+            Display --indent 4 --text "- Checking presence of Bro" --result "${STATUS_FOUND}" --color GREEN;
+         else
+            Display --indent 4 --text "- Checking presence of Bro" --result "${STATUS_NOT_FOUND}";
+            LogText "Result: Bro not present";
+        fi
+
+        if IsRunning "bro"; then
+            BRO_FOUND=1
+            BRO_RUNNING=1
+            BRO_LOG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/bro/ {print $4}' | ${HEADBINARY} -1)
+        else
+            LogText "Result: Bro not running";
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-NNNN
+    # Description : Check for Bro configuration
+    Register --test-no TOOL-NNNN --weight L --network NO --category security --description "Check Bro configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # Continue if tooling is available and Bro is running
+        if [ -n ${BRO_FOUND} ] || [ -n ${BRO_RUNNING} ]; then
+            if [ ${BRO_FOUND} -eq 1 ] && [ ${BRO_RUNNING} -eq 1 ]; then
+                BRO_CONFIG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/bro/ {print $3}' | ${HEADBINARY} -1)
+                if HasData "${BRO_CONFIG}"; then
+                    LogText "Result: found Bro configuration file: ${BRO_CONFIG}"
+                    Report "snort_config=${BRO_CONFIG}"
+                fi
+                BRO=$(which bro 2> /dev/null)
+            fi
+        fi
+    fi
+
 #
 #################################################################################
 #
@@ -375,6 +343,7 @@
             Display --indent 2 --text "- Checking presence of OSSEC" --result "${STATUS_FOUND}" --color GREEN
         else
             LogText "Result: OSSEC analysis daemon not active"
+            Display --indent 4 --text "- Checking presence of OSSEC" --result "${STATUS_NOT_FOUND}";
         fi
     fi
 #
@@ -386,14 +355,165 @@
     if [ ${SKIPTEST} -eq 0 ]; then
 
         if [ ${IDS_IPS_TOOL_FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Checking for IDS/IPS tooling" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 2 --text "- Checking presence of IDS/IPS tools" --result "${STATUS_FOUND}" --color GREEN
             AddHP 2 2
         else
-            Display --indent 2 --text "- Checking for IDS/IPS tooling" --result "${STATUS_NONE}" --color YELLOW
+            Display --indent 2 --text "- Checking presence of IDS/IPS tools" --result "${STATUS_NONE}" --color YELLOW
             #ReportSuggestion ${TEST_NO} "Install and configure automated intrusion detection/prevention tools"
             AddHP 0 2
         fi
     fi
+
+
+#
+#################################################################################
+#
+    InsertSection "Software: system automation and backup"
+#
+#################################################################################
+#
+# Automation
+#
+#################################################################################
+#
+    # Test        : TOOL-5002
+    # Description : Check if automation tools are found
+    Register --test-no TOOL-5002 --weight L --network NO --category security --description "Checking for automation tools"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        Display --indent 2 --text "- Checking presence of automation tools"
+
+        # Ansible
+        Display --indent 4 --text "- Ansible (python)";
+        FOUND=0
+        LIST="~/.ansible ${ROOTDIR}etc/ansible ${ROOTDIR}root/.ansible ${ROOTDIR}tmp/.ansible"
+        for ITEM in ${LIST}; do if DirectoryExists ${ITEM}; then FOUND=1; break; fi; done
+        # Test for files (only if no match was found)
+        if [ ${FOUND} -eq 0 ]; then
+            LIST="${ROOTDIR}var/log/ansible.log ~/.ansible-retry"
+            for ITEM in ${LIST}; do if FileExists ${ITEM}; then FOUND=1; break; fi; done
+        fi
+
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: found a possible trace of Ansible"
+            AUTOMATION_TOOL_FOUND=1
+            ANSIBLE_ARTIFACT_FOUND=1
+            Report "automation_tool_running[]=ansible"
+            Display --indent 4 --text "- Ansible artifact" --result "${STATUS_FOUND}" --color GREEN
+        fi
+
+        # Cfengine
+        Display --indent 4 --text "- CFEngine (c)";
+        if [ ! -z "${CFAGENTBINARY}" ]; then
+            LogText "Result: CFEngine (cfagent) is installed (${CFAGENTBINARY})"
+            AUTOMATION_TOOL_FOUND=1
+            CFENGINE_AGENT_FOUND=1
+            Report "automation_tool_running[]=cf-agent"
+            Display --indent 4 --text "- CFEngine (cfagent)" --result "${STATUS_FOUND}" --color GREEN
+        fi
+        OTHER_CFENGINE_LOCATIONS="/var/cfengine/bin /var/rudder/cfengine-community/bin /services/5308/bin"
+        for I in ${OTHER_CFENGINE_LOCATIONS}; do
+            if [ -d ${I} ]; then
+                if [ -f ${I}/cf-agent ]; then
+                    LogText "Result: found CFEngine agent (cf-agent) in ${I}"
+                    AUTOMATION_TOOL_FOUND=1
+                    CFENGINE_AGENT_FOUND=1
+                    Report "automation_tool_running[]=cf-agent"
+                    Display --indent 4 --text "- CFEngine (cf-agent)" --result "${STATUS_FOUND}" --color GREEN
+                fi
+                if IsRunning "cf-server"; then
+                    LogText "Result: found CFEngine server"
+                    AUTOMATION_TOOL_FOUND=1
+                    CFENGINE_SERVER_RUNNING=1
+                    Report "automation_tool_running[]=cf-server"
+                    Display --indent 4 --text "- CFEngine (cf-server)" --result "${STATUS_FOUND}" --color GREEN
+                fi
+            fi
+        done
+
+        # Chef
+        Display --indent 4 --text "- Chef (ruby)";
+        CHEF_LOCATIONS="/opt/chef/bin /opt/chef-server/sv /opt/chefdk/bin"
+        for I in ${CHEF_LOCATIONS}; do
+            if [ -d ${I} ]; then
+                if [ -f ${I}/chef-client ]; then
+                    CHEFCLIENTBINARY="${I}/chef-client"
+                    AUTOMATION_TOOL_FOUND=1
+                    Report "automation_tool_running[]=chef-client"
+                    Display --indent 4 --text "- Chef client (chef-client)" --result "${STATUS_FOUND}" --color GREEN
+                    LogText "Result: found chef-client (chef client daemon) in ${I}"
+                fi
+                if [ -f ${I}/erchef ]; then
+                    CHEFSERVERBINARY="${I}/erchef"
+                    LogText "Result: Chef Server (erchef) is installed (${CHEFSERVERBINARY})"
+                    AUTOMATION_TOOL_FOUND=1
+                    Report "automation_tool_running[]=chef-server"
+                    Display --indent 4 --text "- Chef Server (erchef)" --result "${STATUS_FOUND}" --color GREEN
+                    LogText "Result: found erchef (chef server daemon) in ${I}"
+                fi
+            fi
+        done
+
+        # Puppet
+        Display --indent 4 --text "- Puppet (ruby)";
+        
+        # Check for Puppet installation provided by Puppetlabs package
+        if [ -z "${PUPPETBINARY}" ]; then
+            if [ -f ${ROOTDIR}opt/puppetlabs/puppet/bin/puppet ]; then
+                PUPPETBINARY="${ROOTDIR}opt/puppetlabs/puppet/bin/puppet"
+            fi
+        fi
+
+        if [ ! -z "${PUPPETBINARY}" ]; then
+            LogText "Result: Puppet is installed (${PUPPETBINARY})"
+            AUTOMATION_TOOL_FOUND=1
+            Report "automation_tool_running[]=puppet-agent"
+            Display --indent 4 --text "- Puppet (agent)" --result "${STATUS_FOUND}" --color GREEN
+        fi
+
+        if IsRunning --full "puppet master"; then
+            LogText "Result: found puppet master"
+            AUTOMATION_TOOL_FOUND=1
+            PUPPET_MASTER_RUNNING=1
+            Report "automation_tool_running[]=puppet-master"
+            Display --indent 4 --text "- Puppet (master)" --result "${STATUS_FOUND}" --color GREEN
+        fi
+
+        # SaltStack
+        Display --indent 4 --text "- SaltStack (python)";
+        if [ ! -z "${SALTMINIONBINARY}" ]; then
+            LogText "Result: SaltStack (salt-minion) is installed (${SALTMINIONBINARY})"
+            AUTOMATION_TOOL_FOUND=1
+            SALT_MINION_RUNNING=1
+            Report "automation_tool_running[]=saltstack-minion"
+            Display --indent 4 --text "- SaltStack minion (salt-minion)" --result "${STATUS_FOUND}" --color GREEN
+        fi
+        if [ ! -z "${SALTMASTERBINARY}" ]; then
+            LogText "Result: SaltStack (salt-master) is installed (${SALTMASTERBINARY})"
+            AUTOMATION_TOOL_FOUND=1
+            SALT_MASTER_RUNNING=1
+            Report "automation_tool_running[]=saltstack-minion"
+            Display --indent 4 --text "- SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
+        else
+            if IsRunning "salt-master"; then
+                LogText "Result: found SaltStack (master)"
+                AUTOMATION_TOOL_FOUND=1
+                SALT_MASTER_RUNNING=1
+                Report "automation_tool_running[]=saltstack-master"
+                Display --indent 4 --text "- SaltStack (master)" --result "${STATUS_FOUND}" --color GREEN
+            fi
+        fi
+
+        if [ ${AUTOMATION_TOOL_FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Checking presence of automation tools" --result "${STATUS_FOUND}" --color GREEN
+        else
+            Display --indent 2 --text "- Checking presence of automation tool" --result "${STATUS_NOT_FOUND}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Determine if automation tools are present for system management"
+        fi
+    fi
+#
+#################################################################################
+
 #
 #################################################################################
 #

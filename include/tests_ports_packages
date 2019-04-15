@@ -297,17 +297,19 @@
     # Test        : PKGS-7320
     # Description : Check available of arch-audit
     if [ "${OS_FULLNAME}" = "Arch Linux" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="Test only applies to Arch Linux"; fi
-    Register --test-no PKGS-7320 --os "Linux" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking for arch-audit tooling"
+    Register --test-no PKGS-7320 --os Linux --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking for arch-audit tooling"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -z "${ARCH_AUDIT_BINARY}" ]; then
             LogText "Result: no arch-audit binary found"
             AddHP 1 2
             ReportSuggestion "${TEST_NO}" "Consider installing arch-audit to determine vulnerable packages" "arch-audit" "text:Install arch-audit"
+            Display --indent 4 --text "- Checking arch-audit" --result "${STATUS_NOT_FOUND}";
         else
             PACKAGE_AUDIT_TOOL_FOUND=1
             PACKAGE_AUDIT_TOOL="arch-audit"
             LogText "Result: arch-audit binary found (${ARCH_AUDIT_BINARY})"
             AddHP 3 3
+            Display --indent 4 --text "- Checking arch-audit" --result "${STATUS_FOUND}" --color GREEN
         fi
     fi
 #
@@ -316,7 +318,7 @@
     # Test        : PKGS-7322
     # Description : Discover vulnerable packages with arch-audit
     if [ ! -z "${ARCH_AUDIT_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="arch-audit not found"; fi
-    Register --test-no PKGS-7322 --os "Linux" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Discover vulnerable packages with arch-audit"
+    Register --test-no PKGS-7322 --os Linux --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Discover vulnerable packages with arch-audit"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking arch-audit output for vulnerable packages"
         FIND=$(${ARCH_AUDIT_BINARY} | ${SEDBINARY} 's/\.\..*$//' | ${SEDBINARY} 's/, //g' | ${SEDBINARY} 's/\(\["\|"\]\)//g' | ${SEDBINARY} 's/""/,/g' | ${AWKBINARY} '{ if($1=="Package") { print $2"|"$6"|"}}' | ${AWKBINARY} -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]"|"}}' | ${SEDBINARY} 's/,/|cve=/' | ${SORTBINARY})
@@ -339,7 +341,7 @@
     # Test        : PKGS-7328
     # Description : Check installed packages with Zypper
     if [ ! -z "${ZYPPERBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7328 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying Zypper for installed packages"
+    Register --test-no PKGS-7328 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying Zypper for installed packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         PACKAGE_AUDIT_TOOL_FOUND=1
@@ -352,9 +354,11 @@
                 INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PKG},0,"
             done
             Report "installed_packages=${COUNT}"
+            Display --indent 4 --text "- Checking Zypper" --result "${STATUS_FOUND}" --color GREEN;
         else
             # Could not find any installed packages
-            ReportException "${TEST_NO}" "No installed packages found with Zypper"
+            ReportException "${TEST_NO}" "No installed packages found with Zypper";
+            Display --indent 4 --text "- Checking Zypper" --result "${STATUS_NOT_FOUND}";
         fi
     fi
 #
@@ -363,7 +367,7 @@
     # Test        : PKGS-7330
     # Description : Check vulnerable packages with Zypper
     if [ ! -z "${ZYPPERBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7330 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying Zypper for vulnerable packages"
+    Register --test-no PKGS-7330 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying Zypper for vulnerable packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${ZYPPERBINARY} -n pchk | ${GREPBINARY} "(0 security patches)")
         if [ ! -z "${FIND}" ]; then
@@ -391,7 +395,7 @@
     # Test        : PKGS-7332
     # Description : Query macOS ports
     if [ -x ${ROOTDIR}opt/local/bin/port ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7332 --os "macOS" --preqs-met ${PREQS_MET} --weight L --network NO --description "Query macOS ports"
+    Register --test-no PKGS-7332 --os macOS --preqs-met ${PREQS_MET} --weight L --network NO --description "Query macOS ports"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${ROOTDIR}opt/local/bin/port installed 2>&1 | ${GREPBINARY} active | ${SORTBINARY}; ${ROOTDIR}bin/echo $?)
         if [ "${FIND}" = "0" ]; then
@@ -417,7 +421,7 @@
     # Test        : PKGS-7334
     # Description : Query macOS ports for available port upgrades
     if [ -x ${ROOTDIR}opt/local/bin/port ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7334 --os "macOS" --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Query port for port upgrades"
+    Register --test-no PKGS-7334 --os macOS --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Query port for port upgrades"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         LogText "Test: Querying ports for possible port upgrades"
@@ -442,7 +446,7 @@
     # Test        : PKGS-7345
     # Description : Debian package based systems (dpkg)
     if [ -x ${ROOTDIR}usr/bin/dpkg ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7345 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying dpkg"
+    Register --test-no PKGS-7345 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying dpkg"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         Display --indent 4 --text "- Searching dpkg package manager" --result "${STATUS_FOUND}" --color GREEN
@@ -471,7 +475,7 @@
     # Description : Check packages which are removed, but still own configuration files, cron jobs etc
     # Notes       : Cleanup: for pkg in $(dpkg -l | ${GREPBINARY} "^rc" | ${CUTBINARY} -d' ' -f3); do aptitude purge ${pkg}; done
     if [ -x ${ROOTDIR}usr/bin/dpkg ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7346 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Search unpurged packages on system"
+    Register --test-no PKGS-7346 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Search unpurged packages on system"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         LogText "Test: Querying dpkg -l to get unpurged packages"
@@ -521,7 +525,7 @@
     # Description : Use Dandified YUM to gather installed packages
     # Notes       : Possible replacement for YUM in the long term
     if [ ! -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no "PKGS-7350" --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for installed packages with DNF utility"
+    Register --test-no "PKGS-7350" --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for installed packages with DNF utility"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         Display --indent 4 --text "- Searching DNF package manager" --result "${STATUS_FOUND}" --color GREEN
@@ -547,7 +551,7 @@
     # Test        : PKGS-7352
     # Description : Use Dandified YUM to detect security updates
     if [ ! -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no "PKGS-7352" --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for security updates with DNF utility"
+    Register --test-no "PKGS-7352" --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for security updates with DNF utility"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check for security updates
         LogText "Action: checking updateinfo for security updates"
@@ -575,7 +579,7 @@
     # Test        : PKGS-7354
     # Description : Perform integrity tests for package database
     if [ ! -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no "PKGS-7354" --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking package database integrity"
+    Register --test-no "PKGS-7354" --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking package database integrity"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if repoquery plugin is available
         FIND=$(${DNFBINARY} 2>&1 | ${GREPBINARY} "^repoquery")
@@ -601,7 +605,7 @@
     # Test        : PKGS-7366
     # Description : Checking if debsecan is installed and enabled on Debian systems
     if [ ! -z "${DEBSECANBINARY}" -a "${OS}" = "Linux" -a "${LINUX_VERSION}" = "Debian" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no "PKGS-7366" --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for debsecan utility"
+    Register --test-no "PKGS-7366" --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for debsecan utility"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! -z "${DEBSECANBINARY}" ]; then
             LogText "Result: debsecan utility is installed"
@@ -634,7 +638,7 @@
     # Description : Checking debsums installation status and presence in cron job
     # Note        : Run this only when it is a DPKG based system
     if [ ! -z "${DPKGBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no "PKGS-7370" --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for debsums utility"
+    Register --test-no "PKGS-7370" --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for debsums utility"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! -z "${DEBSUMSBINARY}" ]; then
             LogText "Result: debsums utility is installed"
@@ -664,7 +668,7 @@
     # Test        : PKGS-7378
     # Description : Query FreeBSD portmaster for available port upgrades
     if [ -x ${ROOTDIR}usr/local/sbin/portmaster ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7378 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Query portmaster for port upgrades"
+    Register --test-no PKGS-7378 --os FreeBSD --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Query portmaster for port upgrades"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         LogText "Test: Querying portmaster for possible port upgrades"
@@ -729,7 +733,7 @@
     # Notes       : Related vulnerability file is /var/db/pkg/vuln.xml
     # TODO        : Run this in any jail
     if [ ! -z "${PKG_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="pkg tool not available"; fi
-    Register --test-no PKGS-7381 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with pkg"
+    Register --test-no PKGS-7381 --os FreeBSD --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with pkg"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
         PACKAGE_AUDIT_TOOL_FOUND=1
@@ -775,7 +779,7 @@
     # Description : Check for vulnerable FreeBSD packages
     # Notes       : Newer machines should use pkg audit instead of portaudit
     if [ -x ${ROOTDIR}usr/local/sbin/portaudit ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7382 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with portaudit"
+    Register --test-no PKGS-7382 --os FreeBSD --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for vulnerable FreeBSD packages with portaudit"
     if [ ${SKIPTEST} -eq 0 ]; then
         PACKAGE_AUDIT_TOOL_FOUND=1
         FIND=$(${ROOTDIR}usr/local/sbin/portaudit | ${GREPBINARY} 'problem(s) in your installed packages found' | ${GREPBINARY} -v '0 problem(s) in your installed packages found')
@@ -805,7 +809,7 @@
     # Description : Check for YUM package Update management
     # Notes       : Skip if DNF is used as package manager
     if [ ! -z "${YUMBINARY}" -a -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package update management"
+    Register --test-no PKGS-7383 --os Linux --preqs-met ${PREQS_MET} --weight M --network NO --category security --description "Check for YUM package update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
         FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/[[:blank:]]//g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
@@ -824,7 +828,7 @@
     # Test        : PKGS-7384
     # Description : Search for YUM utils package
     if [ ! -z "${YUMBINARY}" -a -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7384 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --category security --description "Check for YUM utils package"
+    Register --test-no PKGS-7384 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for YUM utils package"
     if [ ${SKIPTEST} -eq 0 ]; then
         # package-cleanup tool can be found in different locations
         if [ -x ${ROOTDIR}bin/package-cleanup -o -x ${ROOTDIR}usr/bin/package-cleanup ]; then
@@ -870,7 +874,7 @@
     #             : RHEL 6: yum-security-plugin (plugin)
     #             : RHEL 5: yum-security (plugin)
     if [ -x ${ROOTDIR}usr/bin/yum -a -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7386 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --category security --description "Check for YUM security package"
+    Register --test-no PKGS-7386 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for YUM security package"
     if [ ${SKIPTEST} -eq 0 ]; then
         DO_TEST=0
         LogText "Test: Determining if yum-security package installed"
@@ -944,7 +948,7 @@
     # Test        : PKGS-7387
     # Description : Search for YUM GPG check
     if [ -x ${ROOTDIR}usr/bin/yum -a -z "${DNFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7387 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --category security --description "Check for GPG signing in YUM security package"
+    Register --test-no PKGS-7387 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for GPG signing in YUM security package"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ! -z "${PYTHONBINARY}" ]; then
             LogText "Test: checking enabled repositories"
@@ -987,7 +991,7 @@
     # Test        : PKGS-7388
     # Description : Check security repository in Debian/ubuntu apt sources.list file
     if [ -f ${ROOTDIR}etc/apt/sources.list -a -d ${ROOTDIR}etc/apt/sources.list.d ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7388 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check security repository in Debian/ubuntu apt sources.list file"
+    Register --test-no PKGS-7388 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check security repository in Debian/ubuntu apt sources.list file"
     if [ $SKIPTEST -eq 0 ]; then
         FOUND=0
         if [ ${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY} -eq 0 ]; then
@@ -1133,7 +1137,7 @@
     # Test        : PKGS-7393
     # Description : Check Gentoo vulnerable packages
     if [ -x ${ROOTDIR}usr/bin/emerge-webrsync ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7393 --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check for Gentoo vulnerable packages"
+    Register --test-no PKGS-7393 --os Linux --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check for Gentoo vulnerable packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         VULNERABLE_PACKAGES_FOUND=0
         SCAN_PERFORMED=0
@@ -1244,7 +1248,7 @@
 #
     # Test        : PKGS-7410
     # Description : Count number of installed kernel packages
-    Register --test-no PKGS-7410 --weight L --network NO --category security --description "Count installed kernel packages"
+    Register --test-no PKGS-7410 --os Linux --weight L --network NO --category security --description "Count installed kernel packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         KERNELS=0
         LogText "Test: Checking how many kernel packages are installed"
@@ -1268,8 +1272,10 @@
             elif [ ${KERNELS} -gt 5 ]; then
                 LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
                 ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages with package-cleanup utility (--old-kernels)"
+                AddHP 4 5
             else
                 LogText "Result: found ${KERNELS} kernel packages on the system, which is fine"
+                AddHP 1 1
             fi
         fi
 

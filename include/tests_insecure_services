@@ -61,22 +61,23 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check running processes
         LogText "Test: Searching for active inet daemon"
-        if IsRunning "inetd"; then
+        IsRunning inetd
+        if [ ${RUNNING} -eq 1 ]; then
             LogText "Result: inetd is running"
-            Display --indent 4 --text "- inetd status" --result "ACTIVE" --color GREEN
+            Display --indent 2 --text "- Checking inetd status" --result "ACTIVE" --color GREEN
             INETD_ACTIVE=1
         else
             LogText "Result: inetd is NOT running"
-            Display --indent 4 --text "- inetd status" --result "NOT ACTIVE" --color GREEN
+            Display --indent 2 --text "- Checking inetd status" --result "NOT ACTIVE" --color GREEN
         fi
     fi
 #
 #################################################################################
 #
     # Test        : INSE-8004
-    # Description : Check for inetd configuration file (inetd)
+    # Description : Check for inetd configuration file
     if [ ${INETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no INSE-8004 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Presence of inetd configuration file"
+    Register --test-no INSE-8004 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for enabled inet daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check configuration file
         LogText "Test: Searching for file ${INETD_CONFIG_FILE}"
@@ -101,10 +102,10 @@
         FIND=$(${GREPBINARY} -v "^#" ${INETD_CONFIG_FILE} | ${GREPBINARY} -v "^$")
         if [ -z "${FIND}" ]; then
             LogText "Result: no services found in ${INETD_CONFIG_FILE}"
-            Display --indent 4 --text "- Checking enabled inetd services" --result "${STATUS_OK}" --color GREEN
+            Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_OK}" --color GREEN
         else
             LogText "Result: found services in inetd, even though inetd is not running"
-            Display --indent 4 --text "- Checking enabled inetd services" --result "${STATUS_SUGGESTION}" --color YELLOW
+            Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_SUGGESTION}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Although inetd is not running, make sure no services are enabled in ${INETD_CONFIG_FILE}, or remove inetd service"
         fi
     fi
@@ -118,7 +119,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking telnet presence in inetd configuration"
         FIND=$(${GREPBINARY} "^telnet" ${INETD_CONFIG_FILE})
-        if [ -z "${FIND}" ]; then
+        if [ "${FIND}" == "" ]; then
             LogText "Result: telnet not enabled in ${INETD_CONFIG_FILE}"
             Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_NOT_FOUND}" --color GREEN
             AddHP 3 3
@@ -418,16 +419,17 @@
     if [ ! -z "${LAUNCHCTL_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No launchctl binary on this system"; fi
     Register --test-no INSE-8050 --os "macOS" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight M --network NO --category security --description "Check for insecure services on macOS"
     if [ ${SKIPTEST} -eq 0 ]; then
-        TEST_SERVICES="com.apple.fingerd"
+        TEST_SERVICES="com.apple.fingerd com.apple.ftp-proxy"
         for ITEM in ${TEST_SERVICES}; do
-            if ${LAUNCHCTL_BINARY} print-enabled system | grep -sq ${ITEM}; then
-                Display --indent 2 --text "- $text" --result "${STATUS_NO}" --color RED
+            #if ${LAUNCHCTL_BINARY} print-enabled system | grep -sq ${ITEM}; then
+             if ${LAUNCHCTL_BINARY} list | grep -sq $ITEM; then
+                Display --indent 2 --text "- $ITEM" --result "${STATUS_NO}" --color RED
                 LogText "Result: found ${ITEM}, which is considered an insecure service"
                 AddSuggestion "${TEST_NO}" "Consider disabling service ${ITEM}" "launchctl" "-"
                 AddHP 0 1
             else
-                Display --indent 2 --text "- $text" --result "${STATUS_OK}" --color GREEN
-                LogText "Result: $text, OK"
+                Display --indent 2 --text "- $ITEM" --result "${STATUS_OK}" --color GREEN
+                LogText "Result: $ITEM, OK"
                 AddHP 1 1
             fi
         done

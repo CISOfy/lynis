@@ -21,6 +21,7 @@
 - PKGS-7420 - Detect toolkit to automatically download and apply upgrades
 - PKGS-7328 - Added global Zypper option --non-interactive
 - PKGS-7330 - Added global Zypper option --non-interactive
+- PKGS-7392 - Skip test for Zypper-based systems
 - Minor changes to improve text output, test descriptions, and logging
 - Changed CentOS identifiers in end-of-life database
 - AIX enhancement for IsRunning function

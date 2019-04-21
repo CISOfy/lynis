@@ -1,6 +1,10 @@
 # Lynis Changelog
 
-## Lynis 2.7.4 (not released yet)
+## Lynis 2.7.4 (2019-04-21)
+
+This is a bigger release than usual, including several new tests created by
+Capashenn (GitHub). It is a coincidence that it is released exactly one more
+after the previous version and on Easter. No easter eggs, only improvements!
 
 ### Added
 - FILE-6324 - Discover XFS mount points

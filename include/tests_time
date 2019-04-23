@@ -84,7 +84,7 @@
         # Check running processes
         FIND=$(${PSBINARY} ax | ${GREPBINARY} 'ntpd' | ${EGREPBINARY} -v 'dntpd|grep|engine' );
         LogText "debug: $( ${PSBINARY} ax | ${GREPBINARY} 'ntpd' | ${EGREPBINARY} -v 'dntpd|grep|engine' )":
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "$FIND" ]; then
             FOUND=1; NTPD_RUNNING=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1
             NTP_DAEMON="ntpd"
             LogText "Result: found running NTP daemon in process list"
@@ -99,9 +99,9 @@
         fi
 
         # Check timedate daemon (systemd)
-        if [ ! -z "${TIMEDATECTL}" ]; then
+        if [ -n "$TIMEDATECTL" ]; then
             FIND=$(${TIMEDATECTL} status | ${EGREPBINARY} "(NTP|System clock) synchronized: yes")
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "$FIND" ]; then
                 # Check for systemd-timesyncd
                 if [ -f ${ROOTDIR}etc/systemd/timesyncd.conf ]; then
                     LogText "Result: found ${ROOTDIR}etc/systemd/timesyncd.conf"
@@ -125,7 +125,7 @@
             if [ -f ${I} ]; then
                 LogText "Test: checking for ntpdate or rdate in crontab file ${I}"
                 FIND=$(${EGREPBINARY} "ntpdate|rdate" ${I} | ${GREPBINARY} -v '^#')
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "$FIND" ]; then
                     FOUND=1; NTP_CONFIG_TYPE_SCHEDULED=1
                     Display --indent 2 --text "- Checking NTP client in crontab file (${I})" --result "${STATUS_FOUND}" --color GREEN
                     LogText "Result: found ntpdate or rdate reference in crontab file ${I}"
@@ -147,11 +147,11 @@
             if [ -d ${I} ]; then
                 if FileIsReadable ${I}; then
                     FIND=$(${LSBINARY} ${I} | ${GREPBINARY} -v FIFO)
-                    if [ ! -z "${FIND}" ]; then
+                    if [ -n "$FIND" ]; then
                         for J in ${FIND}; do
                             LogText "Test: checking for ntpdate or rdate in ${I}/${J}"
                             FIND2=$(${EGREPBINARY} "rdate|ntpdate" ${I}/${J} | ${GREPBINARY} -v "^#")
-                            if [ ! -z "${FIND2}" ]; then
+                            if [ -n "$FIND2" ]; then
                                 LogText "Positive match found: ${FIND2}"
                                 FOUND=1; FOUND_IN_CRON=1; NTP_CONFIG_TYPE_SCHEDULED=1
                             fi
@@ -187,7 +187,7 @@
         if [ -f /etc/rc.conf ]; then
             LogText "Test: Checking if ntpdate is enabled at startup in *BSD"
             FIND=$(${GREPBINARY} 'ntpdate_enable="YES"' /etc/rc.conf)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "$FIND" ]; then
                 LogText "Result: ntpdate is enabled in rc.conf"
                 FOUND=1
                 NTP_CONFIG_TYPE_STARTUP=1
@@ -220,7 +220,7 @@
 #
     # Test        : TIME-3106
     # Description : Check status of systemd time synchronization
-    if [ ${SYSTEMD_NTP_ENABLED} -eq 1 -a ! -z "${TIMEDATECTL}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SYSTEMD_NTP_ENABLED} -eq 1 -a -n "$TIMEDATECTL" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check systemd NTP time synchronization status"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check the status of time synchronization via timedatectl"
@@ -237,7 +237,7 @@
     # Description : Check for valid associations from ntpq peers list
 
     # OpenNTP
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPCBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3112 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check active NTP associations ID's";
     LogText "debug: NTPD_RUNNING=$NTPD_RUNNING NTPCBINARY=$NTPCBINARY PREQS_MET=$PREQS_MET";
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -254,7 +254,7 @@
 
     # NTP
     if [ -z "${NTPCBINARY}" ]; then
-       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
        Register --test-no TIME-3112 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check active NTP associations ID's"
        if [ ${SKIPTEST} -eq 0 ]; then
           LogText "Test: Checking for NTP association ID's from ntpq peers list"
@@ -275,7 +275,7 @@
     # Description : Check for stratum 16 peers
 
     # OpenNTP
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPCBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check peers with stratum value of 16"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0;
@@ -294,7 +294,7 @@
 
     # NTP
     if [ -z "${NTPCBINARY}" ]; then
-       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
        Register --test-no TIME-3116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check peers with stratum value of 16"
        if [ ${SKIPTEST} -eq 0 ]; then
           COUNT=0
@@ -335,7 +335,7 @@
     #               Items with - are not chosen due clustering algorithm
 
     # OpenNTP
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPCBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3120 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unreliable NTP peers"
     if [ ${SKIPTEST} -eq 0 ]; then
        LogText "Test: Checking unreliable ntp peers";
@@ -357,7 +357,7 @@
 
     # NTP
     if [ -z $NTPCBINARY ]; then
-       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
        Register --test-no TIME-3120 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unreliable NTP peers"
        if [ ${SKIPTEST} -eq 0 ]; then
           LogText "Test: Checking unreliable ntp peers";
@@ -387,7 +387,7 @@
     #
 
     # OpenNTP
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPCBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3124 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check selected time source";
     LogText "Test: Checking selected time source";
     Display --indent 2 --text "- Checking selected time source" --result "${STATUS_OK}" --color GREEN;
@@ -395,13 +395,13 @@
 
     # NTP
     if [ -z $NTPCBINARY ]; then
-       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
        Register --test-no TIME-3124 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check selected time source"
        if [ ${SKIPTEST} -eq 0 ]; then
           LogText "Test: Checking selected time source";
            FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ if ($4=="l") { print $1 } }')
           FIND2=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ print $1 }')
-          if [ -z "${FIND}" -a ! -z "${FIND2}" ]; then
+          if [ -z "${FIND}" -a -n "$FIND2" ]; then
              Display --indent 2 --text "- Checking selected time source" --result "${STATUS_OK}" --color GREEN
              FIND2=$(echo ${FIND2} | ${SEDBINARY} 's/*//g')
              LogText "Result: Found selected time source (value: ${FIND2})"
@@ -420,7 +420,7 @@
     # Description : Check preferred time source
 
     # OpenNTP
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPCBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPCBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3128 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check preferred time source"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking preferred time source"
@@ -437,7 +437,7 @@
 
     # NTP
     if [ -z "$NTPCBINARY" ]; then
-       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
        Register --test-no TIME-3128 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check preferred time source"
        if [ ${SKIPTEST} -eq 0 ]; then
           LogText "Test: Checking preferred time source"
@@ -468,7 +468,7 @@
 
     # NTP
     if [ -z "$NTPCBINARY" ]; then
-       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
        Register --test-no TIME-3132 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP falsetickers";
        if [ ${SKIPTEST} -eq 0 ]; then
           LogText "Test: Checking falsetickers";
@@ -499,7 +499,7 @@
 
     # NTP
     if [ -z "$NTPCBINARY" ]; then
-       if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+       if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
        Register --test-no TIME-3136 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP protocol version";
        if [ ${SKIPTEST} -eq 0 ]; then
           LogText "Test: Checking NTP protocol version (ntpq -c ntpversion)";
@@ -521,7 +521,7 @@
     # Test        : TIME-3146
     # Description : Check /etc/default/ntpdate (Linux)
     # Notes       : ntpdate-debian binary
-    #if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #if [ ${NTPD_RUNNING} -eq 1 -a -n "$NTPQBINARY" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     #Register --test-no TIME-3146 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check /etc/default/ntpdate"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #
@@ -548,7 +548,7 @@
     # Notes       : Mostly applies to Red Hat and clones
 
     FILE="${ROOTDIR}etc/ntp/step-tickers";
-    if [ "${NTPD_RUNNING}" -eq 1 -a ! -z "${NTPQBINARY}" -a -f "${FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ "${NTPD_RUNNING}" -eq 1 -a -n "$NTPQBINARY" -a -f "$FILE" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3160 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check empty NTP step-tickers";
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0;

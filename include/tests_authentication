@@ -350,7 +350,7 @@
                     UID_MIN=$(${GREPBINARY} "^UID_MIN" /etc/login.defs | ${AWKBINARY} '{print $2}')
                     LogText "Result: found minimal user id specified: ${UID_MIN}"
                 fi
-                if [ "${UID_MIN}" == "" ]; then UID_MIN="1000"; fi
+                if [ -z "${UID_MIN}" ]; then UID_MIN="1000"; fi
                 LogText "Linux real users output (ID = 0, or ${UID_MIN}+, but not 65534):"
                 FIND=$(${AWKBINARY} -v UID_MIN="${UID_MIN}" -F: '($3 >= UID_MIN && $3 != 65534) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
@@ -494,7 +494,7 @@
             FIND=$(${LSBINARY} -ld ${SUDOERS_D} | ${CUTBINARY} -c 2-10)
             FIND2=$(${LSBINARY} -nd ${SUDOERS_D} | ${AWKBINARY} '{print $3$4}')
             LogText "Result: Found directory permissions: ${FIND} and owner UID GID: ${FIND2}"
-            if [ "${FIND}" == "rwxrwx---" -o "${FIND}" == "rwxr-x---" -o "${FIND}" == "rwx------" ] && [ "${FIND2}" == "00" ]; then
+            if [ "$FIND" = "rwxrwx---" -o "$FIND" = "rwxr-x---" -o "$FIND" = "rwx------" ] && [ "$FIND2" = "00" ]; then
                 LogText "Result: directory ${SUDOERS_D} permissions/ownership OK"
                 Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_OK}" --color GREEN
             else
@@ -508,7 +508,7 @@
             FIND=$(${LSBINARY} -l ${f} | ${CUTBINARY} -c 2-10)
             FIND2=$(${LSBINARY} -n ${f} | ${AWKBINARY} '{print $3$4}')
             LogText "Result: Found file permissions: ${FIND} and owner UID GID: ${FIND2}"
-            if [ "${FIND}" == "rw-------" -o "${FIND}" == "rw-rw----" -o "${FIND}" == "r--r-----" ] && [ "${FIND2}" == "00" ]; then
+            if [ "$FIND" = "rw-------" -o "$FIND" = "rw-rw----" -o "$FIND" = "r--r-----" ] && [ "$FIND2" = "00" ]; then
                 LogText "Result: file ${f} permissions/ownership OK"
                 Display --indent 4 --text "- Permissions for: ${f}" --result "${STATUS_OK}" --color GREEN
             else
@@ -680,7 +680,7 @@
     # Test        : AUTH-9268
     # Description : Searching available PAM files
     # Notes       : PAM is used on AIX, FreeBSD, Linux, HPUX, Solaris
-    if [ ${OS} == "AIX" -o ${OS} == "Linux" -o ${OS} == "HPUX" -o ${OS} == "Solaris" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ "$OS" = "AIX" -o "$OS" = "Linux" -o "$OS" = "HPUX" -o "$OS" = "Solaris" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9268 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking presence pam.d files"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
@@ -690,7 +690,7 @@
             if [ -d ${DIR} -a ! -L ${DIR} ]; then
                 LogText "Result: directory ${DIR} exists"
                 # Search in the specified directory
-                if [ "${OS}" == "Solaris" ]; then
+                if [ "$OS" = "Solaris" ]; then
                     # Solaris does not support -maxdepth
                     FIND=$(find ${DIR} -type f -name "pam_*.so" -print | sort)
                 else
@@ -755,7 +755,7 @@
     # Test        : AUTH-9282 and AUTH-9283
     # Note        : Every Linux based operating system seem to have different passwd
     #               options, so we have to check the version first.
-    if [ "${OS}" == "Linux" ]; then
+    if [ "$OS" = "Linux" ]; then
         if [ ${OS_REDHAT_OR_CLONE} -eq 0 ]; then
             case ${LINUX_VERSION} in
                 "SuSE")
@@ -838,7 +838,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking PASS_MIN_DAYS option in ${ROOTDIR}etc/login.defs"
         FIND=$(${GREPBINARY} "^PASS_MIN_DAYS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="PASS_MIN_DAYS") { print $2 } }')
-        if [ "${FIND}" == "" -o "${FIND}" == "0" ]; then
+        if [ -z "$FIND" -o -z "$FIND" ]; then
             LogText "Result: password minimum age is not configured"
             Display --indent 2 --text "- Checking user password aging (minimum)" --result "${STATUS_DISABLED}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Configure minimum password age in /etc/login.defs"
@@ -852,7 +852,7 @@
 
         LogText "Test: Checking PASS_MAX_DAYS option in ${ROOTDIR}etc/login.defs "
         FIND=$(${GREPBINARY} "^PASS_MAX_DAYS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="PASS_MAX_DAYS") { print $2 } }')
-        if [ -z "${FIND}" -o "${FIND}" == "99999" ]; then
+        if [ -z "${FIND}" -o "$FIND" = "99999" ]; then
             LogText "Result: password aging limits are not configured"
             Display --indent 2 --text "- User password aging (maximum)" --result "${STATUS_DISABLED}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Configure maximum password age in /etc/login.defs"
@@ -875,7 +875,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if FileIsReadable ${ROOTDIR}etc/shadow; then
 
-            if [ "${OS}" == "Solaris" ]; then
+            if [ "${OS}" = "Solaris" ]; then
                 NOW=$(nawk 'BEGIN{print srand()}')
             else
                 NOW=$(date "+%s")
@@ -1016,7 +1016,7 @@
                     TEST_PERFORMED=1
                     LogText "Result: found target ${I}"
                     FIND=$(${EGREPBINARY} "^ExecStart=" ${FILE} | ${GREPBINARY} "sulogin")
-                    if [ "${FIND}" == "" ]; then
+                    if [ -z "$FIND" ]; then
                         LogText "Result: did not find sulogin specified, possible risk of getting into single user mode without authentication"
                     else
                         LogText "Result: sulogin was found, which is a good measure to protect single user mode"
@@ -1068,7 +1068,7 @@
                 for FILE in ${FIND}; do
                     HAS_MASK=$(${GREPBINARY} umask ${FILE} | ${SEDBINARY} 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
                     for MASK in ${HAS_MASK}; do
-                        if [ "${MASK}" == "077" -o "${MASK}" == "027" -o "${MASK}" == "0077" -o "${MASK}" == "0027" ]; then
+                        if [ "$MASK" = "077" -o "$MASK" = "027" -o "$MASK" = "0077" -o "$MASK" = "0027" ]; then
                             LogText "Result: found a strong umask '${MASK}' set in ${FILE}"
                             GOOD_UMASK=1
                         else
@@ -1092,9 +1092,9 @@
             FIND=$(${GREPBINARY} "umask" /etc/profile | ${SEDBINARY} 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} -F'[ =]' '{ print $2 }' | tr -d [\;\:\\\\] )
             FIND2=$(${GREPBINARY} "umask" /etc/profile | ${SEDBINARY} 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} -F'[ =]' '{ print $2 }' | wc -l)
             FOUND_UMASK=0
-            if [ "${FIND2}" == "0" ]; then
+            if [ "$FIND2" = "0" ]; then
                 LogText "Result: did not find umask in /etc/profile"
-            elif [ "${FIND2}" == "1" ]; then
+            elif [ "$FIND2" = "1" ]; then
                 LogText "Result: found umask (prefixed with spaces)"
                 FOUND_UMASK=1
                 if [ "${FIND}" != "077" -a "${FIND}" != "027" -a "${FIND}" != "0077" -a "${FIND}" != "0027" ]; then
@@ -1148,7 +1148,7 @@
             LogText "Result: file /etc/passwd exists"
             LogText "Test: Checking umask value in /etc/passwd"
             FIND=$(${GREPBINARY} "umask=" /etc/passwd)
-            if [ "${FIND}" == "" ]; then
+            if [ -z "$FIND" ]; then
                 ReportManual "AUTH-9328:03"
             fi
           else
@@ -1161,12 +1161,12 @@
             LogText "Result: file /etc/login.defs exists"
             LogText "Test: Checking umask value in /etc/login.defs"
             FIND=$(${GREPBINARY} "^UMASK" /etc/login.defs | ${AWKBINARY} '{ print $2 }')
-            if [ "${FIND}" == "" ]; then
+            if [ -z "$FIND" ]; then
                 LogText "Result: umask value is not configured (most likely it will have the default 022 value)"
                 Display --indent 4 --text "- umask (/etc/login.defs)" --result "${STATUS_SUGGESTION}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Default umask in /etc/login.defs could not be found and defaults usually to 022, which could be more strict like 027"
                 AddHP 1 2
-            elif [ "${FIND}" == "077" -o "${FIND}" == "027" -o "${FIND}" == "0077" -o "${FIND}" == "0027" ]; then
+            elif [ "$FIND" = "077" -o "$FIND" = "027" -o "$FIND" = "0077" -o "$FIND" = "0027" ]; then
                 LogText "Result: umask is ${FIND}, which is fine"
                 Display --indent 4 --text "- umask (/etc/login.defs)" --result "${STATUS_OK}" --color GREEN
                 AddHP 2 2
@@ -1186,10 +1186,10 @@
             LogText "Result: file /etc/init.d/functions exists"
             LogText "Test: Checking umask value in /etc/init.d/functions"
             FIND=$(${GREPBINARY} "^umask" /etc/init.d/functions | ${AWKBINARY} '{ print $2 }')
-            if [ "${FIND}" == "" ]; then
+            if [ "$FIND" = "" ]; then
                 LogText "Result: umask is not configured"
                 Display --indent 4 --text "- umask (/etc/init.d/functions)" --result "${STATUS_NONE}" --color WHITE
-            elif [ "${FIND}" == "077" -o "${FIND}" == "027" -o "${FIND}" == "0077" -o "${FIND}" == "0027" ]; then
+            elif [ "$FIND" = "077" -o "$FIND" = "027" -o "$FIND" = "0077" -o "$FIND" = "0027" ]; then
                 LogText "Result: umask is ${FIND}, which is fine"
                 Display --indent 4 --text "- umask (/etc/init.d/functions)" --result "${STATUS_OK}" --color GREEN
                 AddHP 2 2
@@ -1208,12 +1208,12 @@
             LogText "Result: file /etc/init.d/rc exists"
             LogText "Test: Checking UMASK value in /etc/init.d/rc"
             FIND=$(${GREPBINARY} -i "^UMASK" /etc/init.d/rc | ${AWKBINARY} '{ print $2 }')
-            if [ "${FIND}" == "" ]; then
+            if [ -z "$FIND" ]; then
                 LogText "Result: UMASK value is not configured (most likely it will have the default 022 value)"
                 Display --indent 4 --text "- Checking umask (/etc/init.d/rc)" --result "${STATUS_SUGGESTION}" --color YELLOW
                 ReportSuggestion ${TEST_NO} "Default umask in /etc/init.d/rc could not be found and defaults usually to 022, which could be more strict like 027"
                 AddHP 1 2
-            elif [ "${FIND}" == "077" -o "${FIND}" == "027" -o "${FIND}" == "0077" -o "${FIND}" == "0027" ]; then
+            elif [ "$FIND" = "077" -o "$FIND" = "027" -o "$FIND" = "0077" -o "$FIND" = "0027" ]; then
                 LogText "Result: umask is ${FIND}, which is fine"
                 Display --indent 4 --text "- umask (/etc/init.d/rc)" --result "${STATUS_OK}" --color GREEN
                 AddHP 2 2
@@ -1233,7 +1233,7 @@
             WEAK_UMASK=0
             LogText "Result: file /etc/login.conf exists"
             FIND=$(${GREPBINARY} "umask" /etc/login.conf | ${SEDBINARY} 's/#.*//' | ${SEDBINARY} -E 's/^[[:cntrl:]]//' | ${GREPBINARY} -v '^$' | ${AWKBINARY} -F: '{ print $2}' | ${AWKBINARY} -F= '{ if ($1=="umask") { print $2 }}')
-            if [ ! "${FIND}" == "" ]; then
+            if [ -n "$FIND" ]; then
                 for UMASK_VALUE in ${FIND}; do
                     case ${UMASK_VALUE} in
                         027|0027|077|0077)
@@ -1269,14 +1269,14 @@
             LogText "Result: file /etc/init.d/rcS exists"
             LogText "Test: Checking if script runs another script."
             FIND=$(${GREPBINARY} -i "^exec " /etc/init.d/rcS | ${AWKBINARY} '{ print $2 }')
-            if [ "${FIND}" == "" ]; then
+            if [ -z "$FIND" ]; then
                 FIND2=$(${GREPBINARY} -i "^UMASK" /etc/init.d/rcS | ${AWKBINARY} '{ print $2 }')
-                if [ "${FIND2}" == "" ]; then
+                if [ -z "$FIND2" ]; then
                     LogText "Result: UMASK value is not configured (most likely it will have the default 022 value)"
                     Display --indent 4 --text "- Checking umask (/etc/init.d/rcS)" --result "${STATUS_SUGGESTION}" --color YELLOW
                     ReportSuggestion ${TEST_NO} "Default umask in /etc/init.d/rcS could not be found and defaults usually to 022, which could be more strict like 027"
                     AddHP 1 2
-                elif [ "${FIND2}" == "077" -o "${FIND2}" == "027" ]; then
+                elif [ "$FIND2" = "077" -o "$FIND2" = "027" ]; then
                     LogText "Result: umask is ${FIND2}, which is fine"
                     Display --indent 4 --text "- umask (/etc/init.d/rcS)" --result "${STATUS_OK}" --color GREEN
                     AddHP 2 2
@@ -1307,43 +1307,43 @@
         if [ -f ${ROOTDIR}etc/security/policy.conf ]; then
             LogText "Result: found ${ROOTDIR}etc/security/policy.conf"
             FIND=$(${GREPBINARY} "^LOCK_AFTER_RETRIES" /etc/security/policy.conf)
-            if [ ! "${FIND}" == "" ]; then
-                FOUND=1
-                LogText "Result: account locking option set"
-                LogText "Output: ${FIND}"
-                AddHP 2 2
+            if [ -n "$FIND" ]; then
+                FOUND=1;
+                LogText "Result: account locking option set";
+                LogText "Output: ${FIND}";
+                AddHP 2 2;
             else
-                LogText "Result: option LOCK_AFTER_RETRIES not set"
-                AddHP 1 2
+                LogText "Result: option LOCK_AFTER_RETRIES not set";
+                AddHP 1 2;
             fi
         else
-            LogText "Result: ${ROOTDIR}etc/security/policy.conf does not exist"
+            LogText "Result: ${ROOTDIR}etc/security/policy.conf does not exist";
         fi
         # If policy.conf does not exist, we most likely deal with a Solaris version below 10
         # and we proceed with checking the softer option RETRIES in /etc/default/login
         # which does not lock account, but discourages brute force password attacks.
-        if [ ${FOUND} -eq 0 ]; then
+        if [ $FOUND -eq 0 ]; then
             LogText "Test: checking ${ROOTDIR}etc/default/login"
             if [ -f ${ROOTDIR}etc/default/login ]; then
                 LogText "Result: file ${ROOTDIR}etc/default/login exists"
                 FIND=$(${GREPBINARY} "^RETRIES" ${ROOTDIR}etc/default/login)
-                if [ ! -z "${FIND}" ]; then
-                    FOUND=1
-                    LogText "Result: retries option configured"
-                    LogText "Output: ${FIND}"
-                    AddHP 2 2
+                if [ -n "$FIND" ]; then
+                    FOUND=1;
+                    LogText "Result: retries option configured";
+                    LogText "Output: ${FIND}";
+                    AddHP 2 2;
                 else
-                    LogText "Result: retries option not configured"
-                    AddHP 1 2
+                    LogText "Result: retries option not configured";
+                    AddHP 1 2;
                 fi
             else
-                LogText "Result: file ${ROOTDIR}etc/default/login does not exist"
+                LogText "Result: file ${ROOTDIR}etc/default/login does not exist";
             fi
         fi
-        if [ ${FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Checking account locking" --result "${STATUS_ENABLED}" --color GREEN
+        if [ $FOUND -eq 1 ]; then
+            Display --indent 2 --text "- Checking account locking" --result "${STATUS_ENABLED}" --color GREEN;
         else
-            Display --indent 2 --text "- Checking account locking" --result "NOT ENABLED" --color YELLOW
+            Display --indent 2 --text "- Checking account locking" --result "NOT ENABLED" --color YELLOW;
         fi
     fi
 #
@@ -1355,7 +1355,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f ${ROOTDIR}etc/nsswitch.conf ]; then
             FIND=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "ldap")
-            if [ "${FIND}" == "" ]; then
+            if [ -z "$FIND" ]; then
                 LogText "Result: LDAP authentication not enabled"
                 Display --indent 2 --text "- LDAP authentication support" --result "NOT ENABLED" --color WHITE
             else
@@ -1405,7 +1405,7 @@
         LogText "Test: Checking FAILLOG_ENAB option in ${ROOTDIR}etc/login.defs "
         FIND=$(${GREPBINARY} "^FAILLOG_ENAB" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="FAILLOG_ENAB") { print $2 } }')
         # Search for enabled status (yes), otherwise consider it to be disabled (e.g. empty, or other value)
-        if [ "${FIND}" == "yes" ]; then
+        if [ "$FIND" = "yes" ]; then
             AUTH_FAILED_LOGINS_LOGGED=1
             LogText "Result: failed login attempts are logged in /var/log/faillog"
             Display --indent 2 --text "- Logging failed login attempts" --result "${STATUS_ENABLED}" --color GREEN
@@ -1453,7 +1453,7 @@
         LogText "Test: checking /etc/doas.conf permissions"
         FIND=$(ls -l ${DOAS_FILE} | ${CUTBINARY} -c 2-10)
         LogText "Result: Found /etc/doas.conf file permissions: ${FIND}"
-        if [ "${FIND}" == "rw-------" -o "${FIND}" == "rw-rw----" -o "${FIND}" == "r--r-----" ]; then
+        if [ "$FIND" = "rw-------" -o "$FIND" = "rw-rw----" -o "$FIND" = "r--r-----" ]; then
             LogText "Result: file /etc/doas.conf has correct permissions"
             Display --indent 4 --text "- Check doas file permissions" --result "${STATUS_OK}" --color GREEN
         else

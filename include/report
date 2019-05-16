@@ -22,55 +22,79 @@
 #
 #################################################################################
 #
+
+    # Add data fields to report file
+    Report "dhcp_client_running=${DHCP_CLIENT_RUNNING}"
+    Report "arpwatch_running=${ARPWATCH_RUNNING}"
+
+    # Report firewall installed for now, if we found one active. Next step would be determining binaries first and apply additional checks.
+    Report "firewall_active=${FIREWALL_ACTIVE}"
+    Report "firewall_empty_ruleset=${FIREWALL_EMPTY_RULESET}"
+    Report "firewall_installed=${FIREWALL_ACTIVE}"
+
+    if [ ! -z "${INSTALLED_PACKAGES}" ]; then Report "installed_packages_array=${INSTALLED_PACKAGES}"; fi
+
+    Report "package_audit_tool=${PACKAGE_AUDIT_TOOL}"
+    Report "package_audit_tool_found=${PACKAGE_AUDIT_TOOL_FOUND}"
+    Report "vulnerable_packages_found=${VULNERABLE_PACKAGES_FOUND}"
+
+
     # Hardening Index
-    # Define approximately how strong a machine has been hardened
 
-        # If no hardening has been found, set value to 1
-        if [ ${HPPOINTS} -eq 0 ]; then HPPOINTS=1; HPTOTAL=100; fi
-        HPINDEX=$((HPPOINTS * 100 / HPTOTAL))
-        HPAOBLOCKS=$((HPPOINTS * 20 / HPTOTAL))
-        # Set color related to rating
-        if [ ${HPINDEX} -lt 50 ]; then
-            HPCOLOR="${RED}"
-            HIDESCRIPTION="System has not or a low amount been hardened"
-        elif [ ${HPINDEX} -gt 49 -a ${HPINDEX} -lt 80 ]; then
-            HPCOLOR="${YELLOW}"
-            HIDESCRIPTION="System has been hardened, but could use additional hardening"
-        elif [ ${HPINDEX} -gt 79 -a ${HPINDEX} -lt 90 ]; then
-            HPCOLOR="${GREEN}"
-            HIDESCRIPTION="System seem to be decent hardened"
-        elif [ ${HPINDEX} -gt 89 ]; then
-            HPCOLOR="${GREEN}"
-            HIDESCRIPTION="System seem to be well hardened"
-        fi
+    # Goal:
+    # Provide a visual way to show how much the system is hardened
+    #
+    # Important:
+    # The index gives a simplified version of the measures taken on the system.
+    # It should be used to get a first impression about the state of the system or to compare similar systems.
+    # Getting the maximum score (100 or full bar) does not indicate that the system is fully secured.
 
-        case ${HPAOBLOCKS} in
-            0)  HPBLOCKS="#"; HPEMPTY="                   " ;;
-            1)  HPBLOCKS="#"; HPEMPTY="                   " ;;
-            2)  HPBLOCKS="##"; HPEMPTY="                  " ;;
-            3)  HPBLOCKS="###"; HPEMPTY="                 " ;;
-            4)  HPBLOCKS="####"; HPEMPTY="                " ;;
-            5)  HPBLOCKS="#####"; HPEMPTY="               " ;;
-            6)  HPBLOCKS="######"; HPEMPTY="              " ;;
-            7)  HPBLOCKS="#######"; HPEMPTY="             " ;;
-            8)  HPBLOCKS="########"; HPEMPTY="            " ;;
-            9)  HPBLOCKS="#########"; HPEMPTY="           " ;;
-            10) HPBLOCKS="##########"; HPEMPTY="          " ;;
-            11) HPBLOCKS="###########"; HPEMPTY="         " ;;
-            12) HPBLOCKS="############"; HPEMPTY="        " ;;
-            13) HPBLOCKS="#############"; HPEMPTY="       " ;;
-            14) HPBLOCKS="##############"; HPEMPTY="      " ;;
-            15) HPBLOCKS="###############"; HPEMPTY="     " ;;
-            16) HPBLOCKS="################"; HPEMPTY="    " ;;
-            17) HPBLOCKS="#################"; HPEMPTY="   " ;;
-            18) HPBLOCKS="##################"; HPEMPTY="  " ;;
-            19) HPBLOCKS="###################"; HPEMPTY=" " ;;
-            20) HPBLOCKS="####################"; HPEMPTY="" ;;
-        esac
+    # If no hardening has been found, set value to 1
+    if [ ${HPPOINTS} -eq 0 ]; then HPPOINTS=1; HPTOTAL=100; fi
+    HPINDEX=$((HPPOINTS * 100 / HPTOTAL))
+    HPAOBLOCKS=$((HPPOINTS * 20 / HPTOTAL))
+    # Set color related to rating
+    if [ ${HPINDEX} -lt 50 ]; then
+        HPCOLOR="${RED}"
+        HIDESCRIPTION="System has not or a low amount been hardened"
+    elif [ ${HPINDEX} -gt 49 -a ${HPINDEX} -lt 80 ]; then
+        HPCOLOR="${YELLOW}"
+        HIDESCRIPTION="System has been hardened, but could use additional hardening"
+    elif [ ${HPINDEX} -gt 79 -a ${HPINDEX} -lt 90 ]; then
+        HPCOLOR="${GREEN}"
+        HIDESCRIPTION="System seem to be decent hardened"
+    elif [ ${HPINDEX} -gt 89 ]; then
+        HPCOLOR="${GREEN}"
+        HIDESCRIPTION="System seem to be well hardened"
+    fi
 
-        HPGRAPH="[${HPCOLOR}${HPBLOCKS}${NORMAL}${HPEMPTY}]"
-        LogText "Hardening index : [${HPINDEX}] [${HPBLOCKS}${HPEMPTY}]"
-        LogText "Hardening strength: ${HIDESCRIPTION}"
+    case ${HPAOBLOCKS} in
+        0)  HPBLOCKS="#"; HPEMPTY="                   " ;;
+        1)  HPBLOCKS="#"; HPEMPTY="                   " ;;
+        2)  HPBLOCKS="##"; HPEMPTY="                  " ;;
+        3)  HPBLOCKS="###"; HPEMPTY="                 " ;;
+        4)  HPBLOCKS="####"; HPEMPTY="                " ;;
+        5)  HPBLOCKS="#####"; HPEMPTY="               " ;;
+        6)  HPBLOCKS="######"; HPEMPTY="              " ;;
+        7)  HPBLOCKS="#######"; HPEMPTY="             " ;;
+        8)  HPBLOCKS="########"; HPEMPTY="            " ;;
+        9)  HPBLOCKS="#########"; HPEMPTY="           " ;;
+        10) HPBLOCKS="##########"; HPEMPTY="          " ;;
+        11) HPBLOCKS="###########"; HPEMPTY="         " ;;
+        12) HPBLOCKS="############"; HPEMPTY="        " ;;
+        13) HPBLOCKS="#############"; HPEMPTY="       " ;;
+        14) HPBLOCKS="##############"; HPEMPTY="      " ;;
+        15) HPBLOCKS="###############"; HPEMPTY="     " ;;
+        16) HPBLOCKS="################"; HPEMPTY="    " ;;
+        17) HPBLOCKS="#################"; HPEMPTY="   " ;;
+        18) HPBLOCKS="##################"; HPEMPTY="  " ;;
+        19) HPBLOCKS="###################"; HPEMPTY=" " ;;
+        20) HPBLOCKS="####################"; HPEMPTY="" ;;
+    esac
+
+    HPGRAPH="[${HPCOLOR}${HPBLOCKS}${NORMAL}${HPEMPTY}]"
+    LogText "Hardening index : [${HPINDEX}] [${HPBLOCKS}${HPEMPTY}]"
+    LogText "Hardening strength: ${HIDESCRIPTION}"
 
 
     # Only show overview if not running in quiet mode

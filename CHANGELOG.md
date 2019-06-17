@@ -1,5 +1,19 @@
 # Lynis Changelog
 
+## Lynis 2.7.5 (not released yet)
+
+### Added
+- Danish translation
+
+### Changed
+- Corrected end-of-life entries for CentOS 5 and 6
+- AUTH-9268 - AIX enhancement to use correct find statement
+- FILE-6310 - Filter on correct field for AIX
+- Extended help
+
+---------------------------------------------------------------------------------
+
+
 ## Lynis 2.7.4 (2019-04-21)
 
 This is a bigger release than usual, including several new tests created by

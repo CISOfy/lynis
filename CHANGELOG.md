@@ -1,14 +1,21 @@
 # Lynis Changelog
 
-## Lynis 2.7.5 (not released yet)
+## Lynis 2.7.5 (2019-06-24)
 
 ### Added
 - Danish translation
+- Slackware end-of-life information
+- Detect BSD-style (rc.d) init in Linux systems
+- Detection of Bro and Suricata (IDS)
 
 ### Changed
 - Corrected end-of-life entries for CentOS 5 and 6
+- AUTH-9204 - change name to check in /etc/passwd file for QNAP devices
 - AUTH-9268 - AIX enhancement to use correct find statement
 - FILE-6310 - Filter on correct field for AIX
+- NETW-3012 - set ss command as preferred option for Linux and changed output format
+- List of PHP ini file locations has been extended
+- Removed several pieces of the code as part of cleanup and code health
 - Extended help
 
 ---------------------------------------------------------------------------------

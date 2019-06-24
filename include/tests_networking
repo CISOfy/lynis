@@ -370,6 +370,7 @@
     # Description : Check listening ports
     Register --test-no NETW-3012 --weight L --network NO --category security --description "Check listening ports"
     if [ ${SKIPTEST} -eq 0 ]; then
+        DATA=""
         FIND=""; FIND2=""
         COUNT=0
         case ${OS} in
@@ -381,24 +382,19 @@
                     FIND=""
                 fi
                 FIND2=""
-                ;;
+            ;;
             Linux)
-                if [ ! -z "${NETSTATBINARY}" ]; then
+                if [ -n "${SSBINARY}" ]; then
+                    DATA=$(${SSBINARY} --query=udp,tcp -plnt | awk '{ if ($1!="Netid") { print "raw,ss,v1|"$1"|"$5"|"$7"|" }}' | sed 's/pid=[0-9]\{1,\},fd=[0-9]\{1,\}//g' | sed 's/users://' | sed 's/,)//g' | tr -d '()"')
+                elif [ -n "${NETSTATBINARY}" ]; then
                     # UDP
                     FIND=$(${NETSTATBINARY} -nlp 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"|"$6"|" }' | ${SEDBINARY} 's:|[0-9]*/:|:')
                     # TCP
                     FIND2=$(${NETSTATBINARY} -nlp 2> /dev/null  | ${GREPBINARY} "^tcp" | ${AWKBINARY} '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | ${SEDBINARY} 's:|[0-9]*/:|:')
                 else
-                    if [ ! "${SSBINARY}" = "" ]; then
-                        # UDP
-                        FIND=$(${SSBINARY} -u -a -n 2> /dev/null | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local)
-                        # TCP
-                        FIND2=$(${SSBINARY} -t -a -n 2> /dev/null | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local)
-                    else
-                        ReportException "${TEST_NO}:1" "netstat and ss binary missing to gather listening ports"
-                    fi
+                    ReportException "${TEST_NO}:1" "netstat and ss binary missing to gather listening ports"
                 fi
-                ;;
+            ;;
 
             macOS)
                 if [ ! "${LSOFBINARY}" = "" ]; then
@@ -409,9 +405,7 @@
                 fi
                 # Not needed as we have a combined test
                 FIND2=""
-                ;;
-
-
+            ;;
             NetBSD)
                 if [ ! "${SOCKSTATBINARY}" = "" ]; then
                     FIND=$(${SOCKSTATBINARY} 2> /dev/null | ${AWKBINARY} '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u)
@@ -419,7 +413,7 @@
                     FIND=""
                 fi
                 FIND2=""
-                ;;
+            ;;
             OpenBSD)
                 if [ ! "${NETSTATBINARY}" = "" ]; then
                     # UDP
@@ -429,12 +423,19 @@
                 else
                     ReportException "${TEST_NO}:3" "netstat missing to gather listening ports"
                 fi
-                ;;
+            ;;
             *)
                 # Got this exception? Provide your details and output of netstat or any other tool to determine this information.
                 ReportException "${TEST_NO}:2" "Unclear what method to use, to determine listening port information"
-                ;;
+            ;;
         esac
+
+        if HasData "${DATA}"; then
+            for ITEM in ${DATA}; do
+                COUNT=$((COUNT + 1))
+                Report "network_listen[]=${ITEM}"
+            done
+        fi
 
         # Retrieve information from sockstat, when available
         LogText "Test: Retrieving sockstat information to find listening ports"
@@ -453,11 +454,10 @@
                 Report "network_listen_port[]=${ITEM}"
             done
         fi
-        if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
+        if [ -z "${DATA}" -a -z "${FIND}" ]; then
             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result "${STATUS_SKIPPED}" --color YELLOW
         else
             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result "${STATUS_DONE}" --color GREEN
-            Display --indent 6 --text "* Found ${COUNT} ports"
         fi
     fi
 #

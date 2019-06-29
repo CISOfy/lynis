@@ -86,6 +86,7 @@
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
 #    SafePerms                  Check if a file has safe permissions
+#    SafeInput                  Test provided string to see if it contains unwanted characters
 #    SearchItem                 Search a string in a file
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
@@ -2508,6 +2509,37 @@
         Report "warning[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
         LogText "Warning: ${MESSAGE} [test:${TEST}] [details:${DETAILS}] [solution:${SOLUTION}]"
     }
+
+
+    ################################################################################
+    # Name        : SafeInput()
+    # Description : Test provided string to see if it contains unwanted characters
+    #
+    # Input       : string + optional class (parameter 2)
+    # Returns     : 0 (input considered to be safe) or 1 (validation failed)
+    ################################################################################
+
+    SafeInput() {
+        exitcode=1
+        # By default remove only control characters
+        if [ $# -eq 1 ]; then
+            input="$1"
+            cleaned=$(echo ${input} | tr -d '[:cntrl:]')
+        # If know what to test against, then see if input matches the specified class
+        elif [ $# -eq 2 ]; then
+            input="$1"
+            testchars="$2"
+            cleaned=$(echo $1 | tr -cd "${testchars}")
+        else
+            ExitFatal "No argument or too many arguments provided to SafeInput()"
+        fi
+
+        if [ "${cleaned}" = "${input}" ]; then
+            exitcode=0
+        fi
+        return ${exitcode}
+    }
+
 
 
     ################################################################################

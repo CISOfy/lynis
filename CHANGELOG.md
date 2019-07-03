@@ -17,6 +17,7 @@ measures to further tighten any possible misuse.
 - Additional safeguard by testing if common system tools are available (security)
 - Test parameters and arguments for presence of control characters (security)
 - New function SafeInput (security)
+- New option to disable a single plugin: disable-plugin=pluginname
 
 ### Changed
 - The 'nounset' (set -u) parameter is now activated by default (security)

@@ -1,5 +1,29 @@
 # Lynis Changelog
 
+## Lynis 3.0.0 (not released yet)
+
+This is a major release of Lynis and includes several big changes.
+Some of these changes may break your current usage of the tool, so test before
+deployment.
+
+Breaking changes:
+- Some of the old and deprecated commands or switches are removed
+
+An important focus area for this release is on security. We added several
+measures to further tighten any possible misuse.
+
+### Added
+- Test PATH and warn or exit on discovery of dangerous location (security)
+- Additional safeguard by testing if common system tools are available (security)
+- Test parameters and arguments for presence of control characters (security)
+- New function SafeInput (security)
+
+### Changed
+- The 'nounset' (set -u) parameter is now activated by default (security)
+- Use locations from PATH environment variable, unless it is empty
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.7.5 (2019-06-24)
 
 ### Added

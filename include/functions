@@ -2544,74 +2544,96 @@
 
     ################################################################################
     # Name        : SafePerms()
-    # Return      : 0 (file OK) or break
+    # Description :
+    # Returns     : 0 (file permissions OK) or break
     ################################################################################
 
     SafePerms() {
-        if [ ${WARN_ON_FILE_ISSUES} -eq 1 ]; then
+        exitcode=1
+        IS_PARAMETERS=0
+        IS_PROFILE=0
+
+        if [ ${IGNORE_FILE_PERMISSION_ISSUES} -eq 0 ]; then
             PERMS_OK=0
             LogText "Checking permissions of $1"
-            if [ $# -eq 1 ]; then
-                IS_PARAMETERS_FILE=$(echo $1 | grep "/parameters")
+
+            if [ $# -gt 0 ]; then
+
+                if [ $# -eq 2 ]; then
+                    case "$2" in
+                        "parameters")
+                            IS_PARAMETERS=1
+                        ;;
+                        "profile")
+                            IS_PROFILE=1
+                        ;;
+                    esac
+                else
+                    FIND=$(echo $1 | grep "/parameters")
+                    if [ $? -eq 0 ]; then IS_PARAMETERS=1; fi
+                fi
                 # Check file permissions
-                  if [ ! -f "$1" ]; then
-                      LogText "Fatal error: file $1 does not exist. Quitting."
-                      echo "Fatal error: file $1 does not exist"
-                      ExitFatal
-                    else
-                      PERMS=$(ls -l $1)
-                      # Owner permissions
-                      OWNER=$(echo ${PERMS} | awk -F" " '{ print $3 }')
-                      OWNERID=$(ls -n $1 | awk -F" " '{ print $3 }')
-                      if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
-                          if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
-                              echo "Fatal error: file $1 should be owned by user 'root' when running it as root (found: ${OWNER})."
-                              ExitFatal
-                          fi
-                      fi
-                      # Group permissions
-                      GROUP=$(echo ${PERMS} | awk -F" " '{ print $4 }')
-                      GROUPID=$(ls -n $1 | awk -F" " '{ print $4 }')
+                if [ ! -f "$1" ]; then
+                    LogText "Fatal error: file $1 does not exist. Quitting."
+                    echo "Fatal error: file $1 does not exist"
+                    ExitFatal
+                else
+                    PERMS=$(ls -l $1)
 
-                      if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
-                          if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
-                              echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
-                              ExitFatal
-                          fi
-                      fi
+                    # Owner permissions
+                    OWNER=$(echo ${PERMS} | awk -F" " '{ print $3 }')
+                    OWNERID=$(ls -n $1 | awk -F" " '{ print $3 }')
+                    if [ ${PENTESTINGMODE} -eq 0 -a ${IS_PARAMETERS} -eq 0 ]; then
+                        if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
+                            echo "Fatal error: file $1 should be owned by user 'root' when running it as root (found: ${OWNER})."
+                            ExitFatal
+                        fi
+                    fi
+                    # Group permissions
+                    GROUP=$(echo ${PERMS} | awk -F" " '{ print $4 }')
+                    GROUPID=$(ls -n $1 | awk -F" " '{ print $4 }')
 
-                      # Owner permissions
-                      OWNER_PERMS=$(echo ${PERMS} | cut -c2-4)
-                      if [ ! "${OWNER_PERMS}" = "rw-" -a ! "${OWNER_PERMS}" = "r--" ]; then
-                          echo "Fatal error: permissions of file $1 are not strict enough. Access to 'owner' should be read-write, or read. Change with: chmod 600 $1"
-                          ExitFatal
-                      fi
+                    if [ ${PENTESTINGMODE} -eq 0 -a ${IS_PARAMETERS} -eq 0 ]; then
+                        if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
+                            echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
+                            ExitFatal
+                        fi
+                    fi
 
-                      # Owner permissions
-                      GROUP_PERMS=$(echo ${PERMS} | cut -c5-7)
-                      if [ ! "${GROUP_PERMS}" = "rw-" -a ! "${GROUP_PERMS}" = "r--" -a ! "${GROUP_PERMS}" = "---" ]; then
-                          echo "Fatal error: permissions of file $1 are not strict enough. Access to 'group' should be read-write, read, or none. Change with: chmod 600 $1"
-                          ExitFatal
-                      fi
+                    # Owner permissions
+                    OWNER_PERMS=$(echo ${PERMS} | cut -c2-4)
+                    if [ ! "${OWNER_PERMS}" = "rw-" -a ! "${OWNER_PERMS}" = "r--" ]; then
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'owner' should be read-write, or read. Change with: chmod 600 $1"
+                        ExitFatal
+                    fi
 
-                      # Other permissions
-                      OTHER_PERMS=$(echo ${PERMS} | cut -c8-10)
-                      if [ ! "${OTHER_PERMS}" = "---" -a ! "${OTHER_PERMS}" = "r--" ]; then
-                          echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied or read-only. Change with: chmod 600 $1"
-                          ExitFatal
-                      fi
-                      # Set PERMS_OK to 1 if no fatal errors occurred
-                      PERMS_OK=1
-                      LogText "File permissions are OK"
-                      return 0
-                  fi
+                    # Owner permissions
+                    GROUP_PERMS=$(echo ${PERMS} | cut -c5-7)
+                    if [ ! "${GROUP_PERMS}" = "rw-" -a ! "${GROUP_PERMS}" = "r--" -a ! "${GROUP_PERMS}" = "---" ]; then
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'group' should be read-write, read, or none. Change with: chmod 600 $1"
+                        ExitFatal
+                    fi
+
+                    # Other permissions
+                    OTHER_PERMS=$(echo ${PERMS} | cut -c8-10)
+                    if [ ! "${OTHER_PERMS}" = "---" -a ! "${OTHER_PERMS}" = "r--" ]; then
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied or read-only. Change with: chmod 600 $1"
+                        ExitFatal
+                    fi
+                    # Set PERMS_OK to 1 if no fatal errors occurred
+                    PERMS_OK=1
+                    LogText "File permissions are OK"
+                    exitcode=0
+                fi
             else
                 ReportException "SafePerms()" "Invalid number of arguments for function"
             fi
         else
             PERMS_OK=1
-            return 0
+            exitcode=0
         fi
+        return ${exitcode}
+
     }
 
 

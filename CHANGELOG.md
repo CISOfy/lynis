@@ -4,24 +4,31 @@
 
 This is a major release of Lynis and includes several big changes.
 Some of these changes may break your current usage of the tool, so test before
-deployment.
+deployment!
 
 Breaking changes:
-- Some of the old and deprecated commands or switches are removed
+- Some commands or switches are removed
+- Format of profile options changed (from key:value to key=value)
 
 An important focus area for this release is on security. We added several
 measures to further tighten any possible misuse.
 
 ### Added
-- Test PATH and warn or exit on discovery of dangerous location (security)
-- Additional safeguard by testing if common system tools are available (security)
-- Test parameters and arguments for presence of control characters (security)
-- New function SafeInput (security)
-- New option to disable a single plugin: disable-plugin=pluginname
+- Security: test PATH and warn or exit on discovery of dangerous location
+- Security: additional safeguard by testing if common system tools are available
+- Security: aest parameters and arguments for presence of control characters
+- Security: strict checking enabled, filtering out unexpected characters
+- New option: disable-plugin=pluginname - Disables a single plugin
+- New function: Readonly (security)
+- New function: SafeInput (security)
+- New function: DisplayWarning
 
 ### Changed
-- The 'nounset' (set -u) parameter is now activated by default (security)
+- Profiles: unused options removed
+- Profiles: message is displayed when old format "key:value" is used
+- Security: the 'nounset' (set -u) parameter is now activated by default
 - Use locations from PATH environment variable, unless it is empty
+- Show 'lynis generate hostids' when they are missing
 
 ---------------------------------------------------------------------------------
 

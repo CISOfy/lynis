@@ -63,7 +63,7 @@
         # Now parse the profile and filter out unwanted characters
         DATA=$(egrep "^config:|^[a-z-].*=" ${PROFILE} | tr -dc '[:alnum:]/\[\]\(\)\-_\|,\.:;= \n\r' | sed 's/ /!space!/g')
         for CONFIGOPTION in ${DATA}; do
-            if ContainsString "config:" "${CONFIGOPTION}"; then
+            if ContainsString "^config:" "${CONFIGOPTION}"; then
                 # Old style configuration
                 OPTION=$(echo ${CONFIGOPTION} | cut -d ':' -f2)
                 VALUE=$(echo ${CONFIGOPTION} | cut -d ':' -f3 | sed 's/!space!/ /g')
@@ -119,7 +119,7 @@
                 ;;
 
                 # Ignore configuration data
-                config-data)
+                config-data | permdir | permfile)
                     Debug "Ignoring configuration option, as it will be used by a specific test"
                 ;;
 
@@ -364,7 +364,7 @@
 
                 ssl-certificate-paths-to-ignore)
                     # Retrieve paths to ignore when searching for certificates. Strip special characters, replace possible spaces
-                    SSL_CERTIFICATE_PATHS_TO_IGNORE=$(echo ${VALUE} | tr -d '[:cntrl:]' | sed 's/ /:space:/g')
+                    SSL_CERTIFICATE_PATHS_TO_IGNORE=$(echo ${VALUE} | tr -d '[:cntrl:]' | sed 's/ /__space__/g')
                     Debug "SSL paths to ignore: ${SSL_CERTIFICATE_PATHS_TO_IGNORE}"
                     AddSetting "ssl-certificate-paths-to-ignore" "${SSL_CERTIFICATE_PATHS_TO_IGNORE}" "Paths that should be ignored for SSL certificates"
                 ;;
@@ -482,10 +482,14 @@
                 # Catch all bad options and bail out
                 *)
                     LogText "Unknown option ${OPTION} (with value: ${VALUE})"
-                    ${ECHOCMD} ""
-                    ${ECHOCMD} "${RED}Error${NORMAL}: found one or more errors in profile ${PROFILE}"
-                    ${ECHOCMD} "${WHITE}Details${NORMAL}: Unknown option '${YELLOW}${OPTION}${NORMAL}' found (with value: ${VALUE})"
-                    ${ECHOCMD} ""
+
+                    ${ECHOCMD:-echo} ""
+                    ${ECHOCMD:-echo} "${RED}Error${NORMAL}: found one or more errors in profile ${PROFILE}"
+                    ${ECHOCMD:-echo} ""
+                    ${ECHOCMD:-echo} ""
+                    ${ECHOCMD:-echo} "Full line: ${CONFIGOPTION}"
+                    ${ECHOCMD:-echo} "${WHITE}Details${NORMAL}: Unknown option '${YELLOW}${OPTION}${NORMAL}' found (with value: ${VALUE})"
+                    ${ECHOCMD:-echo} ""
                     ExitFatal
                 ;;
 

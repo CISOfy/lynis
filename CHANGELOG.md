@@ -16,12 +16,14 @@ measures to further tighten any possible misuse.
 ### Added
 - Security: test PATH and warn or exit on discovery of dangerous location
 - Security: additional safeguard by testing if common system tools are available
-- Security: aest parameters and arguments for presence of control characters
-- Security: strict checking enabled, filtering out unexpected characters
-- New option: disable-plugin=pluginname - Disables a single plugin
-- New function: Readonly (security)
-- New function: SafeInput (security)
-- New function: DisplayWarning
+- Security: test parameters and arguments for presence of control characters
+- Security: filtering out unexpected characters from profiles
+- New function: DisplayWarning - show a warning on the screen
+- New function: Equals - compare two strings
+- New function: Readonly - mark variable read-only (security)
+- New function: SafeInput - check for safe input (security)
+- New profile option: disable-plugin - disables a single plugin
+- New profile option: ssl-certificate-paths-to-ignore - ignore a path
 
 ### Changed
 - Profiles: unused options removed

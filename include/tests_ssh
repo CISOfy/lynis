@@ -27,6 +27,7 @@
     SSH_DAEMON_PORT=""
     SSH_DAEMON_RUNNING=0
     SSH_DAEMON_OPTIONS_FILE=""
+    OPENSSHD_RUNNING=0
     OPENSSHD_VERSION=0
     OPENSSHD_VERSION_MAJOR=0
     OPENSSHD_VERSION_MINOR=0
@@ -42,8 +43,8 @@
     Register --test-no SSH-7402 --weight L --network NO --category security --description "Check for running SSH daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for a SSH daemon"
-        IsRunning sshd
-        if [ ${RUNNING} -eq 1 ] || PortIsListening "TCP" 22; then
+        if IsRunning "sshd"; then
+            OPENSSHD_RUNNING=1
             SSH_DAEMON_RUNNING=1
             Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_FOUND}" --color GREEN
             # Store settings in a temporary file
@@ -51,6 +52,9 @@
             SSH_DAEMON_OPTIONS_FILE="${TEMP_FILE}"
             # Use a non-existing user, to ensure that systems that have a Match block configured, will be evaluated as well
             ${SSHDBINARY} -T -C user=doesnotexist,host=none,addr=none 2> /dev/null > ${SSH_DAEMON_OPTIONS_FILE}
+        elif PortIsListening "TCP" 22; then
+            Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_FOUND}" --color GREEN
+            SSH_DAEMON_RUNNING=1
         else
             Display --indent 2 --text "- Checking running SSH daemon" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
@@ -60,7 +64,7 @@
 #
     # Test        : SSH-7404
     # Description : Determine SSH daemon configuration file location
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${OPENSSHD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7404 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH daemon file location"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
@@ -95,7 +99,7 @@
 #
     # Test        : SSH-7406
     # Description : Check OpenSSH version
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${OPENSSHD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7406 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determine OpenSSH version"
     if [ ${SKIPTEST} -eq 0 ]; then
         OPENSSHD_VERSION=$(sshd -t -d 2>&1 | ${GREPBINARY} 'sshd version' | ${AWKBINARY} '{if($4~OpenSSH_){print $4}}' | ${AWKBINARY} -F_ '{print $2}' | ${TRBINARY} -d ',')
@@ -113,7 +117,7 @@
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
     # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${OPENSSHD_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking specific defined options in ${SSH_DAEMON_OPTIONS_FILE}"
@@ -258,31 +262,31 @@
                 fi
 
                 if [ "${RESULT}" = "GOOD" ]; then
-                    LogText "Result: SSH option ${OPTIONNAME} is configured very well"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_OK}" --color GREEN
+                    LogText "Result: OpenSSH option ${OPTIONNAME} is configured very well"
+                    Display --indent 4 --text "- OpenSSH option: ${OPTIONNAME}" --result "${STATUS_OK}" --color GREEN
                     AddHP 3 3
                 elif [ "${RESULT}" = "MIDSCORED" ]; then
-                    LogText "Result: SSH option ${OPTIONNAME} is configured reasonably"
+                    LogText "Result: OpenSSH option ${OPTIONNAME} is configured reasonably"
                     ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
                     ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
+                    Display --indent 4 --text "- OpenSSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
                     AddHP 1 3
                 elif [ "${RESULT}" = "WEAK" ]; then
-                    LogText "Result: SSH option ${OPTIONNAME} is in a weak configuration state and should be fixed"
+                    LogText "Result: OpenSSH option ${OPTIONNAME} is in a weak configuration state and should be fixed"
                     ReportSuggestion ${TEST_NO} "Consider hardening SSH configuration" "${OPTIONNAME} (${FOUNDVALUE} --> ${EXPECTEDVALUE})" "-"
                     ReportDetails --test "${TEST_NO}" --service "sshd" --field "${OPTIONNAME}" --value "${FOUNDVALUE}" --preferredvalue "${EXPECTEDVALUE}" --description "sshd option ${OPTIONNAME}"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
+                    Display --indent 4 --text "- OpenSSH option: ${OPTIONNAME}" --result "${STATUS_SUGGESTION}" --color YELLOW
                     AddHP 0 3
                 elif [ "${RESULT}" = "UNKNOWN" ]; then
-                    LogText "Result: Value of SSH option ${OPTIONNAME} is unknown (not defined)"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
+                    LogText "Result: Value of OpenSSH option ${OPTIONNAME} is unknown (not defined)"
+                    Display --indent 4 --text "- OpenSSH option: ${OPTIONNAME}" --result DEFAULT --color WHITE
                     Report "unknown_config_option[]=ssh|$SSH_DAEMON_CONFIG}|${OPTIONNAME}|"
                 else
                     LogText "Result: Option ${OPTIONNAME} not found in output"
-                    Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "${STATUS_NOT_FOUND}" --color WHITE
+                    Display --indent 4 --text "- OpenSSH option: ${OPTIONNAME}" --result "${STATUS_NOT_FOUND}" --color WHITE
                 fi
             else
-                if IsVerbose; then Display --indent 4 --text "- SSH option: ${OPTIONNAME}" --result "SKIPPED (via config)" --color WHITE; fi
+                if IsVerbose; then Display --indent 4 --text "- OpenSSH option: ${OPTIONNAME}" --result "SKIPPED (via config)" --color WHITE; fi
             fi
         done
     fi
@@ -290,32 +294,32 @@
 #################################################################################
 #
     # Test        : SSH-7440
-    # Description : AllowUsers / AllowGroups
+    # Description : OpenSSH - AllowUsers / AllowGroups
     # Goal        : Check if only a specific amount of users/groups can log in to the system
-    if [ ${SSH_DAEMON_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH option: AllowUsers and AllowGroups"
+    if [ ${OPENSSHD_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check OpenSSH option: AllowUsers and AllowGroups"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # AllowUsers
         FIND=$(${EGREPBINARY} -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
         if [ ! -z "${FIND}" ]; then
             LogText "Result: AllowUsers set, with value ${FIND}"
-            Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- OpenSSH option: AllowUsers" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
         else
             LogText "Result: AllowUsers is not set"
-            Display --indent 4 --text "- SSH option: AllowUsers" --result "${STATUS_NOT_FOUND}" --color WHITE
+            Display --indent 4 --text "- OpenSSH option: AllowUsers" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
         # AllowGroups
         FIND=$(${EGREPBINARY} -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
         if [ ! -z "${FIND}" ]; then
             LogText "Result: AllowUsers set ${FIND}"
-            Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 4 --text "- OpenSSH option: AllowGroups" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
         else
             LogText "Result: AllowGroups is not set"
-            Display --indent 4 --text "- SSH option: AllowGroups" --result "${STATUS_NOT_FOUND}" --color WHITE
+            Display --indent 4 --text "- OpenSSH option: AllowGroups" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
 
         if [ ${FOUND} -eq 1 ]; then
@@ -331,6 +335,7 @@
 #
 
 Report "ssh_daemon_running=${SSH_DAEMON_RUNNING}"
+Report "openssh_daemon_running=${OPENSSHD_RUNNING}"
 
 WaitForKeyPress
 

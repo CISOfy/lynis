@@ -129,6 +129,27 @@
 #
 #################################################################################
 #
+    # Test        : CRYP-7930
+    # Description : Determine if system uses disk or file encryption
+    Register --test-no CRYP-7930 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determine if system uses disk or file encryption"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FILE="${ROOTDIR}etc/crypttab"
+        if [ -f ${FILE} ]; then
+            DATA=$(${GREPBINARY} "^[a-z]" ${ROOTDIR}etc/crypttab | ${SEDBINARY} 's/[:blank:]/__space__/g' | ${TRBINARY} -d '[:cntrl:]')
+            for LINE in ${DATA}; do
+                LINE=$(echo ${LINE} | ${SEDBINARY} 's/__space__/ /g')
+                if ContainsString "luks," "${LINE}"; then
+                    PARTITION=$(echo ${LINE} | ${AWKBINARY} '{print $1}' | ${AWKBINARY} -F_ '{print $1}')
+                    LogText "Result: Found LUKS encryption on partition ${PARTITION}"
+                    Report "encryption[]=luks,partition,${PARTITION}"
+                fi
+            done
+            unset DATA LINE PARTITION
+        fi
+    fi
+#
+#################################################################################
+#
 
 WaitForKeyPress
 

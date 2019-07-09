@@ -24,6 +24,7 @@ measures to further tighten any possible misuse.
 - New function: SafeInput - check for safe input (security)
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
+- New test: CRYP-7930 - disk or file system encryption testing
 
 ### Changed
 - Profiles: unused options removed

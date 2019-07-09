@@ -131,11 +131,12 @@
 #
     # Test        : CRYP-7930
     # Description : Determine if system uses disk or file encryption
-    Register --test-no CRYP-7930 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determine if system uses disk or file encryption"
+    Register --test-no CRYP-7930 --weight L --network NO --category security --description "Determine if system uses disk or file encryption"
     if [ ${SKIPTEST} -eq 0 ]; then
         FILE="${ROOTDIR}etc/crypttab"
         if [ -f ${FILE} ]; then
-            DATA=$(${GREPBINARY} "^[a-z]" ${ROOTDIR}etc/crypttab | ${SEDBINARY} 's/[:blank:]/__space__/g' | ${TRBINARY} -d '[:cntrl:]')
+            LogText "Result: crypttab file (${FILE}) exists"
+            DATA=$(${GREPBINARY} "^[a-z]" ${FILE} | ${TRBINARY} -cd '[:alnum:]_\-=,\n\t ' | ${SEDBINARY} 's/[[:blank:]]/__space__/g')
             for LINE in ${DATA}; do
                 LINE=$(echo ${LINE} | ${SEDBINARY} 's/__space__/ /g')
                 if ContainsString "luks," "${LINE}"; then
@@ -145,6 +146,8 @@
                 fi
             done
             unset DATA LINE PARTITION
+        else
+            LogText "Result: crypttab file (${FILE}) does not exist"
         fi
     fi
 #

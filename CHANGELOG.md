@@ -25,13 +25,15 @@ measures to further tighten any possible misuse.
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
 - New test: CRYP-7930 - disk or file system encryption testing
+- New report key: openssh_daemon_running
 
 ### Changed
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
 - Security: the 'nounset' (set -u) parameter is now activated by default
-- Use locations from PATH environment variable, unless it is empty
+- Use only locations from PATH environment variable, unless it is not defined
 - Show 'lynis generate hostids' when they are missing
+- SSH-7402 - detect other SSH daemons like dropbear
 
 ---------------------------------------------------------------------------------
 

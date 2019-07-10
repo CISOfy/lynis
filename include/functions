@@ -118,7 +118,8 @@
     # Name        : AddHP()
     # Description : Add hardening points and count them
     #
-    # Input       : $1 = points to add, $2 = maximum points for this item
+    # Parameters  : $1 = points to add (0 or higher)
+    #               $2 = maximum points (at least value of $1 or higher)
     # Returns     : <nothing>
     # Usage       : AddHP 1 3
     ################################################################################
@@ -139,7 +140,9 @@
     # Name        : AddSetting()
     # Description : Addition of a setting for display with 'lynis show settings'
     #
-    # Input       : $1 = setting, $2 = value, $3 description
+    # Parameters  : $1 = setting
+    #               $2 = value
+    #               $3 = description
     # Returns     : <nothing>
     # Usage       : AddSetting debug 1 'Debug mode'
     ################################################################################
@@ -163,7 +166,7 @@
                 TEMP_SETTINGS_FILE="${TEMP_FILE}"
                 cat ${SETTINGS_FILE} > ${TEMP_SETTINGS_FILE}
                 sed -e '/^'"${SETTING}"';/d' ${TEMP_SETTINGS_FILE} > ${SETTINGS_FILE}
-                rm ${TEMP_SETTINGS_FILE}
+                rm "${TEMP_SETTINGS_FILE}"
                 echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
             fi
         else
@@ -176,7 +179,7 @@
     # Name        : AddSystemGroup()
     # Description : Adds a system to a group, which can be used for categorizing
     #
-    # Input       : Group name
+    # Parameters  : $1 = group name
     # Returns     : <nothing>
     # Usage       : AddSystemGroup "test"
     ################################################################################
@@ -190,13 +193,13 @@
     # Name        : CheckFilePermissions()
     # Description : Check file permissions
     #
-    # Input       : full path to file or directory
+    # Parameters  : Full path to file or directory
     # Returns     : PERMS (FILE_NOT_FOUND | OK | BAD)
     # Notes       : This function might be replaced in future
     ################################################################################
 
     CheckFilePermissions() {
-        CHECKFILE=$1
+        CHECKFILE="$1"
         if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
             PERMS="FILE_NOT_FOUND"
         else
@@ -217,13 +220,13 @@
     # Name        : CheckItem()
     # Description : Check if a specific item exists in the report
     #
-    # Input       : $1 = key, $2 = value
-    # Returns     : ITEM_FOUND
-    # Usage       : CheckItem "key" "value"
+    # Parameters  : $1 = key
+    #               $2 = value
+    # Returns     : True (0) or False (1)
+    # Usage       : if CheckItem "key" "value"; then ....; fi
     ################################################################################
 
     CheckItem() {
-        ITEM_FOUND=0
         RETVAL=255
         if [ $# -eq 2 ]; then
             # Don't search in /dev/null, it's too empty there
@@ -232,7 +235,6 @@
                 LogText "Test: search string $2 in earlier discovered results"
                 FIND=$(egrep "^$1(\[\])?=" ${REPORTFILE} | egrep "$2")
                 if HasData "${FIND}"; then
-                    ITEM_FOUND=1
                     RETVAL=0
                     LogText "Result: found search string (result: $FIND)"
                 else
@@ -2350,6 +2352,7 @@
 
         # Colors with background
         BG_BLUE=""
+        BG_WARNING=""
 
         # Semantic names
         BAD=""
@@ -2364,14 +2367,15 @@
 
     ################################################################################
     # Name        : RemovePIDFile()
+    # Description : When defined, remove the file storing the process ID
     ################################################################################
 
     # Remove PID file
     RemovePIDFile() {
         # Test if PIDFILE is defined, before checking file presence
-        if [ ! "${PIDFILE}" = "" ]; then
-            if [ -f ${PIDFILE} ]; then
-                rm -f $PIDFILE;
+        if [ ! -z "${PIDFILE}" ]; then
+            if [ -f "${PIDFILE}" ]; then
+                rm -f "${PIDFILE}"
                 LogText "PID file removed (${PIDFILE})"
             else
                 LogText "PID file not found (${PIDFILE})"
@@ -2382,6 +2386,7 @@
 
     ################################################################################
     # Name        : RemoveTempFiles()
+    # Description : When created, delete any temporary file
     ################################################################################
 
     # Remove any temporary files
@@ -2392,10 +2397,10 @@
             for FILE in ${TEMP_FILES}; do
                 # Temporary files should be in /tmp
                 TMPFILE=$(echo ${FILE} | egrep "^/tmp/lynis" | grep -v "\.\.")
-                if [ ! "${TMPFILE}" = "" ]; then
-                    if [ -f ${TMPFILE} ]; then
+                if [ ! -z "${TMPFILE}" ]; then
+                    if [ -f "${TMPFILE}" ]; then
                         LogText "Action: removing temporary file ${TMPFILE}"
-                        rm -f ${TMPFILE}
+                        rm -f "${TMPFILE}"
                     else
                         LogText "Info: temporary file ${TMPFILE} was already removed"
                     fi
@@ -2411,6 +2416,7 @@
 
     ################################################################################
     # Name        : Report()
+    # Description : Store data in the report file
     ################################################################################
 
     Report() {
@@ -2485,12 +2491,14 @@
 
     ################################################################################
     # Name        : ReportException()
+    # Description : Store an exceptional event in the report
+    #
+    # Parameters  : $1 = test ID + colon + 2 numeric characters (TEST-1234:01)
+    #               $2 = string (text)
     ################################################################################
 
     # Log exceptions
     ReportException() {
-        # 1 parameters
-        # <ID>:<2 char numeric>|text|
         Report "exception_event[]=$1|$2|"
         LogText "Exception: test has an exceptional event ($1) with text $2"
     }
@@ -2498,11 +2506,12 @@
 
     ################################################################################
     # Name        : ReportManual()
+    # Description : Add an item to the report that requires manual intervention
+    #
+    # Parameters  : $1 = string (text)
     ################################################################################
 
-    # Log manual actions to report file
     ReportManual() {
-        # 1 parameter: Text
         Report "manual_event[]=$1"
         LogText "Manual: one or more manual actions are required for further testing of this control/plugin"
     }
@@ -2510,20 +2519,20 @@
 
     ################################################################################
     # Name        : ReportSuggestion()
+    # Description : Log a suggestion to the report file
+    #
+    # Parameters  : <ID> <Suggestion> <Details> <Solution>
+    #               $1 = Test ID - Lynis ID (use CUST-.... for your own tests)
+    #               $2 = Suggestion - Suggestion text to be displayed
+    #               $3 = Details - Specific item or details
+    #               $4 = Solution - Optional link for additional information:
+    #                    * url:https://example.org/how-to-solve-link
+    #                    * text:Additional explanation
+    #                    * - (dash) for none
     ################################################################################
 
-    # Log suggestions to report file
     ReportSuggestion() {
         TOTAL_SUGGESTIONS=$((TOTAL_SUGGESTIONS + 1))
-        # 4 parameters
-        # <ID> <Suggestion> <Details> <Solution>
-        # <ID>         Lynis ID (use CUST-.... for your own tests)
-        # <Suggestion> Suggestion text to be displayed
-        # <Details>    Specific item or details
-        # <Solution>   Optional link for additional information:
-        #              * url:http://site/link
-        #              * text:Additional explanation
-        #              * - for none
         if [ $# -eq 0 ]; then echo "Not enough arguments provided for function ReportSuggestion"; ExitFatal; fi
         if [ $# -ge 1 ]; then TEST="$1"; else TEST="UNKNOWN"; fi
         if [ $# -ge 2 ]; then MESSAGE="$2"; else MESSAGE="UNKNOWN"; fi
@@ -2537,9 +2546,9 @@
 
     ################################################################################
     # Name        : ReportWarning()
+    # Description : Log a warning to the report file
     ################################################################################
 
-    # Log warning to report file
     ReportWarning() {
         TOTAL_WARNINGS=$((TOTAL_WARNINGS + 1))
         # Old style
@@ -2605,7 +2614,8 @@
 
     ################################################################################
     # Name        : SafePerms()
-    # Description :
+    # Description : Check if a file has safe permissions to be used
+    #
     # Returns     : 0 (file permissions OK) or break
     ################################################################################
 
@@ -2702,14 +2712,15 @@
     # Name        : SearchItem()
     # Description : Search if a specific string exists in in a file
     #
-    # Input       : $1 = search key (string), $2 = file (string), $3 and later
-    #               are optional arguments
+    # Parameters  : $1 = search key (string)
+    #               $2 = file (string)
+    #               $3 = optional arguments:
+    #                    --sensitive - don't store results in log
     # Returns     : True (0) or False (1)
     ################################################################################
 
     SearchItem()  {
         PERFORM_SCAN=0
-        ITEM_FOUND=0
         MASK_LOG=0
         RETVAL=1
         if [ $# -lt 2 ]; then
@@ -2737,8 +2748,7 @@
                 # Check if we can find the main type (with or without brackets)
                 LogText "Test: search string ${STRING} in file ${FILE}"
                 FIND=$(egrep "${STRING}" ${FILE})
-                if [ ! "${FIND}" = "" ]; then
-                    ITEM_FOUND=1
+                if [ ! -z "${FIND}" ]; then
                     LogText "Result: found search string '${STRING}'"
                     if [ ${MASK_LOG} -eq 0 ]; then LogText "Full string returned: ${FIND}"; fi
                     RETVAL=0
@@ -2757,21 +2767,6 @@
     }
 
 
-    # Show result code (to be removed)
-    ShowResult() {
-        case $1 in
-        OK)
-            echo "[ ${OK}OK${NORMAL} ]"
-        ;;
-        WARNING)
-            echo "[ ${WARNING}WARNING${NORMAL} ]"
-            # log the warning to our log file
-            #LogText "Warning: $2"
-            # add the warning to our report file
-            #Report "warning=$2"
-        ;;
-        esac
-    }
 
 
     ################################################################################
@@ -3337,28 +3332,38 @@
     ################################################################################
 
     counttests() {
+        DisplayWarning "Deprecated function used"
         if IsDeveloperMode; then Debug "Warning: old counttests function is used. Please replace any reference with CountTests."; fi
         CountTests
     }
 
     logtext() {
+        DisplayWarning "Deprecated function used"
         if IsDeveloperMode; then Debug "Warning: old logtext function is used. Please replace any reference with LogText."; fi
         LogText "$1"
     }
 
     logtextbreak() {
+        DisplayWarning "Deprecated function used"
         if IsDeveloperMode; then Debug "Warning: old logtextbreak function is used. Please replace any reference with LogTextBreak."; fi
         LogTextBreak "$1"
     }
 
     report() {
+        DisplayWarning "Deprecated function used"
         if IsDeveloperMode; then Debug "Warning: old report function is used. Please replace any reference with Report."; fi
         Report "$1"
     }
 
     wait_for_keypress() {
+        DisplayWarning "Deprecated function used"
         if IsDeveloperMode; then Debug "Warning: old wait_for_keypress function is used. Please replace any reference with WaitForKeyPress."; fi
         WaitForKeyPress
+    }
+
+    ShowResult() {
+        DisplayWarning "Deprecated function used: ShowResult()"
+        if IsDeveloperMode; then Debug "Warning: old ShowResult() function is used. Please replace any reference with WaitForKeyPress."; fi
     }
 
 

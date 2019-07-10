@@ -18,6 +18,7 @@ measures to further tighten any possible misuse.
 - Security: additional safeguard by testing if common system tools are available
 - Security: test parameters and arguments for presence of control characters
 - Security: filtering out unexpected characters from profiles
+- Security: test if setuid bit is set on Lynis binary
 - New function: DisplayWarning - show a warning on the screen
 - New function: Equals - compare two strings
 - New function: Readonly - mark variable read-only (security)
@@ -25,14 +26,20 @@ measures to further tighten any possible misuse.
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
 - New test: CRYP-7930 - disk or file system encryption testing
+- New test: PROC-3802 - Check presence of prelink tooling
 - New report key: openssh_daemon_running
 
+
 ### Changed
+- Function: CheckItem - returns only exit code (ITEM_FOUND value is dropped)
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - Use only locations from PATH environment variable, unless it is not defined
 - Show 'lynis generate hostids' when they are missing
+- PROC-3602 - allow different root directory
+- PROC-3612 - show 'Not found' instead of 'OK'
+- PROC-3614 - show 'Not found' instead of 'OK'
 - SSH-7402 - detect other SSH daemons like dropbear
 
 ---------------------------------------------------------------------------------

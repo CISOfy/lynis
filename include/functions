@@ -88,6 +88,7 @@
 #    ReportManual               Log manual actions to report file
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
+#    SafeFile                   Security tests to perform on a file before using it
 #    SafePerms                  Check if a file has safe permissions
 #    SafeInput                  Test provided string to see if it contains unwanted characters
 #    SearchItem                 Search a string in a file
@@ -2610,6 +2611,56 @@
         return ${exitcode}
     }
 
+
+    ################################################################################
+    # Name        : SafeFile()
+    # Description : Check if a file is safe to use
+    #
+    ################################################################################
+
+    SafeFile() {
+        unsafe=0
+        if [ $# -ne 1 ]; then
+            ExitFatal "No argument or too many arguments provided to SafeFile()"
+        else
+            FILE="$1"
+
+            # Generic checks
+            if [ -g "${FILE}" ]; then
+                LogText "Security alert: file has setgid attribute"
+                unsafe=1
+            # sticky bit
+            elif [ -k "${FILE}" ]; then
+                LogText "Security alert: file has sticky bit"
+                unsafe=1
+            # symbolic link
+            elif [ -L "${FILE}" ]; then
+                LogText "Security alert: file is a symbolic link"
+                unsafe=1
+            elif [ -f "${FILE}" ]; then
+                LogText "Security check: file is normal"
+            else
+                unsafe=1
+            fi
+
+            # Perform additional checks based on privilege level
+            if [ ${PRIVILEGED} -eq 0 ]; then
+                # File is not owned by active user, but still able to write
+                if [ ! -O "${FILE}" -a -w "${FILE}" ]; then
+                    unsafe=1
+                    LogText "Security alert: file is not owned by active user, but can write to it"
+                fi
+            fi
+
+            # Check file permissions
+            if ! SafePerms "${FILE}"; then
+                unsafe=1
+            fi
+
+        fi
+
+        return ${unsafe}
+    }
 
 
     ################################################################################

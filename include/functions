@@ -2187,6 +2187,19 @@
     # Returns     : SKIPTEST (0 or 1)
     ################################################################################
 
+    GetTimestamp() {
+        ts=0
+        case "${OS}" in
+            "Linux")
+                ts=$(date "+%s%N")
+            ;;
+            *)
+                ts=$(date "+%s")
+            ;;
+        esac
+        echo $ts
+    }
+
     Register() {
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
@@ -2253,6 +2266,35 @@
             # Go to next parameter
             shift
         done
+
+        # Measure timing
+        CURRENT_TS=$(GetTimestamp)
+        if [ ${PREVIOUS_TS} -gt 0 ]; then
+            SLOW_TEST=0
+            TIME_THRESHOLD=10  # seconds
+
+            # Calculate timing and determine if we use seconds or nanoseconds (more precise)
+            TIME_DIFF=$((${CURRENT_TS} - ${PREVIOUS_TS}))
+            if [ ${CURRENT_TS} -gt 1000000000000000000 ]; then
+                TIME_DIFF_FORMAT="nanoseconds"
+                TIME_THRESHOLD=$((${TIME_THRESHOLD} * 1000000000))
+                if [ ${TIME_DIFF} -gt ${TIME_THRESHOLD} ]; then
+                    SLOW_TEST=1
+                    # Convert back to seconds for readability
+                    TIME_DIFF_FORMAT="seconds"
+                    TIME_DIFF=$(echo ${TIME_DIFF} | ${AWKBINARY} '{printf "%f",$1/1000000000}')
+                fi
+            else
+                TIME_DIFF_FORMAT="seconds"
+                if [ ${TIME_DIFF} -gt ${TIME_THRESHOLD} ]; then
+                    SLOW_TEST=1
+                fi
+            fi
+            if [ ${SLOW_TEST} -eq 1 ]; then
+                DisplayWarning "Test ${PREVIOUS_TEST} had a long execution: ${TIME_DIFF} ${TIME_DIFF_FORMAT}"
+                Report "slow_test[]=${PREVIOUS_TEST},${TIME_DIFF}"
+            fi
+        fi
 
         # Skip test if it's configured in profile (old style)
         if [ ${SKIPTEST} -eq 0 ]; then
@@ -2326,6 +2368,10 @@
             TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
         fi
         unset SKIPREASON
+
+        # Save timestamp for next time the Register function is called
+        PREVIOUS_TEST="${TEST_NO}"
+        PREVIOUS_TS="${CURRENT_TS}"
     }
 
 

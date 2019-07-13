@@ -30,6 +30,7 @@ measures to further tighten any possible misuse.
 - New test: CRYP-7930 - disk or file system encryption testing
 - New test: PROC-3802 - Check presence of prelink tooling
 - New report key: openssh_daemon_running
+- New command: lynis generate systemd-units
 - Measure timing of tests and report slow tests (10+ seconds)
 
 ### Changed
@@ -45,6 +46,7 @@ measures to further tighten any possible misuse.
 - PROC-3614 - show 'Not found' instead of 'OK'
 - SSH-7402 - detect other SSH daemons like dropbear
 - systemd service file adjusted
+- bash completion script extended
 
 ---------------------------------------------------------------------------------
 

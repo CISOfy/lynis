@@ -163,15 +163,15 @@ if [ $# -gt 0 ]; then
                 if [ ! -z "${CHANGELOG}" ]; then LogText "Result: found changelog file: ${CHANGELOG}"; break; fi
             done
             if [ ! -z "${CHANGELOG}" ]; then
-                SEARCH=$(egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}" ${CHANGELOG})
+                SEARCH=$(sed 's/^## //' ${CHANGELOG} | grep -E "^${PROGRAM_NAME} ${SEARCH_VERSION}")
                 if [ $? -eq 0 ]; then
                     while read -r LINE; do
                         if [ ${STARTED} -eq 0 ]; then
-                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}")
+                            SEARCH=$(echo ${LINE} | sed 's/^## //' | grep -E "^${PROGRAM_NAME} ${SEARCH_VERSION}")
                             if [ $? -eq 0 ]; then STARTED=1; ${ECHOCMD} "${BOLD}${LINE}${NORMAL}"; fi
                         else
                             # Stop if we find the next Lynis version
-                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} [0-9]\.[0-9]\.[0-9]")
+                            SEARCH=$(echo ${LINE} | sed 's/^## //' | grep -E "^${PROGRAM_NAME} [0-9]\.[0-9]\.[0-9]")
                             if [ $? -eq 0 ]; then
                                 break
                             else
@@ -186,7 +186,7 @@ if [ $# -gt 0 ]; then
                     ${ECHOCMD} "$0 lynis show changelog [version]"
                     ${ECHOCMD} ""
                     ${ECHOCMD} "${HEADER}${PROGRAM_NAME} versions:${NORMAL}"
-                    SEARCH=$(egrep "^Lynis [0-9]\.[0-9]\.[0-9] " ${CHANGELOG} | awk '{print $2}' | sort -n)
+                    SEARCH=$(sed 's/^## //' ${CHANGELOG} | grep -E "^Lynis [0-9]\.[0-9]\.[0-9] " | awk '{print $2}' | sort -n)
                     ${ECHOCMD} ${SEARCH}
                     ExitFatal
                 fi

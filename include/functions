@@ -52,6 +52,7 @@
 #    FileIsEmpty                Check if a file is empty
 #    FileIsReadable             Check if a file is readable or directory accessible
 #    GetHostID                  Retrieve an unique ID for this host
+#    GetReportData              Request data from report
 #    HasData                    Checks for data in variable
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
@@ -1175,6 +1176,47 @@
             return 0
         fi
     }
+
+
+    ################################################################################
+    # Name        : GetReportData()
+    # Description : Request data from report
+    # Returns     : Data (when matches were found)
+    #               Exit code: True (0) or False (1) when search was cancelled
+    ################################################################################
+
+    GetReportData() {
+        KEY=""
+        VALID_CHARS="[:alnum:]/:;\-,\._\[\]\n "
+        if [ $# -eq 0 ]; then ExitFatal "No parameters provided to GetReportData() function"; fi
+
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --key)
+                    shift
+                    KEY="$1"
+                ;;
+                --valid-chars)
+                    shift
+                    VALID_CHARS="$1"
+                ;;
+                *)
+                    ExitFatal "Invalid option provided to GetReportData() function"
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+
+        if [ "${REPORTFILE}" = "/dev/null" ]; then
+            return 1
+        else
+            ${AWKBINARY} -v pattern="^${KEY}" -F= '$1 ~ pattern {print $2}' ${REPORTFILE} | ${TRBINARY} -cd "${VALID_CHARS}" | ${TRBINARY} '[:blank:]' '__space__'
+
+        fi
+        return 0
+    }
+
 
     ################################################################################
     # Name        : HasData()

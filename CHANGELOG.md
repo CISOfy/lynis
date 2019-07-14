@@ -6,11 +6,12 @@ This is a major release of Lynis and includes several big changes.
 Some of these changes may break your current usage of the tool, so test before
 deployment!
 
-Breaking changes:
+### Breaking changes
 - Some commands or switches are deprecated or removed
 - Format of all profile options converted (from key:value to key=value)
 - Non-interactive by default (use --wait option to pause between groups of tests)
 
+### Security
 An important focus area for this release is on security. We added several
 measures to further tighten any possible misuse.
 
@@ -30,6 +31,7 @@ measures to further tighten any possible misuse.
 - New test: CRYP-7930 - disk or file system encryption testing
 - New test: PROC-3802 - Check presence of prelink tooling
 - New report key: openssh_daemon_running
+- New command: lynis generate systemd-units
 - Measure timing of tests and report slow tests (10+ seconds)
 
 ### Changed
@@ -40,11 +42,15 @@ measures to further tighten any possible misuse.
 - Use only locations from PATH environment variable, unless it is not defined
 - Show 'lynis generate hostids' when they are missing
 - NAME-4408 - corrected Report function call
+- NETW-3032 - small rewrite of test and extended with addrwatch
 - PROC-3602 - allow different root directory
 - PROC-3612 - show 'Not found' instead of 'OK'
 - PROC-3614 - show 'Not found' instead of 'OK'
 - SSH-7402 - detect other SSH daemons like dropbear
+- SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
+- Whow changelog works again for newer versions
 - systemd service file adjusted
+- bash completion script extended
 
 ---------------------------------------------------------------------------------
 

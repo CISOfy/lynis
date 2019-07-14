@@ -2742,9 +2742,8 @@
                 fi
                 # Check file permissions
                 if [ ! -f "$1" ]; then
-                    LogText "Fatal error: file $1 does not exist. Quitting."
-                    echo "Fatal error: file $1 does not exist"
-                    ExitFatal
+                    LogText "Fatal error: file $1 does not exist."
+                    ExitFatal "Fatal error: file $1 does not exist"
                 else
                     PERMS=$(ls -l $1)
 
@@ -2771,21 +2770,22 @@
                     # Owner permissions
                     OWNER_PERMS=$(echo ${PERMS} | cut -c2-4)
                     if [ ! "${OWNER_PERMS}" = "rw-" -a ! "${OWNER_PERMS}" = "r--" ]; then
-                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'owner' should be read-write, or read. Change with: chmod 600 $1"
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'owner' should be read-write, or read. Change with: chmod u=rw $1"
                         ExitFatal
                     fi
 
-                    # Owner permissions
+                    # Group permissions
+                    # TODO - harden this even more by setting default to read-only for group (like 'other')
                     GROUP_PERMS=$(echo ${PERMS} | cut -c5-7)
                     if [ ! "${GROUP_PERMS}" = "rw-" -a ! "${GROUP_PERMS}" = "r--" -a ! "${GROUP_PERMS}" = "---" ]; then
-                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'group' should be read-write, read, or none. Change with: chmod 600 $1"
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'group' should be read-write, read, or none. Change with: chmod g=r $1"
                         ExitFatal
                     fi
 
                     # Other permissions
                     OTHER_PERMS=$(echo ${PERMS} | cut -c8-10)
                     if [ ! "${OTHER_PERMS}" = "---" -a ! "${OTHER_PERMS}" = "r--" ]; then
-                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied or read-only. Change with: chmod 600 $1"
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied or read-only. Change with: chmod o=r $1"
                         ExitFatal
                     fi
                     # Set PERMS_OK to 1 if no fatal errors occurred

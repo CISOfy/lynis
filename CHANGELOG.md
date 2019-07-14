@@ -45,6 +45,7 @@ measures to further tighten any possible misuse.
 - Show 'lynis generate hostids' when they are missing
 - INSE-8116 - added rsync service
 - INSE-8342 - renamed to INSE-8304
+- KRNL-5820 - extended check to include limits.d directory
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
 - PROC-3602 - allow different root directory

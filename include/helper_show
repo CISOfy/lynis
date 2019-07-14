@@ -28,7 +28,7 @@
 #
 ######################################################################
 
-COMMANDS="audit configure show update upload-only"
+COMMANDS="audit configure generate show update upload-only"
 HELPERS="audit configure show update"
 OPTIONS="--auditor\n--cronjob (--cron)\n--debug\n--developer\n--help (-h)\n--license-key\n--log-file\n--manpage (--man)\n--no-colors\n--no-log\n--pentest\n--profile\n--plugin-dir\n--quick (-Q)\n--quiet (-q)\n--report-file\n--reverse-colors\n--skip-plugins\n--tests\n--tests-from-category\n--tests-from-group\n--upload\n--verbose\n--version (-V)\n--wait\n--warnings-only"
 
@@ -94,6 +94,20 @@ AUDIT_HELP="
 
 "
 
+GENERATE_ARGS="( --save )"
+GENERATE_HELP="
+  Generate random value for hostid and hostid2
+  ${WHITE}lynis generate hostids${NORMAL}
+
+  Generate and save values
+  ${WHITE}lynis generate hostids --save${NORMAL}
+
+  Generate systemd units to run Lynis on a schedule (e.g. daily)
+  ${WHITE}lynis generate systemd-units${NORMAL}
+
+"
+
+
 UPDATE_ARGS="check info"
 UPDATE_HELP="
   ${CYAN}update info${NORMAL}
@@ -149,15 +163,15 @@ if [ $# -gt 0 ]; then
                 if [ ! -z "${CHANGELOG}" ]; then LogText "Result: found changelog file: ${CHANGELOG}"; break; fi
             done
             if [ ! -z "${CHANGELOG}" ]; then
-                SEARCH=$(egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}" ${CHANGELOG})
+                SEARCH=$(sed 's/^## //' ${CHANGELOG} | grep -E "^${PROGRAM_NAME} ${SEARCH_VERSION}")
                 if [ $? -eq 0 ]; then
                     while read -r LINE; do
                         if [ ${STARTED} -eq 0 ]; then
-                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} ${SEARCH_VERSION}")
+                            SEARCH=$(echo ${LINE} | sed 's/^## //' | grep -E "^${PROGRAM_NAME} ${SEARCH_VERSION}")
                             if [ $? -eq 0 ]; then STARTED=1; ${ECHOCMD} "${BOLD}${LINE}${NORMAL}"; fi
                         else
                             # Stop if we find the next Lynis version
-                            SEARCH=$(echo ${LINE} | egrep "^${PROGRAM_NAME} [0-9]\.[0-9]\.[0-9]")
+                            SEARCH=$(echo ${LINE} | sed 's/^## //' | grep -E "^${PROGRAM_NAME} [0-9]\.[0-9]\.[0-9]")
                             if [ $? -eq 0 ]; then
                                 break
                             else
@@ -172,7 +186,7 @@ if [ $# -gt 0 ]; then
                     ${ECHOCMD} "$0 lynis show changelog [version]"
                     ${ECHOCMD} ""
                     ${ECHOCMD} "${HEADER}${PROGRAM_NAME} versions:${NORMAL}"
-                    SEARCH=$(egrep "^Lynis [0-9]\.[0-9]\.[0-9] " ${CHANGELOG} | awk '{print $2}' | sort -n)
+                    SEARCH=$(sed 's/^## //' ${CHANGELOG} | grep -E "^Lynis [0-9]\.[0-9]\.[0-9] " | awk '{print $2}' | sort -n)
                     ${ECHOCMD} ${SEARCH}
                     ExitFatal
                 fi
@@ -274,6 +288,7 @@ if [ $# -gt 0 ]; then
                 shift
                 case $1 in
                    "audit") ${ECHOCMD} "${AUDIT_HELP}" ;;
+                   "generate") ${ECHOCMD} "${GENERATE_HELP}" ;;
                    "show") ${ECHOCMD} "${SHOW_HELP}" ;;
                    "update") ${ECHOCMD} "${UPDATE_HELP}" ;;
                    "upload-only") ${ECHOCMD} "${UPLOAD_ONLY_HELP}" ;;

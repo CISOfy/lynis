@@ -19,25 +19,14 @@
 #################################################################################
 
 if [ $# -eq 0 ]; then
-    Display --indent 2 --text "${RED}Error: ${WHITE}Provide URL or file${NORMAL}"
+    Display --indent 2 --text "${RED}Error: ${WHITE}Provide a file${NORMAL}"
     Display --text " "; Display --text " "
     ExitFatal
 else
     FILE=$(echo $1 | egrep "^http|https")
     if HasData "${FILE}"; then
-        CreateTempFile
-        TMP_FILE="${TEMP_FILE}"
-        Display --indent 2 --text "Downloading URL ${FILE} with wget"
-        wget -o ${TMP_FILE} ${FILE}
-        if [ $? -gt 0 ]; then
-            AUDIT_FILE="${TMP_FILE}"
-        else
-            if [ -f ${TMP_FILE} ]; then
-                rm -f ${TMP_FILE}
-            fi
-            Display --indent 2 --text "${RED}Error: ${WHITE}can not download file${NORMAL}"
-            ExitFatal
-        fi
+        echo "Provide a file (not a URL)"
+        ExitFatal
     else
         if [ -f $1 ]; then
             AUDIT_FILE="$1"
@@ -70,13 +59,12 @@ fi
         IS_ALPINE=$(echo ${IMAGE} | grep -i alpine)
         IS_LATEST=$(echo ${TAG} | grep -i latest)
 
-        if [ ! "${IS_DEBIAN}" = "" ]; then IMAGE="debian"; fi
-        if [ ! "${IS_FEDORA}" = "" ]; then IMAGE="fedora"; fi
-        if [ ! "${IS_UBUNTU}" = "" ]; then IMAGE="ubuntu"; fi
-        if [ ! "${IS_ALPINE}" = "" ]; then IMAGE="alpine"; fi
-        
-        if [ ! "${IS_LATEST}" = "" ]; then 
-            ReportWarning "dockerfile" "latest TAG used. Specifying the version is better."
+        if [ ! -z "${IS_DEBIAN}" ]; then IMAGE="debian"; fi
+        if [ ! -z "${IS_FEDORA}" ]; then IMAGE="fedora"; fi
+        if [ ! -z "${IS_UBUNTU}" ]; then IMAGE="ubuntu"; fi
+        if [ ! -z "${IS_ALPINE}" ]; then IMAGE="alpine"; fi
+        if [ ! -z "${IS_LATEST}" ]; then
+            ReportWarning "dockerfile" "latest TAG used. Specifying a targeted OS image and version is better for reproducible results."
         fi
 
         case ${IMAGE} in
@@ -110,14 +98,14 @@ InsertSection "Basics"
 
     #FIND=$(egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g')
     FIND=$(egrep -i "*MAINTAINER" ${AUDIT_FILE}  |  sed 's/=/ /g' | cut -d'"' -f 2)
-    if [ "${FIND}" = "" ]; then
+    if [ -z "${FIND}" ]; then
         ReportWarning "dockerfile" "No maintainer found. Unclear who created this file."
     else
         #MAINTAINER=$(echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}')
         MAINTAINER=$(echo ${FIND})
         Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
     fi
-    
+
     FIND=$(grep "^ENTRYPOINT" ${AUDIT_FILE} | cut -d' ' -f2 )
     if [ "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "No ENTRYPOINT defined in Dockerfile."
@@ -127,7 +115,7 @@ InsertSection "Basics"
     fi
 
     FIND=$(grep "^CMD" ${AUDIT_FILE} | cut -d' ' -f2 )
-    if [ "${FIND}" = "" ]; then
+    if [ -z "${FIND}" ]; then
         ReportWarning "dockerfile" "No CMD defines in Dockerfile."
     else
         CMD=$(echo ${FIND})
@@ -135,7 +123,7 @@ InsertSection "Basics"
     fi
 
     FIND=$(grep "^USER" ${AUDIT_FILE} | cut -d' ' -f2 )
-    if [ "${FIND}" = "" ]; then
+    if [ -z "${FIND}" ]; then
         ReportWarning "dockerfile" "No user declared in Dockerfile. Container will execute command as root"
     else
         USER=$(echo ${FIND})

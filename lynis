@@ -22,6 +22,11 @@
 #
 #################################################################################
 #
+    # Code quality: don't allow using undefined variables
+    set -o nounset
+#
+#################################################################################
+#
     # In Solaris /bin/sh is not POSIX, but /usr/xpg4/bin/sh is.
     # Switch to /usr/xpg4/bin/sh if it exists and we are not already running it.
     test "$_" != "/usr/xpg4/bin/sh" && test -f /usr/xpg4/bin/sh && exec /usr/xpg4/bin/sh "$0" "$@"
@@ -35,10 +40,10 @@
     PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2019-03-21"
-    PROGRAM_RELEASE_TIMESTAMP=1553157295
-    PROGRAM_RELEASE_TYPE="final" # dev or final
-    PROGRAM_VERSION="2.7.3"
+    PROGRAM_RELEASE_DATE="2019-06-29"
+    PROGRAM_RELEASE_TIMESTAMP=1561383761
+    PROGRAM_RELEASE_TYPE="dev" # dev or final
+    PROGRAM_VERSION="3.0.0"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
@@ -55,11 +60,6 @@
 
     DISPLAY_LANG="${LANG}"  # required by function Display to deal with multi-bytes characters.
 
-    # Code quality:
-    # Set strict checking for development version for first part of code. After
-    # initialization this is checked with strict profile option.
-    if [ ${PROGRAM_RELEASE_TYPE} = "dev" ]; then set -u; fi
-
 #
 #################################################################################
 #
@@ -67,6 +67,9 @@
 #
 #################################################################################
 #
+    # Check setuid bit
+    if [ -u "$0" ]; then echo "The called binary has the set-user-id bit - As this is unusual, execution will be stopped."; exit 1; fi
+
     # Work directory
     WORKDIR=$(pwd)
 
@@ -139,8 +142,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 #################################################################################
 #
     # Perform a basic check for permissions. After including functions, using SafePerms()
-    WARN_ON_FILE_ISSUES=1
-    WARN_ON_FILE_ISSUES_ASKED=0
+    IGNORE_FILE_PERMISSION_ISSUES=0
 
     FILES_TO_CHECK="consts functions"
 
@@ -192,12 +194,8 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
             printf "\n    Option 2) Change ownership of the related files (or full directory).\n\n       Commands (full directory):\n         # cd ..\n         # chown -R 0:0 lynis\n         # cd lynis\n         # ./lynis audit system"
         fi
         printf "\n\n[ Press ENTER to continue, or CTRL+C to cancel ]"
-        WARN_ON_FILE_ISSUES_ASKED=1
+        IGNORE_FILE_PERMISSION_ISSUES=1
         read DUMMY
-    fi
-
-    if [ ${WARN_ON_FILE_ISSUES_ASKED} -eq 1 ]; then
-        WARN_ON_FILE_ISSUES=0
     fi
 
     # Now include files if permissions are correct, or user decided to continue
@@ -613,6 +611,9 @@ ${NORMAL}
         if [ ${EOL} -eq 1 ]; then
             echo "  End-of-life:               ${WARNING}YES${NORMAL}"
             ReportWarning "GEN-0010" "This version ${OS_VERSION} is marked end-of-life as of ${EOL_DATE}"
+        elif [ ${EOL} -eq 255 ]; then
+            # TODO - mark as item where community can provide help
+            LogText "Note: the end-of-life of '${OS_FULLNAME}' could not be checked. Entry missing in software-eol.db?"
         fi
 
         if [ ! -z "${OS_MODE}" ]; then echo "  Operating system mode:     ${OS_MODE}"; fi
@@ -853,8 +854,17 @@ ${NORMAL}
                             LogText "Action: checking plugin status in profile: ${PROFILE}"
                             FIND3=$(grep "^plugin=${FIND2}" ${PROFILE})
                             if [ ! -z "${FIND3}" ]; then
-                                LogText "Result: plugin enabled in profile (${PROFILE})"
-                                PLUGIN_ENABLED_STATE=1
+                                FOUND=0
+                                for I in ${DISABLED_PLUGINS}; do
+                                    if [ "${I}" = "${FIND2}" ]; then
+                                        FOUND=1
+                                        LogText "Result: plugin ${FIND2} is specifically disabled"
+                                    fi
+                                done
+                                if [ ${FOUND} -eq 0 ]; then
+                                    LogText "Result: plugin enabled in profile (${PROFILE})"
+                                    PLUGIN_ENABLED_STATE=1
+                                fi
                             fi
                         done
                         if [ ${PLUGIN_ENABLED_STATE} -eq 1 ]; then
@@ -948,7 +958,7 @@ ${NORMAL}
         for INCLUDE_TEST in ${INCLUDE_TESTS}; do
             INCLUDE_FILE="${INCLUDEDIR}/tests_${INCLUDE_TEST}"
             if [ -f ${INCLUDE_FILE} ]; then
-                if SafePerms ${INCLUDE_FILE}; then
+                if SafeFile ${INCLUDE_FILE}; then
                     . ${INCLUDE_FILE}
                 else
                     LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 640, 600 or 400)"

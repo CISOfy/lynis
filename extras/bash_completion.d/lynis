@@ -1,6 +1,6 @@
 # bash completion for lynis
 
-# version 1.0.0 (22 September 2014)
+# version 1.0.1 (2019-07-13)
 # Michael Boelen <michael.boelen@cisofy.com>
 
 # lynis(8) completion
@@ -10,7 +10,7 @@ _lynis()
     # opts nodig nosig
 
     COMPREPLY=()
-    _get_comp_words_by_ref cur prev
+    _get_comp_words_by_ref cur prev words
 
     if [ $COMP_CWORD -eq 1 ]; then
         # first parameter on line
@@ -19,24 +19,134 @@ _lynis()
                 COMPREPLY=( $( compgen -W '--help --info --version' -- "$cur" ) )
                 ;;
             *)
-                COMPREPLY=( $( compgen -W 'audit --help --info --version' -- "$cur" ) )
+                COMPREPLY=( $( compgen -W 'audit generate show' -- "$cur" ) )
                 ;;
         esac
-
-    return 0
+        return 0
+    elif [ $COMP_CWORD -eq 4 ]; then
+        # Stop after some specifics
+        if [ "${COMP_WORDS[1]}" = "show" -a "${COMP_WORDS[2]}" = "details" ]; then
+            return 0
+        fi
     fi
 
+    # Check previous argument to share the available options
     case $prev in
         audit)
             COMPREPLY=( $( compgen -W 'dockerfile system ' -- "$cur" ) )
             ;;
+
         show)
-            COMPREPLY=( $( compgen -W 'help version ' -- "$cur" ) )
+            COMPREPLY=( $( compgen -W 'categories changelog commands dbdir details environment eol groups help hostids includedir language license logfile man options os pidfile plugindir profiles release releasedate report settings tests  version workdir ' -- "$cur" ) )
             ;;
 
+        # Related items to show (lynis show XYZ)
+        categories)
+            return 0
+            ;;
+        changelog)
+            return 0
+            ;;
+        commands)
+            return 0
+            ;;
+        dbdir)
+            return 0
+            ;;
+        details)
+            local dbfile=""
+            local dirs="/data/development/lynis /usr/local/lynis /usr/share/lynis"
+            for d in ${dirs}; do
+                if [ -f "${d}/db/tests.db" ]; then
+                    local dbfile="/data/development/lynis/db/tests.db"
+                fi
+            done
+            if [ -f "${dbfile}" ]; then
+                local suggestions=($(compgen -W "$(awk -F: '$1 ~ /^[A-Z]/ {print $1}' ${dbfile})" -- "${cur}"))
+                COMPREPLY=("${suggestions[@]}")
+            else
+                COMPREPLY=($(compgen -W "TEST-1234" -- "$cur"))
+            fi
+            ;;
+        environment)
+            return 0
+            ;;
+        eol)
+            return 0
+            ;;
+        groups)
+            return 0
+            ;;
+        help)
+            return 0
+            ;;
+        hostids)
+            if [ "${COMP_WORDS[1]}" = "generate" -a "${COMP_WORDS[2]}" = "hostids" ]; then
+                COMPREPLY=($(compgen -W "save" -- "$cur"))
+            else
+                return 0
+            fi
+            ;;
+        includedir)
+            return 0
+            ;;
+        language)
+            return 0
+            ;;
+        license)
+            return 0
+            ;;
+        logfile)
+            return 0
+            ;;
+        man)
+            return 0
+            ;;
+        options)
+            return 0
+            ;;
+        os)
+            return 0
+            ;;
+        pidfile)
+            return 0
+            ;;
+        plugindir)
+            return 0
+            ;;
+        profiles)
+            return 0
+            ;;
+        release)
+            return 0
+            ;;
+        releasedate)
+            return 0
+            ;;
+        report)
+            return 0
+            ;;
+        settiings)
+            return 0
+            ;;
+        tests)
+            return 0
+            ;;
+        version)
+            return 0
+            ;;
+        workdir)
+            return 0
+            ;;
+
+        generate)
+            COMPREPLY=( $( compgen -W 'hostids ' -- "$cur" ) )
+            ;;
+
+        # Options
         --auditor)
             COMPREPLY=( '"Mr. Auditor"' )
-            return 0
+            #return 0
             ;;
         --check-update|--help|--info|--version)
             # all other options are noop with this command

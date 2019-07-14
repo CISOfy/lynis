@@ -18,7 +18,7 @@
 #
 #################################################################################
 #
-# Unsecure services
+# Insecure services
 #
 #################################################################################
 #
@@ -28,32 +28,55 @@
 #
     INETD_ACTIVE=0
     INETD_CONFIG_FILE="${ROOTDIR}etc/inetd.conf"
+    INETD_PACKAGE_INSTALLED=0
+    XINETD_ACTIVE=0
+    XINETD_CONFIG_FILE="${ROOTDIR}etc/xinetd.conf"
+    XINETD_CONFIG_DIR="${ROOTDIR}etc/xinetd.d"
+#
+#################################################################################
+#
+    # Test        : INSE-8000
+    # Description : Check for installed inetd package
+    Register --test-no INSE-8000 --weight L --network NO --category security --description "Installed inetd package"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check for installed inetd daemon
+        LogText "Test: Checking if inetd is installed"
+        if PackageIsInstalled "inetd"; then
+            INETD_PACKAGE_INSTALLED=1
+            LogText "Result: inetd is installed"
+            Display --indent 2 --text "- Installed inetd package" --result "${STATUS_FOUND}" --color YELLOW
+            #ReportSuggestion ${TEST_NO} "If there are no inetd services required, it is recommended that the daemon be removed"
+        else
+            LogText "Result: inetd is NOT installed"
+            Display --indent 2 --text "- Installed inetd package" --result "${STATUS_NOT_FOUND}" --color GREEN
+        fi
+    fi
 #
 #################################################################################
 #
     # Test        : INSE-8002
     # Description : Check for inetd status
-    Register --test-no INSE-8002 --weight L --network NO --category security --description "Check for enabled inet daemon"
+    if [ ${INETD_PACKAGE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8002 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for enabled inet daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check running processes
         LogText "Test: Searching for active inet daemon"
-        IsRunning inetd
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "inetd"; then
             LogText "Result: inetd is running"
-            Display --indent 2 --text "- Checking inetd status" --result "ACTIVE" --color GREEN
+            Display --indent 4 --text "- inetd status" --result "ACTIVE" --color GREEN
             INETD_ACTIVE=1
         else
             LogText "Result: inetd is NOT running"
-            Display --indent 2 --text "- Checking inetd status" --result "NOT ACTIVE" --color GREEN
+            Display --indent 4 --text "- inetd status" --result "NOT ACTIVE" --color GREEN
         fi
     fi
 #
 #################################################################################
 #
     # Test        : INSE-8004
-    # Description : Check for inetd configuration file
+    # Description : Check for inetd configuration file (inetd)
     if [ ${INETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no INSE-8004 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for enabled inet daemon"
+    Register --test-no INSE-8004 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Presence of inetd configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check configuration file
         LogText "Test: Searching for file ${INETD_CONFIG_FILE}"
@@ -73,15 +96,15 @@
     if [ ${INETD_ACTIVE} -eq 0 -a -f ${INETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no INSE-8006 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check configuration of inetd when disabled"
     if [ ${SKIPTEST} -eq 0 ]; then
-        # Check if any service is enabled in /etc/inetd.conf (inetd is not active, see test 8002)
-        LogText "Test: check if all services are disabled if inetd is disabled"
+        # Check if any service is enabled in /etc/inetd.conf (inetd is not active, see test INSE-8002)
+        LogText "Test: check if all services are disabled when inetd is disabled"
         FIND=$(${GREPBINARY} -v "^#" ${INETD_CONFIG_FILE} | ${GREPBINARY} -v "^$")
         if [ -z "${FIND}" ]; then
             LogText "Result: no services found in ${INETD_CONFIG_FILE}"
-            Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_OK}" --color GREEN
+            Display --indent 4 --text "- Checking enabled inetd services" --result "${STATUS_OK}" --color GREEN
         else
             LogText "Result: found services in inetd, even though inetd is not running"
-            Display --indent 4 --text "- Checking inetd.conf services" --result "${STATUS_SUGGESTION}" --color YELLOW
+            Display --indent 4 --text "- Checking enabled inetd services" --result "${STATUS_SUGGESTION}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Although inetd is not running, make sure no services are enabled in ${INETD_CONFIG_FILE}, or remove inetd service"
         fi
     fi
@@ -95,7 +118,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking telnet presence in inetd configuration"
         FIND=$(${GREPBINARY} "^telnet" ${INETD_CONFIG_FILE})
-        if [ "${FIND}" = "" ]; then
+        if [ -z "${FIND}" ]; then
             LogText "Result: telnet not enabled in ${INETD_CONFIG_FILE}"
             Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_NOT_FOUND}" --color GREEN
             AddHP 3 3
@@ -104,6 +127,289 @@
             Display --indent 2 --text "- Checking inetd (telnet)" --result "${STATUS_WARNING}" --color RED
             ReportSuggestion "${TEST_NO}" "Disable telnet in inetd configuration and use SSH instead"
             AddHP 1 3
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8100
+    # Description : Check for installed xinetd daemon
+    Register --test-no INSE-8100 --weight L --network NO --category security --description "Check for installed xinetd daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check for installed xinetd daemon
+        LogText "Test: Checking for installed xinetd daemon"
+        if PackageIsInstalled "xinetd"; then
+            LogText "Result: xinetd is installed"
+            Display --indent 2 --text "- Installed xinetd package" --result "${STATUS_FOUND}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "If there are no xinetd services required, it is recommended that the daemon be removed"
+        else
+            LogText "Result: xinetd is NOT installed"
+            Display --indent 2 --text "- Installed xinetd package" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8102
+    # Description : Check for xinetd status
+    Register --test-no INSE-8102 --weight L --network NO --category security --description "Check for active xinet daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check running processes
+        LogText "Test: Searching for active extended internet services daemon (xinetd)"
+        if IsRunning "xinetd"; then
+            LogText "Result: xinetd is running"
+            Display --indent 4 --text "- xinetd status" --result "ACTIVE" --color GREEN
+            XINETD_ACTIVE=1
+        else
+            LogText "Result: xinetd is NOT running"
+            Display --indent 4 --text "- xinetd status" --result "NOT ACTIVE" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8104
+    # Description : Check for xinetd configuration file
+    if [ ${XINETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8104 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for enabled xinet daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check configuration file
+        LogText "Test: Searching for file ${XINETD_CONFIG_FILE}"
+        if [ -f "${XINETD_CONFIG_FILE}" ]; then
+            LogText "Result: ${XINETD_CONFIG_FILE} exists"
+            Display --indent 6 --text "- Configuration file (xinetd.conf)" --result "${STATUS_FOUND}" --color WHITE
+        else
+            LogText "Result: ${XINETD_CONFIG_FILE} does not exist"
+            Display --indent 6 --text "- Configuration file (xinetd.conf)" --result "${STATUS_NOT_FOUND}" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8106
+    # Description : Check for xinetd configuration file contents if xinetd is NOT active
+    if [ ${XINETD_ACTIVE} -eq 0 -a -f ${XINETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check configuration of xinetd when disabled"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if any service is enabled in /etc/xinetd.d (xinetd is not active, see test INSE-8102)
+        LogText "Test: check if all services are disabled if xinetd is disabled"
+        FIND=$(${GREPBINARY} -r "disable\s*=\s*no" ${XINETD_CONFIG_DIR})
+        if [ -z "${FIND}" ]; then
+            LogText "Result: no services found in ${XINETD_CONFIG_DIR}"
+            Display --indent 6 --text "- Enabled xinetd.d services" --result "${STATUS_NOT_FOUND}" --color GREEN
+        else
+            LogText "Result: found services in ${XINETD_CONFIG_DIR}, even though xinetd is not running"
+            Display --indent 6 --text "- Enabled xinetd.d services" --result "${STATUS_FOUND}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Although xinetd is not running, make sure no services are enabled in ${XINETD_CONFIG_DIR}, or remove xinetd service"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8116
+    # Description : Check for insecure services enabled via xinetd
+    if [ ${XINETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Insecure services enabled via xinetd"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        XINETD_INSECURE_SERVICE_FOUND=0
+
+        ITEMS="chargen chargen-dgram chargen-stream daytime daytime-dgram daytime-stream discard discard-dgram discard-stream echo echo-dgram echo-stream time time-dgram time-stream ntalk rexec rlogin rsh talk telnet tftp"
+
+        for SERVICE in ${ITEMS}; do
+            LogText "Test: checking service ${SERVICE}"
+            if ! SkipAtomicTest "${TEST_NO}:${SERVICE}"; then
+                FILE="${XINETD_CONFIG_DIR}/${SERVICE}"
+                if [ -f "${FILE}" ]; then
+                    LogText "Test: checking status in xinetd configuration file (${FILE})"
+                    FIND=$(${GREPBINARY} "disable\s*=\s*no" ${FILE})
+                    if [ ! -z "${FIND}" ]; then
+                        LogText "Result: found insecure service enabled: ${SERVICE}"
+                        XINETD_INSECURE_SERVICE_FOUND=1
+                        ReportSuggestion "${TEST_NO}" "Disable or remove any insecure services in the xinetd configuration" "${SERVICE}" "text:See log file for more details"
+                        Report "insecure_service[]=${SERVICE}"
+                    fi
+                fi
+            else
+                LogText "Result: skipped, as this item is excluded using the profile"
+            fi
+        done
+
+        if [ ${XINETD_INSECURE_SERVICE_FOUND} -eq 0 ]; then
+            LogText "Result: no insecure services found in xinetd configuration"
+            Display --indent 6 --text "- Checking xinetd (insecure services)" --result "${STATUS_OK}" --color GREEN
+            AddHP 3 3
+        else
+            LogText "Result: one ore more insecure services discovered in xinetd configuration"
+            Display --indent 6 --text "- Checking xinetd (insecure services)" --result "${STATUS_WARNING}" --color RED
+            AddHP 0 3
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8150
+    # Description : Check for rsync enabled via xinetd
+    #RSYNC_XINETD_CONFIG_FILE="${XINETD_CONFIG_DIR}/rsync"
+    #if [ ${XINETD_ACTIVE} -eq 1 -a -f ${RSYNC_XINETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #Register --test-no INSE-8150 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for rsync via xinetd"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    #    LogText "Test: checking rsync presence in xinetd configuration"
+    #    FIND=$(${GREPBINARY} "disable\s*=\s*no" ${RSYNC_XINETD_CONFIG_FILE})
+    #    if [ "${FIND}" = "" ]; then
+    #        LogText "Result: rsync not enabled in ${RSYNC_XINETD_CONFIG_FILE}"
+    #        Display --indent 6 --text "- Checking xinetd (rsync)" --result "${STATUS_DISABLED}" --color GREEN
+    #    else
+    #        LogText "Result: rsync enabled in ${RSYNC_XINETD_CONFIG_FILE}"
+    #        Display --indent 6 --text "- Checking xinetd (rsync)" --result "${STATUS_ENABLED}" --color RED
+    #        ReportSuggestion "${TEST_NO}" "Disable rsync in xinetd configuration"
+    #    fi
+    #fi
+#
+#################################################################################
+#
+    # Test        : INSE-8200
+    # Description : Check if tcp_wrappers is installed when inetd/xinetd is active
+    if [ ${INETD_ACTIVE} -eq 1 -o ${XINETD_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no INSE-8200 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check if tcp_wrappers is installed when inetd/xinetd is active"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking if tcp_wrappers is installed"
+        FOUND=0
+        PACKAGES="tcp_wrappers tcpd"
+        for PACKAGE in ${PACKAGES}; do
+            if PackageIsInstalled "${PACKAGE}"; then LogText "Package '${PACKAGE}' is installed"; FOUND=1; fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: tcp_wrappers is installed"
+            Display --indent 2 --text "- Checking tcp_wrappers installation" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: tcp_wrappers is NOT installed"
+            Display --indent 2 --text "- Checking tcp_wrappers installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            #ReportSuggestion ${TEST_NO} "When network services are using the inetd/xinetd service, the tcp_wrappers package should be installed"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8300
+    # Description : Check if rsh client is installed
+    Register --test-no INSE-8300 --weight L --network NO --category security --description "Check if rsh client is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking if rsh client is installed"
+        FOUND=0
+        PACKAGES="rsh rsh-client rsh-redone-client"
+        for PACKAGE in ${PACKAGES}; do
+            if PackageIsInstalled "${PACKAGE}"; then LogText "Package '${PACKAGE}' is installed"; FOUND=1; fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: rsh client is installed"
+            Display --indent 2 --text "- Installed rsh client package" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Remove rsh client when it is not in use or replace with the more secure SSH package"
+        else
+            LogText "Result: rsh client is NOT installed"
+            Display --indent 2 --text "- Installed rsh client package" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8302
+    # Description : Check presence of rsh Trust Files
+    #Register --test-no INSE-8302 --weight L --network NO --category security --description "Check presence of rsh Trust Files"
+    #if [ ${SKIPTEST} -eq 0 ]; then
+    #    # Check presence of Rsh Trust Files
+    #    FOUND=0
+    #    for LINE in $(${CAT_BINARY} /etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }'); do
+    #        USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
+    #        DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+    #            if [ -d ${DIR} ]; then
+    #                for RHOSTS in ${DIR}/.rhosts; do
+    #                    if [ ! -h ${RHOSTS} -a -f ${RHOSTS} ]; then
+    #                        LogText "FOUND .rhosts file in home directory ${DIR} of ${USER}"
+    #                        FOUND=1
+    #                    fi
+    #                done
+    #            fi
+    #    done
+    #    if [ -f /etc/hosts.equiv ];then
+    #        LogText "FOUND /etc/hosts.equiv"
+    #        FOUND=1
+    #    fi
+    #    if [ ${FOUND} -eq 1 ]; then
+    #        LogText "Result: found one or more Rsh Trust Files"
+    #        Display --indent 4 --text "- Checking presence of Rsh Trust Files" --result "${STATUS_SUGGESTION}" --color YELLOW
+    #        ReportSuggestion ${TEST_NO} "Remove every Rsh Trust Files as they can allow unauthenticated access to a system"
+    #    else
+    #        LogText "Result: no Rsh Trust Files found"
+    #        Display --indent 4 --text "- Checking presence of Rsh Trust Files" --result "${STATUS_OK}" --color GREEN
+    #    fi
+    #fi
+#
+#################################################################################
+#
+    # Test        : INSE-8304
+    # Description : Check if rsh server is installed
+    Register --test-no INSE-8342 --weight L --network NO --category security --description "Check if rsh server is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if rsh server is installed
+        LogText "Test: Checking if rsh server is installed"
+        FOUND=0
+        PACKAGES="rsh-server rsh-redone-server"
+        for PACKAGE in ${PACKAGES}; do
+            if PackageIsInstalled "${PACKAGE}"; then LogText "Package '${PACKAGE}' is installed"; FOUND=1; fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: rsh server is installed"
+            Display --indent 2 --text "- Installed rsh server package" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Remove the rsh-server package and replace with a more secure alternative like SSH"
+            Report "insecure_service[]=rsh-server"
+        else
+            LogText "Result: rsh server is NOT installed"
+            Display --indent 2 --text "- Installed rsh server package" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8310
+    # Description : Check if telnet client is installed
+    Register --test-no INSE-8310 --weight L --network NO --category security --description "Check if telnet client is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if telnet client is installed
+        LogText "Test: Checking if telnet client is installed"
+        if PackageIsInstalled "${PACKAGE}"; then LogText "Package '${PACKAGE}' is installed"; FOUND=1; fi
+
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: telnet client is installed"
+            Display --indent 2 --text "- Installed telnet client package" --result "${STATUS_FOUND}" --color YELLOW
+            # Telnet client usage might be used for troubleshooting instead of system administration
+            #ReportSuggestion ${TEST_NO} "telnet client contain numerous security exposures and have been replaced with the more secure SSH package"
+        else
+            LogText "Result: telnet client is NOT installed"
+            Display --indent 2 --text "- Installed telnet client package" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8312
+    # Description : Check if telnet server is installed
+    Register --test-no INSE-8322 --weight L --network NO --category security --description "Check if telnet server is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if TFTP server is installed
+        LogText "Test: Checking if telnet server is installed"
+        FOUND=0
+        PACKAGES="telnetd telnet-server"
+        for PACKAGE in ${PACKAGES}; do
+            if PackageIsInstalled "${PACKAGE}"; then LogText "Package '${PACKAGE}' is installed"; FOUND=1; fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            LogText "Result: telnet server is installed"
+            Display --indent 2 --text "- Installed telnet server package" --result "${STATUS_FOUND}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Removing the ${FOUND} package and replace with SSH when possible"
+            Report "insecure_service[]=telnet-server"
+        else
+            LogText "Result: telnet server is NOT installed"
+            Display --indent 2 --text "- Installed telnet server package" --result "${STATUS_NOT_FOUND}" --color GREEN
         fi
     fi
 #

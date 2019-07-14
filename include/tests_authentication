@@ -40,7 +40,12 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Search accounts with UID 0
         LogText "Test: Searching accounts with UID 0"
-        FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
+        # Check if device is a QNAP, as the root user is called admin, and not root
+        if [ ${QNAP_DEVICE} -eq 1 ]; then
+            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^admin:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
+        else
+            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
+        fi
         if [ ! -z "${FIND}" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found more than one administrator accounts"
@@ -669,8 +674,8 @@
             if [ -d ${DIR} -a ! -L ${DIR} ]; then
                 LogText "Result: directory ${DIR} exists"
                 # Search in the specified directory
-                if [ "${OS}" = "Solaris" ]; then
-                    # Solaris does not support -maxdepth
+                if [ "${OS}" = "AIX" -o "${OS}" = "Solaris" ]; then
+                    # AIX/Solaris does not support -maxdepth
                     FIND=$(find ${DIR} -type f -name "pam_*.so" -print | sort)
                 else
                     FIND=$(find ${DIR} -maxdepth 1 -type f -name "pam_*.so" -print | sort)
@@ -698,25 +703,32 @@
 #
     # Test        : AUTH-9278
     # Description : Search LDAP support in PAM files
-    Register --test-no AUTH-9278 --weight L --network NO --category security --description "Checking LDAP pam status"
+    Register --test-no AUTH-9278 --weight L --network NO --category security --description "Determine LDAP support in PAM files"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: checking presence /etc/pam.d/common-auth"
-        if [ -f /etc/pam.d/common-auth ]; then
-            LogText "Result: file /etc/pam.d/common-auth exists"
-            LogText "Test: checking presence LDAP module"
-            FIND=$(${GREPBINARY} "^auth.*ldap" /etc/pam.d/common-auth)
-            if [ ! "${FIND}" = "" ]; then
-                LogText "Result: LDAP module present"
-                LogText "Output: ${FIND}"
-                Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_FOUND}" --color GREEN
-                LDAP_AUTH_ENABLED=1
-                LDAP_PAM_ENABLED=1
+        AUTH_FILES="${ROOTDIR}etc/pam.d/common-auth ${ROOTDIR}etc/pam.d/system-auth"
+        for FILE in ${AUTH_FILES}; do
+            LogText "Test: checking presence ${FILE}"
+            if [ -f ${FILE} ]; then
+                LogText "Result: file ${FILE} exists"
+                LogText "Test: checking presence LDAP module"
+                FIND=$(${GREPBINARY} "^auth.*ldap" ${FILE})
+                if [ ! -z "${FIND}" ]; then
+                    LogText "Result: LDAP module present"
+                    LogText "Output: ${FIND}"
+                    LDAP_AUTH_ENABLED=1
+                    LDAP_PAM_ENABLED=1
+                else
+                    LogText "Result: LDAP module not found"
+                fi
             else
-                LogText "Result: LDAP module not found"
-                Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_NOT_FOUND}" --color WHITE
+                LogText "Result: file ${FILE} not found, skipping test"
             fi
+        done
+
+        if [ ${LDAP_PAM_ENABLED} -eq 1 ]; then
+            Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_FOUND}" --color GREEN
         else
-            LogText "Result: file /etc/pam.d/common-auth not found, skipping test"
+            Display --indent 2 --text "- LDAP module in PAM" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #

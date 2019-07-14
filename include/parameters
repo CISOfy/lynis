@@ -22,8 +22,21 @@
 #
 #################################################################################
 #
-    # Check number of parameters submitted (at least one is needed)
     PARAMCOUNT=$#
+
+
+    # Input validation on provided parameters and their arguments
+    COUNT=0
+    for I in "$@"; do
+        COUNT=$((COUNT + 1))
+        if ! SafeInput "${I}"; then
+            echo "Execution of ${PROGRAM_NAME} stopped as we found unexpected input or invalid characters in argument ${COUNT}"
+            echo "Do you believe this is in error? Let us know: ${PROGRAM_AUTHOR_CONTACT}"
+            ExitFatal "Program execution stopped due to security measure"
+        fi
+    done
+
+    # Parse arguments
     while [ $# -ge 1 ]; do
         case $1 in
             # Helpers first
@@ -36,12 +49,13 @@
                 if [ $# -gt 1 ]; then
                     case $2 in
                         "dockerfile")
-                            if [ "$3" = "" ]; then
+                            if [ $# = 2 ]; then
                                 echo "${RED}Error: ${WHITE}Missing file name or URL${NORMAL}"
-                                echo "Example: $0 audit dockerfile /root/Dockerfile"
+                                echo "Example: $0 audit dockerfile /path/to/Dockerfile"
                                 ExitFatal
                             else
                                 shift; shift
+                                CHECK_BINARIES=1
                                 HELPER_PARAMS="$1"
                                 HELPER="audit_dockerfile"
                                 break
@@ -108,6 +122,24 @@
                 if [ $# -gt 0 ]; then shift; fi
                 HELPER="configure"
                 HELPER_PARAMS="$@"
+                break
+            ;;
+
+            # Generate data
+            generate)
+                CHECK_BINARIES=0
+                HELPER="generate"
+                LOGTEXT=0
+                QUIET=1
+                RUN_HELPERS=1
+                RUN_TESTS=0
+                RUN_UPDATE_CHECK=0
+                SKIP_GETHOSTID=1
+                SKIP_PLUGINS=1
+                SKIP_VM_DETECTION=1
+                SHOW_PROGRAM_DETAILS=0
+                SHOW_TOOL_TIPS=0
+                shift; HELPER_PARAMS="$@"
                 break
             ;;
 
@@ -201,7 +233,7 @@
             # Cronjob support
             --cron-job | --cronjob | --cron)
                 CRONJOB=1
-                CHECK=1; QUICKMODE=1; COLORS=0; NEVERBREAK=1 # Use some defaults (-c, -Q, no colors)
+                CHECK=1; COLORS=0; NEVERBREAK=1 # Use some defaults ('audit system', -Q, no colors)
                 RemoveColors
             ;;
 
@@ -313,7 +345,6 @@
             # Quiet mode
             --quiet | -q | --silent)
                 QUIET=1
-                QUICKMODE=1 # Run non-interactive
             ;;
 
             # Non-interactive mode
@@ -412,7 +443,6 @@
             # Warnings
             --warnings-only | --show-warnings-only)
                 SHOW_WARNINGS_ONLY=1
-                QUICKMODE=1
                 QUIET=1
             ;;
 
@@ -432,6 +462,16 @@
         shift
 
     done
+
+    # Ensure non-interactive mode when running quietly or as cronjob
+    if [ ${CRONJOB} -eq 1 -o ${QUIET} -eq 1 ]; then
+        if [ ${QUICKMODE} -eq 0 ]; then
+            if [ ${QUIET} -eq 0 ]; then
+                echo "Switched back to quick mode (cron/non-interactive/quiet)"
+            fi
+            QUICKMODE=1
+        fi
+    fi
 
 #================================================================================
 # Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

@@ -1,5 +1,115 @@
 # Lynis Changelog
 
+## Lynis 3.0.0 (not released yet)
+
+This is a major release of Lynis and includes several big changes.
+Some of these changes may break your current usage of the tool, so test before
+deployment!
+
+### Breaking changes
+- Some commands or switches are deprecated or removed
+- Format of all profile options converted (from key:value to key=value)
+- Non-interactive by default (use --wait option to pause between groups of tests)
+
+### Security
+An important focus area for this release is on security. We added several
+measures to further tighten any possible misuse.
+
+### Added
+- Security: test PATH and warn or exit on discovery of dangerous location
+- Security: additional safeguard by testing if common system tools are available
+- Security: test parameters and arguments for presence of control characters
+- Security: filtering out unexpected characters from profiles
+- Security: test if setuid bit is set on Lynis binary
+- New function: DisplayWarning - show a warning on the screen
+- New function: Equals - compare two strings
+- New function: Readonly - mark variable read-only (security)
+- New function: SafeFile - test file type and call permission check
+- New function: SafeInput - check for safe input (security)
+- New profile option: disable-plugin - disables a single plugin
+- New profile option: ssl-certificate-paths-to-ignore - ignore a path
+- New test: CRYP-7930 - disk or file system encryption testing
+- New test: PROC-3802 - Check presence of prelink tooling
+- New report key: openssh_daemon_running
+- New command: lynis generate systemd-units
+- Measure timing of tests and report slow tests (10+ seconds)
+
+### Changed
+- Function: CheckItem - returns only exit code (ITEM_FOUND value is dropped)
+- Profiles: unused options removed
+- Profiles: message is displayed when old format "key:value" is used
+- Security: the 'nounset' (set -u) parameter is now activated by default
+- Use only locations from PATH environment variable, unless it is not defined
+- Show 'lynis generate hostids' when they are missing
+- NAME-4408 - corrected Report function call
+- NETW-3032 - small rewrite of test and extended with addrwatch
+- PROC-3602 - allow different root directory
+- PROC-3612 - show 'Not found' instead of 'OK'
+- PROC-3614 - show 'Not found' instead of 'OK'
+- SSH-7402 - detect other SSH daemons like dropbear
+- Whow changelog works again for newer versions
+- systemd service file adjusted
+- bash completion script extended
+
+---------------------------------------------------------------------------------
+
+## Lynis 2.7.5 (2019-06-24)
+
+### Added
+- Danish translation
+- Slackware end-of-life information
+- Detect BSD-style (rc.d) init in Linux systems
+- Detection of Bro and Suricata (IDS)
+
+### Changed
+- Corrected end-of-life entries for CentOS 5 and 6
+- AUTH-9204 - change name to check in /etc/passwd file for QNAP devices
+- AUTH-9268 - AIX enhancement to use correct find statement
+- FILE-6310 - Filter on correct field for AIX
+- NETW-3012 - set ss command as preferred option for Linux and changed output format
+- List of PHP ini file locations has been extended
+- Removed several pieces of the code as part of cleanup and code health
+- Extended help
+
+---------------------------------------------------------------------------------
+
+
+## Lynis 2.7.4 (2019-04-21)
+
+This is a bigger release than usual, including several new tests created by
+Capashenn (GitHub). It is a coincidence that it is released exactly one month
+after the previous version and on Easter. No easter eggs, only improvements!
+
+### Added
+- FILE-6324 - Discover XFS mount points
+- INSE-8000 - Installed inetd package
+- INSE-8100 - Installed xinetd package
+- INSE-8102 - Status of xinet daemon
+- INSE-8104 - xinetd configuration file
+- INSE-8106 - xinetd configuration for inactive daemon
+- INSE-8200 - Usage of TCP wrappers
+- INSE-8300 - Presence of rsh client
+- INSE-8302 - Presence of rsh server
+- Detect equery binary detection
+- New 'generate' command
+
+### Changed
+- AUTH-9278 - Test LDAP in all PAM components on Red Hat and other systems
+- PKGS-7410 - Add support for DPKG-based systems to gather installed kernel packages
+- PKGS-7420 - Detect toolkit to automatically download and apply upgrades
+- PKGS-7328 - Added global Zypper option --non-interactive
+- PKGS-7330 - Added global Zypper option --non-interactive
+- PKGS-7386 - Only show warning when vulnerable packages were discovered
+- PKGS-7392 - Skip test for Zypper-based systems
+- Minor changes to improve text output, test descriptions, and logging
+- Changed CentOS identifiers in end-of-life database
+- AIX enhancement for IsRunning function
+- Extended PackageIsInstalled function
+- Improve text output on AIX systems
+- Corrected lsvg binary detection
+
+---------------------------------------------------------------------------------
+
 ## Lynis 2.7.3 (2019-03-21)
 
 ### Added

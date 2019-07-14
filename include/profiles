@@ -32,9 +32,38 @@
     for PROFILE in ${PROFILES}; do
 
         LogText "Reading profile/configuration ${PROFILE}"
-        FIND=$(egrep "^config:|^[a-z-].*=" ${PROFILE} | sed 's/ /!space!/g')
-        for CONFIGOPTION in ${FIND}; do
-            if ContainsString "config:" "${CONFIGOPTION}"; then
+
+        # Show deprecation message for old config entries
+        FOUND=0
+        #DATA=$(egrep "^config:" ${PROFILE} | od --address-radix=none -t a | sed 's/ /!space!/g')
+        #if ! IsEmpty "${DATA}"; then FOUND=1; fi
+        # Items such as 'apache:'
+        DATA=$(egrep "^[a-z-]{1,}:" ${PROFILE} | od --address-radix=none -t a | sed 's/ /!space!/g')
+        if ! IsEmpty "${DATA}"; then FOUND=1; fi
+
+        if [ ${FOUND} -eq 1 ]; then
+            DisplayWarning "Your profile contains old-style configuration entries. See log file for more details and how to convert these entries"
+            LogText "Your profile has one or more configuration items that are in an old format (lines starting with key:value). They need to be converted into the new format (key=value)."
+            LogText "Tip: Use egrep to see the relevant matches (egrep \"^[a-z-]{1,}:\" custom.prf)"
+            sleep 30
+        fi
+
+        # Security check for unexpected and possibly harmful escape characters
+        DATA=$(grep -v '^$\|^ \|^#\|^config:'  ${PROFILE} | tr -d '[:alnum:]/\[\]\(\)\-_\|,\.:;= \n\r' | od --address-radix=none -t a | sed 's/ /!space!/g')
+        if ! IsEmpty "${DATA}"; then
+            DisplayWarning "Your profile '${PROFILE}' contains unexpected characters. See the log file for more information."
+            LogText "Found unexpected or possibly harmful characters in the profile. See output below."
+            for I in "${DATA}"; do
+                I=$(echo ${I} | sed 's/!space!/ /g')
+                LogText "Output: ${I}"
+            done
+            sleep 30
+        fi
+
+        # Now parse the profile and filter out unwanted characters
+        DATA=$(egrep "^config:|^[a-z-].*=" ${PROFILE} | tr -dc '[:alnum:]/\[\]\(\)\-_\|,\.:;= \n\r' | sed 's/ /!space!/g')
+        for CONFIGOPTION in ${DATA}; do
+            if ContainsString "^config:" "${CONFIGOPTION}"; then
                 # Old style configuration
                 OPTION=$(echo ${CONFIGOPTION} | cut -d ':' -f2)
                 VALUE=$(echo ${CONFIGOPTION} | cut -d ':' -f3 | sed 's/!space!/ /g')
@@ -90,7 +119,7 @@
                 ;;
 
                 # Ignore configuration data
-                config-data)
+                config-data | permdir | permfile)
                     Debug "Ignoring configuration option, as it will be used by a specific test"
                 ;;
 
@@ -239,6 +268,11 @@
                     LogText "Plugin '${VALUE}' enabled according profile (${PROFILE})"
                 ;;
 
+                disable-plugin)
+                    LogText "Plugin '${VALUE}' disabled according profile (${PROFILE})"
+                    DISABLED_PLUGINS="${DISABLED_PLUGINS} ${VALUE}"
+                ;;
+
                 # Plugin directory
                 plugindir | plugin-dir)
                     if IsEmpty "${PLUGINDIR}"; then
@@ -256,9 +290,9 @@
 
                 # Quick (no waiting for keypresses)
                 quick)
-                    # Quick mode (SKIP_PLUGINS) might already be set outside profile, so store in different variable
-                    SETTING_QUICK_MODE=0 # default is no
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && QUICKMODE=1
+                    # Quick mode might already be set outside profile, so store in different variable
+                    SETTING_QUICK_MODE=1 # default is yes
+                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && QUICKMODE=0
                     if [ ! -z "${FIND}" ]; then SETTING_QUICK_MODE=1; fi
                     Debug "Quickmode set to ${SETTING_QUICK_MODE}"
                     AddSetting "quick" "${SETTING_QUICK_MODE}" "Quick mode (non-interactive)"
@@ -326,6 +360,13 @@
                     SSL_CERTIFICATE_PATHS="${VALUE}"
                     Debug "SSL paths set to ${SSL_CERTIFICATE_PATHS}"
                     AddSetting "ssl-certificate-paths" "${SSL_CERTIFICATE_PATHS}" "Paths for SSL certificates"
+                ;;
+
+                ssl-certificate-paths-to-ignore)
+                    # Retrieve paths to ignore when searching for certificates. Strip special characters, replace possible spaces
+                    SSL_CERTIFICATE_PATHS_TO_IGNORE=$(echo ${VALUE} | tr -d '[:cntrl:]' | sed 's/ /__space__/g' | tr ':' ' ')
+                    Debug "SSL paths to ignore: ${SSL_CERTIFICATE_PATHS_TO_IGNORE}"
+                    AddSetting "ssl-certificate-paths-to-ignore" "${SSL_CERTIFICATE_PATHS_TO_IGNORE}" "Paths that should be ignored for SSL certificates"
                 ;;
 
                 # Set strict mode for development and quality purposes
@@ -441,10 +482,14 @@
                 # Catch all bad options and bail out
                 *)
                     LogText "Unknown option ${OPTION} (with value: ${VALUE})"
-                    ${ECHOCMD} ""
-                    ${ECHOCMD} "${RED}Error${NORMAL}: found one or more errors in profile ${PROFILE}"
-                    ${ECHOCMD} "${WHITE}Details${NORMAL}: Unknown option '${YELLOW}${OPTION}${NORMAL}' found (with value: ${VALUE})"
-                    ${ECHOCMD} ""
+
+                    ${ECHOCMD:-echo} ""
+                    ${ECHOCMD:-echo} "${RED}Error${NORMAL}: found one or more errors in profile ${PROFILE}"
+                    ${ECHOCMD:-echo} ""
+                    ${ECHOCMD:-echo} ""
+                    ${ECHOCMD:-echo} "Full line: ${CONFIGOPTION}"
+                    ${ECHOCMD:-echo} "${WHITE}Details${NORMAL}: Unknown option '${YELLOW}${OPTION}${NORMAL}' found (with value: ${VALUE})"
+                    ${ECHOCMD:-echo} ""
                     ExitFatal
                 ;;
 

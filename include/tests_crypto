@@ -34,55 +34,78 @@
         COUNT_EXPIRED=0
         COUNT_TOTAL=0
         FOUNDPROBLEM=0
-        sSSL_PATHS=$(echo ${SSL_CERTIFICATE_PATHS} | ${SEDBINARY} 's/:/ /g')
-        sSSL_PATHS=$(echo ${sSSL_PATHS} | ${SEDBINARY} 's/^ //' | ${TRBINARY} " " "\n" | ${SORTBINARY} | uniq | ${TRBINARY} "\n" " ")
+        SKIP=0
+        sSSL_PATHS=$(echo ${SSL_CERTIFICATE_PATHS} | ${SEDBINARY} 's/:space:/__space__/g' | ${SEDBINARY} 's/:/ /g')
+        sSSL_PATHS=$(echo ${sSSL_PATHS} | ${SEDBINARY} 's/^ //' | ${SORTBINARY} | ${UNIQBINARY})
         LogText "Paths to scan: ${sSSL_PATHS}"
+
+        IGNORE_PATHS_PRINT=$(echo ${SSL_CERTIFICATE_PATHS_TO_IGNORE} | ${SEDBINARY} 's/:/, /g' | ${SEDBINARY} 's/__space__/ /g' | ${SEDBINARY} 's/^ //' | ${SORTBINARY} | ${UNIQBINARY})
+        LogText "Paths to ignore: ${IGNORE_PATHS_PRINT}"
 
         for DIR in ${sSSL_PATHS}; do
             COUNT_DIR=0
             if [ -d ${DIR} ]; then
                 FileIsReadable ${DIR}
                 if [ ${CANREAD} -eq 1 ]; then
+                    LASTSUBDIR=""
                     LogText "Result: found directory ${DIR}"
                     # Search for certificate files
-                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".crt$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /:space:/g')
+                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".crt$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /__space__/g')
                     for FILE in ${FILES}; do
-                        FILE=$(echo ${FILE} |${SEDBINARY} 's/:space:/ /g')
-                        COUNT_DIR=$((COUNT_DIR + 1))
-                        FileIsReadable "${FILE}"
-                        if [ ${CANREAD} -eq 1 ]; then
-                            # Only check the files that are not installed by a package
-                            if ! FileInstalledByPackage "${FILE}"; then
-                                LogText "Test: test if file is a certificate"
-                                OUTPUT=$(${GREPBINARY} -q 'BEGIN CERT' "${FILE}")
-                                if [ $? -eq 0 ]; then
-                                    LogText "Result: file is a certificate"
-                                    LogText "Test: checking certificate details"
-                                    FIND=$(${OPENSSLBINARY} x509 -noout -in "${FILE}" -enddate 2> /dev/null | ${GREPBINARY} "^notAfter")
+                        FILE=$(echo ${FILE} | ${SEDBINARY} 's/__space__/ /g')
+                        # See if we need to skip this path
+                        SUBDIR=$(echo ${FILE} | ${AWKBINARY} -F/ 'sub(FS $NF,x)' | ${SEDBINARY} 's/__space__/ /g')
+                        # If we discover a new directory, do evaluation
+                        #Debug "File   : ${FILE}"
+                        #Debug "Lastdir: ${LASTSUBDIR}"
+                        #Debug "Curdir : ${SUBDIR}"
+                        if [ ! "${SUBDIR}" = "${LASTSUBDIR}" ]; then
+                            SKIP=0
+                            # Now check if this path is on the to-be-ignored list
+                            for D in ${SSL_CERTIFICATE_PATHS_TO_IGNORE}; do
+                                if Equals "${D}" "${SUBDIR}"; then
+                                    SKIP=1
+                                    LogText "Result: skipping directory (${SUBDIR}) as it is on ignore list"
+                                fi
+                            done
+                        fi
+                        if [ ${SKIP} -eq 0 ]; then
+                            #Debug "Testing ${FILE} in path: $SUBDIR"
+                            COUNT_DIR=$((COUNT_DIR + 1))
+                            FileIsReadable "${FILE}"
+                            if [ ${CANREAD} -eq 1 ]; then
+                                # Only check the files that are not installed by a package
+                                if ! FileInstalledByPackage "${FILE}"; then
+                                    OUTPUT=$(${GREPBINARY} -q 'BEGIN CERT' "${FILE}")
                                     if [ $? -eq 0 ]; then
-                                        # Check certificate where 'end date' has been expired
-                                        FIND=$(${OPENSSLBINARY} x509 -noout -checkend 0 -in "${FILE}" -enddate 2> /dev/null)
-                                        EXIT_CODE=$?
-                                        CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in "${FILE}" 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
-                                        CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in "${FILE}" 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
-                                        Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
-                                        if [ ${EXIT_CODE} -eq 0 ]; then 
-                                            LogText "Result: certificate ${FILE} seems to be correct and still valid"
+                                        LogText "Result: file is a certificate file"
+                                        FIND=$(${OPENSSLBINARY} x509 -noout -in "${FILE}" -enddate 2> /dev/null | ${GREPBINARY} "^notAfter")
+                                        if [ $? -eq 0 ]; then
+                                            # Check certificate where 'end date' has been expired
+                                            FIND=$(${OPENSSLBINARY} x509 -noout -checkend 0 -in "${FILE}" -enddate 2> /dev/null)
+                                            EXIT_CODE=$?
+                                            CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in "${FILE}" 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
+                                            CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in "${FILE}" 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
+                                            Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
+                                            if [ ${EXIT_CODE} -eq 0 ]; then 
+                                                LogText "Result: certificate ${FILE} seems to be correct and still valid"
+                                            else
+                                                FOUNDPROBLEM=1
+                                                COUNT_EXPIRED=$((COUNT_EXPIRED + 1))
+                                                LogText "Result: certificate ${FILE} has been expired"
+                                            fi
                                         else
-                                            FOUNDPROBLEM=1
-                                            COUNT_EXPIRED=$((COUNT_EXPIRED + 1))
-                                            LogText "Result: certificate ${FILE} has been expired"
+                                            LogText "Result: skipping tests for this file (${FILE}) as it is most likely not a certificate (is it a key file?)"
                                         fi
                                     else
-                                        LogText "Result: skipping tests for this file (${FILE}) as it is most likely not a certificate (a key file?)"
+                                        LogText "Result: skipping test for this file (${FILE}) as we could not find 'BEGIN CERT'"
                                     fi
-                                else
-                                    LogText "Result: skipping test for this file (${FILE}) as we could not find 'BEGIN CERT'"
                                 fi
+                            else
+                                LogText "Result: can not read file ${FILE} (no permission)"
                             fi
-                        else
-                            LogText "Result: can not read file ${FILE} (no permission)"
                         fi
+                        LASTSUBDIR="${SUBDIR}"
                     done
                     COUNT_TOTAL=$((COUNT_TOTAL + COUNT_DIR))
                     LogText "Result: found ${COUNT_DIR} certificates in ${DIR}"
@@ -101,6 +124,30 @@
         else
             Display --indent 2 --text "- Checking for expired SSL certificates [${COUNT_EXPIRED}/${COUNT_TOTAL}]" --result "${STATUS_FOUND}" --color RED
             ReportSuggestion ${TEST_NO} "Check available certificates for expiration"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-7930
+    # Description : Determine if system uses disk or file encryption
+    Register --test-no CRYP-7930 --weight L --network NO --category security --description "Determine if system uses disk or file encryption"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FILE="${ROOTDIR}etc/crypttab"
+        if [ -f ${FILE} ]; then
+            LogText "Result: crypttab file (${FILE}) exists"
+            DATA=$(${GREPBINARY} "^[a-z]" ${FILE} | ${TRBINARY} -cd '[:alnum:]_\-=,\n\t ' | ${SEDBINARY} 's/[[:blank:]]/__space__/g')
+            for LINE in ${DATA}; do
+                LINE=$(echo ${LINE} | ${SEDBINARY} 's/__space__/ /g')
+                if ContainsString "luks," "${LINE}"; then
+                    PARTITION=$(echo ${LINE} | ${AWKBINARY} '{print $1}' | ${AWKBINARY} -F_ '{print $1}')
+                    LogText "Result: Found LUKS encryption on partition ${PARTITION}"
+                    Report "encryption[]=luks,partition,${PARTITION}"
+                fi
+            done
+            unset DATA LINE PARTITION
+        else
+            LogText "Result: crypttab file (${FILE}) does not exist"
         fi
     fi
 #

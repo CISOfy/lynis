@@ -37,8 +37,8 @@
     Register --test-no HOME-9302 --weight L --network NO --category security --description "Create list with home directories"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Read sixth field of /etc/passwd
-        LogText "Test: query /etc/passwd to obtain home directories"
-        FIND=$(${AWKBINARY} -F: '{ if ($1 !~ "#") print $6 }' /etc/passwd | ${SORTBINARY} -u)
+        LogText "Test: query ${ROOTDIR}etc/passwd to obtain home directories"
+        FIND=$(${AWKBINARY} -F: '{ if ($1 !~ "#") print $6 }' ${ROOTDIR}etc/passwd | ${SORTBINARY} -u)
         for I in ${FIND}; do
             if [ -d ${I} ]; then
                 LogText "Result: found home directory: ${I} (directory exists)"
@@ -57,7 +57,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if users' home directories permissions are 750 or more restrictive
         FOUND=0
-        for LINE in "$(${CAT_BINARY} /etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }')"; do
+        for LINE in "$(${CAT_BINARY} ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }')"; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
             DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
             if [ -d ${DIR} ]; then
@@ -69,7 +69,7 @@
                 fi
             fi
         done
-        # Result
+
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking users' home directories permissions" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "Permissions of some users' home directories are not strict enough. Should be 750 or more restrictive."
@@ -87,7 +87,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if users own their home directories
         FOUND=0
-        for LINE in "$(${CAT_BINARY} /etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }')"; do
+        for LINE in "$(${CAT_BINARY} ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }')"; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
             DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
             if [ -d ${DIR} ]; then
@@ -98,7 +98,7 @@
                 fi
             fi
         done
-        # Result
+
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking users' home directories ownership" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "Owner of some users' home directories are not correctly set"

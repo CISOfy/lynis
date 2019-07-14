@@ -43,8 +43,18 @@ if [ $# -gt 0 ]; then
             fi
 
             # Generate random host IDs
-            HOSTID=$(head -c20 < /dev/urandom | xxd -c 20 -p)
-            HOSTID2=$(head -c32 < /dev/urandom | xxd -c 32 -p)
+            case "${OS}" in
+                "AIX")
+                    # hexdump does not exist on AIX
+                    HOSTID=$(head -c20 < /dev/urandom | xxd -c 20 -p)
+                    HOSTID2=$(head -c32 < /dev/urandom | xxd -c 32 -p)
+                ;;
+                *)
+                    # xxd does not exist on FreeBSD
+                    HOSTID=$(head -c20 < /dev/urandom | hexdump -ve '"%.2x"')
+                    HOSTID2=$(head -c32 < /dev/urandom | hexdump -ve '"%.2x"')
+                ;;
+            esac
 
             ${ECHOCMD} "Generated host identifiers"
             ${ECHOCMD} "- hostid: ${HOSTID}"

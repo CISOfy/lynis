@@ -48,7 +48,7 @@ measures to further tighten any possible misuse.
 - PROC-3614 - show 'Not found' instead of 'OK'
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
-- Whow changelog works again for newer versions
+- Show changelog works again for newer versions
 - systemd service file adjusted
 - bash completion script extended
 

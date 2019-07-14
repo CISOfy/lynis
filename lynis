@@ -22,26 +22,28 @@
 #
 #################################################################################
 #
+    # In Solaris /bin/sh is not POSIX, but /usr/xpg4/bin/sh is.
+    # Switch to /usr/xpg4/bin/sh if it exists and we are not already running it.
+    if [ "$(uname)" = "SunOS" ]; then
+        test "$_" != "/usr/xpg4/bin/sh" && test -f /usr/xpg4/bin/sh && exec /usr/xpg4/bin/sh "$0" "$@"
+    fi
+#
+#################################################################################
+#
     # Code quality: don't allow using undefined variables
+    # Notes: $_ may be empty on FreeBSD
     set -o nounset
 #
 #################################################################################
 #
-    # In Solaris /bin/sh is not POSIX, but /usr/xpg4/bin/sh is.
-    # Switch to /usr/xpg4/bin/sh if it exists and we are not already running it.
-    test "$_" != "/usr/xpg4/bin/sh" && test -f /usr/xpg4/bin/sh && exec /usr/xpg4/bin/sh "$0" "$@"
-#
-#################################################################################
-#
-
     # Program information
     PROGRAM_NAME="Lynis"
     PROGRAM_AUTHOR="CISOfy"
     PROGRAM_AUTHOR_CONTACT="lynis-dev@cisofy.com"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2019-06-29"
-    PROGRAM_RELEASE_TIMESTAMP=1561383761
+    PROGRAM_RELEASE_DATE="2019-07-14"
+    PROGRAM_RELEASE_TIMESTAMP=1563094548
     PROGRAM_RELEASE_TYPE="dev" # dev or final
     PROGRAM_VERSION="3.0.0"
 
@@ -58,7 +60,6 @@
     REPORT_version_major="1"; REPORT_version_minor="0"
     REPORT_version="${REPORT_version_major}.${REPORT_version_minor}"
 
-    DISPLAY_LANG="${LANG}"  # required by function Display to deal with multi-bytes characters.
 
 #
 #################################################################################
@@ -74,53 +75,31 @@
     WORKDIR=$(pwd)
 
     # Test from which directories we can use all functions and tests
-
-        INCLUDEDIR=""  # Set default include directory to none
-        tINCLUDE_TARGETS="/usr/local/include/lynis /usr/local/lynis/include /usr/share/lynis/include ./include"  # Default paths to check (CWD as last option, in case we run from standalone)
-        for I in ${tINCLUDE_TARGETS}; do
-            if [ "${I}" = "./include" ]; then
-                if [ -d "${WORKDIR}/include" ]; then INCLUDEDIR="${WORKDIR}/include"; fi
-            elif [ -d ${I} -a -z "${INCLUDEDIR}" ]; then
-                INCLUDEDIR=${I}
-            fi
-        done
+    INCLUDEDIR=""
+    tINCLUDE_TARGETS="/usr/local/include/lynis /usr/local/lynis/include /usr/share/lynis/include ./include"  # Default paths to check (CWD as last option, in case we run from standalone)
+    for I in ${tINCLUDE_TARGETS}; do
+        if [ "${I}" = "./include" ]; then
+            if [ -d "${WORKDIR}/include" ]; then INCLUDEDIR="${WORKDIR}/include"; fi
+        elif [ -d ${I} -a -z "${INCLUDEDIR}" ]; then
+            INCLUDEDIR=${I}
+        fi
+    done
 
     # Drop out if our include directory can't be found
-        if [ -z "${INCLUDEDIR}" ]; then
-            printf "%s" "
-Fatal error: can't find include directory
-Make sure to execute ${PROGRAM_NAME} from untarred directory or check your installation."
-            exit 1
-        fi
+    if [ -z "${INCLUDEDIR}" ]; then
+        printf "%s" "\nFatal error: can't find include directory\nMake sure to execute ${PROGRAM_NAME} from untarred directory or check your installation."
+        exit 1
+    fi
 
     # Test for database directory
-
-        DBDIR=""; tDB_TARGETS="/usr/local/share/lynis/db /usr/local/lynis/db /usr/share/lynis/db ./db"
-        for I in ${tDB_TARGETS}; do
-            if [ "${I}" = "./db" ]; then
-                if [ -d "${WORKDIR}/db" ]; then DBDIR="${WORKDIR}/db"; fi
-            elif [ -d ${I} -a -z "${DBDIR}" ]; then
-                DBDIR="${I}"
-            fi
-        done
-
-    # Import translations. First import English to prefill all texts
-    if [ ! -f ${DBDIR}/languages/en ]; then
-        echo "Could not find languages directory (file: ${DBDIR}/languages/en)"
-        exit 1
-    else
-        . ${DBDIR}/languages/en
-    fi
-
-    # Auto detection of language based on locale (first two characters). Set to English when nothing found.
-    if [ -x "$(command -v locale 2> /dev/null)" ]; then
-        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
-    fi
-    if [ -z "${LANGUAGE}" ]; then
-        #Debug "Result: no (valid) language found, setting to default language (en)"
-        LANGUAGE="en"
-    fi
-
+    DBDIR=""; tDB_TARGETS="/usr/local/share/lynis/db /usr/local/lynis/db /usr/share/lynis/db ./db"
+    for I in ${tDB_TARGETS}; do
+        if [ "${I}" = "./db" ]; then
+            if [ -d "${WORKDIR}/db" ]; then DBDIR="${WORKDIR}/db"; fi
+        elif [ -d ${I} -a -z "${DBDIR}" ]; then
+            DBDIR="${I}"
+        fi
+    done
 #
 #################################################################################
 #
@@ -128,7 +107,7 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     # Check user to determine file permissions later on. If we encounter Solaris, use related id binary instead
     if [ -x /usr/xpg4/bin/id ]; then
         MYID=$(/usr/xpg4/bin/id -u 2> /dev/null)
-    elif [ $(uname) = "SunOS" ]; then
+    elif [ "$(uname)" = "SunOS" ]; then
         MYID=$(id | tr '=' ' ' | tr '(' ' ' | awk '{ print $2 }' 2> /dev/null)
     else
         MYID=$(id -u 2> /dev/null)
@@ -137,10 +116,21 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 #
 #################################################################################
 #
-# Consts (bin paths, text strings, colors)
+# Set basic values and test permissions of the files to include, such as:
+# - consts: bin paths, text strings, colors
+# - functions: function library
 #
 #################################################################################
 #
+    # Determine if we are root (UID = 0)
+    if [ ${MYID} -eq 0 ]; then
+        PRIVILEGED=1
+        PENTESTINGMODE=0
+    else
+        # Set to pentesting mode if scan is with root privileges
+        PENTESTINGMODE=1
+    fi
+
     # Perform a basic check for permissions. After including functions, using SafePerms()
     IGNORE_FILE_PERMISSION_ISSUES=0
 
@@ -204,6 +194,41 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
 #
 #################################################################################
 #
+# Language settings
+#
+#################################################################################
+#
+    # Auto detection of language based on shell LANG variable. This is required by the Display() function to deal with multi-bytes characters.
+    DISPLAY_LANG="${LANG:-}"
+    # Try locale command if shell variable had no value
+    if [ -z "${DISPLAY_LANG}" ]; then
+        DISPLAY_LANG=$(locale | egrep "^LANG=" | cut -d= -f2)
+    fi
+
+    # Extract the short notation of the language (first two characters).
+    if [ -x "$(command -v locale 2> /dev/null)" ]; then
+        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
+    fi
+
+    # Set default language: 'en' (English) if no value is set
+    if [ -z "${LANGUAGE}" ]; then
+        LANGUAGE="en"
+    fi
+
+    # Import translations. First import English to prefill all texts
+    if [ -f ${DBDIR}/languages/en ]; then
+        if SafeFile "${DBDIR}/languages/en"; then
+            . ${DBDIR}/languages/en
+        else
+            ExitFatal "Incorrect ownership or permissions of language file (${DBDIR}/languages/en)"
+        fi
+    else
+        echo "Could not find languages directory (file: ${DBDIR}/languages/en)"
+        exit 1
+    fi
+#
+#################################################################################
+#
 # Traps
 #
 #################################################################################
@@ -222,14 +247,6 @@ Make sure to execute ${PROGRAM_NAME} from untarred directory or check your insta
     SafePerms ${INCLUDEDIR}/parameters
     . ${INCLUDEDIR}/parameters
 
-    # Now determine if we are root (UID = 0)
-    if [ ${MYID} -eq 0 ]; then
-        PRIVILEGED=1
-    else
-        Debug "Starting Lynis non-privileged"
-        # Implied pentesting mode if not performed by root user
-        PENTESTINGMODE=1
-    fi
 
     # Disable logging if no alternative was provided
     if [ ${PRIVILEGED} -eq 0 ]; then

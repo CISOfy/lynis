@@ -235,18 +235,18 @@
     # Description : Checking for available Linux kernel configuration file in /boot
     Register --test-no KRNL-5728 --os Linux --weight L --network NO --category security --description "Checking Linux kernel config"
     if [ ${SKIPTEST} -eq 0 ]; then
-        CHECKFILE="/boot/config-$(uname -r)"
+        CHECKFILE="${ROOTDIR}boot/config-$(uname -r)"
         if [ -f ${CHECKFILE} ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LogText "Result: found config (${LINUXCONFIGFILE})"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
-        elif [ -f /proc/config.gz ]; then
+        elif [ -f ${ROOTDIR}proc/config.gz ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LINUXCONFIGFILE_ZIPPED=1
-            LogText "Result: found config: /proc/config.gz (compressed)"
+            LogText "Result: found config: ${ROOTDIR}proc/config.gz (compressed)"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
         else
-            LogText "Result: no Linux kernel configuration file found in /boot"
+            LogText "Result: no Linux kernel configuration file found in ${ROOTDIR}boot"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
         if HasData "${LINUXCONFIGFILE}"; then
@@ -267,15 +267,15 @@
     Register --test-no KRNL-5730 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking disk I/O kernel scheduler"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
-        if [ ! "${GREPTOOL}" = "" ]; then
+        if [ -n "${GREPTOOL}" ]; then
             LogText "Test: Checking the default I/O kernel scheduler"
             LINUX_KERNEL_IOSCHED=$(${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | ${SEDBINARY} s/\"//g)
-            if [ ! "${LINUX_KERNEL_IOSCHED}" = "" ]; then
+            if [ -n "${LINUX_KERNEL_IOSCHED}" ]; then
                 LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
                 Report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
             else
-                LogText "Result: no default i/o kernel scheduler found"
+                LogText "Result: no default I/O kernel scheduler found"
                 Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_NOT_FOUND}" --color WHITE
             fi
         else
@@ -323,8 +323,8 @@
         LogText "Test: Active kernel modules (KLDs)"
         LogText "Description: View all active kernel modules (including kernel)"
         LogText "Test: Checking modules"
-        if [ -f ${ROOTDIR}sbin/kldstat ]; then
-            FIND=$(${ROOTDIR}sbin/kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6)
+        if [ -x /sbin/kldstat ]; then
+            FIND=$(/sbin/kldstat | ${GREPBINARY} -v 'Name' | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f6)
             if [ $? -eq 0 ]; then
                 LogText "Loaded modules according kldstat:"
                 COUNT=0
@@ -340,7 +340,7 @@
             fi
         else
             echo "[ ${WHITE}SKIPPED${NORMAL} ]"
-            LogText "Result: no results, can NOT find ${ROOTDIR}sbin/kldstat"
+            LogText "Result: no results, can NOT find /sbin/kldstat"
         fi
     fi
 #
@@ -438,12 +438,12 @@
     Register --test-no KRNL-5820 --os Linux --weight L --network NO --category security --description "Checking core dumps configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Limits option
-        LogText "Test: Checking presence /etc/security/limits.conf"
-        if [ -f /etc/security/limits.conf ]; then
-            LogText "Result: file /etc/security/limits.conf exists"
-            LogText "Test: Checking if core dumps are disabled in /etc/security/limits.conf and /etc/security/limits.d/*"
-            FIND1=$(${GREPBINARY} -r -v "^#" /etc/security/limits.conf ${LIMITS_DIRECTORY} | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }')
-            FIND2=$(${GREPBINARY} -r -v "^#" /etc/security/limits.conf ${LIMITS_DIRECTORY} | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }')
+        LogText "Test: Checking presence ${ROOTDIR}etc/security/limits.conf"
+        if [ -f ${ROOTDIR}etc/security/limits.conf ]; then
+            LogText "Result: file ${ROOTDIR}etc/security/limits.conf exists"
+            LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${ROOTDIR}etc/security/limits.d/*"
+            FIND1=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf ${LIMITS_DIRECTORY} | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }')
+            FIND2=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf ${LIMITS_DIRECTORY} | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }')
             if [ "${FIND2}" = "hard core disabled" ]; then
                 LogText "Result: core dumps (soft and hard) are both disabled"
                 Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_DISABLED}" --color GREEN
@@ -461,7 +461,7 @@
                 AddHP 2 3
             fi
         else
-            LogText "Result: file /etc/security/limits.conf does not exist, skipping test"
+            LogText "Result: file ${ROOTDIR}etc/security/limits.conf does not exist, skipping test"
         fi
         # TODO: Check ulimit settings in /etc/profile and /etc/profile.d
 
@@ -488,13 +488,6 @@
             AddHP 1 1
         fi
     fi
-#
-#################################################################################
-#
-    # Test        : KRNL-5826
-    # Description : Checking core dumps configuration (Solaris)
-    #Register --test-no KRNL-5826 --os Linux --weight L --network NO --category security --description "Checking core dumps configuration"
-    #if [ ${SKIPTEST} -eq 0 ]; then
 #
 #################################################################################
 #

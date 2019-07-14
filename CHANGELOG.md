@@ -29,7 +29,9 @@ measures to further tighten any possible misuse.
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
 - New test: CRYP-7930 - disk or file system encryption testing
-- New test: PROC-3802 - Check presence of prelink tooling
+- New test: INSE-8314 - test for NIS client
+- New test: INSE-8316 - test for NIS server
+- New test: PROC-3802 - check presence of prelink tooling
 - New report key: openssh_daemon_running
 - New command: lynis generate systemd-units
 - Measure timing of tests and report slow tests (10+ seconds)
@@ -42,6 +44,7 @@ measures to further tighten any possible misuse.
 - Use only locations from PATH environment variable, unless it is not defined
 - Show 'lynis generate hostids' when they are missing
 - INSE-8116 - added rsync service
+- INSE-8342 - renamed to INSE-8304
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
 - PROC-3602 - allow different root directory

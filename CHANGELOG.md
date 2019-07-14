@@ -23,6 +23,7 @@ measures to further tighten any possible misuse.
 - Security: test if setuid bit is set on Lynis binary
 - New function: DisplayWarning - show a warning on the screen
 - New function: Equals - compare two strings
+- New function: GetReportData - retrieve earlier stored data
 - New function: Readonly - mark variable read-only (security)
 - New function: SafeFile - test file type and call permission check
 - New function: SafeInput - check for safe input (security)
@@ -54,6 +55,7 @@ measures to further tighten any possible misuse.
 - SCHD-7702 - removed hardening points
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
+- SSH-7408 - changed text in suggestion and report
 - Whow changelog works again for newer versions
 - systemd service file adjusted
 - bash completion script extended

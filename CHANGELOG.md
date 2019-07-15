@@ -44,6 +44,7 @@ measures to further tighten any possible misuse.
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - Use only locations from PATH environment variable, unless it is not defined
 - Show 'lynis generate hostids' when they are missing
+- FINT-4328 - corrected text in log
 - INSE-8116 - added rsync service
 - INSE-8342 - renamed to INSE-8304
 - KRNL-5820 - extended check to include limits.d directory

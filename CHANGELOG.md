@@ -57,6 +57,8 @@ measures to further tighten any possible misuse.
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
 - SSH-7408 - changed text in suggestion and report
+- STRG-1840 - renamed to USB-1000
+- STRG-1842 - added default authorized devices and renamed to USB-2000
 - Extended output of 'lynis update info'
 - Show changelog works again for newer versions
 - systemd service file adjusted

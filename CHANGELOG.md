@@ -56,9 +56,11 @@ measures to further tighten any possible misuse.
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
 - SSH-7408 - changed text in suggestion and report
+- Extended output of 'lynis update info'
 - Show changelog works again for newer versions
 - systemd service file adjusted
 - bash completion script extended
+- Updated man page
 
 ---------------------------------------------------------------------------------
 

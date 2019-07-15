@@ -213,7 +213,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         XINETD_INSECURE_SERVICE_FOUND=0
 
-        ITEMS="chargen chargen-dgram chargen-stream daytime daytime-dgram daytime-stream discard discard-dgram discard-stream echo echo-dgram echo-stream time time-dgram time-stream ntalk rexec rlogin rsh talk telnet tftp"
+        ITEMS="chargen chargen-dgram chargen-stream daytime daytime-dgram daytime-stream discard discard-dgram discard-stream echo echo-dgram echo-stream time time-dgram time-stream ntalk rexec rlogin rsh rsync talk telnet tftp"
 
         for SERVICE in ${ITEMS}; do
             LogText "Test: checking service ${SERVICE}"
@@ -244,26 +244,6 @@
             AddHP 0 3
         fi
     fi
-#
-#################################################################################
-#
-    # Test        : INSE-8150
-    # Description : Check for rsync enabled via xinetd
-    #RSYNC_XINETD_CONFIG_FILE="${XINETD_CONFIG_DIR}/rsync"
-    #if [ ${XINETD_ACTIVE} -eq 1 -a -f ${RSYNC_XINETD_CONFIG_FILE} ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    #Register --test-no INSE-8150 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for rsync via xinetd"
-    #if [ ${SKIPTEST} -eq 0 ]; then
-    #    LogText "Test: checking rsync presence in xinetd configuration"
-    #    FIND=$(${GREPBINARY} "disable\s*=\s*no" ${RSYNC_XINETD_CONFIG_FILE})
-    #    if [ "${FIND}" = "" ]; then
-    #        LogText "Result: rsync not enabled in ${RSYNC_XINETD_CONFIG_FILE}"
-    #        Display --indent 6 --text "- Checking xinetd (rsync)" --result "${STATUS_DISABLED}" --color GREEN
-    #    else
-    #        LogText "Result: rsync enabled in ${RSYNC_XINETD_CONFIG_FILE}"
-    #        Display --indent 6 --text "- Checking xinetd (rsync)" --result "${STATUS_ENABLED}" --color RED
-    #        ReportSuggestion "${TEST_NO}" "Disable rsync in xinetd configuration"
-    #    fi
-    #fi
 #
 #################################################################################
 #
@@ -348,7 +328,7 @@
 #
     # Test        : INSE-8304
     # Description : Check if rsh server is installed
-    Register --test-no INSE-8342 --weight L --network NO --category security --description "Check if rsh server is installed"
+    Register --test-no INSE-8304 --weight L --network NO --category security --description "Check if rsh server is installed"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if rsh server is installed
         LogText "Test: Checking if rsh server is installed"
@@ -410,6 +390,57 @@
         else
             LogText "Result: telnet server is NOT installed"
             Display --indent 2 --text "- Installed telnet server package" --result "${STATUS_NOT_FOUND}" --color GREEN
+        fi
+    fi
+
+#
+#################################################################################
+#
+    # Test        : INSE-8314
+    # Description : Check if NIS client is installed
+    Register --test-no INSE-8314 --weight L --network NO --category security --description "Check if NIS client is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=""
+        LogText "Test: Checking if NIS client is installed"
+        PACKAGES="nis ypbind"
+        for PACKAGE in ${PACKAGES}; do
+            PackageIsInstalled "${PACKAGE}"
+            if [ $? -eq 0 ]; then
+                FOUND="${PACKAGE}"
+            fi
+        done
+        if [ ${FOUND} ]; then
+            LogText "Result: NIS client is installed"
+            Display --indent 2 --text "- Checking NIS client installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "NIS client should be removed as it contains numerous security exposures and have been replaced with the more secure SSH package"
+        else
+            LogText "Result: NIS client is NOT installed"
+            Display --indent 2 --text "- Checking NIS client installation" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8316
+    # Description : Check if NIS server is installed
+    Register --test-no INSE-8316 --weight L --network NO --category security --description "Check if NIS server is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=""
+        LogText "Test: Checking if NIS server is installed"
+        PACKAGES="nis ypserv"
+        for PACKAGE in ${PACKAGES}; do
+            PackageIsInstalled "${PACKAGE}"
+            if [ $? -eq 0 ]; then
+                FOUND="${PACKAGE}"
+            fi
+        done
+        if [ ${FOUND} ]; then
+            LogText "Result: NIS server is installed"
+            Display --indent 2 --text "- Checking NIS server installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Removing the ${FOUND} package decreases the risk of the accidental (or intentional) activation of NIS or NIS+ services"
+        else
+            LogText "Result: NIS server is NOT installed"
+            Display --indent 2 --text "- Checking NIS server installation" --result "${STATUS_OK}" --color GREEN
         fi
     fi
 #

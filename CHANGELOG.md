@@ -23,13 +23,16 @@ measures to further tighten any possible misuse.
 - Security: test if setuid bit is set on Lynis binary
 - New function: DisplayWarning - show a warning on the screen
 - New function: Equals - compare two strings
+- New function: GetReportData - retrieve earlier stored data
 - New function: Readonly - mark variable read-only (security)
 - New function: SafeFile - test file type and call permission check
 - New function: SafeInput - check for safe input (security)
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
 - New test: CRYP-7930 - disk or file system encryption testing
-- New test: PROC-3802 - Check presence of prelink tooling
+- New test: INSE-8314 - test for NIS client
+- New test: INSE-8316 - test for NIS server
+- New test: PROC-3802 - check presence of prelink tooling
 - New report key: openssh_daemon_running
 - New command: lynis generate systemd-units
 - Measure timing of tests and report slow tests (10+ seconds)
@@ -41,13 +44,18 @@ measures to further tighten any possible misuse.
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - Use only locations from PATH environment variable, unless it is not defined
 - Show 'lynis generate hostids' when they are missing
+- INSE-8116 - added rsync service
+- INSE-8342 - renamed to INSE-8304
+- KRNL-5820 - extended check to include limits.d directory
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
 - PROC-3602 - allow different root directory
 - PROC-3612 - show 'Not found' instead of 'OK'
 - PROC-3614 - show 'Not found' instead of 'OK'
+- SCHD-7702 - removed hardening points
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
+- SSH-7408 - changed text in suggestion and report
 - Show changelog works again for newer versions
 - systemd service file adjusted
 - bash completion script extended

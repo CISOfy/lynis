@@ -1362,6 +1362,9 @@
     ################################################################################
     # Name        : IsRunning()
     # Description : Check if a process is running
+    #
+    # Parameters  : $1 = search argument
+    #               $2 = optional arguments
     # Returns     : 0 (process is running), 1 (process not running)
     #               RUNNING (1 = running, 0 = not running) - will be deprecated
     # Notes       : PSOPTIONS are declared globally, to prevent testing each call
@@ -1371,10 +1374,19 @@
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling IsRunning function"; fi
         pgrep_options="-x"
         search=""
+        FIND=""
+        PSOPTIONS=""
+        PARTIAL_SEARCH=1
+
         while [ $# -ge 1 ]; do
             case $1 in
                 --full)
                     pgrep_options="-f" # replace -x with -f
+                    PARTIAL_SEARCH=0
+                ;;
+                --user)
+                    shift
+                    users="$1"
                 ;;
                 *)
                     search="$1"
@@ -1387,19 +1399,60 @@
         RUNNING=0
         # AIX does not fully support pgrep options, so using ps instead
         if [ -n "${PGREPBINARY}" -a ! "${OS}" = "AIX" ]; then
-            FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
+            # When --user is used, perform a search using the -u option
+            if [ -n "${users}" ]; then
+                for u in "${users}"; do
+                    user_uid=$(getent passwd ${u} 2> /dev/null | ${AWKBINARY} -F: '{print $3}')
+                    # Only perform search if user exists and we had no match yet
+                    if [ -n "${user_uid}" ]; then
+                        if [ -z "${FIND}" ]; then
+                            LogText "Performing pgrep scan using uid ${user_uid}"
+                            FIND=$(${PGREPBINARY} ${pgrep_options} -u ${user_uid} "${search}" | ${TRBINARY} '\n' ' ')
+                        fi
+                    fi
+                done
+            else
+                LogText "Performing pgrep scan without uid"
+                FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
+            fi
         else
-            if [ -z "${PSOPTIONS}" ]; then
+            if [ ${SHELL_IS_BUSYBOX} -eq 1 ]; then
+                # This search is not foolproof
+                LogText "Performing simple ps scan (busybox)"
                 PSOPTIONS=" -o args="
-                if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                FIND=$(${PSBINARY} ${PSOPTIONS} | ${EGREPBINARY} "( |/)${search}" | ${GREPBINARY} -v "grep")
+            else
+                if [ -n "${users}" ]; then
+                    for u in "${users}"; do
+                        user_uid=$(getent passwd ${u} 2> /dev/null | ${AWKBINARY} -F: '{print $3}')
+                        # Only perform search if user exists and we had no match yet
+                        if [ -n "${user_uid}" ]; then
+                            if [ -z "${FIND}" ]; then
+                                if [ ${PARTIAL_SEARCH} -eq 1 ]; then
+                                    LogText "Performing ps scan using partial match and for uid ${user_uid}"
+                                    FIND=$(${PSBINARY} -u ${user_uid} -o comm= "${search}" | ${AWKBINARY} -v pattern="${search}" '$0 ~ pattern {print}')
+                                else
+                                    LogText "Performing ps scan using exact match and for uid ${user_uid}"
+                                    FIND=$(${PSBINARY} -u ${user_uid} -o comm= "${search}" | ${AWKBINARY} -v pattern="^${search}$" '$0 ~ pattern {print}')
+                                fi
+                            fi
+                        fi
+                    done
+                else
                     case "${OS}" in
                         "Linux")
                             PSOPTIONS=" -o args= -C ${search}"
                         ;;
                     esac
+                    if [ ${PARTIAL_SEARCH} -eq 1 ]; then
+                        LogText "Performing ps scan using partial match and without uid"
+                        FIND=$(${PSBINARY} ${PSOPTIONS} | ${AWKBINARY} -v pattern="${search}" '$0 ~ pattern {print}')
+                    else
+                        LogText "Performing ps scan using exact match and without uid"
+                        FIND=$(${PSBINARY} ${PSOPTIONS} | ${AWKBINARY} -v pattern="^${search}$" '$0 ~ pattern {print}')
+                    fi
                 fi
             fi
-            FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
         fi
 
         if [ -n "${FIND}" ]; then

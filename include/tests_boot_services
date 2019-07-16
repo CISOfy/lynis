@@ -46,7 +46,7 @@
         LogText "Test: Query bootinfo for AIX boot device"
         if [ -x /usr/sbin/bootinfo ]; then
             FIND=$(/usr/sbin/bootinfo -b)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: found boot device ${FIND}"
                 Display --indent 2 --text "- Checking boot device (bootinfo)" --result "${STATUS_FOUND}" --color GREEN
                 BOOT_LOADER="ROS"
@@ -76,7 +76,7 @@
                     FILENAME=$(echo "${OUTPUT}" | ${AWKBINARY} '{print $1}')
                     LogText "Result: file on disk = ${FILENAME}"
                     ISFILE=$(echo ${FILENAME} | ${GREPBINARY} "^/")
-                    if [ ! -z "${ISFILE}" ]; then
+                    if [ -n "${ISFILE}" ]; then
                         if [ -L ${ISFILE} ]; then
                             ShowSymlinkPath ${ISFILE}
                             FILENAME="${SYMLINK}"
@@ -86,7 +86,7 @@
                             LogText "Result: cmdline of PID 1 is not a file"
                         fi
                     fi
-                    if [ ! -z "${FILENAME}" ]; then
+                    if [ -n "${FILENAME}" ]; then
                         SHORTNAME=$(echo ${FILENAME} | ${AWKBINARY} -F/ '{ print $NF }')
                         LogText "Found: ${SHORTNAME}"
                         if [ "${SERVICE_MANAGER}" = "unknown" ]; then
@@ -110,7 +110,7 @@
                                 ;;
                                 *)
                                     CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
-                                    if [ ! -z "${CONTAINS_SYSTEMD}" ]; then
+                                    if [ -n "${CONTAINS_SYSTEMD}" ]; then
                                         SERVICE_MANAGER="systemd"
                                     else
                                         LogText "Found ${SHORTNAME}. Unclear what service manager this is"
@@ -204,7 +204,7 @@
                 LogText "Test: determine if Secure Boot is used"
                 if [ -d ${ROOTDIR}sys/firmware/efi/efivars ]; then
                     FIND=$(${LSBINARY} ${ROOTDIR}sys/firmware/efi/efivars/SecureBoot-* 2> /dev/null)
-                    if [ ! -z "${FIND}" ]; then
+                    if [ -n "${FIND}" ]; then
                         for FILE in ${FIND}; do
                             LogText "Test: checking file ${FILE}"
                             # TODO: add detection for od
@@ -295,7 +295,7 @@
         # Some OSes like Gentoo do not have /boot mounted by default
         # TODO: root directory and rewrite ls statement
         if [ -d /boot ]; then
-            if [ "$(ls /boot/* 2> /dev/null)" = "" -a ! -z "${GRUB2INSTALLBINARY}" ]; then
+            if [ "$(ls /boot/* 2> /dev/null)" = "" -a -n "${GRUB2INSTALLBINARY}" ]; then
                 BOOT_LOADER_FOUND=1
                 LogText "Result: found empty /boot, however with GRUB2 binary installed. Best guess is that GRUB2 is actually installed, but /boot not mounted"
                 Display --indent 2 --text "- Checking presence GRUB2" --result "POSSIBLE MATCH" --color YELLOW
@@ -312,7 +312,7 @@
 #
     # Test        : BOOT-5122
     # Description : Check for GRUB boot loader configuration
-    if [ ! -z "${GRUBCONFFILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${GRUBCONFFILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no BOOT-5122 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for GRUB boot password"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
@@ -325,11 +325,11 @@
             FIND4=$(${GREPBINARY} 'password_pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
             FIND5=$(${GREPBINARY} 'grub.pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
             # GRUB1: Password should be set (MD5 or SHA1)
-            if [ ! -z "${FIND}" -o ! -z "${FIND2}" ]; then
+            if [ -n "${FIND}" -o -n "${FIND2}" ]; then
                 FOUND=1
             # GRUB2: Superusers AND password should be defined
-            elif [ ! -z "${FIND3}" ]; then
-                if [ ! -z "${FIND4}" -o ! -z "${FIND5}" ]; then FOUND=1; fi
+            elif [ -n "${FIND3}" ]; then
+                if [ -n "${FIND4}" -o -n "${FIND5}" ]; then FOUND=1; fi
             fi
             if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "- Checking for password protection" --result "${STATUS_OK}" --color GREEN
@@ -599,7 +599,7 @@
         else
 
             LogText "Result: systemctl binary not found, checking chkconfig binary"
-            if [ ! -z "${CHKCONFIGBINARY}" ]; then
+            if [ -n "${CHKCONFIGBINARY}" ]; then
                 LogText "Result: chkconfig binary found, trying that to discover information"
                 LogText "Searching for services at startup (chkconfig, runlevel 3 and 5)"
                 FIND=$(${CHKCONFIGBINARY} --list | ${EGREPBINARY} '3:on|5:on' | ${AWKBINARY} '{ print $1 }')
@@ -634,7 +634,7 @@
         if [ "${sRUNLEVEL}" = "2" ]; then
             LogText "Result: performing find in /etc/rc2.d as runlevel 2 is found"
             FIND=$(${FINDBINARY} ${ROOTDIR}etc/rc2.d -type l -print | ${CUTBINARY} -d '/' -f4 | ${SEDBINARY} "s/S[0-9][0-9]//g" | sort)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 COUNT=0
                 for SERVICE in ${FIND}; do
                     LogText "Found service (at boot, runlevel 2): ${SERVICE}"
@@ -667,7 +667,7 @@
                 LogText "Result: directory ${DIR} found"
                 LogText "Test: checking for available files in directory"
                 FIND=$(${FINDBINARY} ${DIR} -type f -print | ${SORTBINARY})
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found files in directory, checking permissions now"
                     for FILE in ${FIND}; do
                         LogText "Test: checking permissions of file ${FILE}"
@@ -757,12 +757,12 @@
                 ;;
 
              DragonFly | FreeBSD | macOS)
-                if [ ! -z "${SYSCTLBINARY}" ]; then
+                if [ -n "${SYSCTLBINARY}" ]; then
                     TIME_BOOT=$(${SYSCTLBINARY} kern.boottime | ${AWKBINARY} '{ print $5 }' | ${SEDBINARY} -e 's/,//' | ${GREPBINARY} "[0-9]")
                     TIME_NOW=$(date "+%s")
                     LogText "Boot time: ${TIME_BOOT}"
                     LogText "Current time: ${TIME_NOW}"
-                    if [ ! -z "${TIME_BOOT}" -a ! -z "${TIME_NOW}" ]; then
+                    if [ -n "${TIME_BOOT}" -a -n "${TIME_NOW}" ]; then
                         UPTIME_IN_SECS=$((TIME_NOW - TIME_BOOT))
                     else
                         ReportException "${TEST_NO}:5" "Most likely kern.boottime empty, unable to determine uptime"
@@ -774,12 +774,12 @@
                 ;;
 
              NetBSD | OpenBSD)
-                if [ ! -z "${SYSCTLBINARY}" ]; then
+                if [ -n "${SYSCTLBINARY}" ]; then
                     TIME_BOOT=$(${SYSCTLBINARY} -n kern.boottime)
                     TIME_NOW=$(date "+%s")
                     LogText "Boot time: ${TIME_BOOT}"
                     LogText "Current time: ${TIME_NOW}"
-                    if [ ! -z "${TIME_BOOT}" -a ! -z "${TIME_NOW}" ]; then
+                    if [ -n "${TIME_BOOT}" -a -n "${TIME_NOW}" ]; then
                         UPTIME_IN_SECS=$((TIME_NOW - TIME_BOOT))
                     else
                         ReportException "${TEST_NO}:5" "Most likely kern.boottime empty, unable to determine uptime"
@@ -791,7 +791,7 @@
                 ;;
 
             Solaris)
-                if [ ! -z "${KSTATBINARY}" ]; then
+                if [ -n "${KSTATBINARY}" ]; then
                     UPTIME_IN_SECS=$(${KSTATBINARY} -p unix:0:system_misc:snaptime | ${GREPBINARY} "^unix" | ${AWKBINARY} '{print $2}' | ${CUTBINARY} -d "." -f1)
                 else
                     Display --indent 2 --text "- Checking uptime" --result "${STATUS_SKIPPED}" --color YELLOW
@@ -806,7 +806,7 @@
                 ReportException "${TEST_NO}:3" "No uptime test available yet for this operating system"
                 ;;
         esac
-        if [ ! -z "${UPTIME_IN_SECS}" ]; then
+        if [ -n "${UPTIME_IN_SECS}" ]; then
             UPTIME_IN_DAYS=$((UPTIME_IN_SECS / 60 / 60 / 24))
             LogText "Uptime (in seconds): ${UPTIME_IN_SECS}"
             LogText "Uptime (in days): ${UPTIME_IN_DAYS}"
@@ -828,7 +828,7 @@
             LogText "Result: file /usr/lib/systemd/system/rescue.service"
             LogText "Test: checking presence sulogin for single user mode"
             FIND=$(${EGREPBINARY} "^ExecStart=.*sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 FOUND=1
                 LogText "Result: found sulogin, so single user is protected"
                 AddHP 3 3
@@ -898,7 +898,7 @@
             LogText "Test: checking for available files in directory"
             # OpenBSD uses symlinks to create another instance of daemons
             FIND=$(${FINDBINARY} ${CHECKDIR} \( -type f -o -type l \) -print | ${SORTBINARY})
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: found files in directory, checking permissions now"
                 for FILE in ${FIND}; do
                     LogText "Test: checking permissions of file ${FILE}"

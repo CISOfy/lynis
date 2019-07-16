@@ -104,7 +104,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         OPENSSHD_VERSION=$(${SSHDBINARY} -t -d 2>&1 | ${GREPBINARY} 'sshd version' | ${AWKBINARY} '{if($4~OpenSSH_){print $4}}' | ${AWKBINARY} -F_ '{print $2}' | ${TRBINARY} -d '[:cntrl:],')
         LogText "Result: discovered OpenSSH version is ${OPENSSHD_VERSION}"
-        if [ ! -z ${OPENSSHD_VERSION} ]; then
+        if [ -n ${OPENSSHD_VERSION} ]; then
             OPENSSHD_VERSION_MAJOR=$(echo ${OPENSSHD_VERSION%%p*} | ${AWKBINARY} -F. '{print $1}')
             LogText "Result: OpenSSH major version: ${OPENSSHD_VERSION_MAJOR}"
             OPENSSHD_VERSION_MINOR=$(echo ${OPENSSHD_VERSION%%p*} | ${AWKBINARY} -F. '{print $2}')
@@ -117,7 +117,7 @@
     # Test        : SSH-7408
     # Description : Check SSH specific defined options
     # Notes       : Instead of parsing the configuration file, we query the SSH daemon itself
-    if [ ${OPENSSHD_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" -a ${OPENSSHD_VERSION_MAJOR} -ge 5 -a ${OPENSSHD_VERSION_MINOR} -ge 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${OPENSSHD_RUNNING} -eq 1 -a -n "${SSH_DAEMON_OPTIONS_FILE}" -a ${OPENSSHD_VERSION_MAJOR} -ge 5 -a ${OPENSSHD_VERSION_MINOR} -ge 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SSH specific defined options"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking specific defined options in ${SSH_DAEMON_OPTIONS_FILE}"
@@ -189,7 +189,7 @@
                 FOUNDVALUE=$(${AWKBINARY} -v OPT="${OPTIONNAME_LOWER}" 'index($0, OPT) == 1 { print toupper($2) }' ${SSH_DAEMON_OPTIONS_FILE} | tail -1)
                 LogText "Test: Checking ${OPTIONNAME} in ${SSH_DAEMON_OPTIONS_FILE}"
 
-                if [ ! -z "${FOUNDVALUE}" ]; then
+                if [ -n "${FOUNDVALUE}" ]; then
                     LogText "Result: Option ${OPTIONNAME} found"
                     LogText "Result: Option ${OPTIONNAME} value is ${FOUNDVALUE}"
 
@@ -201,7 +201,7 @@
                         elif [ "${FOUNDVALUE}" = "${WEAKVALUE}" ]; then
                             RESULT="WEAK"
                         else
-                            if [ ! -z "${EXPECTEDVALUE}" ]; then
+                            if [ -n "${EXPECTEDVALUE}" ]; then
                                 LogText "Expected value has multiple values, testing if active value is in list (${EXPECTEDVALUE})"
                                 FIND=$(echo ${FOUNDVALUE} | ${GREPBINARY} -E "${EXPECTEDVALUE}")
                                 if [ $? -eq 0 ]; then
@@ -211,7 +211,7 @@
                                     LogText "Result: not found"
                                 fi
                             fi
-                            if [ ! -z "${MEDIUMSCOREDVALUE}" ]; then
+                            if [ -n "${MEDIUMSCOREDVALUE}" ]; then
                                 LogText "Medium scored value has multiple values, testing if active value is in list (${MEDIUMSCOREDVALUE})"
                                 FIND=$(echo ${FOUNDVALUE} | ${GREPBINARY} -E "${MEDIUMSCOREDVALUE}")
                                 if [ $? -eq 0 ]; then
@@ -296,13 +296,13 @@
     # Test        : SSH-7440
     # Description : OpenSSH - AllowUsers / AllowGroups
     # Goal        : Check if only a specific amount of users/groups can log in to the system
-    if [ ${OPENSSHD_RUNNING} -eq 1 -a ! -z "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${OPENSSHD_RUNNING} -eq 1 -a -n "${SSH_DAEMON_OPTIONS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SSH-7440 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check OpenSSH option: AllowUsers and AllowGroups"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # AllowUsers
         FIND=$(${EGREPBINARY} -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             LogText "Result: AllowUsers set, with value ${FIND}"
             Display --indent 4 --text "- OpenSSH option: AllowUsers" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
@@ -313,7 +313,7 @@
 
         # AllowGroups
         FIND=$(${EGREPBINARY} -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             LogText "Result: AllowUsers set ${FIND}"
             Display --indent 4 --text "- OpenSSH option: AllowGroups" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1

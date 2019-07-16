@@ -262,7 +262,7 @@
 #
     # Test        : LOGG-2148
     # Description : Checking log files rotated with logrotate
-    if [ ! -z "${LOGROTATEBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${LOGROTATEBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2148 --weight L --preqs-met ${PREQS_MET} --network NO --category security --description "Checking logrotated files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking which files are rotated with logrotate and if they exist"
@@ -311,7 +311,7 @@
         # Try local hosts file
         LogText "Result: Checking for loghost in /etc/inet/hosts"
         FIND=$(${GREPBINARY} loghost /etc/inet/hosts | ${GREPBINARY} -v "^#")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             SOLARIS_LOGHOST_FOUND=1
             LogText "Result: Found loghost entry in /etc/inet/hosts"
         else
@@ -320,7 +320,7 @@
             # Try name resolving if no entry is present in local host file
             LogText "Result: Checking for loghost via name resolving"
             FIND=$(getent hosts loghost | ${GREPBINARY} loghost)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 SOLARIS_LOGHOST_FOUND=1
                 LogText "Result: name resolving was successful"
                 LogText "Output: ${FIND}"
@@ -356,7 +356,7 @@
         if [ -f ${SYSLOGD_CONF} ]; then
             LogText "Test: check if logs are also logged to a remote logging host"
             FIND=$(${EGREPBINARY} "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: remote logging enabled"
                 REMOTE_LOGGING_ENABLED=1
             else
@@ -364,7 +364,7 @@
                 DESTINATIONS=$(${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${EGREPBINARY} "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}')
                 for DESTINATION in ${DESTINATIONS}; do
                     FIND2=$(${GREPBINARY} "log" ${SYSLOGD_CONF} | ${GREPBINARY} "source" | ${EGREPBINARY} "destination\(${DESTINATION}\)")
-                    if [ ! -z "${FIND2}" = "" ]; then
+                    if [ -n "${FIND2}" = "" ]; then
                         LogText "Result: found destination ${DESTINATION} configured for remote logging"
                         REMOTE_LOGGING_ENABLED=1
                     fi
@@ -461,7 +461,7 @@
     Register --test-no LOGG-2180 --weight L --network NO --category security --description "Checking open log files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking open log files with lsof"
-        if [ ! -z "${LSOFBINARY}" ]; then
+        if [ -n "${LSOFBINARY}" ]; then
             FIND=$(${LSOFBINARY} -n 2>&1 | ${GREPBINARY} "log$" | ${EGREPBINARY} -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$")
             for I in ${FIND}; do
                 LogText "Found logfile: ${I}"
@@ -477,7 +477,7 @@
 #
     # Test        : LOGG-2190
     # Description : Checking deleted files
-    if [ ! -z "${LSOFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${LSOFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2190 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for deleted files in use"
     if [ ${SKIPTEST} -eq 0 ]; then
         EARLY_MYSQL=""
@@ -486,12 +486,12 @@
         LSOF_GREP="WARNING|Output information"
 
         # MySQL versions prior to 5.6 leave lots of deleted in-use files in /tmp, ignoring those
-        if [ ! -z "${DPKGBINARY}" ]; then
+        if [ -n "${DPKGBINARY}" ]; then
             EARLY_MYSQL=$(${DPKGBINARY} -l | ${EGREPBINARY} mysql-server-5.[0-5])
-        elif [ ! -z "${RPMBINARY}" ]; then
+        elif [ -n "${RPMBINARY}" ]; then
             EARLY_MYSQL=$(${RPMBINARY} -qa mariadb | ${EGREPBINARY} mariadb-5.[0-5])
         fi
-        if [ ! -z "${EARLY_MYSQL}" ]; then LSOF_GREP="${LSOF_GREP}|mysqld"; fi
+        if [ -n "${EARLY_MYSQL}" ]; then LSOF_GREP="${LSOF_GREP}|mysqld"; fi
 
         # grsecurity causes Fail2Ban to hold onto deleted in-use files in /var/tmp
         if [ ${GRSEC_FOUND} -eq 1 ]; then LSOF_GREP="${LSOF_GREP}|fail2ban"; fi
@@ -501,7 +501,7 @@
         fi
 
         FIND=$(${LSOFBINARY} -n +L 1 2>&1 | ${EGREPBINARY} -vw "${LSOF_GREP}" | ${EGREPBINARY} -v '/dev/zero|/\[aio\]' | ${AWKBINARY} '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             LogText "Result: found one or more files which are deleted, but still in use"
             for I in ${FIND}; do
                 LogText "Found deleted file: ${I}"
@@ -523,7 +523,7 @@
     Register --test-no LOGG-2192 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for open log files that are empty"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${LSOFBINARY} -n -w | ${AWKBINARY} '{if ($5=="REG" && $7=="0" && $9 ~ /log$/) {print $1","$9}}' | ${SORTBINARY} | uniq)
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             for I in ${FIND}; do
                 LogText "Found an opened logfile that is empty: ${I}"
                 Report "open_empty_log_file[]=${I}"

@@ -46,7 +46,7 @@
         else
             FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
         fi
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found more than one administrator accounts"
             ReportWarning "${TEST_NO}" "Multiple users with UID 0 found in passwd file"
@@ -124,7 +124,7 @@
     # Test        : AUTH-9216
     # Description : Check /etc/group and shadow group files
     # Notes       : Run grpck to test group files (most likely /etc/group and shadow group files)
-    if [ ! -z "${GRPCKBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${GRPCKBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9216 --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Check group and shadow group files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for grpck binary output"
@@ -363,7 +363,7 @@
             "macOS")
                 LogText "macOS real users output (ID = 0, or 500-599) using dscacheutil"
                 FIND_USERS=$(dscacheutil -q user | ${GREPBINARY} -A 3 -B 2 -e "^uid: 5[0-9][0-9]" | ${GREPBINARY} "^name: " | ${AWKBINARY} '{print $2}')
-                if [ ! -z "${FIND_USERS}" ]; then
+                if [ -n "${FIND_USERS}" ]; then
                     for FUSERNAME in ${FIND_USERS}; do
                         FDETAILS=$(dscacheutil -q user -a name ${FUSERNAME} | ${GREPBINARY} "^uid: " | ${AWKBINARY} '{print $2}')
                         FIND="${FUSERNAME},${FDETAILS} ${FIND}"
@@ -397,7 +397,7 @@
         else
             Display --indent 2 --text "- Query system users (non daemons)" --result "${STATUS_DONE}" --color GREEN
             for I in ${FIND}; do
-                if [ ! -z "${I}" ]; then
+                if [ -n "${I}" ]; then
                     LogText "Real user: ${I}"
                     Report "real_user[]=${I}"
                 fi
@@ -419,7 +419,7 @@
             else
                 FIND2=$(${EGREPBINARY} "^passwd_compat" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
                 FIND3=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
-                if [ ! -z "${FIND2}" -o ! -z "${FIND3}" ]; then
+                if [ -n "${FIND2}" -o -n "${FIND3}" ]; then
                     LogText "Result: NIS+ authentication enabled"
                     Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_ENABLED}" --color GREEN
                 else
@@ -446,7 +446,7 @@
             else
                 FIND2=$(${EGREPBINARY} "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
                 FIND3=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
-                if [ ! -z "${FIND2}" -o ! -z "${FIND3}" ]; then
+                if [ -n "${FIND2}" -o -n "${FIND3}" ]; then
                     LogText "Result: NIS authentication enabled"
                     Display --indent 2 --text "- NIS authentication support" --result "${STATUS_ENABLED}" --color GREEN
                 else
@@ -489,7 +489,7 @@
 #
     # Test        : AUTH-9252
     # Description : Check ownership and permissions for sudo configuration files
-    if [ ! -z "${SUDOERS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${SUDOERS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9252 --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Check ownership and permissions for sudo configuration files"
     if [ ${SKIPTEST} -eq 0 ]; then
         SUDO_CONFIG_FILES="${SUDOERS_FILE}"
@@ -680,7 +680,7 @@
                 else
                     FIND=$(find ${DIR} -maxdepth 1 -type f -name "pam_*.so" -print | sort)
                 fi
-                if [ ! -z "${FIND}" ]; then FOUND=1; fi
+                if [ -n "${FIND}" ]; then FOUND=1; fi
                 for FILE in ${FIND}; do
                     LogText "Found file: ${FILE}"
                     Report "pam_module[]=${FILE}"
@@ -712,7 +712,7 @@
                 LogText "Result: file ${FILE} exists"
                 LogText "Test: checking presence LDAP module"
                 FIND=$(${GREPBINARY} "^auth.*ldap" ${FILE})
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: LDAP module present"
                     LogText "Output: ${FIND}"
                     LDAP_AUTH_ENABLED=1
@@ -868,7 +868,7 @@
             LogText "Test: collecting accounts which have an expired password (last day changed + maximum change time)"
             # Skip fields with a !, *, or x, or !* (field $3 is last changed, $5 is maximum changed)
             FIND=$(${EGREPBINARY} -v ":[\!\*x]([\*\!])?:" /etc/shadow | ${AWKBINARY} -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 for ACCOUNT in ${FIND}; do
                     LogText "Result: password of user ${ACCOUNT} has been expired"
                     Report "account_password_expired[]=${ACCOUNT}"
@@ -961,7 +961,7 @@
                 LogText "Test: checking presence sulogin for single user mode"
                 FIND=$(${EGREPBINARY} "^[a-zA-Z0-9~]+:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
                 FIND2=$(${EGREPBINARY} "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
-                if [ ! -z "${FIND}" -o ! -z "${FIND2}" ]; then
+                if [ -n "${FIND}" -o -n "${FIND2}" ]; then
                     FOUND=1
                     LogText "Result: found sulogin, so single user is protected"
                 fi
@@ -976,7 +976,7 @@
                 LogText "Result: file ${ROOTDIR}etc/sysconfig/init exists"
                 LogText "Test: checking presence sulogin for single user mode"
                 FIND=$(${GREPBINARY} "^SINGLE=/sbin/sulogin" ${ROOTDIR}etc/sysconfig/init)
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     FOUND=1
                     LogText "Result: found sulogin, so single user is protected"
                 fi
@@ -1045,7 +1045,7 @@
         if [ -d ${ROOTDIR}etc/profile.d ]; then
             FOUND=0
             FIND=$(ls ${ROOTDIR}etc/profile.d/* 2> /dev/null)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: found /etc/profile.d, with one or more files in it"
                 for FILE in ${FIND}; do
                     HAS_MASK=$(${GREPBINARY} umask ${FILE} | ${SEDBINARY} 's/^[ \t]*//' | ${GREPBINARY} -v "^#" | ${AWKBINARY} '{ print $2 }')
@@ -1309,7 +1309,7 @@
             if [ -f ${ROOTDIR}etc/default/login ]; then
                 LogText "Result: file ${ROOTDIR}etc/default/login exists"
                 FIND=$(${GREPBINARY} "^RETRIES" ${ROOTDIR}etc/default/login)
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     FOUND=1
                     LogText "Result: retries option configured"
                     LogText "Output: ${FIND}"
@@ -1429,7 +1429,7 @@
 #
     # Test        : AUTH-9410
     # Description : Check for doas file permissions
-    if [ ! -z "${DOAS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${DOAS_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no AUTH-9410 --os OpenBSD --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check /etc/doas.conf file permissions"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking /etc/doas.conf permissions"
@@ -1450,7 +1450,7 @@
 Report "auth_failed_logins_logged=${AUTH_FAILED_LOGINS_LOGGED}"
 Report "ldap_auth_enabled=${LDAP_AUTH_ENABLED}"
 Report "ldap_pam_enabled=${LDAP_PAM_ENABLED}"
-if [ ! -z "${LDAP_CLIENT_CONFIG_FILE}" ]; then Report "ldap_config_file=${LDAP_CLIENT_CONFIG_FILE}"; fi
+if [ -n "${LDAP_CLIENT_CONFIG_FILE}" ]; then Report "ldap_config_file=${LDAP_CLIENT_CONFIG_FILE}"; fi
 Report "password_min_days=${PASSWORD_MINIMUM_DAYS}"
 Report "password_max_days=${PASSWORD_MAXIMUM_DAYS}"
 

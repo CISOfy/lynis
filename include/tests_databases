@@ -71,7 +71,7 @@
     # Test        : DBS-1816
     # Description : Check empty MySQL root password
     # Notes       : Only perform test when MySQL is running and client is available
-    if [ ! -z "${MYSQLCLIENTBINARY}" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
+    if [ -n "${MYSQLCLIENTBINARY}" -a ${MYSQL_RUNNING} -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="MySQL not installed, or not running"; fi
     Register --test-no DBS-1816 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking MySQL root password"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Trying to login to local MySQL server without password"
@@ -144,7 +144,7 @@
             if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
                 if HasData "${PGREPBINARY}"; then
                     AUTH_ON_CMDLINE=$(for I in $(${PGREPBINARY} mongo); do cat /proc/${I}/cmdline | xargs -0 echo | ${GREPBINARY} -E "\-\-auth( |$)"; done)
-                    if [ ! -z "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authorization enabled via mongod parameter"; MONGODB_AUTHORIZATION_ENABLED=1; fi
+                    if [ -n "${AUTH_ON_CMDLINE}" ]; then LogText "Result: found authorization enabled via mongod parameter"; MONGODB_AUTHORIZATION_ENABLED=1; fi
                 else
                     LogText "Result: skipped this part of the test, as pgrep is not available"
                 fi
@@ -268,7 +268,7 @@
         for DIR in ${PATHS}; do
             LogText "Action: scanning directory (${DIR}) for Redis configuration files"
             FILES=$(${LSBINARY} ${DIR}/*.conf 2> /dev/null)
-            if [ ! -z "${FILES}" ]; then
+            if [ -n "${FILES}" ]; then
                 ALLFILES="${ALLFILES} ${FILES}"
             else
                 LogText "Result: no configuration files found in this directory"
@@ -279,12 +279,12 @@
                 LogText "Action: checking if ${CONFFILE} is a Sentinel configuration file"
                 # Exclude Sentinel configuration file
                 FIND=$(${GREPBINARY} "^sentinel " ${CONFFILE})
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: file is a Sentinel configuration file, skipping it"
                 else
                     LogText "Result: file is NOT a Sentinel configuration file. Now scanning if it is a Redis configuration file"
                     FIND=$(${GREPBINARY} "Redis" ${CONFFILE})
-                    if [ ! -z "${FIND}" ]; then
+                    if [ -n "${FIND}" ]; then
                         REDIS_CONFIGURATION_FILES="${REDIS_CONFIGURATION_FILES} ${CONFFILE}"
                         REDIS_CONFIGURATION_FOUND=1
                         LogText "Result: found a Redis configuration file (${CONFFILE})"

@@ -105,7 +105,7 @@
         if [ -f ${ROOTDIR}etc/default/sysstat ]; then
             LogText "Result: ${ROOTDIR}etc/default/sysstat found"
             FIND=$(${GREPBINARY} "^ENABLED" ${ROOTDIR}etc/default/sysstat | ${GREPBINARY} -i true)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: sysstat enabled via ${ROOTDIR}etc/default/sysstat"
                 Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_ENABLED}" --color GREEN
             else
@@ -115,7 +115,7 @@
             fi
         elif [ -f ${ROOTDIR}etc/cron.d/sysstat ]; then
             FIND=$(${GREPBINARY} -v '^[[:space:]]*\(#\|$\)' ${ROOTDIR}etc/cron.d/sysstat)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: sysstat enabled via ${ROOTDIR}etc/cron.d/sysstat"
                 Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_ENABLED}" --color GREEN
             else
@@ -134,7 +134,7 @@
 #
     # Test        : ACCT-9628
     # Description : Check auditd status
-    if [ ! -z "${AUDITDBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${AUDITDBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9628 --os Linux --weight L --network NO --category security --description "Check for auditd"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check auditd status"
@@ -163,7 +163,7 @@
 #
     # Test        : ACCT-9630
     # Description : Check auditd rules
-    if [ ! -z "${AUDITDBINARY}" -a ! -z "${AUDITCTLBINARY}" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${AUDITDBINARY}" -a -n "${AUDITCTLBINARY}" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9630 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Check for auditd rules"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd rules"
@@ -189,7 +189,7 @@
 #
     # Test        : ACCT-9632
     # Description : Check auditd configuration file
-    if [ ! -z "${AUDITDBINARY}" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${AUDITDBINARY}" -a ${LINUX_AUDITD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9632 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for auditd configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd configuration file"
@@ -202,7 +202,7 @@
             fi
         done
         # Check if we discovered the configuration file. It should be there is the binaries are available and process is running
-        if [ ! -z "${AUDITD_CONF_FILE}" ]; then
+        if [ -n "${AUDITD_CONF_FILE}" ]; then
             Display --indent 4 --text "- Checking audit configuration file" --result "${STATUS_OK}" --color GREEN
         else
             LogText "Result: could not find auditd configuration file"
@@ -215,12 +215,12 @@
 #
     # Test        : ACCT-9634
     # Description : Check auditd log file
-    if [ ! -z "${AUDITDBINARY}" -a ${LINUX_AUDITD_RUNNING} -eq 1 -a ! -z "${AUDITD_CONF_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${AUDITDBINARY}" -a ${LINUX_AUDITD_RUNNING} -eq 1 -a -n "${AUDITD_CONF_FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no ACCT-9634 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for auditd log file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd log file"
         FIND=$(${GREPBINARY} "^log_file" ${AUDITD_CONF_FILE} | ${AWKBINARY} '{ if ($1=="log_file" && $2=="=") { print $3 } }')
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             LogText "Result: log file is defined"
             LogText "Defined value: ${FIND}"
             if [ -f ${FIND} ]; then
@@ -252,7 +252,7 @@
             if [ -f ${ROOTDIR}etc/ld.so.preload ]; then
                 LogText "Result: found ${ROOTDIR}etc/ld.so.preload, testing if snoopy.so is listed"
                 FIND=$(${GREPBINARY} ${FILE} ${ROOTDIR}etc/ld.so.preload)
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found snoopy in ld.so.preload"
                     LogText "Output: ${FIND}"
                     Display --indent 6 --text "- Library in ld.so.preload" --result "LOADED" --color GREEN
@@ -298,7 +298,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check if auditd service is enabled and online"
         FIND=$(${ROOTDIR}usr/bin/svcs svc:/system/auditd:default | ${GREPBINARY} "^online")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             LogText "Result: auditd service is online"
             Display --indent 4 --text "- Checking Solaris audit daemon status" --result "${STATUS_ON}"LINE --color GREEN
         else
@@ -317,7 +317,7 @@
         LogText "Test: check if BSM is enabled in ${ROOTDIR}etc/system"
         if [ -f ${ROOTDIR}etc/system ]; then
             FIND=$(${GREPBINARY} 'set c2audit:audit_load = 1' ${ROOTDIR}etc/system)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: BSM is enabled in ${ROOTDIR}etc/system"
                 Display --indent 4 --text "- Checking Solaris BSM (${ROOTDIR}etc/system)" --result "${STATUS_ENABLED}" --color GREEN
             else
@@ -339,7 +339,7 @@
         LogText "Test: check if c2audit module is active"
         if [ -x ${ROOTDIR}usr/sbin/modinfo ]; then
             FIND=$(${ROOTDIR}usr/sbin/modinfo | ${GREPBINARY} c2audit)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: c2audit found in modinfo output"
                 Display --indent 4 --text "- Checking Solaris BSM (modules list)" --result "${STATUS_ENABLED}" --color GREEN
             else
@@ -362,7 +362,7 @@
         if [ -f ${ROOTDIR}etc/security/audit_control ]; then
             LogText "Result: file ${ROOTDIR}etc/security/audit_control found"
             FIND=$(${GREPBINARY} "^dir" ${ROOTDIR}etc/security/audit_control | ${AWKBINARY} -F: '{ print $2 }')
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: found location ${FIND}"
                 LogText "Test: Checking if location is a valid directory"
                 if [ -d ${FIND} ]; then

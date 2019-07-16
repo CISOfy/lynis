@@ -267,16 +267,16 @@
         if [ ${RUN_UPDATE_CHECK} -eq 1 ]; then
             LYNIS_LV_RECORD="lynis-latest-version.cisofy.com."
             FIND=$(which dig 2> /dev/null | grep -v "no [^ ]* in")
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 PROGRAM_LV=$(dig +short +time=3 -t txt lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | sed 's/[".]//g' | grep "^[1-9][0-9][0-9]$")
             else
                 FIND=$(which host 2> /dev/null | grep -v "no [^ ]* in ")
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     PROGRAM_LV=$(host -t txt -W 3 lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | awk '{ if ($1=="lynis-latest-version.cisofy.com" && $3=="text") { print $4 }}' | sed 's/"//g' | grep "^[1-9][0-9][0-9]$")
                     if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
                 else
                     FIND=$(which drill 2> /dev/null | grep -v "no [^ ]* in ")
-                    if [ ! -z "${FIND}" ]; then
+                    if [ -n "${FIND}" ]; then
                         PROGRAM_LV=$(drill txt ${LYNIS_LV_RECORD} | awk '{ if ($1=="lynis-latest-version.cisofy.com." && $4=="TXT") { print $5 }}' | tr -d '"' | grep "^[1-9][0-9][0-9]$")
                         if [ -z "${PROGRAM_LV}" ]; then PROGRAM_LV=0; fi
                     else
@@ -530,7 +530,7 @@
             fi
         fi
 
-        if [ ! -z "${TEXT}" ]; then
+        if [ -n "${TEXT}" ]; then
             SHOW=0
             if [ ${SHOW_WARNINGS_ONLY} -eq 1 ]; then
                 if [ "${RESULT}" = "WARNING" ]; then SHOW=1; fi
@@ -571,7 +571,7 @@
         ${ECHOCMD} ""
         ${ECHOCMD} "${WARNING}Error${NORMAL}: ${BOLD}$1${NORMAL}"
         ${ECHOCMD} ""
-        if [ ! -z "${EXITCODE}" ]; then ExitCustom ${EXITCODE}; fi
+        if [ -n "${EXITCODE}" ]; then ExitCustom ${EXITCODE}; fi
     }
 
 
@@ -747,12 +747,12 @@
         exitcode=1
         file=$1
         find=""
-        if [ ! -z "${DPKGBINARY}" ]; then
+        if [ -n "${DPKGBINARY}" ]; then
             find=$(${DPKGBINARY} -S "${file}" 2> /dev/null | ${AWKBINARY} -F: '{print $1}')
-        elif [ ! -z "${RPMBINARY}" ]; then
+        elif [ -n "${RPMBINARY}" ]; then
             find=$(${RPMBINARY} -qf "${file}" 2> /dev/null | ${AWKBINARY} -F- '{print $1}')
         fi
-        if [ ! -z "${find}" ]; then
+        if [ -n "${find}" ]; then
             LogText "Result: file '${file}' belongs to package (${find})"
             exitcode=0
         else
@@ -805,7 +805,7 @@
         # Check for symlink
         if [ -L "${escaped_file}" ]; then
             ShowSymlinkPath ${escaped_file}
-            if [ ! -z "${SYMLINK}" ]; then escaped_file="${SYMLINK}"; fi
+            if [ -n "${SYMLINK}" ]; then escaped_file="${SYMLINK}"; fi
         fi
 
         # Only check the file if it isn't a symlink (after previous check)
@@ -863,7 +863,7 @@
             return 2
         fi
 
-        if [ ! -z "${HOSTID}" -a ! -z "${HOSTID2}" ]; then
+        if [ -n "${HOSTID}" -a -n "${HOSTID2}" ]; then
             Debug "Skipping creation of host identifiers, as they are already configured (via profile)"
             return 2
         fi
@@ -936,7 +936,7 @@
                 "HP-UX")
                     FIND=$(nwmgr -q info -c lan0 2> /dev/null | awk '{ if ($1=="MAC" && $2=="Address") { print $4 }}')
                     if HasData "${FIND}"; then
-                        if [ ! -z "${OPENSSLBINARY}" ]; then
+                        if [ -n "${OPENSSLBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "No openssl binary available on this HP-UX system"
@@ -954,7 +954,7 @@
                     # ip -br link show up | sort | awk '$2=="UP" && $3 ~ /^[a-f0-9][a-f0-9]:/ {print $3}'
 
                     # Use ifconfig
-                    if [ ! -z "${IFCONFIGBINARY}" ]; then
+                    if [ -n "${IFCONFIGBINARY}" ]; then
                         # Determine if we have the eth0 interface (not all Linux distro have this, e.g. Arch)
                         HASETH0=$(${IFCONFIGBINARY} | grep "^eth0")
                         # Check if we can find it with HWaddr on the line
@@ -982,7 +982,7 @@
                             fi
                         fi
 
-                    elif [ ! -z "${IPBINARY}" ]; then
+                    elif [ -n "${IPBINARY}" ]; then
                         # Determine if we have the common available eth0 interface
                         FIND=$(${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                         if IsEmpty "${FIND}"; then
@@ -1015,10 +1015,10 @@
                         ReportException "GetHostID" "No MAC address returned on macOS"
                     fi
                     LYNIS_HOSTID2_PART1=$(hostname -s)
-                    if [ ! -z "${LYNIS_HOSTID2_PART1}" ]; then
+                    if [ -n "${LYNIS_HOSTID2_PART1}" ]; then
                         LogText "Info: using hostname ${LYNIS_HOSTID2_PART1}"
                         LYNIS_HOSTID2_PART2=$(sysctl -n kern.uuid 2> /dev/null)
-                        if [ ! -z "${LYNIS_HOSTID2_PART2}" ]; then
+                        if [ -n "${LYNIS_HOSTID2_PART2}" ]; then
                             LogText "Info: using UUID ${LYNIS_HOSTID2_PART2}"
                         else
                             LogText "Info: could not create HOSTID2 as kern.uuid sysctl key is missing"
@@ -1143,17 +1143,17 @@
             fi
 
             STRING_TO_HASH=""
-            if [ ${FOUND} -eq 1 -a ! -z "${DATA_SSH}" ]; then
+            if [ ${FOUND} -eq 1 -a -n "${DATA_SSH}" ]; then
                 LogText "Using SSH public key to create the second host identifier"
                 STRING_TO_HASH="${DATA_SSH}"
             else
-                if [ ! -z "${MACHINEID}" ]; then
+                if [ -n "${MACHINEID}" ]; then
                     LogText "Using the machine ID to create the second host identifier"
                     STRING_TO_HASH="${MACHINEID}"
                 fi
             fi
             # Check if we have a string to turn into a host identifier
-            if [ ! -z "${STRING_TO_HASH}" ]; then
+            if [ -n "${STRING_TO_HASH}" ]; then
                 # Create hashes
                 if [ ! "${SHA256SUMBINARY}" = "" ]; then
                     HASH2=$(echo ${STRING_TO_HASH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
@@ -1172,7 +1172,7 @@
         if [ -z "${HOSTID}" ]; then
             ReportException "GetHostID" "No unique host identifier could be created."
             return 1
-        elif [ ! -z "${HOSTID2}" ]; then
+        elif [ -n "${HOSTID2}" ]; then
             return 0
         fi
     }
@@ -1228,7 +1228,7 @@
 
     HasData() {
         if [ $# -eq 1 ]; then
-            if [ ! -z "$1" ]; then return 0; else return 1; fi
+            if [ -n "$1" ]; then return 0; else return 1; fi
         else
             ExitFatal "Function HasData called without parameters - look in log to determine where this happened, or use sh -x lynis to see all details."
         fi
@@ -1386,7 +1386,7 @@
         if [ -z "${search}" ]; then ExitFatal "Missing process to search for when using IsRunning function"; fi
         RUNNING=0
         # AIX does not fully support pgrep options, so using ps instead
-        if [ ! -z "${PGREPBINARY}" -a ! "${OS}" = "AIX" ]; then
+        if [ -n "${PGREPBINARY}" -a ! "${OS}" = "AIX" ]; then
             FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
         else
             if [ -z "${PSOPTIONS}" ]; then
@@ -1402,7 +1402,7 @@
             FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
         fi
 
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             RUNNING=1
             LogText "IsRunning: process '${search}' found (${FIND})"
             return 0
@@ -1421,7 +1421,7 @@
 
     IsNotebook() {
         FIND=$(which laptop-detect 2> /dev/null | grep -v "no [^ ]* in ")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             Debug "Testing if we are a notebook"
             laptop-detect
             if [ $? -eq 0 ]; then SYSTEM_IS_NOTEBOOK=1; Debug "System is a notebook according to laptop-detect"
@@ -1535,7 +1535,7 @@
             if [ -x /usr/bin/systemd-detect-virt ]; then
                 LogText "Test: trying to guess virtualization technology with systemd-detect-virt"
                 FIND=$(/usr/bin/systemd-detect-virt)
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 fi
@@ -1552,7 +1552,7 @@
             if [ -x /usr/bin/lscpu ]; then
                 LogText "Test: trying to guess virtualization with lscpu"
                 FIND=$(lscpu | grep -i "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 else
@@ -1576,7 +1576,7 @@
             if [ ! "${DMIDECODE_BINARY}" = "" -a ${PRIVILEGED} -eq 1 ]; then
                 LogText "Test: trying to guess virtualization with dmidecode"
                 FIND=$(/usr/sbin/dmidecode -s system-product-name | awk '{ print $1 }')
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 else
@@ -1820,24 +1820,24 @@
             Fatal "Incorrect usage of PackageIsInstalled function"
         fi
 
-        if [ ! -z "${DNFBINARY}" ]; then
+        if [ -n "${DNFBINARY}" ]; then
             output=$(${DNFBINARY} --quiet --cacheonly --noplugins --assumeno info --installed ${package} > /dev/null 2>&1)
             exit_code=$?
-        elif [ ! -z "${DPKGBINARY}" ]; then
+        elif [ -n "${DPKGBINARY}" ]; then
             output=$(${DPKGBINARY} -l ${package} 2> /dev/null | ${GREPBINARY} "^ii")
             exit_code=$?
-        elif [ ! -z "${EQUERYBINARY}" ]; then
+        elif [ -n "${EQUERYBINARY}" ]; then
             output=$(${EQUERYBINARY} --quiet ${package} > /dev/null 2>&1)
             exit_code=$?  # 0=package installed, 3=package not installed
-        elif [ ! -z "${PKG_BINARY}" ]; then
+        elif [ -n "${PKG_BINARY}" ]; then
             output=$(${PKG_BINARY} -N info ${package} >/dev/null 2>&1)
             exit_code=$?  # 0=package installed, 70=invalid package
-        elif [ ! -z "${RPMBINARY}" ]; then
+        elif [ -n "${RPMBINARY}" ]; then
             output=$(${RPMBINARY} --quiet -q ${package} > /dev/null 2>&1)
             exit_code=$?
-        elif [ ! -z "${ZYPPERBINARY}" ]; then
+        elif [ -n "${ZYPPERBINARY}" ]; then
             output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${PACKAGE} 2> /dev/null | grep "^i")
-            if [ ! -z "${output}" ]; then exit_code=0; else exit_code=1; fi
+            if [ -n "${output}" ]; then exit_code=0; else exit_code=1; fi
         else
             ReportException "PackageIsInstalled:01"
         fi
@@ -2363,7 +2363,7 @@
         if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "M" -a "${SCAN_TEST_MEDIUM}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (M)"; fi
 
         # Test if our OS is the same as the requested OS (can be multiple values)
-        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_OS}" ]; then
+        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_OS}" ]; then
             HASMATCH=0
             for I in ${TEST_NEED_OS}; do
                 if [ "${I}" = "${OS}" ]; then HASMATCH=1; fi
@@ -2375,12 +2375,12 @@
         fi
 
         # Skip test when it belongs to another category (default is 'all')
-        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_CATEGORY_TO_CHECK}" -a ! "${TEST_CATEGORY_TO_CHECK}" = "all" -a ! "${TEST_CATEGORY}" = "${TEST_CATEGORY_TO_CHECK}" ]; then
+        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_CATEGORY_TO_CHECK}" -a ! "${TEST_CATEGORY_TO_CHECK}" = "all" -a ! "${TEST_CATEGORY}" = "${TEST_CATEGORY_TO_CHECK}" ]; then
             SKIPTEST=1; SKIPREASON="Incorrect category (${TEST_CATEGORY_TO_CHECK} only)"
         fi
 
         # Check for correct hardware platform
-        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
+        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
 
         # Not all prerequisites met, like missing tool
         if [ ${SKIPTEST} -eq 0 -a "${PREQS_MET}" = "NO" ]; then SKIPTEST=1; if [ -z "${SKIPREASON}" ]; then SKIPREASON="Prerequisites not met (ie missing tool, other type of Linux distribution)"; fi; fi
@@ -2462,7 +2462,7 @@
     # Remove PID file
     RemovePIDFile() {
         # Test if PIDFILE is defined, before checking file presence
-        if [ ! -z "${PIDFILE}" ]; then
+        if [ -n "${PIDFILE}" ]; then
             if [ -f "${PIDFILE}" ]; then
                 rm -f "${PIDFILE}"
                 LogText "PID file removed (${PIDFILE})"
@@ -2486,7 +2486,7 @@
             for FILE in ${TEMP_FILES}; do
                 # Temporary files should be in /tmp
                 TMPFILE=$(echo ${FILE} | egrep "^/tmp/lynis" | grep -v "\.\.")
-                if [ ! -z "${TMPFILE}" ]; then
+                if [ -n "${TMPFILE}" ]; then
                     if [ -f "${TMPFILE}" ]; then
                         LogText "Action: removing temporary file ${TMPFILE}"
                         rm -f "${TMPFILE}"
@@ -2887,7 +2887,7 @@
                 # Check if we can find the main type (with or without brackets)
                 LogText "Test: search string ${STRING} in file ${FILE}"
                 FIND=$(egrep "${STRING}" ${FILE})
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found search string '${STRING}'"
                     if [ ${MASK_LOG} -eq 0 ]; then LogText "Full string returned: ${FIND}"; fi
                     RETVAL=0
@@ -3285,7 +3285,7 @@
     ################################################################################
 
     ViewGroups() {
-        if [ ! -z "${INCLUDEDIR}" ]; then
+        if [ -n "${INCLUDEDIR}" ]; then
             for I in $(ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"); do
               echo "${I}"
             done

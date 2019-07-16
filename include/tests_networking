@@ -374,7 +374,7 @@
         FIND=""; FIND2=""
         COUNT=0
         case ${OS} in
-            DragonFly|FreeBSD)
+            DragonFly | FreeBSD)
                 if [ -n "${SOCKSTATBINARY}" ]; then
                     FIND=$(${SOCKSTATBINARY} | ${AWKBINARY} '{ if ($7 ~ /\*:\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u)
                     # To strip off IP's: ${SEDBINARY} 's/|.*:/|/'
@@ -385,8 +385,10 @@
             ;;
             Linux)
                 if [ -n "${SSBINARY}" ]; then
-                    DATA=$(${SSBINARY} --query=udp,tcp -plnt | awk '{ if ($1!="Netid") { print "raw,ss,v1|"$1"|"$5"|"$7"|" }}' | sed 's/pid=[0-9]\{1,\},fd=[0-9]\{1,\}//g' | sed 's/users://' | sed 's/,)//g' | tr -d '()"')
+                    LogText "Test: Retrieving ss information to find listening ports"
+                    DATA=$(${SSBINARY} --query=udp,tcp -plnt | ${AWKBINARY} '{ if ($1!="Netid") { print "raw,ss,v1|"$1"|"$5"|"$7"|" }}' | ${SEDBINARY} 's/pid=[0-9]\{1,\},fd=[0-9]\{1,\}//g' | ${SEDBINARY} 's/users://' | ${SEDBINARY} 's/,)//g' | ${TRBINARY} -d '()"')
                 elif [ -n "${NETSTATBINARY}" ]; then
+                    LogText "Test: Retrieving netstat information to find listening ports"
                     # UDP
                     FIND=$(${NETSTATBINARY} -nlp 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"|"$6"|" }' | ${SEDBINARY} 's:|[0-9]*/:|:')
                     # TCP
@@ -397,7 +399,8 @@
             ;;
 
             macOS)
-                if [ ! "${LSOFBINARY}" = "" ]; then
+                if [ -n "${LSOFBINARY}" ]; then
+                    LogText "Test: Retrieving lsof information to find listening ports"
                     # UDP and TCP combined
                     FIND=$(${LSOFBINARY} -i -P | ${AWKBINARY} '{ print $9"|"$8"|"$1"|" }' | ${SEDBINARY} 's/\(.*\)\-\>.*\(\|.*\)/\1\2/' | ${SEDBINARY} 's/\*/'$IP'/' | ${SORTBINARY} -u | ${GREPBINARY} -v "NAME")
                 else
@@ -407,7 +410,8 @@
                 FIND2=""
             ;;
             NetBSD)
-                if [ ! "${SOCKSTATBINARY}" = "" ]; then
+                if [ -n "${SOCKSTATBINARY}" ]; then
+                    LogText "Test: Retrieving sockstat information to find listening ports"
                     FIND=$(${SOCKSTATBINARY} 2> /dev/null | ${AWKBINARY} '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u)
                 else
                     FIND=""
@@ -415,7 +419,8 @@
                 FIND2=""
             ;;
             OpenBSD)
-                if [ ! "${NETSTATBINARY}" = "" ]; then
+                if [ -n "${NETSTATBINARY}" ]; then
+                    LogText "Test: Retrieving netstat information to find listening ports"
                     # UDP
                     FIND=$(${NETSTATBINARY} -an 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"||" }')
                     # TCP
@@ -430,25 +435,23 @@
             ;;
         esac
 
-        if HasData "${DATA}"; then
-            for ITEM in ${DATA}; do
+        if [ -n "${DATA}" ]; then
+            for ITEM in "${DATA}"; do
                 COUNT=$((COUNT + 1))
                 Report "network_listen[]=${ITEM}"
             done
         fi
 
-        # Retrieve information from sockstat, when available
-        LogText "Test: Retrieving sockstat information to find listening ports"
-        if HasData "${FIND}"; then
-            for ITEM in ${FIND}; do
+        if [ -n "${FIND}" ]; then
+            for ITEM in "${FIND}"; do
                 COUNT=$((COUNT + 1))
                 LogText "Found listening info: ${ITEM}"
                 Report "network_listen_port[]=${ITEM}"
             done
         fi
 
-        if [ ! "${FIND2}" = "" ]; then
-            for ITEM in ${FIND2}; do
+        if [ -n "${FIND2}" ]; then
+            for ITEM in "${FIND2}"; do
                 COUNT=$((COUNT + 1))
                 LogText "Found listening info: ${ITEM}"
                 Report "network_listen_port[]=${ITEM}"

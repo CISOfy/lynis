@@ -404,12 +404,11 @@
         LogText "Test: Checking if NIS client is installed"
         PACKAGES="nis ypbind"
         for PACKAGE in ${PACKAGES}; do
-            PackageIsInstalled "${PACKAGE}"
-            if [ $? -eq 0 ]; then
+            if PackageIsInstalled "${PACKAGE}"; then
                 FOUND="${PACKAGE}"
             fi
         done
-        if [ ${FOUND} ]; then
+        if [ -n "${FOUND}" ]; then
             LogText "Result: NIS client is installed"
             Display --indent 2 --text "- Checking NIS client installation" --result "${STATUS_SUGGESTION}" --color YELLOW
             ReportSuggestion ${TEST_NO} "NIS client should be removed as it contains numerous security exposures and have been replaced with the more secure SSH package"
@@ -429,12 +428,11 @@
         LogText "Test: Checking if NIS server is installed"
         PACKAGES="nis ypserv"
         for PACKAGE in ${PACKAGES}; do
-            PackageIsInstalled "${PACKAGE}"
-            if [ $? -eq 0 ]; then
+            if PackageIsInstalled "${PACKAGE}"
                 FOUND="${PACKAGE}"
             fi
         done
-        if [ ${FOUND} ]; then
+        if [ -n "${FOUND}" ]; then
             LogText "Result: NIS server is installed"
             Display --indent 2 --text "- Checking NIS server installation" --result "${STATUS_SUGGESTION}" --color YELLOW
             ReportSuggestion ${TEST_NO} "Removing the ${FOUND} package decreases the risk of the accidental (or intentional) activation of NIS or NIS+ services"
@@ -446,12 +444,60 @@
 #
 #################################################################################
 #
+    # Test        : INSE-8318
+    # Description : Check if TFTP client is installed
+    Register --test-no INSE-8318 --weight L --network NO --category security --description "Check if TFTP client is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking if TFTP client is installed"
+        FOUND=""
+        PACKAGES="atftp tftp tftp-hpa"
+        for PACKAGE in ${PACKAGES}; do
+            if PackageIsInstalled "${PACKAGE}"; then
+                FOUND="${PACKAGE}"
+            fi
+        done
+        if [ -n "${FOUND}" ]; then
+            LogText "Result: TFTP client is installed"
+            Display --indent 2 --text "- Checking TFTP client installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "It is recommended that TFTP be removed, unless there is a specific need for TFTP (such as a boot server)"
+        else
+            LogText "Result: TFTP client is NOT installed"
+            Display --indent 2 --text "- Checking TFTP client installation" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : INSE-8320
+    # Description : Check if TFTP server is installed
+    Register --test-no INSE-8320 --weight L --network NO --category security --description "Check if TFTP server is installed"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking if TFTP server is installed"
+        FOUND=""
+        PACKAGES="atftpd tftpd tftp-server tftpd-hpa"
+        for PACKAGE in ${PACKAGES}; do
+            if PackageIsInstalled ${PACKAGE}; then
+                FOUND="${PACKAGE}"
+            fi
+        done
+        if [ -n "${FOUND}" ]; then
+            LogText "Result: TFTP server is installed"
+            Display --indent 2 --text "- Checking TFTP server installation" --result "${STATUS_SUGGESTION}" --color YELLOW
+            ReportSuggestion ${TEST_NO} "Removing the ${FOUND} package decreases the risk of the accidental (or intentional) activation of tftp services"
+        else
+            LogText "Result: TFTP server is NOT installed"
+            Display --indent 2 --text "- Checking TFTP server installation" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
     if [ ! -z "${LAUNCHCTL_BINARY}" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="No launchctl binary on this system"; fi
     Register --test-no INSE-8050 --os "macOS" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight M --network NO --category security --description "Check for insecure services on macOS"
     if [ ${SKIPTEST} -eq 0 ]; then
         TEST_SERVICES="com.apple.fingerd"
         for ITEM in ${TEST_SERVICES}; do
-            if ${LAUNCHCTL_BINARY} print-enabled system | grep -sq ${ITEM}; then
+            if ${LAUNCHCTL_BINARY} print-enabled system | ${GREPBINARY} -sq ${ITEM}; then
                 Display --indent 2 --text "- $text" --result "${STATUS_NO}" --color RED
                 LogText "Result: found ${ITEM}, which is considered an insecure service"
                 AddSuggestion "${TEST_NO}" "Consider disabling service ${ITEM}" "launchctl" "-"
@@ -466,9 +512,6 @@
 #
 #################################################################################
 #
-
-# To do:
-# - mark in report when a system was tested for any insecure services
 
 WaitForKeyPress
 

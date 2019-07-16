@@ -46,9 +46,9 @@ measures to further tighten any possible misuse.
 - Show 'lynis generate hostids' when they are missing
 - FINT-4328 - corrected text in log
 - INSE-8116 - added rsync service
-- INSE-8342 - renamed to INSE-8304
 - INSE-8318 - test for TFTP client tools
 - INSE-8320 - test for TFTP server tools
+- INSE-8342 - renamed to INSE-8304
 - KRNL-5820 - extended check to include limits.d directory
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
@@ -61,8 +61,9 @@ measures to further tighten any possible misuse.
 - SSH-7408 - changed text in suggestion and report
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
+- The 'show changelog' command works again for newer versions
+- Several code cleanups and standardization
 - Extended output of 'lynis update info'
-- Show changelog works again for newer versions
 - systemd service file adjusted
 - bash completion script extended
 - Updated man page

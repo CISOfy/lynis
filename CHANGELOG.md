@@ -38,13 +38,13 @@ measures to further tighten any possible misuse.
 - Measure timing of tests and report slow tests (10+ seconds)
 
 ### Changed
-- Function: CheckItem - returns only exit code (ITEM_FOUND value is dropped)
+- Function: CheckItem() now returns only exit code (ITEM_FOUND is dropped)
+- Function: IsRunning supports the --user flag to define a related user
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
 - Security: the 'nounset' (set -u) parameter is now activated by default
-- Use only locations from PATH environment variable, unless it is not defined
-- Show 'lynis generate hostids' when they are missing
 - FINT-4328 - corrected text in log
+- INSE-8050 - added com.apple.ftp-proxy and improved text output
 - INSE-8116 - added rsync service
 - INSE-8318 - test for TFTP client tools
 - INSE-8320 - test for TFTP server tools
@@ -61,6 +61,9 @@ measures to further tighten any possible misuse.
 - SSH-7408 - changed text in suggestion and report
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
+- TOOL-5002 - differentiate between a discovered binary and running process
+- Use only locations from PATH environment variable, unless it is not defined
+- Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
 - Several code cleanups and standardization
 - Extended output of 'lynis update info'

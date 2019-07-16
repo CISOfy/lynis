@@ -47,6 +47,8 @@ measures to further tighten any possible misuse.
 - FINT-4328 - corrected text in log
 - INSE-8116 - added rsync service
 - INSE-8342 - renamed to INSE-8304
+- INSE-8318 - test for TFTP client tools
+- INSE-8320 - test for TFTP server tools
 - KRNL-5820 - extended check to include limits.d directory
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch

@@ -1381,22 +1381,56 @@
 #
     # Test        : AUTH-9408
     # Description : Logging of failed login attempts
-    if [ -f ${ROOTDIR}etc/login.defs ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no AUTH-9408 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Logging of failed login attempts via /etc/login.defs"
+    Register --test-no AUTH-9408 --weight L --network NO --category security --description "Logging of failed login attempts via /etc/login.defs"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking FAILLOG_ENAB option in ${ROOTDIR}etc/login.defs "
-        FIND=$(${GREPBINARY} "^FAILLOG_ENAB" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="FAILLOG_ENAB") { print $2 } }')
-        # Search for enabled status (yes), otherwise consider it to be disabled (e.g. empty, or other value)
-        if [ "${FIND}" = "yes" ]; then
-            AUTH_FAILED_LOGINS_LOGGED=1
-            LogText "Result: failed login attempts are logged in /var/log/faillog"
-            Display --indent 2 --text "- Logging failed login attempts" --result "${STATUS_ENABLED}" --color GREEN
+        if [ -f "${ROOTDIR}etc/pam.conf" ]; then
+            FOUND_PAM_TALLY2=0
+            FOUND_TALLYLOG=0
+            if [ -s "${ROOTDIR}var/log/tallylog" ]; then
+                FOUND_TALLYLOG=1
+                LogText "Result: found ${ROOTDIR}var/log/tallylog with a size bigger than zero"
+            else
+                LogText "Result: did not find ${ROOTDIR}var/log/tallylog on disk or its file size is zero bytes"
+            fi
+            # Determine if pam_tally2 is available
+            for D in $(GetReportData --key "pam_module\[\]"); do
+                if ContainsString "pam_tally2" "${D}"; then
+                    LogText "Result: found pam_tally2 module on disk"
+                    FOUND_PAM_TALLY2=1
+                fi
+            done
+            if [ ${FOUND_PAM_TALLY2} -eq 1 -a ${FOUND_TALLYLOG} -eq 1 ]; then
+                LogText "Outcome: authentication failures are logged using pam_tally2"
+                AUTH_FAILED_LOGINS_LOGGED=1
+                Report "auth_failed_logins_tooling[]=pam_tally2"
+            else
+                LogText "Outcome: it looks like pam_tally2 is not configured to log failed login attempts"
+            fi
+
+            unset FOUND_PAM_TALLY2 FOUND_TALLYLOG
+        fi
+        # Also check /etc/logins.defs, although its usage decreased over the years
+        if [ -f ${ROOTDIR}etc/login.defs ]; then
+            LogText "Test: Checking FAILLOG_ENAB option in ${ROOTDIR}etc/login.defs "
+            FIND=$(${GREPBINARY} "^FAILLOG_ENAB" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="FAILLOG_ENAB") { print $2 } }')
+            # Search for enabled status (yes), otherwise consider it to be disabled (e.g. empty, or other value)
+            if [ "${FIND}" = "yes" ]; then
+                AUTH_FAILED_LOGINS_LOGGED=1
+                Report "auth_failed_logins_tooling[]=/etc/login.defs"
+                LogText "Result: FAILLOG_ENAB is set to 'yes'"
+                LogText "Outcome: failed login attempts are logged in ${ROOTDIR}var/log/faillog"
+                Display --indent 2 --text "- Logging failed login attempts" --result "${STATUS_ENABLED}" --color GREEN
+            else
+                LogText "Result: failed login attempts may not logged"
+                Display --indent 2 --text "- Logging failed login attempts" --result "${STATUS_DISABLED}" --color YELLOW
+            fi
+        fi
+
+        if [ ${AUTH_FAILED_LOGINS_LOGGED} -eq 1 ]; then
             AddHP 3 3
         else
-            LogText "Result: failed login attempts are not logged"
-            Display --indent 2 --text "- Logging failed login attempts" --result "${STATUS_DISABLED}" --color YELLOW
-            #ReportSuggestion ${TEST_NO} "Configure failed login attempts to be logged in /var/log/faillog"
             AddHP 0 1
+            #ReportSuggestion ${TEST_NO} "Configure failed login attempts to be logged using pam_tally2 or /etc/login.defs"
         fi
     fi
 #

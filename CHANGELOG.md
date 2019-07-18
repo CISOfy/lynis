@@ -68,6 +68,7 @@ measures to further tighten any possible misuse.
 - The 'show changelog' command works again for newer versions
 - Several code cleanups and standardization
 - Extended output of 'lynis update info'
+- Test if profiles are readable
 - systemd service file adjusted
 - bash completion script extended
 - Updated man page

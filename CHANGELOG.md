@@ -27,6 +27,7 @@ measures to further tighten any possible misuse.
 - New function: Readonly - mark variable read-only (security)
 - New function: SafeFile - test file type and call permission check
 - New function: SafeInput - check for safe input (security)
+- New option: --usecwd - run from the current working directory
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
 - New test: CRYP-7930 - disk or file system encryption testing

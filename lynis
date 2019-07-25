@@ -77,15 +77,21 @@
     WORKDIR=$(pwd)
 
     # Test from which directories we can use all functions and tests
-    INCLUDEDIR=""
-    tINCLUDE_TARGETS="/usr/local/include/lynis /usr/local/lynis/include /usr/share/lynis/include ./include"  # Default paths to check (CWD as last option, in case we run from standalone)
-    for I in ${tINCLUDE_TARGETS}; do
-        if [ "${I}" = "./include" ]; then
-            if [ -d "${WORKDIR}/include" ]; then INCLUDEDIR="${WORKDIR}/include"; fi
-        elif [ -d ${I} -a -z "${INCLUDEDIR}" ]; then
-            INCLUDEDIR=${I}
-        fi
-    done
+    USE_CWD=0
+    if case "$@" in *--usecwd*) true;; *) false;; esac; then
+        USE_CWD=1
+        INCLUDEDIR="./include"
+    else
+        INCLUDEDIR=""
+        tINCLUDE_TARGETS="/usr/local/include/lynis /usr/local/lynis/include /usr/share/lynis/include ./include"  # Default paths to check (CWD as last option, in case we run from standalone)
+        for I in ${tINCLUDE_TARGETS}; do
+            if [ "${I}" = "./include" ]; then
+                if [ -d "${WORKDIR}/include" ]; then INCLUDEDIR="${WORKDIR}/include"; fi
+            elif [ -d ${I} -a -z "${INCLUDEDIR}" ]; then
+                INCLUDEDIR=${I}
+            fi
+        done
+    fi
 
     # Drop out if our include directory can't be found
     if [ -z "${INCLUDEDIR}" ]; then
@@ -94,14 +100,18 @@
     fi
 
     # Test for database directory
-    DBDIR=""; tDB_TARGETS="/usr/local/share/lynis/db /usr/local/lynis/db /usr/share/lynis/db ./db"
-    for I in ${tDB_TARGETS}; do
-        if [ "${I}" = "./db" ]; then
-            if [ -d "${WORKDIR}/db" ]; then DBDIR="${WORKDIR}/db"; fi
-        elif [ -d ${I} -a -z "${DBDIR}" ]; then
-            DBDIR="${I}"
-        fi
-    done
+    if [ ${USE_CWD} -eq 1 ]; then
+        DBDIR="./db"
+    else
+        DBDIR=""; tDB_TARGETS="/usr/local/share/lynis/db /usr/local/lynis/db /usr/share/lynis/db ./db"
+        for I in ${tDB_TARGETS}; do
+            if [ "${I}" = "./db" ]; then
+                if [ -d "${WORKDIR}/db" ]; then DBDIR="${WORKDIR}/db"; fi
+            elif [ -d ${I} -a -z "${DBDIR}" ]; then
+                DBDIR="${I}"
+            fi
+        done
+    fi
 #
 #################################################################################
 #

@@ -57,16 +57,16 @@ If you want to run the software as `root`, we suggest changing the ownership of 
 
 ### Package
 
-Stable releases of Lynis are packaged and made available as RPM or DEB package. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running :
+Stable releases of Lynis are packaged and made available as RPM or DEB package. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running:
 `CentOS`, `Debian`, `Fedora`, `OEL`, `openSUSE`, `RHEL`, `Ubuntu`, and others.
 
-### Enterprise version
+### Enterprise Version
 
 This software component is also part of an enterprise solution. Same quality, yet with more functionality.
 
 Focus areas include compliance (`PCI DSS`, `HIPAA`, `ISO27001`, and others). The Enterprise version comes with:
-* a web interface and features a dashboard ;
-* hardening snippets ;
+* a web interface and features a dashboard;
+* hardening snippets;
 * and an improvement plan.
 
 ## Documentation

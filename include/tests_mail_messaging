@@ -65,7 +65,7 @@
     if [ ${SKIPTEST} -eq 0 -a ${EXIM_RUNNING} -eq 1 ]; then
         LogText "Test: Exim configuration options"
 
-        EXIM_ROUTERS=$(exim -bP router_list)
+        EXIM_ROUTERS=$(${EXIMBINARY} -bP router_list)
 
         unset FIND FIND2 FIND3 FIND4
 
@@ -99,7 +99,7 @@
 
         if [ "${EXIM_TYPE}" = "INTERNET HOST" -o "${EXIM_TYPE}" = "SMARTHOST" ]; then
             LogText "Test: Exim Public Interfaces"
-            EXIM_IP=$(exim -bP local_interfaces | cut -d '=' -f2 | sed -e 's/\s*<\s*\;\?//' -e 's/\s*::0\s*\;\?//' -e 's/\s*127.0.0.1\s*\;\?//' -e 's/^\s*//' -e 's/\s*$//')
+            EXIM_IP=$(${EXIMBINARY} -bP local_interfaces | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/\s*<\s*\;\?//' -e 's/\s*::0\s*\;\?//' -e 's/\s*127.0.0.1\s*\;\?//' -e 's/^\s*//' -e 's/\s*$//')
             if [ -n "${EXIM_IP}" ]; then
                 LogText "Result: ${EXIM_IP}"
                 Display --indent 4 --text "- Public Interface(s)" --result "${EXIM_IP}" --color GREEN
@@ -109,7 +109,7 @@
             fi
 
             LogText "Test: Exim TLS State"
-            EXIM_TLS=$(exim -bP tls_advertise_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+            EXIM_TLS=$(${EXIMBINARY} -bP tls_advertise_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
             if [ -n "${EXIM_TLS}" ]; then
                 LogText "Result: Enabled"
                 Display --indent 4 --text "- TLS" --result "ENABLED" --color GREEN
@@ -124,12 +124,12 @@
 
             case "${EXIM_TYPE}" in
                 "INTERNET HOST" | "SMARTHOST" )
-                    EXIM_CERTIFICATE=$(exim -bP tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
-                    EXIM_PRIVATEKEY=$(exim -bP tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_CERTIFICATE=$(${EXIMBINARY} -bP tls_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_PRIVATEKEY=$(${EXIMBINARY} -bP tls_privatekey | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
                 "SATELLITE" )
-                    EXIM_CERTIFICATE=$(exim -bP transport remote_smtp_smarthost | grep tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
-                    EXIM_PRIVATEKEY=$(exim -bP transport remote_smtp_smarthost | grep tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_CERTIFICATE=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_PRIVATEKEY=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_privatekey | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
             esac
 
@@ -165,28 +165,26 @@
 
             case "${EXIM_TYPE}" in
                 "INTERNET HOST" | "SMARTHOST" )
-                    EXIM_CERTIFICATES=$(exim -bP tls_verify_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_CERTIFICATES=$(${EXIMBINARY} -bP tls_verify_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
                 "SATELLITE" )
-                    EXIM_CERTIFICATES=$(exim -bP transport remote_smtp_smarthost | grep tls_verify_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_CERTIFICATES=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_verify_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
             esac
 
             case "${EXIM_CERTIFICATES}" in
                 "")
-                    # This condition results in a RED warning because it should
-                    # never be hit.
+                    # This condition results in a RED warning because it should never be hit
                     LogText "Result: Verify Certificates not set"
                     Display --indent 4 --text "- Verify Certificates not set" --result "${STATUS_WARNING}" --color RED
                     ;;
                 "system")
-                    # This is the default setting and should be the most common.
+                    # This is the default setting and should be the most common
                     LogText "Result: Verify Certificates set to system default"
                     Display --indent 4 --text "- Verify Certificates" --result "DEFAULT" --color WHITE
                     ;;
                 *)
-                    # This condition should only be hit when it has been set to
-                    # a custom value.
+                    # This condition should only be hit when it has been set to a custom value
                     LogText "Result: Verify Certificates set to \"${EXIM_CERTIFICATES}\""
                     Display --indent 4 --text "- Verify Certificates" --result "CUSTOM" --color GREEN
                     ;;
@@ -195,12 +193,12 @@
 
             case "${EXIM_TYPE}" in
                 "INTERNET HOST" | "SMARTHOST" )
-                    EXIM_VERIFY_HOSTS=$(exim -bP tls_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
-                    EXIM_TRY_VERIFY_HOSTS=$(exim -bP tls_try_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_VERIFY_HOSTS=$(${EXIMBINARY} -bP tls_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_TRY_VERIFY_HOSTS=$(${EXIMBINARY} -bP tls_try_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
                 "SATELLITE" )
-                    EXIM_VERIFY_HOSTS=$(exim -bP transport remote_smtp_smarthost | grep tls_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
-                    EXIM_TRY_VERIFY_HOSTS=$(exim -bP transport remote_smtp_smarthost | grep tls_try_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_VERIFY_HOSTS=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_TRY_VERIFY_HOSTS=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_try_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
             esac
 

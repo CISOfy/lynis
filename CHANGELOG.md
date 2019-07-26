@@ -70,7 +70,7 @@ measures to further tighten any possible misuse.
 - Use only locations from PATH environment variable, unless it is not defined
 - Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
-- Several code cleanups and standardization
+- Several code cleanups, simplification of commands, and code standardization
 - Extended output of 'lynis update info'
 - Test if profiles are readable
 - systemd service file adjusted

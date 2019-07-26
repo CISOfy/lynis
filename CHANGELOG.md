@@ -47,6 +47,8 @@ measures to further tighten any possible misuse.
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
 - AUTH-9408 - added support for pam_tally2 to log failed logins
 - FINT-4328 - corrected text in log
+- HOME-9304 - improved selection for normal users
+- HOME-9306 - improved selection for normal users
 - INSE-8050 - added com.apple.ftp-proxy and improved text output
 - INSE-8116 - added rsync service
 - INSE-8318 - test for TFTP client tools

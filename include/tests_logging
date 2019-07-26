@@ -341,11 +341,58 @@
     if [ ${SYSLOG_DAEMON_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2154 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking syslog configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ${SYSLOG_NG_RUNNING} -eq 1 ]; then
-            SYSLOGD_CONF="/etc/syslog-ng/syslog-ng.conf"
-        else
-            SYSLOGD_CONF="/etc/syslog.conf"
+
+        if [ ${RSYSLOG_RUNNING} -eq 1 ]; then
+            DATA=""
+            TARGET="${ROOTDIR}etc/rsyslog.conf"
+            if [ -f ${TARGET} ]; then
+                LogText "Result: file ${TARGET} exists"
+                LogText "Test: analyzing file for remote target"
+                DATA=$(${EGREPBINARY} "@@?([a-zA-Z0-9\-])+(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?" ${TARGET} | ${GREPBINARY} -v "#" | ${TRBINARY} -cd "[:print:]\n" | ${SEDBINARY} 's/[[:blank:]]\{1,\}/:space:/g')
+                if [ -z "${DATA}" ]; then
+                    LogText "Result: no remote target found"
+                else
+                    LogText "Result: found remote target"
+                    REMOTE_LOGGING_ENABLED=1
+                    for D in ${DATA}; do
+                        if SafeInput "${D}"; then
+                            D=$(echo ${D} | ${SEDBINARY} 's/:space:/ /g')
+                            LogText "Data: ${D}"
+                        fi
+                    done
+                fi
+            fi
+            TARGET="${ROOTDIR}etc/rsyslog.d"
+            if [ -d ${TARGET} ]; then
+                FILES=$(${FINDBINARY} ${TARGET} -type f -print0 | ${TRBINARY} -cd '[:print:]\0' | ${SEDBINARY} 's/[[:blank:]]/:space:/g' | ${SEDBINARY} 's/\0/\n/g')
+                for F in "${FILES}"; do
+                    F=$(echo ${F} | ${SEDBINARY} 's/:space:/ /g')
+                    LogText "Result: found file ${F}"
+                    LogText "Test: analyzing file for remote target"
+                    DATA=$(${EGREPBINARY} "@@?([a-zA-Z0-9\-])+(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?" ${F} | ${GREPBINARY} -v "#" | ${TRBINARY} -cd "[:print:]\n" | ${SEDBINARY} 's/[[:blank:]]\{1,\}/:space:/g')
+                    if [ -z "${DATA}" ]; then
+                        LogText "Result: no remote target found"
+                    else
+                        LogText "Result: found remote target"
+                        REMOTE_LOGGING_ENABLED=1
+                        for D in ${DATA}; do
+                            if SafeInput "${D}"; then
+                                D=$(echo ${D} | ${SEDBINARY} 's/:space:/ /g')
+                                LogText "Data: ${D}"
+                            fi
+                        done
+                    fi
+                done
+            fi
         fi
+
+        # Test generic syslog files (syslog-ng and older syslog daemons)
+        if [ ${SYSLOG_NG_RUNNING} -eq 1 ]; then
+            SYSLOGD_CONF="${ROOTDIR}etc/syslog-ng/syslog-ng.conf"
+        else
+            SYSLOGD_CONF="${ROOTDIR}etc/syslog.conf"
+        fi
+
         if [ -f ${SYSLOGD_CONF} ]; then
             LogText "Test: check if logs are also logged to a remote logging host"
             FIND=$(${EGREPBINARY} "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
@@ -357,24 +404,25 @@
                 DESTINATIONS=$(${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${EGREPBINARY} "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}')
                 for DESTINATION in ${DESTINATIONS}; do
                     FIND2=$(${GREPBINARY} "log" ${SYSLOGD_CONF} | ${GREPBINARY} "source" | ${EGREPBINARY} "destination\(${DESTINATION}\)")
-                    if [ -n "${FIND2}" = "" ]; then
+                    if [ -n "${FIND2}" ]; then
                         LogText "Result: found destination ${DESTINATION} configured for remote logging"
                         REMOTE_LOGGING_ENABLED=1
                     fi
                 done
             fi
-            if [ ${REMOTE_LOGGING_ENABLED} -eq 0 ]; then
-                LogText "Result: no remote logging found"
-                ReportSuggestion ${TEST_NO} "Enable logging to an external logging host for archiving purposes and additional protection"
-                AddHP 1 3
-                Display --indent 2 --text "- Checking remote logging" --result "NOT ENABLED" --color YELLOW
-            else
-                AddHP 5 5
-                Display --indent 2 --text "- Checking remote logging" --result "${STATUS_ENABLED}" --color GREEN
-            fi
-        else
-            LogText "Result: test skipped, file ${SYSLOGD_CONF} not found"
         fi
+
+        # Show result
+        if [ ${REMOTE_LOGGING_ENABLED} -eq 0 ]; then
+            LogText "Result: no remote logging found"
+            ReportSuggestion ${TEST_NO} "Enable logging to an external logging host for archiving purposes and additional protection"
+            AddHP 1 3
+            Display --indent 2 --text "- Checking remote logging" --result "NOT ENABLED" --color YELLOW
+        else
+            AddHP 5 5
+            Display --indent 2 --text "- Checking remote logging" --result "${STATUS_ENABLED}" --color GREEN
+        fi
+
     fi
 #
 #################################################################################

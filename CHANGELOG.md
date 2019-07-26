@@ -56,6 +56,7 @@ measures to further tighten any possible misuse.
 - INSE-8320 - test for TFTP server tools
 - INSE-8342 - renamed to INSE-8304
 - KRNL-5820 - extended check to include limits.d directory
+- LOGG-2154 - added support for rsyslog configurations
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
 - PROC-3602 - allow different root directory

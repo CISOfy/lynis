@@ -160,6 +160,83 @@
                 LogText "Result: Private Key not set."
                 Display --indent 4 --text "- Private Key not set" --result "${STATUS_WARNING}" --color WHITE
             fi
+
+            LogText "Test: Exim Verify Certificates"
+
+            case "${EXIM_TYPE}" in
+                "INTERNET HOST" | "SMARTHOST" )
+                    EXIM_CERTIFICATES=$(exim -bP tls_verify_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+                "SATELLITE" )
+                    EXIM_CERTIFICATES=$(exim -bP transport remote_smtp_smarthost | grep tls_verify_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+            esac
+
+            case "${EXIM_CERTIFICATES}" in
+                "")
+                    # This condition results in a RED warning because it should
+                    # never be hit.
+                    LogText "Result: Verify Certificates not set"
+                    Display --indent 4 --text "- Verify Certificates not set" --result "${STATUS_WARNING}" --color RED
+                    ;;
+                "system")
+                    # This is the default setting and should be the most common.
+                    LogText "Result: Verify Certificates set to system default"
+                    Display --indent 4 --text "- Verify Certificates" --result "DEFAULT" --color WHITE
+                    ;;
+                *)
+                    # This condition should only be hit when it has been set to
+                    # a custom value.
+                    LogText "Result: Verify Certificates set to \"${EXIM_CERTIFICATES}\""
+                    Display --indent 4 --text "- Verify Certificates" --result "CUSTOM" --color GREEN
+                    ;;
+            esac
+
+
+            case "${EXIM_TYPE}" in
+                "INTERNET HOST" | "SMARTHOST" )
+                    EXIM_VERIFY_HOSTS=$(exim -bP tls_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_TRY_VERIFY_HOSTS=$(exim -bP tls_try_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+                "SATELLITE" )
+                    EXIM_VERIFY_HOSTS=$(exim -bP transport remote_smtp_smarthost | grep tls_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_TRY_VERIFY_HOSTS=$(exim -bP transport remote_smtp_smarthost | grep tls_try_verify_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+            esac
+
+            LogText "Test: Exim Try Verify Hosts"
+            if [ ! -z "${EXIM_TRY_VERIFY_HOSTS}" ]; then
+                case "${EXIM_TYPE}" in
+                    "INTERNET HOST" )
+                        LogText "Result: Try Verify Hosts enabled."
+                        Display --indent 4 --text "- Try Verify Hosts" --result "ENABLED" --color GREEN
+                        ;;
+                    "SATELLITE" | "SMARTHOST" )
+                        LogText "Result: Try Verify Hosts."
+                        Display --indent 4 --text "- Try Verify Hosts" --result "ENABLED" --color YELLOW
+                        ;;
+                esac
+            else
+                LogText "Result: Try Verify Hosts not enabled."
+                Display --indent 4 --text "- Try Verify Hosts" --result "NOT ENABLED" --color WHITE
+            fi
+
+            LogText "Test: Exim Verify Hosts"
+            if [ ! -z "${EXIM_VERIFY_HOSTS}" ]; then
+                case "${EXIM_TYPE}" in
+                    "INTERNET HOST" )
+                        LogText "Result: Verify Hosts."
+                        Display --indent 4 --text "- Verify Hosts" --result "ENABLED" --color YELLOW
+                        ;;
+                    "SATELLITE" | "SMARTHOST" )
+                        LogText "Result: Verify Hosts."
+                        Display --indent 4 --text "- Verify Hosts" --result "ENABLED" --color GREEN
+                        ;;
+                esac
+            else
+                LogText "Result: Verify Hosts."
+                Display --indent 4 --text "- Verify Hosts" --result "NOT ENABLED" --color WHITE
+            fi
         fi
     fi
 

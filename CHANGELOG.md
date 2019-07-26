@@ -44,7 +44,8 @@ measures to further tighten any possible misuse.
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
 - Security: the 'nounset' (set -u) parameter is now activated by default
-- AUTH-9408 - Added support for pam_tally2 to log failed logins
+- AUTH-9266 - skip .pam-old files in /etc/pam.d
+- AUTH-9408 - added support for pam_tally2 to log failed logins
 - FINT-4328 - corrected text in log
 - INSE-8050 - added com.apple.ftp-proxy and improved text output
 - INSE-8116 - added rsync service

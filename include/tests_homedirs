@@ -57,24 +57,26 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if users' home directories permissions are 750 or more restrictive
         FOUND=0
-        for LINE in "$(${CAT_BINARY} ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }')"; do
+        for LINE in "$(${EGREPBINARY} -v '^(daemon|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }')"; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
             DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
-            if [ -d ${DIR} ]; then
-                WRITE_GROUP_PERM=$(ls -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c6)
-                OTHER_PERMS=$(ls -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c8-10)
+            if [ -d "${DIR}" ]; then
+                WRITE_GROUP_PERM=$(${LSBINARY} -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c6)
+                OTHER_PERMS=$(${LSBINARY} -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c8-10)
                 if [ ! ${WRITE_GROUP_PERM} = "-" -o ! ${OTHER_PERMS} = "---" ]; then
-                    LogText "Result: permissions of home directory ${DIR} of user ${USER} are not strict enough. Should be 750 or more restrictive. Change with: chmod 750 ${DIR}" 
+                    LogText "Result: permissions of home directory ${DIR} of user ${USER} are not strict enough. Should be 750 or more restrictive. Change with: chmod 750 ${DIR}"
                     FOUND=1
+                else
+                    LogText "Result: permissions of home directory ${DIR} of user ${USER} are fine"
                 fi
             fi
         done
 
         if [ ${FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Checking users' home directories permissions" --result "${STATUS_WARNING}" --color RED
+            Display --indent 2 --text "- Permissions of home directories" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "Permissions of some users' home directories are not strict enough. Should be 750 or more restrictive."
         else
-            Display --indent 2 --text "- Checking users' home directories permissions" --result "${STATUS_OK}" --color GREEN
+            Display --indent 2 --text "- Permissions of home directories" --result "${STATUS_OK}" --color GREEN
             LogText "Result: Ok, All users' home directories permissions are 750 or more restrictive"
         fi
     fi
@@ -87,23 +89,25 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if users own their home directories
         FOUND=0
-        for LINE in "$(${CAT_BINARY} ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^(root|halt|sync|shutdown)' | ${AWKBINARY} -F: '($7 !="/sbin/nologin" && $7 != "/bin/false") { print }')"; do
+        for LINE in "$(${EGREPBINARY} -v '^(daemon|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }') { print }')"; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
             DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
             if [ -d ${DIR} ]; then
                 OWNER=$(ls -ld ${DIR} | awk -F" " '{ print $3 }')
-                if [ ! ${OWNER} = ${USER} ]; then
+                if [ ! "${OWNER}" = "${USER}" ]; then
                     LogText "Result: The home directory ${DIR} of user ${USER} is owned by ${OWNER}. Change with: chown ${USER} ${DIR}" 
                     FOUND=1
+                else
+                    LogText "Result: ownership of home directory ${DIR} for user ${USER} looks to be correct"
                 fi
             fi
         done
 
         if [ ${FOUND} -eq 1 ]; then
-            Display --indent 2 --text "- Checking users' home directories ownership" --result "${STATUS_WARNING}" --color RED
+            Display --indent 2 --text "- Ownership of home directories" --result "${STATUS_WARNING}" --color RED
             ReportWarning ${TEST_NO} "Owner of some users' home directories are not correctly set"
         else
-            Display --indent 2 --text "- Checking users' home directories ownership" --result "${STATUS_OK}" --color GREEN
+            Display --indent 2 --text "- Ownership of home directories" --result "${STATUS_OK}" --color GREEN
             LogText "Result: Ok, All users own their home directories"
         fi
     fi

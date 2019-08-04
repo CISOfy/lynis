@@ -37,6 +37,7 @@ measures to further tighten any possible misuse.
 - New report key: openssh_daemon_running
 - New command: lynis generate systemd-units
 - Measure timing of tests and report slow tests (10+ seconds)
+- Initial support for Clear Linux OS
 
 ### Changed
 - Function: CheckItem() now returns only exit code (ITEM_FOUND is dropped)
@@ -57,6 +58,8 @@ measures to further tighten any possible misuse.
 - INSE-8342 - renamed to INSE-8304
 - KRNL-5820 - extended check to include limits.d directory
 - LOGG-2154 - added support for rsyslog configurations
+- NAME-4402 - check if /etc/hosts exists before performing test
+- NAME-4404 - improved screen and log output
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
 - PROC-3602 - allow different root directory

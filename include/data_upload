@@ -22,6 +22,8 @@
 #
 #################################################################################
 #
+    InsertSection "${SECTION_DATA_UPLOAD}"
+
     PROGRAM_VERSION="105"
 
     # Data upload destination
@@ -95,7 +97,6 @@
 
         Output "${WHITE}Report file found.${NORMAL} Starting with connectivity check."
 
-
             if [ ! "${UPLOAD_PROXY_SERVER}" = "" ]; then
                 LogText "Upload: Proxy is configured: ${UPLOAD_SERVER}"
                 # Port is optional
@@ -125,16 +126,17 @@
             #    CURL_OPTIONS="${CURL_OPTIONS} --compressed -H 'Content-Encoding: gzip'"
             #fi
 
-        # Quit if license is not valid, to reduce load on both client and server.
+
+        # License check
+
         LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null"
         UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null)
         EXITCODE=$?
         LogText "Exit code: ${EXITCODE}"
         if [ ${EXITCODE} -gt 0 ]; then
 
-            echo ""
-            echo "${RED}Upload Error${NORMAL}: License could not be checked. See ${LOGFILE} for details."
-            echo "Suggested command: tail -n 20 ${LOGFILE}"
+            Display --indent 2 --text "- License check" --result "FAILED" --color RED
+
             echo ""
 
             case ${EXITCODE} in
@@ -142,7 +144,7 @@
                         LogText "Result: could not initialize"
                         LogText "Possible cause: most likely your cURL version is too old and does not support the --data-urlencode option."
                         LogText "Suggestion: copy the data to a different server and use a new cURL version there, or use the Lynis Collector tool."
-                        echo "${RED}Error (2)${NORMAL}: could not initialize cURL. See ${LOGFILE} for details."
+                        echo "${RED}Error (2)${NORMAL}: could not initialize cURL."
                         ;;
                     5)
                         LogText "Result: could not resolve the defined proxy server (${UPLOAD_PROXY_SERVER})."
@@ -156,7 +158,7 @@
                         LogText "Result: could not contact license server."
                         LogText "Details: used URL ${LICENSE_SERVER_URL}"
                         LogText "Suggestion: check if the upload host is correctly configured."
-                        echo "${RED}Error (7)${NORMAL}: license server not available. See ${LOGFILE} for details."
+                        echo "${RED}Error (7)${NORMAL}: license server not available."
                         ;;
                     59)
                         echo "${RED}Error (59)${NORMAL}: Could not connect because of used SSL cipher."
@@ -181,14 +183,23 @@
                         LogText "Result: cURL exited with code ${EXITCODE}. See man page of cURL for the meaning of this code."
                         ;;
             esac
+
+            echo ""
+            echo "${RED}Upload Error${NORMAL}: License could not be checked. See ${LOGFILE} for details."
+            echo "Suggested command: tail -n 20 ${LOGFILE}"
+            echo ""
+
             LogText "Suggestion: run the cURL command manually without the options -s and -S"
             LogText "Result: quitting, can't check license"
+            # Quit if license is not valid, to reduce load on both client and server.
             ExitFatal
         fi
+
         UPLOAD_CODE=$(echo ${UPLOAD} | head -n 1 | awk '{ if ($1=="Response") { print $2 }}')
         if [ "${UPLOAD_CODE}" = "100" ]; then
             Output "${WHITE}License is valid${NORMAL}"
             LogText "Result: license is valid"
+            Display --indent 2 --text "- License check" --result "${STATUS_DONE}" --color GREEN
         else
             LogText "Result: error while checking license"
             LogText "Output: ${UPLOAD_CODE}"
@@ -210,7 +221,7 @@
         fi
 
         # Check for host IDs
-        if [ ! "${HOSTID}" = "" -a ! "${HOSTID2}" = "" ]; then
+        if [ -n "${HOSTID}" -a -n "${HOSTID2}" ]; then
             Output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
             # Try to connect
             Output "Uploading data.."
@@ -221,6 +232,8 @@
             EXITCODE=$?
             LogText "Exit code: ${EXITCODE}"
             if [ ${EXITCODE} -gt 0 ]; then
+                Display --indent 2 --text "- Data upload (${UPLOAD_SERVER})" --result "${STATUS_FAILED}" --color RED
+
                 echo ""
                 echo "${RED}Upload Error${NORMAL}: cURL could not upload data. See ${LOGFILE} for details."
                 echo "Suggested command: tail -n 20 ${LOGFILE}"
@@ -238,7 +251,7 @@
                 # Quit
                 ExitClean
             else
-                Display --indent 2 --text "Data upload status (${UPLOAD_SERVER})" --result OK --color GREEN
+                Display --indent 2 --text "- Data upload (${UPLOAD_SERVER})" --result "${STATUS_DONE}" --color GREEN
             fi
         else
             echo "${RED}Error${NORMAL}: No hostid and/or hostid2 found. Can not upload report file."

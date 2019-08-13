@@ -42,6 +42,7 @@ measures to further tighten any possible misuse.
 ### Changed
 - Function: CheckItem() now returns only exit code (ITEM_FOUND is dropped)
 - Function: IsRunning supports the --user flag to define a related user
+- Function: PackageIsInstalled extended with pacman support
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
 - Security: the 'nounset' (set -u) parameter is now activated by default

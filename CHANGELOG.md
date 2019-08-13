@@ -39,6 +39,7 @@ measures to further tighten any possible misuse.
 - Measure timing of tests and report slow tests (10+ seconds)
 - Initial support for Clear Linux OS
 - Added end-of-life data of Arch Linux
+- Detection and end-of-life data added for Amazon Linux
 
 ### Changed
 - Function: CheckItem() now returns only exit code (ITEM_FOUND is dropped)

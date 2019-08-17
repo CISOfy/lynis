@@ -22,11 +22,12 @@ measures to further tighten any possible misuse.
 - Security: filtering out unexpected characters from profiles
 - Security: test if setuid bit is set on Lynis binary
 - New function: DisplayWarning - show a warning on the screen
-- New function: Equals - compare two strings
-- New function: GetReportData - retrieve earlier stored data
-- New function: Readonly - mark variable read-only (security)
-- New function: SafeFile - test file type and call permission check
-- New function: SafeInput - check for safe input (security)
+- New function: Equals
+- New function: GetReportData
+- New function: HasCorrectFilePermissions
+- New function: Readonly
+- New function: SafeFile
+- New function: SafeInput
 - New option: --usecwd - run from the current working directory
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
@@ -50,6 +51,7 @@ measures to further tighten any possible misuse.
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
 - AUTH-9408 - added support for pam_tally2 to log failed logins
+- FILE-7524 - optimized file permissions testing
 - FINT-4328 - corrected text in log
 - FINT-4334 - improved process detection for lfd
 - HOME-9304 - improved selection for normal users

@@ -193,6 +193,7 @@
         CHECKFILE="$1"
         if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
             PERMS="FILE_NOT_FOUND"
+            FILEVALUE=""
         else
             # If 'file' is an directory, use -d
             if [ -d ${CHECKFILE} ]; then
@@ -205,6 +206,73 @@
             if [ "${FILEVALUE}" = "${PROFILEVALUE}" ]; then PERMS="OK"; else PERMS="BAD"; fi
         fi
     }
+
+
+    ################################################################################
+    # Name        : HasCorrectFilePermissions()
+    # Description : Check file permissions
+    #
+    # Parameters  : $1 = Full path to file or directory
+    #               $2 = Permissions
+    # Returns     : exit code (0 = correct, 1 = not correct)
+    ################################################################################
+
+    HasCorrectFilePermissions() {
+        if [ $# -ne 2 ]; then Fatal "Incorrect usage of HasCorrectFilePermissions"; fi
+        CHECKFILE="$1"
+        CHECKPERMISSION_FULL="$2"
+        if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
+            return 2
+        else
+            for CHECK_PERMISSION in ${CHECKPERMISSION_FULL}; do
+                DATA=$(echo ${CHECK_PERMISSION} | ${EGREPBINARY} "[rwx]")
+                if [ $? -eq 0 ]; then
+                    # add first dummy character
+                    CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
+                fi
+                LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
+                if [ -n "${STATBINARY}" ]; then
+                    DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
+                    LogText "Output: ${DATA}"
+                elif [ -n "${FINDBINARY}" ]; then
+                    case ${OS} in
+                        "AIX")
+                            ReportException "HasCorrectFilePermissions:01" "OS not supported yet"
+                        ;;
+                        *)
+                            # Does not work for AIX
+                            DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
+                        ;;
+                    esac
+                else
+                    # If 'file' is an directory, use -d
+                    if [ -d ${CHECKFILE} ]; then
+                        DATA=$(ls -d -l ${CHECKFILE} | cut -c 2-10)
+                    else
+                        DATA=$(ls -l ${CHECKFILE} | cut -c 2-10)
+                    fi
+                    # Convert permissions to octal
+                    LogText "Converting ${DATA} to octal"
+                    DATA=$(echo ${DATA} | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
+                    LogText "Output: ${DATA}"
+                fi
+
+                if [ -n "${DATA}" ]; then
+                    if [ "${DATA}" = "${CHECK_PERMISSION}" ]; then
+                        LogText "Outcome: correct permissions"
+                        return 0
+                    fi
+                else
+                    ReportException "HasCorrectFilePermissions:02" "No data value found, which is unexpected"
+                fi
+            done
+
+            LogText "Did not find the permissions of file ${CHECKFILE} matching any of the ${CHECKPERMISSION_FULL} values"
+            # No match, return exit code 1
+            return 1
+        fi
+    }
+
 
 
     ################################################################################

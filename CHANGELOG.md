@@ -81,6 +81,7 @@ measures to further tighten any possible misuse.
 - Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
 - Several code cleanups, simplification of commands, and code standardization
+- Do not show tool tips when quiet option is used
 - Extended output of 'lynis update info'
 - Test if profiles are readable
 - systemd service file adjusted

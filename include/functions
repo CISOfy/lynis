@@ -53,6 +53,7 @@
 #    FileIsReadable             Check if a file is readable or directory accessible
 #    GetHostID                  Retrieve an unique ID for this host
 #    GetReportData              Request data from report
+#    HasCorrectFilePermissions  Check file permissions and see if they match expected values
 #    HasData                    Checks for data in variable
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
@@ -214,7 +215,7 @@
     #
     # Parameters  : $1 = Full path to file or directory
     #               $2 = Permissions
-    # Returns     : exit code (0 = correct, 1 = not correct)
+    # Returns     : exit code (0 = correct, 1 = not correct, 2 = file does not exist)
     ################################################################################
 
     HasCorrectFilePermissions() {
@@ -227,14 +228,22 @@
             for CHECK_PERMISSION in ${CHECKPERMISSION_FULL}; do
                 DATA=$(echo ${CHECK_PERMISSION} | ${EGREPBINARY} "[rwx]")
                 if [ $? -eq 0 ]; then
-                    # add first dummy character
+                    # add a dummy character as first character so it looks like output is a normal file
                     CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
                 fi
+
+                # First try stat command
                 LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
                 if [ -n "${STATBINARY}" ]; then
-                    DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
-                    LogText "Output: ${DATA}"
-                elif [ -n "${FINDBINARY}" ]; then
+                    # busybox does not support format
+                    if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                        DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
+                        LogText "Output: ${DATA}"
+                    fi
+                fi
+
+                # See if we can use the find binary
+                if [ -z "${DATA}" ]; then
                     case ${OS} in
                         "AIX")
                             ReportException "HasCorrectFilePermissions:01" "OS not supported yet"
@@ -244,12 +253,15 @@
                             DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
                         ;;
                     esac
-                else
+                fi
+
+                # Finally use ls command
+                if [ -z "${DATA}" ]; then
                     # If 'file' is an directory, use -d
                     if [ -d ${CHECKFILE} ]; then
-                        DATA=$(ls -d -l ${CHECKFILE} | cut -c 2-10)
+                        DATA=$(${LSBINARY} -d -l ${CHECKFILE} | cut -c 2-10)
                     else
-                        DATA=$(ls -l ${CHECKFILE} | cut -c 2-10)
+                        DATA=$(${LSBINARY} -l ${CHECKFILE} | cut -c 2-10)
                     fi
                     # Convert permissions to octal
                     LogText "Converting ${DATA} to octal"

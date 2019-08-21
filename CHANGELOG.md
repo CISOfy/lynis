@@ -6,14 +6,28 @@ This is a major release of Lynis and includes several big changes.
 Some of these changes may break your current usage of the tool, so test before
 deployment!
 
-### Breaking changes
-- Some commands or switches are deprecated or removed
-- Format of all profile options converted (from key:value to key=value)
-- Non-interactive by default (use --wait option to pause between groups of tests)
+### Breaking change: Non-interactive by default
+Lynis now runs non-interactive by default, to be more in line with the Unix
+philosophy. So the previously used '--quick' option is now default, and the tool
+will only wait when using the '--wait' option.
+
+### Breaking change: Deprecated options
+- Option: -c
+- Option: --check-update/--info
+- Option: --dump-options
+- Option: --license-key
+
+### Breaking change: Profile options
+The format of all profile options are converted (from key:value to key=value).
+You may have to update the changes you made in your custom.prf.
 
 ### Security
 An important focus area for this release is on security. We added several
 measures to further tighten any possible misuse.
+
+## New: DevOps, Forensics, and pentesting mode
+This release adds initial support to allow defining a specialized type of audit.
+Using the relevant options, the scan will change base on the intended goal.
 
 ### Added
 - Security: test PATH and warn or exit on discovery of dangerous location
@@ -31,7 +45,7 @@ measures to further tighten any possible misuse.
 - New option: --usecwd - run from the current working directory
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
-- New test: CRYP-7930 - disk or file system encryption testing
+- New test: CRYP-7930 - test for LUKS encryption
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
 - New test: PROC-3802 - check presence of prelink tooling

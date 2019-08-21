@@ -35,7 +35,8 @@ Using the relevant options, the scan will change base on the intended goal.
 - Security: test parameters and arguments for presence of control characters
 - Security: filtering out unexpected characters from profiles
 - Security: test if setuid bit is set on Lynis binary
-- New function: DisplayWarning - show a warning on the screen
+- New function: DisplayException
+- New function: DisplayWarning
 - New function: Equals
 - New function: GetReportData
 - New function: HasCorrectFilePermissions
@@ -91,6 +92,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
 - TOOL-5002 - differentiate between a discovered binary and running process
+- Use 'pre-release/release' (was: 'dev/final') with 'lynis show release'
 - Use only locations from PATH environment variable, unless it is not defined
 - Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
@@ -101,6 +103,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - systemd service file adjusted
 - bash completion script extended
 - Updated man page
+
 
 ---------------------------------------------------------------------------------
 

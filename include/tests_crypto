@@ -132,22 +132,47 @@
 #
     # Test        : CRYP-7930
     # Description : Determine if system uses LUKS block device encryption
-    if [ ! "${LSBLKBINARY}" = "" -a ! "${CRYPTSETUPBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no CRYP-7930 --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Determine if system uses LUKS block device encryption"
+    Register --test-no CRYP-7930 --os Linux --weight L --network NO --root-only YES --category security --description "Determine if system uses LUKS block device encryption"
     if [ ${SKIPTEST} -eq 0 ]; then
-      FOUND=0
-      for BLOCK_DEV in $(${LSBLKBINARY} --noheadings -o PATH); do
-	if ${CRYPTSETUPBINARY} isLuks ${BLOCK_DEV}; then
-	  LogText "Result: Found LUKS encrypted block device: ${BLOCK_DEV}"
-	  Report "encryption[]=luks,block_device,${BLOCK_DEV}"
-	  ((FOUND++))
-	fi
-      done
-      Display --indent 2 --text "- Found ${FOUND} LUKS encrypted block devices." --result OK --color WHITE
-      unset BLOCK_DEV FOUND
+        CRYPTTABFILE="${ROOTDIR}etc/crypttab"
+        FOUND=0
+
+        # cryptsetup only works as root
+        if [ -n "${LSBLKBINARY}" -a -n "${CRYPTSETUPBINARY}" -a ${FORENSICS} -eq 0 ]; then
+            for BLOCK_DEV in $(${LSBLKBINARY} --noheadings -o PATH); do
+                if ${CRYPTSETUPBINARY} isLuks ${BLOCK_DEV}; then
+                    LogText "Result: Found LUKS encrypted block device: ${BLOCK_DEV}"
+                    Report "encryption[]=luks,block_device,${BLOCK_DEV}"
+                    FOUND=$((FOUND +1))
+                else
+                    LogText "Result: block device ${BLOCK_DEV} is not LUKS encrypted"
+                fi
+            done
+            unset BLOCK_DEV
+        # This will enable us to do a test for forensics or when crypsetup/lsblk are not available
+        elif [ -f ${CRYPTTABFILE} ]; then
+            LogText "Result: crypttab (${CRYPTTABFILE}) exists"
+            DATA=$(${GREPBINARY} "^[a-z]" ${CRYPTTABFILE} | ${TRBINARY} -cd '[:alnum:]_\-=,\n\t ' | ${SEDBINARY} 's/[[:blank:]]/__space__/g')
+            for LINE in ${DATA}; do
+                LINE=$(echo ${LINE} | ${SEDBINARY} 's/__space__/ /g')
+                if ContainsString "luks," "${LINE}"; then
+                    PARTITION=$(echo ${LINE} | ${AWKBINARY} '{print $1}' | ${AWKBINARY} -F_ '{print $1}')
+                    LogText "Result: Found LUKS encryption on partition ${PARTITION}"
+                    Report "encryption[]=luks,partition,${PARTITION}"
+                    FOUND=$((FOUND +1))
+                fi
+            done
+            unset DATA LINE PARTITION
+        fi
+
+        if [ ${FOUND} -gt 0 ]; then
+            Display --indent 2 --text "- Found ${FOUND} LUKS encrypted block devices." --result OK --color WHITE
+        fi
+        unset FOUND
     fi
 #
 #################################################################################
+
 WaitForKeyPress
 
 #

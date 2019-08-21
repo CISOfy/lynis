@@ -144,24 +144,34 @@
                         "amzn")
                             LINUX_VERSION="Amazon Linux"
                             OS_FULLNAME=$(grep "^PRETTY_NAME=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
-                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                             OS_NAME="Amazon Linux"
+                            OS_REDHAT_OR_CLONE=1
+                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                         ;;
                         "arch")
                             LINUX_VERSION="Arch Linux"
                             OS_FULLNAME="Arch Linux"
                             OS_VERSION="Rolling release"
                         ;;
+                        "centos")
+                            LINUX_VERSION="CentOS Linux"
+                            OS_FULLNAME=$(grep "^PRETTY_NAME=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                            OS_NAME="CentOS Linux"
+                            OS_REDHAT_OR_CLONE=1
+                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                        ;;
                         "clear-linux-os")
                             LINUX_VERSION="Clear Linux OS"
                             OS_FULLNAME=$(grep "^PRETTY_NAME=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                            OS_NAME="Clear Linux OS"
+                            OS_REDHAT_OR_CLONE=1
                             OS_VERSION="Rolling release"
                         ;;
                         "coreos")
                             LINUX_VERSION="CoreOS"
                             OS_FULLNAME=$(grep "^PRETTY_NAME=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
-                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                             OS_NAME="CoreOS Linux"
+                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                         ;;
                         "manjaro")
                             LINUX_VERSION="Manjaro Linux"
@@ -188,7 +198,7 @@
                             OS_NAME="openSUSE"
                         ;;
                         *)
-                            Debug "Unknown OS found in /etc/os-release. Do you know what it is? Create an issue at ${PROGRAM_SOURCE}"
+                            ReportException "OS Detection" "Unknown OS found in /etc/os-release"
                         ;;
                     esac
                 fi
@@ -221,6 +231,7 @@
 
             # Cobalt
             if [ -e "/etc/cobalt-release" ]; then OS_FULLNAME=$(cat /etc/cobalt-release); fi
+
             # CPUBuilders Linux
             if [ -e "/etc/cpub-release" ]; then OS_FULLNAME=$(cat /etc/cpub-release); fi
 
@@ -268,12 +279,11 @@
             if [ -e "/etc/gentoo-release" ]; then LINUX_VERSION="Gentoo"; OS_FULLNAME=$(cat /etc/gentoo-release); fi
 
             # Red Hat and others
-            if [ -e "/etc/redhat-release" ]; then
+            if [ -z "${LINUX_VERSION}" -a -e "/etc/redhat-release" ]; then
                 OS_REDHAT_OR_CLONE=1
 
                 # CentOS
-                FIND=$(grep "CentOS" /etc/redhat-release)
-                if [ ! "${FIND}" = "" ]; then
+                if grep "CentOS" /etc/redhat-release; then
                     OS_FULLNAME=$(grep "CentOS" /etc/redhat-release)
                     LINUX_VERSION="CentOS"
                     OS_VERSION="${OS_FULLNAME}"

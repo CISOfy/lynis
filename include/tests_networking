@@ -639,6 +639,65 @@
 #
 #################################################################################
 #
+    # Test        : NETW-3200
+    # Description : Determine available network protocols
+    Register --test-no NETW-3200 --weight L --network YES --category security --description "Determine available network protocols"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        TESTED=0
+        case ${OS} in
+            Linux)
+                TESTED=1
+                LogText "Test: checking the status of some network protocols that typically are not used"
+                UNCOMMON_PROTOCOLS="dccp sctp rds tipc"
+                for P in ${UNCOMMON_PROTOCOLS}; do
+                    if ! SkipAtomicTest "${TEST_NO}:${P}"; then
+                        FOUND_UNCOMMON_PROTOCOL=0
+                        if [ -f ${ROOTDIR}etc/modprobe.conf ]; then
+                            DATA=$(${GREPBINARY} "^install ${P} /bin/true" ${ROOTDIR}etc/modprobe.conf)
+                            if [ -n "${DATA}" ]; then
+                                LogText "Result: found ${P} module loaded via modprobe.conf"
+                                FOUND_UNCOMMON_PROTOCOL=1
+                            fi
+                        fi
+                        if [ -d ${ROOTDIR}etc/modprobe.d ]; then
+                            DATA=$(${GREPBINARY} --files-with-matches --no-messages "^install ${P} /bin/true" ${ROOTDIR}etc/modprobe.d/*)
+                            if [ -n "${DATA}" ]; then
+                                FOUND_UNCOMMON_PROTOCOL=1
+                                for F in ${DATA}; do
+                                    LogText "Result: found ${P} module loaded via ${F}"
+                                done
+                            fi
+                        fi
+
+                        # Although a protocol may not been enabled using install, it can be loaded. This may be revealed using /proc
+                        #/proc/sys/net/
+
+                        if [ ${FOUND_UNCOMMON_PROTOCOL} -eq 1 ]; then
+                            ReportSuggestion "${TEST_NO}" "Determine if network protocol ${P} needs to be used on this system"
+                            Report "uncommon_network_protocol_enabled=${P}"
+                        fi
+                    fi
+                done
+
+            ;;
+            *)
+                LogText "This test has no routine yet for this operating system."
+                Debug "No routine implemented yet for this operating system to check for available network protocols"
+            ;;
+        esac
+        if [ ${TESTED} -eq 1 ]; then
+            if [ ${FOUND_UNCOMMON_PROTOCOL} -eq 1 ]; then
+                Display --indent 2 --text "- Uncommon network protocols" --result "${FOUND}" --color YELLOW
+            else
+                Display --indent 2 --text "- Uncommon network protocols" --result "${STATUS_NOT_FOUND}" --color GREEN
+            fi
+        fi
+        unset DATA F FOUND TESTED UNCOMMON_PROTOCOLS
+    fi
+#
+#################################################################################
+#
+
 
 WaitForKeyPress
 

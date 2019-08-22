@@ -49,6 +49,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: CRYP-7930 - test for LUKS encryption
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
+- New test: NETW-3200 - determine avilable network protocols
 - New test: PROC-3802 - check presence of prelink tooling
 - New report key: openssh_daemon_running
 - New command: lynis generate systemd-units

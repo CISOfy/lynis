@@ -99,6 +99,38 @@
 #
 #################################################################################
 #
+    # Test        : FINT-4316
+    # Description : Presence of AIDE database and size check
+    if [ -n "${AIDEBINARY}" -a -n "${AIDECONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no FINT-4316 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Presence of AIDE database and size check"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        AIDE_DB=$(${GREPBINARY} ^database= ${AIDECONFIG} | ${SEDBINARY} "s/.*://")
+        if case ${AIDE_DB} in @@*) ;; *) false;; esac; then
+            I=$(${GREPBINARY} "@@define.*DBDIR" ${AIDECONFIG} | ${AWKBINARY} '{print $3}')
+            AIDE_DB=$(echo ${AIDE_DB} | ${SEDBINARY} "s#.*}#${I}#")
+        fi
+        LogText "Test: search for AIDE database on disk ${AIDE_DB}"
+
+        if [ ! -e "${AIDE_DB}" ]; then
+            Display --indent 6 --text "- AIDE database" --result "${STATUS_NOT_FOUND}" --color RED
+            LogText "Result: AIDE database ${AIDE_DB} does not exist"
+            ReportWarning "${TEST_NO}" "No AIDE database was found, needed for AIDE functionality"
+        else
+            LogText "Checking database size ${AIDE_DB}"
+            if [ -s "${AIDE_DB}" ]; then
+                Display --indent 6 --text "- AIDE database" --result "${STATUS_FOUND}" --color GREEN
+                LogText "Result: AIDE database ${AIDE_DB} exist and has a size greater than zero"
+            else
+                Display --indent 6 --text "- AIDE database" --result "${STATUS_WARNING}" --color YELLOW
+                LogText "Result: AIDE database ${AIDE_DB} exist but has a size of zero"
+                ReportSuggestion "${TEST_NO}" "Check the AIDE database as it may contain errors"
+            fi
+        fi
+        unset AIDE_DB I
+    fi
+#
+#################################################################################
+#
     # Test        : FINT-4318
     # Description : Check if Osiris is installed
     Register --test-no FINT-4318 --weight L --network NO --category security --description "Osiris availability"

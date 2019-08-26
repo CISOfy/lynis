@@ -47,6 +47,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
 - New test: CRYP-7930 - test for LUKS encryption
+- New test: FINT-4316 - presence of AIDE database and size test
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
 - New test: NETW-3200 - determine avilable network protocols
@@ -67,6 +68,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
 - AUTH-9408 - added support for pam_tally2 to log failed logins
+- CONT-8106 - support newer 'docker info' output
 - FILE-7524 - optimized file permissions testing
 - FINT-4328 - corrected text in log
 - FINT-4334 - improved process detection for lfd

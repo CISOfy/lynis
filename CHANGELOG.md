@@ -95,6 +95,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
 - TOOL-5002 - differentiate between a discovered binary and running process
+- TOOL-5160 - added support for OSSEC agent daemon
 - Use 'pre-release/release' (was: 'dev/final') with 'lynis show release'
 - Use only locations from PATH environment variable, unless it is not defined
 - Show tip to use 'lynis generate hostids' when host IDs are missing

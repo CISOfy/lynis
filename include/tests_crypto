@@ -149,6 +149,7 @@
                 fi
             done
             unset BLOCK_DEV
+
         # This will enable us to do a test for forensics or when crypsetup/lsblk are not available
         elif [ -f ${CRYPTTABFILE} ]; then
             LogText "Result: crypttab (${CRYPTTABFILE}) exists"
@@ -172,6 +173,28 @@
     fi
 #
 #################################################################################
+#
+    # Test        : CRYP-8002
+    # Description : Gather available kernel entropy
+    Register --test-no CRYP-8002 --os Linux --weight L --network NO --root-only NO --category security --description "Gather available kernel entropy"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -f ${ROOTDIR}proc/sys/kernel/random/entropy_avail ]; then
+            DATA=$(${AWKBINARY} '$1 ~ /^[0-9]+$/ {print $1}' ${ROOTDIR}proc/sys/kernel/random/entropy_avail)
+            if [ -n "${DATA}" ]; then
+                LogText "Result: found kernel entropy value of ${DATA}"
+                Report "kernel_entropy=${DATA}"
+                if [ ${DATA} -gt 200 ]; then
+                    Display --indent 2 --text "- Kernel entropy is sufficient" --result "${STATUS_YES}" --color GREEN
+                else
+                    Display --indent 2 --text "- Kernel entropy is sufficient" --result "${STATUS_NO}" --color YELLOW
+                    # TODO - enable suggestion when information on website is available
+                fi
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
 
 WaitForKeyPress
 

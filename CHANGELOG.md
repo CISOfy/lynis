@@ -56,7 +56,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New command: lynis generate systemd-units
 - Measure timing of tests and report slow tests (10+ seconds)
 - Initial support for Clear Linux OS
-- Added end-of-life data of Arch Linux
+- Added end-of-life data for Arch Linux and Debian
 - Detection and end-of-life data added for Amazon Linux
 
 ### Changed

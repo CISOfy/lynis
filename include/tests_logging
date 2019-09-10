@@ -368,9 +368,7 @@
                     F=$(echo ${F} | ${SEDBINARY} 's/:space:/ /g')
                     LogText "Test: analyzing file ${F} for remote target"
                     DATA=$(${EGREPBINARY} "@@?([a-zA-Z0-9\-])+(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?" ${F} | ${GREPBINARY} -v "#" | ${TRBINARY} -cd "[:print:]\n" | ${SEDBINARY} 's/[[:blank:]]\{1,\}/:space:/g')
-                    if [ -z "${DATA}" ]; then
-                        LogText "Result: no remote target found"
-                    else
+                    if [ -n "${DATA}" ]; then
                         LogText "Result: found remote target"
                         REMOTE_LOGGING_ENABLED=1
                         for D in ${DATA}; do
@@ -379,6 +377,15 @@
                                 LogText "Data: ${D}"
                             fi
                         done
+                    else
+                        # Check new style configuration (omrelp/omfwd). This can be all on one line or even split over multiple lines.
+                        DATA=$(${EGREPBINARY} "target=\"([a-zA-Z0-9\-])" ${F})
+                        if [ -n "${DATA}" ]; then
+                            LogText "Result: most likely remote log host is used, as keyword 'target' is used"
+                            REMOTE_LOGGING_ENABLED=1
+                        else
+                            LogText "Result: no remote target found"
+                        fi
                     fi
                 done
             fi
@@ -412,11 +419,13 @@
 
         # Show result
         if [ ${REMOTE_LOGGING_ENABLED} -eq 0 ]; then
+            Report "remote_syslog_configured=0"
             LogText "Result: no remote logging found"
             ReportSuggestion ${TEST_NO} "Enable logging to an external logging host for archiving purposes and additional protection"
             AddHP 1 3
             Display --indent 2 --text "- Checking remote logging" --result "NOT ENABLED" --color YELLOW
         else
+            Report "remote_syslog_configured=1"
             AddHP 5 5
             Display --indent 2 --text "- Checking remote logging" --result "${STATUS_ENABLED}" --color GREEN
         fi

@@ -82,6 +82,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - INSE-8342 - renamed to INSE-8304
 - KRNL-5820 - extended check to include limits.d directory
 - LOGG-2154 - added support for rsyslog configurations
+- MAIL-8804 - replaced static strings with translation-aware strings
 - NAME-4402 - check if /etc/hosts exists before performing test
 - NAME-4404 - improved screen and log output
 - NAME-4408 - corrected Report function call

@@ -566,7 +566,7 @@
     FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /dev/shm:nosuid,nodev,noexec /home:nodev,nosuid /tmp:nodev,noexec,nosuid /var:nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /var/tmp:nodev,noexec,nosuid"
     Register --test-no FILE-6374 --os Linux --weight L --network NO --category security --description "Checking partitions mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -f /etc/fstab ]; then
+        if [ -f ${ROOTDIR}etc/fstab ]; then
             for I in ${FILESYSTEMS_TO_CHECK}; do
                 FILESYSTEM=$(echo ${I} | ${CUTBINARY} -d: -f1)
                 EXPECTED_FLAGS=$(echo ${I} | ${CUTBINARY} -d: -f2 | ${SEDBINARY} 's/,/ /g')
@@ -578,7 +578,8 @@
                     fi
                 fi
                 if [ -n "${FS_FSTAB}" ]; then
-                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($2==fs) { print $4 } }' ${ROOTDIR}etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
+                    # In awk using caret/circumflex as first character between brackets, means 'not' (instead of beginning of line)
+                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $2==fs) { print $4 } }' ${ROOTDIR}etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
                     LogText "File system:    ${FILESYSTEM}"
                     LogText "Expected flags: ${EXPECTED_FLAGS}"
                     LogText "Found flags:    ${FOUND_FLAGS}"
@@ -595,26 +596,27 @@
                         fi
                     done
                     if [ ${FULLY_HARDENED} -eq 1 ]; then
-                        LogText "Result: marked ${FILESYSTEM} as fully hardenened"
+                        LogText "Result: marked ${FILESYSTEM} as fully hardened"
                         Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result HARDENED --color GREEN
                         AddHP 5 5
                     elif [ ${PARTIALLY_HARDENED} -eq 1 ]; then
-                        LogText "Result: marked ${FILESYSTEM} as fully hardenened"
+                        LogText "Result: marked ${FILESYSTEM} as partially hardened"
                         Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "PARTIALLY HARDENED" --color YELLOW
                         AddHP 4 5
                     else
-                        if [ "${FOUND_FLAGS}" = "defaults" ]; then
-                            LogText "Result: marked ${FILESYSTEM} options as default (non hardened)"
+                        # if 
+                        if ContainsString "defaults" "${FOUND_FLAGS}"; then
+                            LogText "Result: marked ${FILESYSTEM} options as default (not hardened)"
                             Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result DEFAULT --color YELLOW
                             AddHP 3 5
                         else
-                            LogText "Result: marked ${FILESYSTEM} options as non default (unclear about hardening)"
+                            LogText "Result: marked ${FILESYSTEM} options as non-default (unclear about hardening)"
                             Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "NON DEFAULT" --color YELLOW
                             AddHP 4 5
                         fi
                     fi
                 else
-                    LogText "Result: file system ${FILESYSTEM} not found in /etc/fstab"
+                    LogText "Result: file system ${FILESYSTEM} not found in ${ROOTDIR}etc/fstab"
                 fi
             done
         fi

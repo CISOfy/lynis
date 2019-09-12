@@ -93,6 +93,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
 - SSH-7408 - changed text in suggestion and report
+- SSH-7408 - added forced-commands-only option
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
 - TOOL-5002 - differentiate between a discovered binary and running process

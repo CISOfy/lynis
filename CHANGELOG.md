@@ -106,13 +106,13 @@ Using the relevant options, the scan will change base on the intended goal.
 - Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
 - Several code cleanups, simplification of commands, and code standardization
+- Tests using lsof may ignore individual threads (if supported)
 - Do not show tool tips when quiet option is used
 - Extended output of 'lynis update info'
 - Test if profiles are readable
 - systemd service file adjusted
 - bash completion script extended
 - Updated man page
-
 
 ---------------------------------------------------------------------------------
 
@@ -135,7 +135,6 @@ Using the relevant options, the scan will change base on the intended goal.
 - Extended help
 
 ---------------------------------------------------------------------------------
-
 
 ## Lynis 2.7.4 (2019-04-21)
 

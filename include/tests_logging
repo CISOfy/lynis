@@ -510,7 +510,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking open log files with lsof"
         if [ -n "${LSOFBINARY}" ]; then
-            FIND=$(${LSOFBINARY} -n 2>&1 | ${GREPBINARY} "log$" | ${EGREPBINARY} -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$")
+            FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -n 2>&1 | ${GREPBINARY} "log$" | ${EGREPBINARY} -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$")
             for I in ${FIND}; do
                 LogText "Found logfile: ${I}"
             done
@@ -548,7 +548,7 @@
             LSOF_GREP="${LSOF_GREP}|anacron|awk|run-parts"
         fi
 
-        FIND=$(${LSOFBINARY} -n +L 1 2>&1 | ${EGREPBINARY} -vw "${LSOF_GREP}" | ${EGREPBINARY} -v '/dev/zero|/\[aio\]' | ${AWKBINARY} '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
+        FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -n +L 1 2>&1 | ${EGREPBINARY} -vw "${LSOF_GREP}" | ${EGREPBINARY} -v '/dev/zero|/\[aio\]' | ${AWKBINARY} '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
         if [ -n "${FIND}" ]; then
             LogText "Result: found one or more files which are deleted, but still in use"
             for I in ${FIND}; do
@@ -567,10 +567,10 @@
 #
     # Test        : LOGG-2192
     # Description : Check for open log files which are empty. This may indicate a problem with log rotation, or unused services
-    if [ ! "${LSOFBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${LSOFBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2192 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking for open log files that are empty"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${LSOFBINARY} -n -w | ${AWKBINARY} '{if ($5=="REG" && $7=="0" && $9 ~ /log$/) {print $1","$9}}' | ${SORTBINARY} | uniq)
+        FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -n -w | ${AWKBINARY} '{if ($5=="REG" && $7=="0" && $9 ~ /log$/) {print $1","$9}}' | ${SORTBINARY} | uniq)
         if [ -n "${FIND}" ]; then
             for I in ${FIND}; do
                 LogText "Found an opened logfile that is empty: ${I}"

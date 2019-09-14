@@ -211,90 +211,6 @@
 
 
     ################################################################################
-    # Name        : HasCorrectFilePermissions()
-    # Description : Check file permissions
-    #
-    # Parameters  : $1 = Full path to file or directory
-    #               $2 = Permissions
-    # Returns     : exit code (0 = correct, 1 = not correct, 2 = file does not exist)
-    ################################################################################
-
-    HasCorrectFilePermissions() {
-        if [ $# -ne 2 ]; then Fatal "Incorrect usage of HasCorrectFilePermissions"; fi
-        CHECKFILE="$1"
-        CHECKPERMISSION_FULL="$2"
-        if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
-            return 2
-        else
-            for CHECK_PERMISSION in ${CHECKPERMISSION_FULL}; do
-                DATA=$(echo ${CHECK_PERMISSION} | ${EGREPBINARY} "[rwx]")
-                if [ $? -eq 0 ]; then
-                    # add a dummy character as first character so it looks like output is a normal file
-                    CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
-                fi
-
-                # First try stat command
-                LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
-                if [ -n "${STATBINARY}" ]; then
-                    # busybox does not support format
-                    if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
-                        DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
-                    fi
-                fi
-
-                # See if we can use the find binary
-                if [ -z "${DATA}" ]; then
-                    case ${OS} in
-                        "AIX")
-                            Debug "Skipping find command, as AIX does not support -printf"
-                        ;;
-                        *)
-                            # Only use find when OS is NOT AIX and binaries are NOT busybox
-                            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
-                                DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
-                            fi
-                        ;;
-                    esac
-                fi
-
-                # Finally use ls command
-                if [ -z "${DATA}" ]; then
-                    # If 'file' is an directory, use -d
-                    if [ -d ${CHECKFILE} ]; then
-                        DATA=$(${LSBINARY} -d -l ${CHECKFILE} | cut -c 2-10)
-                    else
-                        DATA=$(${LSBINARY} -l ${CHECKFILE} | cut -c 2-10)
-                    fi
-                fi
-
-                # Convert permissions to octal when needed
-                case ${DATA} in
-                    "r"|"w"|"x"|"-")
-                        LogText "Converting value ${DATA} to octal"
-                        DATA=$(echo ${DATA} | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
-                        if [ "${DATA}" = "0" ]; then DATA="000"; fi
-                    ;;
-                esac
-
-                if [ -n "${DATA}" ]; then
-                    if [ "${DATA}" = "${CHECK_PERMISSION}" ]; then
-                        LogText "Outcome: correct permissions (${DATA})"
-                        return 0
-                    fi
-                else
-                    ReportException "HasCorrectFilePermissions:02" "No data value found, which is unexpected"
-                fi
-            done
-
-            LogText "Outcome: permissions of file ${CHECKFILE} are not matching expected value (${DATA} != ${CHECKPERMISSION_FULL})"
-            # No match, return exit code 1
-            return 1
-        fi
-    }
-
-
-
-    ################################################################################
     # Name        : CheckItem()
     # Description : Check if a specific item exists in the report
     #
@@ -1339,6 +1255,89 @@
             ${AWKBINARY} -v pattern="^${KEY}" -F= '$1 ~ pattern {print $2}' ${REPORTFILE} | ${TRBINARY} -cd "${VALID_CHARS}" | ${TRBINARY} '[:blank:]' '__space__'
         fi
         return 0
+    }
+
+
+    ################################################################################
+    # Name        : HasCorrectFilePermissions()
+    # Description : Check file permissions
+    #
+    # Parameters  : $1 = Full path to file or directory
+    #               $2 = Permissions
+    # Returns     : exit code (0 = correct, 1 = not correct, 2 = file does not exist)
+    ################################################################################
+
+    HasCorrectFilePermissions() {
+        if [ $# -ne 2 ]; then Fatal "Incorrect usage of HasCorrectFilePermissions"; fi
+        CHECKFILE="$1"
+        CHECKPERMISSION_FULL="$2"
+        if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
+            return 2
+        else
+            for CHECK_PERMISSION in ${CHECKPERMISSION_FULL}; do
+                DATA=$(echo ${CHECK_PERMISSION} | ${EGREPBINARY} "[rwx]")
+                if [ $? -eq 0 ]; then
+                    # add a dummy character as first character so it looks like output is a normal file
+                    CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
+                fi
+
+                # First try stat command
+                LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
+                if [ -n "${STATBINARY}" ]; then
+                    # busybox does not support format
+                    if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                        DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
+                    fi
+                fi
+
+                # See if we can use the find binary
+                if [ -z "${DATA}" ]; then
+                    case ${OS} in
+                        "AIX")
+                            Debug "Skipping find command, as AIX does not support -printf"
+                        ;;
+                        *)
+                            # Only use find when OS is NOT AIX and binaries are NOT busybox
+                            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                                DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
+                            fi
+                        ;;
+                    esac
+                fi
+
+                # Finally use ls command
+                if [ -z "${DATA}" ]; then
+                    # If 'file' is an directory, use -d
+                    if [ -d ${CHECKFILE} ]; then
+                        DATA=$(${LSBINARY} -d -l ${CHECKFILE} | cut -c 2-10)
+                    else
+                        DATA=$(${LSBINARY} -l ${CHECKFILE} | cut -c 2-10)
+                    fi
+                fi
+
+                # Convert permissions to octal when needed
+                case ${DATA} in
+                    "r"|"w"|"x"|"-")
+                        LogText "Converting value ${DATA} to octal"
+                        DATA=$(echo ${DATA} | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
+                        if [ "${DATA}" = "0" ]; then DATA="000"; fi
+                    ;;
+                esac
+
+                if [ -n "${DATA}" ]; then
+                    if [ "${DATA}" = "${CHECK_PERMISSION}" ]; then
+                        LogText "Outcome: correct permissions (${DATA})"
+                        return 0
+                    fi
+                else
+                    ReportException "HasCorrectFilePermissions:02" "No data value found, which is unexpected"
+                fi
+            done
+
+            LogText "Outcome: permissions of file ${CHECKFILE} are not matching expected value (${DATA} != ${CHECKPERMISSION_FULL})"
+            # No match, return exit code 1
+            return 1
+        fi
     }
 
 

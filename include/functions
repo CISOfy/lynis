@@ -345,7 +345,7 @@
     CreateTempFile() {
         TEMP_FILE=""
         if [ "${OS}" = "AIX" ]; then
-            RANDOMSTRING1=$(echo lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}'))
+            RANDOMSTRING1="lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}')"
             TEMP_FILE="/tmp/${RANDOMSTRING1}"
             touch ${TEMP_FILE}
         else
@@ -950,11 +950,11 @@
                     fi
                     if [ ! "${FIND}" = "" ]; then
                         # We have a MAC address, now hashing it
-                        if [ ! "${SHA1SUMBINARY}" = "" ]; then
+                        if [ -n "${SHA1SUMBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
-                        elif [ ! "${CSUMBINARY}" = "" ]; then
+                        elif [ -n "${CSUMBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${CSUMBINARY} -h SHA1 - | awk '{ print $1 }')
-                        elif [ ! "${OPENSSLBINARY}" = "" ]; then
+                        elif [ -n "${OPENSSLBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "No sha1, sha1sum, csum or openssl binary available on AIX"
@@ -1138,17 +1138,17 @@
             fi
         fi
 
-        if [ "${HOSTID}" = "" ]; then
+        if [ -z "${HOSTID}" ]; then
             LogText "Result: no HOSTID available, trying to use SSH key as unique source"
             # Create host ID when a MAC address was not found
             SSH_KEY_FILES="ssh_host_ed25519_key.pub ssh_host_ecdsa_key.pub ssh_host_dsa_key.pub ssh_host_rsa_key.pub"
             if [ -d /etc/ssh ]; then
                 for I in ${SSH_KEY_FILES}; do
-                    if [ "${HOSTID}" = "" ]; then
+                    if [ -z "${HOSTID}" ]; then
                         if [ -f /etc/ssh/${I} ]; then
                             LogText "Result: found ${I} in /etc/ssh"
-                            if [ ! "${SHA1SUMBINARY}" = "" ]; then
-                                HOSTID=$(cat /etc/ssh/${I} | ${SHA1SUMBINARY} | awk '{ print $1 }')
+                            if [ -n "${SHA1SUMBINARY}" ]; then
+                                HOSTID=$(${SHA1SUMBINARY} /etc/ssh/${I} | awk '{ print $1 }')
                                 LogText "result: Created HostID with SSH key ($I): ${HOSTID}"
                             else
                                 ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
@@ -1408,7 +1408,7 @@
         FOUND=0
         # Early on we can't use FileIsReadable yet
         if [ -e /proc/1/cgroup ]; then
-            FIND=$(cat ${ROOTDIR}proc/1/cgroup 2> /dev/null | grep -i docker)
+            FIND=$(grep -i docker ${ROOTDIR}proc/1/cgroup 2> /dev/null)
             if [ $? -eq 0 ]; then
                 LogText "Result: found Docker in control groups (/proc/1/cgroup), so we are running in Docker container"
                 CONTAINER_TYPE="Docker"; FOUND=1
@@ -1531,7 +1531,7 @@
             # When --user is used, perform a search using the -u option
                             # Initialize users for strict mode
             if [ -n "${users:-}" ]; then
-                for u in "${users}"; do
+                for u in ${users}; do
                     user_uid=$(getent passwd ${u} 2> /dev/null | ${AWKBINARY} -F: '{print $3}')
                     # Only perform search if user exists and we had no match yet
                     if [ -n "${user_uid}" ]; then
@@ -1553,7 +1553,7 @@
                 FIND=$(${PSBINARY} ${PSOPTIONS} | ${EGREPBINARY} "( |/)${search}" | ${GREPBINARY} -v "grep")
             else
                 if [ -n "${users}" ]; then
-                    for u in "${users}"; do
+                    for u in ${users}; do
                         user_uid=$(getent passwd ${u} 2> /dev/null | ${AWKBINARY} -F: '{print $3}')
                         # Only perform search if user exists and we had no match yet
                         if [ -n "${user_uid}" ]; then
@@ -2029,7 +2029,7 @@
             output=$(${SWUPDBINARY} bundle-list > /dev/null 2>&1 | ${GREPBINARY} "^${package}$")
             exit_code=$?
         elif [ -n "${ZYPPERBINARY}" ]; then
-            output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${PACKAGE} 2> /dev/null | grep "^i")
+            output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${package} 2> /dev/null | grep "^i")
             if [ -n "${output}" ]; then exit_code=0; else exit_code=1; fi
         else
             ReportException "PackageIsInstalled:01"
@@ -2131,11 +2131,11 @@
         # Strip out spaces, tabs and line breaks
         awk '{$1=$1;print $0}' ${CONFIG_FILE} > ${TMP_NGINX_FILE_RAW}
         # Now clean up the file further (combine lines, remove commented lines and empty lines)
-        cat ${TMP_NGINX_FILE_RAW} | sed 's#\\$##g' | grep -v "^#" | grep -v "^$" > ${TMP_NGINX_FILE}
+        sed 's#\\$##g' ${TMP_NGINX_FILE_RAW} | grep -v "^#" | grep -v "^$" > ${TMP_NGINX_FILE}
 
         LogText "Action: parsing configuration file ${CONFIG_FILE}"
         COUNT=$(( COUNT + 1))
-        FIND=$(cat ${TMP_NGINX_FILE} | sed 's/ /:space:/g')
+        FIND=$(sed 's/ /:space:/g' ${TMP_NGINX_FILE})
         DEPTH=0
         for I in ${FIND}; do
             I=$(echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//')
@@ -2520,10 +2520,10 @@
             TIME_THRESHOLD=10  # seconds
 
             # Calculate timing and determine if we use seconds or nanoseconds (more precise)
-            TIME_DIFF=$((${CURRENT_TS} - ${PREVIOUS_TS}))
+            TIME_DIFF=$((CURRENT_TS - PREVIOUS_TS))
             if [ ${CURRENT_TS} -gt 1000000000000000000 ]; then
                 TIME_DIFF_FORMAT="nanoseconds"
-                TIME_THRESHOLD=$((${TIME_THRESHOLD} * 1000000000))
+                TIME_THRESHOLD=$((TIME_THRESHOLD * 1000000000))
                 if [ ${TIME_DIFF} -gt ${TIME_THRESHOLD} ]; then
                     SLOW_TEST=1
                     # Convert back to seconds for readability
@@ -3528,7 +3528,7 @@
     WaitForKeyPress() {
         if [ ${QUICKMODE} -eq 0 ]; then
             echo ""; echo "[ Press [ENTER] to continue, or [CTRL]+C to stop ]"
-            read void
+            read -r void
         fi
     }
 

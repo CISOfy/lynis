@@ -2249,6 +2249,30 @@
                             if [ "${CONF}" = "${VALUE}" ]; then FOUND=1; LogText "Found this file already in our configuration files array (additions), not adding to queue"; fi
                         done
                         if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${VALUE}"; fi
+                    # Check if include value is a relative path only
+                    elif [ -f "${CONFIG_FILE%nginx.conf}${VALUE%;*}" ]; then
+                        VALUE="${CONFIG_FILE%nginx.conf}${VALUE}"
+                        FOUND=0
+                        for CONF in ${NGINX_CONF_FILES}; do
+                            if [ "${CONF}" = "${VALUE}" ]; then FOUND=1; LogText "Found this file already in our configuration files array, not adding to queue"; fi
+                        done
+                        for CONF in ${NGINX_CONF_FILES_ADDITIONS}; do
+                            if [ "${CONF}" = "${VALUE}" ]; then FOUND=1; LogText "Found this file already in our configuration files array (additions), not adding to queue"; fi
+                        done
+                        if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${VALUE}"; fi
+                    # Check for additional config files included as follows
+                    # "include sites-enabled/*.conf"
+                    elif [ $(echo ${VALUE} | grep -F -c "*.conf") -gt 0 ]; then
+                        for FOUND_CONF in $(ls ${CONFIG_FILE%nginx.conf}${VALUE%;*}); do
+                            FOUND=0
+                            for CONF in ${NGINX_CONF_FILES}; do
+                                if [ "${CONF}" = "${FOUND_CONF}" ]; then FOUND=1; LogText "Found this file already in our configuration files array, not adding to queue"; fi
+                            done
+                            for CONF in ${NGINX_CONF_FILES_ADDITIONS}; do
+                                if [ "${CONF}" = "${FOUND_CONF}" ]; then FOUND=1; LogText "Found this file already in our configuration files array (additions), not adding to queue"; fi
+                            done
+                            if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${FOUND_CONF}"; fi
+                        done
                     else
                         LogText "Result: this include does not point to a file"
                     fi

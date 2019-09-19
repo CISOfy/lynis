@@ -23,7 +23,7 @@ if [ $# -eq 0 ]; then
     Display --text " "; Display --text " "
     ExitFatal
 else
-    FILE=$(echo $1 | egrep "^http|https")
+    FILE=$(echo $1 | grep -E "^http|https")
     if HasData "${FILE}"; then
         echo "Provide a file (not a URL)"
         ExitFatal
@@ -93,24 +93,19 @@ fi
 #
 ##################################################################################################
 #
+    InsertSection "Basics"
 
-InsertSection "Basics"
-
-    #FIND=$(egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g')
-    FIND=$(egrep -i "*MAINTAINER" ${AUDIT_FILE}  |  sed 's/=/ /g' | cut -d'"' -f 2)
-    if [ -z "${FIND}" ]; then
+    MAINTAINER=$(grep -E -i "*MAINTAINER" ${AUDIT_FILE} | sed 's/=/ /g' | cut -d'"' -f 2)
+    if [ -z "${MAINTAINER}" ]; then
         ReportWarning "dockerfile" "No maintainer found. Unclear who created this file."
     else
-        #MAINTAINER=$(echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}')
-        MAINTAINER=$(echo ${FIND})
         Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
     fi
 
-    FIND=$(grep "^ENTRYPOINT" ${AUDIT_FILE} | cut -d' ' -f2 )
-    if [ "${FIND}" = "" ]; then
+    ENTRYPOINT=$(grep "^ENTRYPOINT" ${AUDIT_FILE} | cut -d' ' -f2 )
+    if [ -z "${ENTRYPOINT}" ]; then
         ReportWarning "dockerfile" "No ENTRYPOINT defined in Dockerfile."
     else
-        ENTRYPOINT=$(echo ${FIND})
         Display --indent 2 --text "ENTRYPOINT" --result "${ENTRYPOINT}"
     fi
 
@@ -129,17 +124,14 @@ InsertSection "Basics"
         USER=$(echo ${FIND})
         Display --indent 2 --text "User" --result "${USER}"
     fi
-
-
 #
 ##################################################################################################
 #
-
     InsertSection "Software"
 
     case $PKGMGR in
     "apt")
-        FIND=$(egrep "apt-get(.*) install" ${AUDIT_FILE})
+        FIND=$(grep -E "apt-get(.*) install" ${AUDIT_FILE})
         if [ ! "${FIND}" = "" ]; then
             LogText "Found installation via apt-get"
         else
@@ -147,7 +139,7 @@ InsertSection "Basics"
         fi
         ;;
      "apk")
-        FIND=$(egrep "apk(.*) add" ${AUDIT_FILE})
+        FIND=$(grep -E "apk(.*) add" ${AUDIT_FILE})
         if [ ! "${FIND}" = "" ]; then
             LogText "Found installation via apk"
         else
@@ -159,7 +151,7 @@ InsertSection "Basics"
     ;;
     esac
 
-    FIND=$(egrep " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#")
+    FIND=$(grep -E " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#")
     if [ ! "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "Possible development utilities found, which is not advised for production environment"
         LogText "Details: ${FIND}"
@@ -202,7 +194,7 @@ InsertSection "Basics"
 
     if [ ${FILE_DOWNLOAD} -eq 1 ]; then
 
-        SSL_USED_FIND=$(egrep "(https)" ${AUDIT_FILE})
+        SSL_USED_FIND=$(grep -E "(https)" ${AUDIT_FILE})
 
         if HasData "${SSL_USED_FIND}"; then
             SSL_USED="YES"
@@ -213,9 +205,9 @@ InsertSection "Basics"
             ReportSuggestion "Use SSL downloads when possible to increase security (DNSSEC, HTTPS, validation of domain, avoid MitM)"
         fi
         Display --indent 2 --text "Integrity testing performed" --result "${SSL_USED}" --color ${COLOR}
-        HASHING_USED=$(egrep "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE})
+        HASHING_USED=$(grep -E "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE})
         Display --indent 2 --text "Hashing" --result "${HASHING_USED}"
-        KEYS_USED=$(egrep "(apt-key adv)" ${AUDIT_FILE}| sed 's/RUN apt-key adv//g'| sed 's/--keyserver/Key Server:/g' | sed 's/--recv/Key Value:/g')
+        KEYS_USED=$(grep -E "(apt-key adv)" ${AUDIT_FILE}| sed 's/RUN apt-key adv//g'| sed 's/--keyserver/Key Server:/g' | sed 's/--recv/Key Value:/g')
         Display --indent 2 --text "Signing keys used" --result "${KEYS_USED}"
         Display --indent 2 --text "All downloads properly checked" --result "?"
     else

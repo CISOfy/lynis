@@ -35,13 +35,13 @@
 
         # Show deprecation message for old config entries such as 'config:' and 'apache:'
         FOUND=0
-        DATA=$(egrep "^[a-z-]{1,}:" ${PROFILE} | od -An -ta | sed 's/ /!space!/g')  # od -An (no file offset), -ta (named character, to be on safe side)
+        DATA=$(grep -E "^[a-z-]{1,}:" ${PROFILE} | od -An -ta | sed 's/ /!space!/g')  # od -An (no file offset), -ta (named character, to be on safe side)
         if ! IsEmpty "${DATA}"; then FOUND=1; fi
 
         if [ ${FOUND} -eq 1 ]; then
             DisplayWarning "Your profile contains old-style configuration entries. See log file for more details and how to convert these entries"
             LogText "Your profile has one or more configuration items that are in an old format (lines starting with key:value). They need to be converted into the new format (key=value)."
-            LogText "Tip: Use egrep to see the relevant matches (egrep \"^[a-z-]{1,}:\" custom.prf)"
+            LogText "Tip: Use grep to see the relevant matches (grep -E \"^[a-z-]{1,}:\" custom.prf)"
             sleep 30
         fi
 
@@ -50,7 +50,7 @@
         if ! IsEmpty "${DATA}"; then
             DisplayWarning "Your profile '${PROFILE}' contains unexpected characters. See the log file for more information."
             LogText "Found unexpected or possibly harmful characters in profile '${PROFILE}'. See which characters matched in the output below and compare them with your profile."
-            for I in "${DATA}"; do
+            for I in ${DATA}; do
                 I=$(echo ${I} | sed 's/!space!/ /g')
                 LogText "Output: ${I}"
             done
@@ -59,7 +59,7 @@
         fi
 
         # Now parse the profile and filter out unwanted characters
-        DATA=$(egrep "^config:|^[a-z-].*=" ${PROFILE} | tr -dc '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-' | sed 's/ /!space!/g')
+        DATA=$(grep -E "^config:|^[a-z-].*=" ${PROFILE} | tr -dc '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-' | sed 's/ /!space!/g')
         for CONFIGOPTION in ${DATA}; do
             if ContainsString "^config:" "${CONFIGOPTION}"; then
                 # Old style configuration
@@ -76,7 +76,7 @@
 
                 # Is Lynis Enterprise allowed to purge this system when it is becomes outdated?
                 allow-auto-purge)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$")
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)$")
                     if [ -n "${FIND}" ]; then
                         Report "allow-auto-purge=1"
                     else
@@ -109,7 +109,7 @@
                 colors)
                     # Quick mode (SKIP_PLUGINS) might already be set outside profile, so store in different variable
                     SETTING_COLORS=1 # default is yes
-                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && COLORS=0
+                    FIND=$(echo "${VALUE}" | grep -E "^(0|false|no)$") && COLORS=0
                     if [ -n "${FIND}" ]; then SETTING_COLORS=0; RemoveColors; fi
                     Debug "Colors set to ${SETTING_COLORS}"
                     AddSetting "colors" "${SETTING_COLORS}" "Colored screen output"
@@ -165,27 +165,27 @@
 
                 # Do not check security repository in sources.list (Debian/Ubuntu)
                 debian-skip-security-repository | debian_skip_security_repository)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY=1 
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY=1 
                     AddSetting "debian-skip-security-repository" "OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY" "Skip checking for a security repository (Debian and others)"
                 ;;
 
                 # Debug status to show more details while running program
                 debug)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && DEBUG=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && DEBUG=1
                     Debug "Debug mode set to '${DEBUG}'"
                     AddSetting "debug" "${DEBUG}" "Debugging mode"
                 ;;
 
                 # Development mode (--developer)
                 developer-mode)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && DEVELOPER_MODE=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && DEVELOPER_MODE=1
                     Debug "Developer mode set to ${DEVELOPER_MODE}"
                     AddSetting "developer" "${DEVELOPER_MODE}" "Developer mode"
                 ;;
 
                 # Show non-zero exit code when errors are found
                 error-on-warnings)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && ERROR_ON_WARNINGS=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && ERROR_ON_WARNINGS=1
                     Debug "Exit with different code on warnings is set to ${ERROR_ON_WARNINGS}"
                     AddSetting "error-on-warnings" "${ERROR_ON_WARNINGS}" "Use non-zero exit code if one or more warnings were found"
                 ;;
@@ -238,7 +238,7 @@
 
                 # Do (not) log tests if they have an different operating system
                 log-tests-incorrect-os | log_tests_incorrect_os)
-                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)") && SETTING_LOG_TESTS_INCORRECT_OS=0
+                    FIND=$(echo "${VALUE}" | grep -E "^(0|false|no)") && SETTING_LOG_TESTS_INCORRECT_OS=0
                     Debug "Logging of tests with incorrect operating system set to ${SETTING_LOG_TESTS_INCORRECT_OS}"
                     LOG_INCORRECT_OS=${SETTING_LOG_TESTS_INCORRECT_OS}
                 ;;
@@ -290,7 +290,7 @@
                 quick)
                     # Quick mode might already be set outside profile, so store in different variable
                     SETTING_QUICK_MODE=1 # default is yes
-                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && QUICKMODE=0
+                    FIND=$(echo "${VALUE}" | grep -E "^(0|false|no)$") && QUICKMODE=0
                     if [ -n "${FIND}" ]; then SETTING_QUICK_MODE=1; fi
                     Debug "Quickmode set to ${SETTING_QUICK_MODE}"
                     AddSetting "quick" "${SETTING_QUICK_MODE}" "Quick mode (non-interactive)"
@@ -299,7 +299,7 @@
                 # Refresh software repositories
                 refresh-repositories)
                     SETTING_REFRESH_REPOSITORIES=1 # default is yes
-                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && REFRESH_REPOSITORIES=0
+                    FIND=$(echo "${VALUE}" | grep -E "^(0|false|no)$") && REFRESH_REPOSITORIES=0
                     if [ -n "${FIND}" ]; then SETTING_REFRESH_REPOSITORIES=0; fi
                     Debug "Refreshing repositories set to ${SETTING_REFRESH_REPOSITORIES}"
                     AddSetting "refresh-repositories" "${SETTING_REFRESH_REPOSITORIES}" "Refresh repositories (for vulnerable package detection)"
@@ -308,7 +308,7 @@
                 # Show more details in report
                 show-report-solution)
                     SETTING_SHOW_REPORT_SOLUTION=${SHOW_REPORT_SOLUTION}
-                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && SHOW_REPORT_SOLUTION=0
+                    FIND=$(echo "${VALUE}" | grep -E "^(0|false|no)$") && SHOW_REPORT_SOLUTION=0
                     if [ -n "${FIND}" ]; then SETTING_SHOW_REPORT_SOLUTION=0; fi
                     Debug "Show report details (solution) set to ${SETTING_SHOW_REPORT_SOLUTION}"
                 ;;
@@ -316,7 +316,7 @@
                 # Inline tips about tool (default enabled)
                 show_tool_tips | show-tool-tips)
                     SETTING_SHOW_TOOL_TIPS=1 # default is yes
-                    FIND=$(echo "${VALUE}" | egrep "^(0|false|no)$") && SHOW_TOOL_TIPS=0
+                    FIND=$(echo "${VALUE}" | grep -E "^(0|false|no)$") && SHOW_TOOL_TIPS=0
                     if [ -n "${FIND}" ]; then SETTING_SHOW_TOOL_TIPS=0; fi
                     Debug "Show tool tips set to ${SETTING_SHOW_TOOL_TIPS}"
                     AddSetting "show-tool-tips" "${SETTING_SHOW_TOOL_TIPS}" "Show tool tips"
@@ -326,7 +326,7 @@
                 show-warnings-only)
                     QUIET=1
                     QUICKMODE=1
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && SHOW_WARNINGS_ONLY=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)$") && SHOW_WARNINGS_ONLY=1
                     Debug "Show warnings only set to ${SHOW_WARNINGS_ONLY}"
                     AddSetting "show-warnings-only" "${SHOW_WARNINGS_ONLY}" "Show only warnings"
                 ;;
@@ -335,7 +335,7 @@
                 skip-plugins)
                     # Skip plugins (SKIP_PLUGINS) might already be set, so store in different variable
                     SETTING_SKIP_PLUGINS=0 # default is no
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && SKIP_PLUGINS=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)$") && SKIP_PLUGINS=1
                     if [ -n "${FIND}" ]; then SETTING_SKIP_PLUGINS=1; fi
                     Debug "Skip plugins is set to ${SETTING_SKIP_PLUGINS}"
                     AddSetting "skip-plugins" "${SETTING_SKIP_PLUGINS}" "Skip plugins"
@@ -349,7 +349,7 @@
 
                 # Do not check the latest version on the internet
                 skip_upgrade_test | skip-upgrade-test)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && SKIP_UPGRADE_TEST=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && SKIP_UPGRADE_TEST=1
                     Debug "Skip upgrade test set to ${SKIP_UPGRADE_TEST}"
                 ;;
 
@@ -369,7 +369,7 @@
 
                 # Set strict mode for development and quality purposes
                 strict)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && SET_STRICT=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && SET_STRICT=1
                 ;;
 
                 # The name of the customer/client that uses this system
@@ -398,7 +398,7 @@
                 # Perform upload
                 upload)
                     SETTING_UPLOAD=no # default
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)$") && UPLOAD_DATA=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)$") && UPLOAD_DATA=1
                     if [ -n "${FIND}" ]; then SETTING_UPLOAD=1; fi
                     Debug "Upload set to ${SETTING_UPLOAD}"
                     AddSetting "upload" "${SETTING_UPLOAD}" "Data upload after scanning"
@@ -452,7 +452,7 @@
 
                 # Verbose output (--verbose)
                 verbose)
-                    FIND=$(echo "${VALUE}" | egrep "^(1|true|yes)") && VERBOSE=1
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && VERBOSE=1
                     Debug "Verbose set to ${VERBOSE}"
                     AddSetting "verbose" "${VERBOSE}" "Verbose output"
                 ;;

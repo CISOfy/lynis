@@ -55,23 +55,20 @@
 # Functions:
 
     # Clean temporary files up
-    CleanUp()
-      {
+    CleanUp() {
         if [ ! "${TMPDIR}" = "" -a -d "${TMPDIR}" ]; then
             rm -rf ${TMPDIR}
         fi
-      }
+    }
 
-    Exit()
-      {
+    Exit() {
         CleanUp
         exit 0
-      }
-    ExitFatal()
-      {
+    }
+    ExitFatal() {
         CleanUp
         exit 1
-      }
+    }
 #
 #########################################################################
 #
@@ -95,7 +92,7 @@
     if [ ! -d ${MYWORKDIR} ]; then
         echo "[X] Could not determine workdir (result: ${MYWORKDIR} seems invalid)"
         ExitFatal
-      else
+    else
         echo "[=] workdir: ${MYWORKDIR}"
     fi
 
@@ -105,7 +102,7 @@
         echo "[X] ${MYBUILDDIR} not found"
         echo "    Hint: create it with mkdir ${MYBUILDDIR}"
         ExitFatal
-      else
+    else
         echo "[=] builddir: ${MYBUILDDIR}"
     fi
 
@@ -129,7 +126,7 @@
     GITBUILDPACKAGEBINARY=$(which git-buildpackage)
     if [ ! "${GITBUILDPACKAGEBINARY}" = "" ]; then
         echo "[=] git-buildpackage = ${GITBUILDPACKAGEBINARY}"
-      else
+    else
         echo "[X] Can not find git-buildpackage binary"
         echo "    Hint: install git-buildpackage"
         ExitFatal
@@ -138,7 +135,7 @@
     RPMBUILDBINARY=$(which rpmbuild)
     if [ ! "${RPMBUILDBINARY}" = "" ]; then
         echo "[=] rpmbuild = ${RPMBUILDBINARY}"
-      else
+    else
         echo "[X] Can not find rpmbuild binary"
         echo "    Hint: install rpmbuild"
         ExitFatal
@@ -149,7 +146,7 @@
     umask ${OPTION_UMASK}
     if [ $? -eq 0 ]; then
         echo "[V] Setting umask to ${OPTION_UMASK}"
-      else
+    else
         echo "[X] Could not set umask"
         ExitFatal
     fi
@@ -157,7 +154,7 @@
     # Check if we are in dev directory
     if [ -f ../lynis -a -f ./build-lynis.sh ]; then
         echo "[V] Active in proper directory"
-      else
+    else
         echo "[X] This script should be executed from dev directory itself"
         ExitFatal
     fi
@@ -172,7 +169,7 @@
     if [ $? -eq 0 ]; then
         echo "[V] Creating temporary build directory"
         #echo "    BUILDROOT: ${TMPDIR}"
-      else
+    else
         echo "[X] Could not create temporary build directory"
         ExitFatal
     fi
@@ -192,11 +189,11 @@
 
     if [ -f ${TARBALL} ]; then
         echo "Tarball already exists for this version, not overwriting it"
-      else
+    else
         tar -C ${MYWORKDIR} --exclude=debian --exclude=README.md --exclude=.bzr* --exclude=.git* -c -z -f ${TARBALL} lynis 2> /dev/null
         if [ -f ${TARBALL} ]; then
             echo "[V] Tarball created"
-          else
+        else
             echo "[X] Tarball ${TARBALL} could not be created"
             ExitFatal
         fi
@@ -220,7 +217,7 @@
             fi
             echo "[*] Start RPM building"
             #${RPMBUILDBINARY} --quiet -ba -bl lynis.spec 2> /dev/null
-          else
+        else
             echo "[X] lynis.spec not found"
             ExitFatal
         fi
@@ -228,12 +225,12 @@
         RPMFILE="${RPMWORKDIR}/RPMS/noarch/lynis-${LYNIS_VERSION}-1.noarch.rpm"
         if [ -f ${RPMFILE} ]; then
             echo "[V] Building RPM successful!"
-          else
+        else
             echo "[X] Could not find RPM file, most likely failed"
             echo "    Expected: ${RPMFILE}"
             ExitFatal
         fi
-      else
+    else
         echo "[X] Could not find source file (${SOURCEFILE_RPM})"
         echo "    Hint: cp <lynis.tar.gz> ${SOURCEFILE_RPM}"
         #ExitFatal
@@ -246,7 +243,7 @@
         DEBCHANGELOGVERSIONREV=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }')
         if [ "${LYNIS_VERSION}" = "${DEBCHANGELOGVERSION}" ]; then
             echo "[V] Debian/changelog up-to-date"
-          else
+        else
             echo "[X] Debian/changelog outdated"
             ExitFatal
         fi
@@ -260,17 +257,17 @@
 #        echo "[=] Version in Debian changelog: ${DEBCHANGELOGVERSION} (revision: ${DEBCHANGELOGVERSIONREV})"
 #        if [ "${LYNIS_VERSION}" = "${DEBCHANGELOGVERSION}" ]; then
 #            echo "[V] Debian/changelog up-to-date"
-#          else
+#        else
 #            echo "[X] Debian/changelog outdated"
 ##            ExitFatal
 #        fi
 #        # execute command
 #        # bzr builddeb . --build-dir ${DEBWORKDIR}/build-area/ --result-dir ${DEBWORKDIR}
-#      elif [ "${BZRSTATUS}" = "3" ]; then
+#    elif [ "${BZRSTATUS}" = "3" ]; then
 #        echo "[X] Tree is not initialized for BZR"
 #        echo "    Hint: run bzr init while being in lynis directory (or bzr init ..)"
 #        ExitFatal
-#      else
+#    else
 #        echo "[X] Unknown error"
 #        echo "Output: ${BZRSTATUS}"
 #    fi
@@ -284,6 +281,7 @@
         rm -rf ${MYBUILDDIR}/git/Lynis
         #git checkout tags/${LYNIS_VERSION}
     fi
+
     git clone https://github.com/CISOfy/Lynis.git ${MYBUILDDIR}/git/Lynis
 
     if [ -d ${MYBUILDDIR}/git/Lynis/debian/ ]; then
@@ -292,7 +290,7 @@
         cd ${MYBUILDDIR}/git/Lynis/debian/
         git add .
         git commit -m "Building process for Lynis release version ${LYNIS_VERSION}"
-      else
+    else
         echo "[X] Could not copy debian directory and commit changes"
     fi
     #git tag -l ${MYBUILDDIR}/git/Lynis

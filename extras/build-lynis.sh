@@ -344,7 +344,7 @@ Exit
     FIND=$(sh -n ${OPTION_BINARY_FILE} ; echo $?)
     if [ $FIND -eq 0 ]; then
         echo "OK"
-      else
+    else
         echo "BAD"
     fi
 

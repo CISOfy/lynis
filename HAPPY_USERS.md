@@ -23,7 +23,9 @@ Create a pull request and add your name above the first entry. Thanks!
 
 ## Our guestbook
 
-* <your name and story>
+
+* YOUR NAME AND STORY
+
 
 * Michael Boelen - September 2019
 The development of Lynis learned me a lot about Linux and Unix security. It is

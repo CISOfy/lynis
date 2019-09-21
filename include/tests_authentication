@@ -738,28 +738,28 @@
     # Note        : Every Linux based operating system seem to have different passwd
     #               options, so we have to check the version first.
     if [ "${OS}" = "Linux" ]; then
-        if [ ${OS_REDHAT_OR_CLONE} -eq 0 ]; then
+        if [ "${OS_REDHAT_OR_CLONE}" -eq 0 ]; then
             case ${LINUX_VERSION} in
                 "SuSE")
                     PREQS_MET="YES"
-                    FIND=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND_P=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
                     FIND2=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
                     ;;
                 *)
                     PREQS_MET="YES"
-                    FIND=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND_P=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
                     FIND2=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
                     ;;
             esac
-        elif [ ${OS_REDHAT_OR_CLONE} -eq 1 ]; then
+        elif [ "${OS_REDHAT_OR_CLONE}" -eq 1 ]; then
             PREQS_MET="YES"
-            FIND=$(for I in $(${AWKBINARY} -F: '{print $1}' ${ROOTDIR}etc/passwd) ; do passwd -S $I | ${AWKBINARY} '{ if ($2=="PS" && $5=="99999") print $1 }' ; done)
-            FIND2=$(for I in $(${AWKBINARY} -F: '{print $1}' ${ROOTDIR}etc/passwd) ; do passwd -S $I | ${AWKBINARY} '{ if ($2=="NP") print $1 }' ; done)
+            FIND_P=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="PS" && $5=="99999") print $1 }' ; done)
+            FIND2=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="NP") print $1 }' ; done)
         else
             LogText "Result: skipping test for this Linux version"
             ReportManual "AUTH-9282:01"
             PREQS_MET="NO"
-            FIND=""
+            FIND_P=""
             FIND2=""
         fi
      else
@@ -769,18 +769,18 @@
     # Test        : AUTH-9282
     # Description : Search password protected accounts without expire (Linux)
     Register --test-no AUTH-9282 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking password protected account without expire date"
-    if [ ${SKIPTEST} -eq 0 ]; then
+    if [ "${SKIPTEST}" -eq 0 ]; then
         LogText "Test: Checking Linux version and password expire date status"
-        if [ -z "${FIND}" ]; then
+        if [ -z "${FIND_P}" ]; then
             LogText "Result: all accounts seem to have an expire date"
             Display --indent 2 --text "- Accounts without expire date" --result "${STATUS_OK}" --color GREEN
         else
-            LogText "Result: found one or more accounts with expire date set"
-            for I in ${FIND}; do
+            LogText "Result: found one or more accounts without expire date set"
+            for I in ${FIND_P}; do
                 LogText "Account without expire date: ${I}"
             done
             Display --indent 2 --text "- Accounts without expire date" --result "${STATUS_SUGGESTION}" --color YELLOW
-            ReportSuggestion ${TEST_NO} "When possible set expire dates for all password protected accounts"
+            ReportSuggestion "${TEST_NO}" "When possible set expire dates for all password protected accounts"
         fi
     fi
 #
@@ -789,7 +789,7 @@
     # Test        : AUTH-9283
     # Description : Search passwordless accounts
     Register --test-no AUTH-9283 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking accounts without password"
-    if [ ${SKIPTEST} -eq 0 ]; then
+    if [ "${SKIPTEST}" -eq 0 ]; then
         LogText "Test: Checking passwordless accounts"
         if [ -z "${FIND2}" ]; then
             LogText "Result: all accounts seem to have a password"
@@ -801,7 +801,7 @@
                 Report "account_without_password=${I}"
             done
             Display --indent 2 --text "- Accounts without password" --result "${STATUS_WARNING}" --color RED
-            ReportWarning ${TEST_NO} "Found accounts without password"
+            ReportWarning "${TEST_NO}" "Found accounts without password"
         fi
     fi
 #

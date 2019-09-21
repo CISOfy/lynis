@@ -67,6 +67,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Profiles: message is displayed when old format "key:value" is used
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
+- AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins
 - CONT-8106 - support newer 'docker info' output
 - CRYP-8002 - gather kernel entropy on Linux systems
@@ -2916,10 +2917,10 @@ Lynis 1.1.7 (2008-06-28)
  - Added dig availability check to DNS test [NETW-2704]
  - Bugfix: Fixed iptables test if the binary is not located in /sbin [FIRE-4512]
  - Bugfix: Improved yum-utils check to display suggestions correctly [PKGS-7384]
- - Bugfix: Fixed prequisits for grpck test [AUTH-9216]
+ - Bugfix: Fixed prerequisites for grpck test [AUTH-9216]
  - Improved MySQL check [DBS-1804]
  - Changed color at chkconfig boot services test [BOOT-5177]
- - Added missing prequisits output to portaudit test [PKGS-7382]
+ - Added missing prerequisites output to portaudit test [PKGS-7382]
  - Test output for FreeBSD mounts (UFS) improved [FILE-6329]
  - Extended OpenLDAP test to avoid finding itself in ps output [LDAP-2219]
  - Several tests have their warning reporting improved

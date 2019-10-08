@@ -180,6 +180,31 @@
 #
 #################################################################################
 #
+    # Test        : DBS-1828
+    # Description : Test PostgreSQL configuration file(s)
+    #
+    # Authentication:
+    # /var/lib/pgsql/data/pg_hba.conf
+    #
+    # Configuration
+    # Arch            /var/lib/postgres/data/postgresql.conf
+    # CentOS/Fedora   /var/lib/pgsql/data/postgresql.conf
+    # Ubuntu          /etc/postgresql/x.y/main/postgresql.conf
+
+    if [ "${POSTGRESQL_RUNNING}" -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="PostgreSQL not installed or not running"; fi
+
+    Register --test-no DBS-1828 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Test PostgreSQL configuration"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND_PATHS="${ROOTDIR}etc/postgres ${ROOTDIR}var/lib/postgres/data"
+        CONFIG_FILES=$(${FINDBINARY} ${FIND_PATHS} -type f -name "postgresql.conf" -print0 2> /dev/null | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} -d '\n' | ${TRBINARY} '\0' '\n' | xargs -i sh -c 'test -r "{}" && echo "{}" | ${SEDBINARY} "s/ /:space:/g"')
+        for CF in ${CONFIG_FILES}; do
+            Report "postgresql_config_file[]=${CF}"
+            LogText "Found configuration file (${CF})"
+        done
+    fi
+#
+#################################################################################
+#
     # Test        : DBS-1840
     # Description : Check if Oracle is being used
     # Notes       : tnslsnr: Oracle listener

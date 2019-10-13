@@ -517,9 +517,10 @@
         if [ -f "${ROOTDIR}etc/security/limits.conf" ]; then
             LogText "Result: file ${ROOTDIR}etc/security/limits.conf exists"
             LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${LIMITS_DIRECTORY}/*"
-            FIND1=$(${GREPBINARY} -r -v "^#" "${ROOTDIR}etc/security/limits.conf" $( if [ -d "${LIMITS_DIRECTORY}" ]; then ${ECHOCMD} "${LIMITS_DIRECTORY}"; fi ) | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
-            FIND2=$(${GREPBINARY} -r -v "^#" "${ROOTDIR}etc/security/limits.conf" $( if [ -d "${LIMITS_DIRECTORY}" ]; then ${ECHOCMD} "${LIMITS_DIRECTORY}"; fi ) | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
-            
+            # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
+            FIND1=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${ROOTDIR}etc/security/limits.conf.d" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
+            FIND2=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${ROOTDIR}etc/security/limits.conf.d" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
+
             IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
             IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
 

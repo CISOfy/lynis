@@ -1480,6 +1480,32 @@
 #
 #################################################################################
 #
+    # Test        : AUTH-9411
+    # Description : Check if /etc/securetty is empty
+    Register --test-no AUTH-9411 --weight L --network NO --category security --description "Checking /etc/securetty file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: checking /etc/securetty"
+        if [ -f /etc/securetty ]; then
+            LogText "Result: file /etc/securetty found"
+            # use of "^ *" instead of "^\s*", because HPUX und Solaris can't handle "\s". Using " *" seems work on all platforms though
+            FIND=$(${GREPBINARY} -v "^ *#" '/etc/securetty' | ${GREPBINARY} -v "^ *$" | ${WCBINARY} -l)
+
+            if [ "${FIND}" -eq 0 ]; then
+                LogText "Result: file /etc/securetty is empty"
+                Display --indent 2 --text "- securetty file" --result "${STATUS_OK}" --color GREEN
+            else
+                LogText "Result: file /etc/securetty is not empty"
+                Display --indent 2 --text "- securetty file" --result "${STATUS_SUGGESTION}" --color YELLOW
+                ReportSuggestion ${TEST_NO} "Delete terminals from /etc/securetty, so direct root logins are disabled."
+            fi
+        else
+            LogText "Result: file /etc/securetty not found"
+            Display --indent 2 --text "- securetty file" --result "${STATUS_NOT_FOUND}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
 
 Report "auth_failed_logins_logged=${AUTH_FAILED_LOGINS_LOGGED}"
 Report "ldap_auth_enabled=${LDAP_AUTH_ENABLED}"

@@ -442,8 +442,8 @@
         if [ -f ${ROOTDIR}etc/security/limits.conf ]; then
             LogText "Result: file ${ROOTDIR}etc/security/limits.conf exists"
             LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${ROOTDIR}etc/security/limits.d/*"
-            FIND1=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf ${LIMITS_DIRECTORY} | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }')
-            FIND2=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf ${LIMITS_DIRECTORY} | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }')
+            FIND1=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf $( if [ -d ${LIMITS_DIRECTORY} ]; then echo "${LIMITS_DIRECTORY}"; fi ) | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }')
+            FIND2=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf $( if [ -d ${LIMITS_DIRECTORY} ]; then echo "${LIMITS_DIRECTORY}"; fi ) | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }')
             if [ "${FIND2}" = "hard core disabled" ]; then
                 LogText "Result: core dumps (soft and hard) are both disabled"
                 Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_DISABLED}" --color GREEN
@@ -527,6 +527,7 @@
                     for I in $(file ${ROOTDIR}boot/vmlinuz-linux); do
                         if [ ${NEXTLINE} -eq 1 ]; then
                             FINDVERSION="${I}"
+                            break
                         else
                             # Searching for the Linux kernel after the keyword 'version'
                             if [ "${I}" = "version" ]; then NEXTLINE=1; fi
@@ -541,10 +542,27 @@
                     else
                         ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
                     fi
-                elif [ -f ${ROOTDIR}boot/vmlinuz-linux ]; then
-                    LogText "Result: /found /boot/vmlinuz-linux (usually Arch Linux or similar)"
+                elif [ -f ${ROOTDIR}boot/vmlinuz-linux -o -f ${ROOTDIR}boot/vmlinuz-linux-lts -o -f $(ls -t ${ROOTDIR}boot/vmlinuz-* 2> /dev/null | head -1) ]; then
+                    if [ -f ${ROOTDIR}boot/vmlinuz-linux ]; then
+                        FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-linux
+                    elif [ -f ${ROOTDIR}boot/vmlinuz-linux-lts ]; then
+                        FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-linux-lts
+                    else
+                        FOUND_VMLINUZ=$(ls -t ${ROOTDIR}boot/vmlinuz-* 2> /dev/null | head -1)
+                    fi
+                    LogText "Result: /found ${FOUND_VMLINUZ} (usually Arch Linux or similar)"
                     LogText "Test: checking kernel version on disk"
-                    VERSION_ON_DISK=$(${FILEBINARY} -b ${ROOTDIR}boot/vmlinuz-linux | ${AWKBINARY} '{ if ($1=="Linux" && $7=="version") { print $8 }}')
+                    NEXTLINE=0
+                    VERSION_ON_DISK=""
+                    for I in $(file ${FOUND_VMLINUZ}); do
+                        if [ ${NEXTLINE} -eq 1 ]; then
+                            VERSION_ON_DISK="${I}"
+                            break
+                        else
+                            # Searching for the Linux kernel after the keyword 'version'
+                            if [ "${I}" = "version" ]; then NEXTLINE=1; fi
+                        fi
+                    done
                     if [ -n "${VERSION_ON_DISK}" ]; then
                         LogText "Result: found version ${VERSION_ON_DISK}"
                         ACTIVE_KERNEL=$(uname -r)

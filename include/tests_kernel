@@ -443,15 +443,19 @@
             LogText "Result: systemd is present on this system"
             LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/systemd/coredump.conf and ${ROOTDIR}etc/systemd/coredump.conf.d/*.conf"
             # check likely main config file for systemd: ${ROOTDIR}etc/systemd/coredump.conf for ProcessSizeMax=0 and Storage=none
-            SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED=$(${GREPBINARY} -v "^\s*#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${GREPBINARY} -i "ProcessSizeMax=0" | ${WCBINARY} -l)
-            SYSD_CORED_BASE_STORAGE_NR_DISABLED=$(${GREPBINARY} -v "^\s*#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${GREPBINARY} -i "Storage=none" | ${WCBINARY} -l)
+            SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED=$(${GREPBINARY} -v "^ *#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0 *$" | ${WCBINARY} -l)
+            SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED=$(${GREPBINARY} -v "^ *#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0 *$" | ${WCBINARY} -l)
+            
+            SYSD_CORED_BASE_STORAGE_FOUND=$(${GREPBINARY} -v "^ *#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
+            SYSD_CORED_BASE_STORAGE_NR_ENABLED=$(${ECHOCMD} "${SYSD_CORED_BASE_STORAGE_FOUND}" | ${SEDBINARY} 's/none//g' | ${WCBINARY} | ${AWKBINARY} '{print $2}')
+            SYSD_CORED_BASE_STORAGE_NR_DISABLED=$(${ECHOCMD} "${SYSD_CORED_BASE_STORAGE_FOUND}" | ${GREPBINARY} -o "none" | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             # check conf files in possibly existing coredump.conf.d folders 
             # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
             # while there could be multiple files overwriting each other, we are checking the number of occurrences
-            SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^\s*//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0\s*$" | ${WCBINARY} -l)
-            SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^\s*//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0\s*$" | ${WCBINARY} -l)
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0 *$" | ${WCBINARY} -l)
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0 *$" | ${WCBINARY} -l)
             
-            SYSD_CORED_SUB_STORAGE_FOUND=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^\s*//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
+            SYSD_CORED_SUB_STORAGE_FOUND=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
             SYSD_CORED_SUB_STORAGE_NR_ENABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${SEDBINARY} 's/none//g' | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             SYSD_CORED_SUB_STORAGE_NR_DISABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${GREPBINARY} -o "none" | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             
@@ -473,7 +477,7 @@
                 ReportSuggestion ${TEST_NO} "Check systemd configuration for overwriting core dump settings"
                 Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_ENABLED}" --color YELLOW
                 AddHP 0 1
-            elif ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_BASE_STORAGE_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ) || \
+            elif ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_BASE_STORAGE_NR_ENABLED} -ge 1 ] ) || \
                  ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ) || \
                  ( [ ${SYSD_CORED_BASE_STORAGE_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] ) || \
                  ( [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ); then
@@ -492,8 +496,8 @@
         if [ -f "${ROOTDIR}etc/profile" ]; then
             LogText "Test: Checking if 'ulimit -c 0' exists in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"
             # use tail -1 in the following commands to get the last entry, which is the one that counts (in case of profile.d/ probably counts)
-            ULIMIT_C_VALUE="$(${GREPBINARY} "ulimit -c " ${ROOTDIR}etc/profile 2> /dev/null | ${SEDBINARY} 's/^\s*//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
-            ULIMIT_C_VALUE_SUB="$(${FINDBINARY} ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} "ulimit -c " | ${SEDBINARY} 's/^\s*//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
+            ULIMIT_C_VALUE="$(${GREPBINARY} "ulimit -c " ${ROOTDIR}etc/profile 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
+            ULIMIT_C_VALUE_SUB="$(${FINDBINARY} ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} "ulimit -c " | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
             
             if ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE_SUB}" = "0" ] ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE}" = "0" ] ); then
                 LogText "Result: core dumps are disabled by 'ulimit -c 0' in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"

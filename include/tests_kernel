@@ -26,7 +26,6 @@
 #
 #################################################################################
 #
-    CORE_DUMPS_DISABLED=0
     CPU_PAE=0
     CPU_NX=0
     LINUXCONFIGFILE=""
@@ -49,7 +48,7 @@
                     LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
                     ReportException "${TEST_NO}:01"
                 else
-                    FIND2=$(echo ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
+                    FIND2=$(${ECHOCMD} ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
                     if HasData "${FIND2}"; then
                         LogText "Result: Found match on runlevel5/graphical"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
@@ -437,33 +436,129 @@
     # Description : Checking core dumps configuration (Linux)
     Register --test-no KRNL-5820 --os Linux --weight L --network NO --category security --description "Checking core dumps configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
+        Display --indent 2 --text "- Checking core dumps configuration"
+        LogText "Test: Checking presence of systemd"
+        # systemd option
+        if [ $HAS_SYSTEMD -eq 1 ]; then
+            LogText "Result: systemd is present on this system"
+            LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/systemd/coredump.conf and ${ROOTDIR}etc/systemd/coredump.conf.d/*.conf"
+            # check likely main config file for systemd: ${ROOTDIR}etc/systemd/coredump.conf for ProcessSizeMax=0 and Storage=none
+            SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED=$(${GREPBINARY} -v "^\s*#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${GREPBINARY} -i "ProcessSizeMax=0" | ${WCBINARY} -l)
+            SYSD_CORED_BASE_STORAGE_NR_DISABLED=$(${GREPBINARY} -v "^\s*#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${GREPBINARY} -i "Storage=none" | ${WCBINARY} -l)
+            # check conf files in possibly existing coredump.conf.d folders 
+            # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
+            # while there could be multiple files overwriting each other, we are checking the number of occurrences
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^\s*//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0\s*$" | ${WCBINARY} -l)
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^\s*//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0\s*$" | ${WCBINARY} -l)
+            
+            SYSD_CORED_SUB_STORAGE_FOUND=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^\s*//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
+            SYSD_CORED_SUB_STORAGE_NR_ENABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${SEDBINARY} 's/none//g' | ${WCBINARY} | ${AWKBINARY} '{print $2}')
+            SYSD_CORED_SUB_STORAGE_NR_DISABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${GREPBINARY} -o "none" | ${WCBINARY} | ${AWKBINARY} '{print $2}')
+            
+            if ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_BASE_STORAGE_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -eq 0 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -eq 0 ] ) || \
+               ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -eq 0 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -eq 0 ] ) || \
+               ( [ ${SYSD_CORED_BASE_STORAGE_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -eq 0 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -eq 0 ] ) || \
+               ( [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -eq 0 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -eq 0 ] ); then
+                LogText "Result: core dumps are disabled by 'ProcessSizeMax=0' and 'Storage=none' in systemd configuration files"
+                AddHP 1 1
+                TMP_COLOR="GREEN"
+                if [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED} -gt 1 ] || [ ${SYSD_CORED_BASE_STORAGE_NR_DISABLED} -gt 1 ] || [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED} -gt 1 ] || [ ${SYSD_CORED_SUB_STORAGE_NR_DISABLED} -gt 1 ]; then
+                    LogText "Result: 'ProcessSizeMax=0' and 'Storage=none' are set multiple times in systemd configuration files. Check config!"
+                    ReportSuggestion ${TEST_NO} "Check systemd configuration for duplicate entries of core dump settings"
+                    TMP_COLOR="YELLOW"
+                fi
+                Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_DISABLED}" --color "${TMP_COLOR}"
+            elif [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_BASE_STORAGE_NR_DISABLED} -ge 1 ] && ( [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] || [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ); then
+                LogText "Result: 'ProcessSizeMax=0' and 'Storage=none' are set in ${ROOTDIR}etc/systemd/coredump.conf but overwritten in subdir config files"
+                ReportSuggestion ${TEST_NO} "Check systemd configuration for overwriting core dump settings"
+                Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_ENABLED}" --color YELLOW
+                AddHP 0 1
+            elif ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_BASE_STORAGE_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ) || \
+                 ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ) || \
+                 ( [ ${SYSD_CORED_BASE_STORAGE_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] ) || \
+                 ( [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ); then
+                LogText "Result: core dumps are explicitely enabled in systemd configuration files"
+                ReportSuggestion ${TEST_NO} "If not required, consider explicit disabling of core dump in ${ROOTDIR}etc/systemd/coredump.conf ('ProcessSizeMax=0', 'Storage=none')"
+                Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_ENABLED}" --color RED
+                AddHP 0 1
+            else
+                LogText "Result: core dumps are not disabled in systemd configuration. Didn't find settings 'ProcessSizeMax=0' and 'Storage=none'"
+                Display --indent 4 --text "- configuration in systemd conf files" --result "DEFAULT" --color WHITE
+                AddHP 0 1
+            fi
+        fi
+        # Profile option
+        LogText "Test: Checking presence ${ROOTDIR}etc/profile"
+        if [ -f "${ROOTDIR}etc/profile" ]; then
+            LogText "Test: Checking if 'ulimit -c 0' exists in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"
+            # use tail -1 in the following commands to get the last entry, which is the one that counts (in case of profile.d/ probably counts)
+            ULIMIT_C_VALUE="$(${GREPBINARY} "ulimit -c " ${ROOTDIR}etc/profile 2> /dev/null | ${SEDBINARY} 's/^\s*//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
+            ULIMIT_C_VALUE_SUB="$(${FINDBINARY} ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} "ulimit -c " | ${SEDBINARY} 's/^\s*//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
+            
+            if ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE_SUB}" = "0" ] ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE}" = "0" ] ); then
+                LogText "Result: core dumps are disabled by 'ulimit -c 0' in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"
+                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_DISABLED}" --color GREEN
+                AddHP 1 1
+            elif [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ -z "${ULIMIT_C_VALUE}" ]; then
+                LogText "Result: core dumps are not disabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. Didn't find setting 'ulimit -c 0'"
+                Display --indent 4 --text "- configuration in etc/profile" --result "DEFAULT" --color WHITE
+                AddHP 0 1
+            elif ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE_SUB}" = "unlimited" ] || [ "${ULIMIT_C_VALUE_SUB}" != "0" ] ) ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE}" = "unlimited" ] || [ "${ULIMIT_C_VALUE}" != "0" ] ) ); then
+                LogText "Result: core dumps are enabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. A value higher than 0 is configured for 'ulimit -c'"
+                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_ENABLED}" --color RED
+                AddHP 0 1
+            else
+                LogText "Result: ERROR - something went wrong. Unexpected result during check of ${ROOTDIR}etc/profile and ${ROOTDIR}etc/profile.d/*.sh config files. Please report on Github!"
+                Display --indent 4 --text "- configuration in etc/profile" --result "ERROR" --color YELLOW
+            fi
+        fi
         # Limits option
         LogText "Test: Checking presence ${ROOTDIR}etc/security/limits.conf"
-        if [ -f ${ROOTDIR}etc/security/limits.conf ]; then
+        if [ -f "${ROOTDIR}etc/security/limits.conf" ]; then
             LogText "Result: file ${ROOTDIR}etc/security/limits.conf exists"
-            LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${ROOTDIR}etc/security/limits.d/*"
-            FIND1=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf $( if [ -d ${LIMITS_DIRECTORY} ]; then echo "${LIMITS_DIRECTORY}"; fi ) | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }')
-            FIND2=$(${GREPBINARY} -r -v "^#" ${ROOTDIR}etc/security/limits.conf $( if [ -d ${LIMITS_DIRECTORY} ]; then echo "${LIMITS_DIRECTORY}"; fi ) | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }')
+            LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${LIMITS_DIRECTORY}/*"
+            # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
+            FIND1=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${ROOTDIR}etc/security/limits.conf.d" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
+            FIND2=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${ROOTDIR}etc/security/limits.conf.d" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
+
+            IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
+            IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
+
             if [ "${FIND2}" = "hard core disabled" ]; then
-                LogText "Result: core dumps (soft and hard) are both disabled"
-                Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_DISABLED}" --color GREEN
-                CORE_DUMPS_DISABLED=1
+                LogText "Result: core dumps are hard disabled"
+                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "GREEN"
+                if [ "${FIND1}" = "soft core disabled" ]; then
+                    Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
+                else
+                    Display --indent 4 --text "- 'soft' config in security/limits.conf (implicit)" --result "${STATUS_DISABLED}" --color "GREEN"
+                fi
                 AddHP 3 3
-            elif [ "${FIND1}" = "soft core enabled" -o "${FIND2}" = "hard core enabled" ]; then
-                LogText "Result: core dumps (soft or hard) are enabled"
-                Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_ENABLED}" --color YELLOW
-                ReportSuggestion "${TEST_NO}" "Check if core dumps need to be enabled on this system"
-                AddHP 1 3
+            elif [ "${FIND1}" = "soft core enabled" ] && [ "${FIND2}" = "hard core enabled" ]; then
+                LogText "Result: core dumps (soft and hard) are enabled"
+                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
+                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
+                ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in /etc/security/limits.conf file"
+                AddHP 0 3
+            elif [ "${FIND1}" = "soft core disabled" ]; then
+                LogText "Result: core dumps are disabled for 'soft' ('hard'=${IS_HARDCORE_DISABLED})"
+                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
+                AddHP 2 3
+            elif [ "${FIND1}" = "soft core enabled" ] || [ "${FIND2}" = "hard core enabled" ]; then
+                LogText "Result: core dumps are partially enabled ('hard'=${IS_HARDCORE_DISABLED}, 'soft'=${IS_SOFTCORE_DISABLED})"
+                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "$(if [ "${IS_SOFTCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_SOFTCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                AddHP 0 3
             else
                 LogText "Result: core dumps are not explicitly disabled"
-                Display --indent 2 --text "- Checking core dumps configuration" --result "${STATUS_NOT_FOUND}" --color WHITE
-                ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in /etc/security/limits.conf file"
-                AddHP 2 3
+                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
+                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
+                ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in ${ROOTDIR}etc/security/limits.conf file"
+                AddHP 1 3
             fi
         else
             LogText "Result: file ${ROOTDIR}etc/security/limits.conf does not exist, skipping test"
         fi
-        # TODO: Check ulimit settings in /etc/profile and /etc/profile.d
 
         # Sysctl option
         LogText "Test: Checking sysctl value of fs.suid_dumpable"
@@ -475,7 +570,7 @@
         fi
         if [ "${FIND}" = "2" ]; then
             LogText "Result: programs can dump core dump, but only readable by root (value 2, for debugging with file protection)"
-            Display --indent 4 --text "- Checking setuid core dumps configuration" --result PROTECTED --color GREEN
+            Display --indent 4 --text "- Checking setuid core dumps configuration" --result PROTECTED --color WHITE
             AddHP 1 1
         elif [ "${FIND}" = "1" ]; then
             LogText "Result: all programs can perform core dumps (value 1, for debugging)"
@@ -483,8 +578,10 @@
             ReportSuggestion "${TEST_NO}" "Determine if all binaries need to be able to core dump"
             AddHP 0 1
         else
-            LogText "Result: found default option, some programs can dump (not processes which need to change credentials)"
-            Display --indent 4 --text "- Checking setuid core dumps configuration" --result DEFAULT --color WHITE
+            # 0 - (default) - traditional behaviour. Any process which has changed privilege levels or is execute only will not be dumped
+            # https://www.kernel.org/doc/Documentation/sysctl/fs.txt
+            LogText "Result: found default option (0), no execute only program or program with changed privilege levels can dump"
+            Display --indent 4 --text "- Checking setuid core dumps configuration" --result DISABLED --color GREEN
             AddHP 1 1
         fi
     fi
@@ -596,7 +693,7 @@
                         # Ignore rescue images. Remove generic. and huge. for Slackware machines
                         LogText "Action: checking relevant kernels"
                         KERNELS=$(${LSBINARY} /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
-                        KERNELS_ONE_LINE=$(echo ${KERNELS} | ${TRBINARY} '\n' ' ')
+                        KERNELS_ONE_LINE=$(${ECHOCMD} ${KERNELS} | ${TRBINARY} '\n' ' ')
                         LogText "Output: ${KERNELS_ONE_LINE}"
                     elif [ ! "$(ls ${ROOTDIR}boot/kernel* 2> /dev/null)" = "" ]; then
                         LogText "Output: Found a kernel file in ${ROOTDIR}boot"

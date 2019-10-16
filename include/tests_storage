@@ -30,17 +30,17 @@
 #
     # Test        : STRG-1846
     # Description : Check for disabled firewire storage
-    # Explanation : Best option is to use the install function, or else drivers can still be loaded manually
+    # Explanation : Best option is to use the install function, otherwise drivers can still be loaded manually
     Register --test-no STRG-1846 --os Linux --weight L --network NO --category security --description "Check if firewire storage is disabled"
-    if [ ${SKIPTEST} -eq 0 ]; then
+    if [ "${SKIPTEST}" -eq 0 ]; then
         FOUND=0
         LogText "Test: Checking firewire storage driver in directory /etc/modprobe.d and configuration file /etc/modprobe.conf"
-        if [ -d ${ROOTDIR}etc/modprobe.d ]; then
+        if [ -d "${ROOTDIR}etc/modprobe.d" ]; then
             FIND=$(${LSBINARY} ${ROOTDIR}etc/modprobe.d/* 2> /dev/null)
             if [ -n "${FIND}" ]; then
                 FIND1=$(${EGREPBINARY} "blacklist (ohci1394|firewire[-_]ohci|firewire-core)" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
                 FIND2=$(${EGREPBINARY} "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
-                if [ -n "${FIND1}" -o -n "${FIND2}" ]; then
+                if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
                     FOUND=1
                     LogText "Result: found firewire ohci driver in disabled state"
                 fi
@@ -48,10 +48,10 @@
                 LogText "Result: skipping ${ROOTDIR}etc/modprobe.d, directory found but no files in it"
             fi
         fi
-        if [ -f ${ROOTDIR}etc/modprobe.conf ]; then
-            FIND1=$(${EGREPBINARY} -r "blacklist (ohci1394|firewire[-_]ohci|firewire-core)" ${ROOTDIR}etc/modprobe.conf | ${GREPBINARY} -v "#")
-            FIND2=$(${EGREPBINARY} -r "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" ${ROOTDIR}etc/modprobe.conf | ${GREPBINARY} -v "#")
-            if [ -n "${FIND1}" -o -n "${FIND2}" ]; then
+        if [ -f "${ROOTDIR}etc/modprobe.conf" ]; then
+            FIND1=$(${EGREPBINARY} -r "blacklist (ohci1394|firewire[-_]ohci|firewire-core)" "${ROOTDIR}etc/modprobe.conf" | ${GREPBINARY} -v "#")
+            FIND2=$(${EGREPBINARY} -r "install (ohci1394|firewire[-_]ohci|firewire-core) /bin/(false|true)" "${ROOTDIR}etc/modprobe.conf" | ${GREPBINARY} -v "#")
+            if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
                 FOUND=1
                 LogText "Result: found firewire ohci driver in disabled state"
             fi
@@ -60,7 +60,7 @@
         if [ ${FOUND} -eq 0 ]; then
             LogText "Result: firewire ohci driver is not explicitly disabled"
             Display --indent 2 --text "- Checking firewire ohci driver (modprobe config)" --result "NOT DISABLED" --color WHITE
-            ReportSuggestion ${TEST_NO} "Disable drivers like firewire storage when not used, to prevent unauthorized storage or data theft"
+            ReportSuggestion "${TEST_NO}" "Disable drivers like firewire storage when not used, to prevent unauthorized storage or data theft"
             # after blacklisting modules, make sure to remove them from the initram filesystem: update-initramfs -u
             AddHP 2 3
         else

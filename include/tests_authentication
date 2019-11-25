@@ -478,10 +478,10 @@
         done
         if [ ${FOUND} -eq 1 ]; then
             LogText "Result: sudoers file found (${SUDOERS_FILE})"
-            Display --indent 2 --text "- sudoers file" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent 2 --text "- Sudoers file(s)" --result "${STATUS_FOUND}" --color GREEN
         else
             LogText "Result: sudoers file NOT found"
-            Display --indent 2 --text "- sudoers file" --result "${STATUS_NOT_FOUND}" --color YELLOW
+            Display --indent 2 --text "- Sudoers file" --result "${STATUS_NOT_FOUND}" --color YELLOW
         fi
     fi
 #
@@ -499,13 +499,27 @@
             FIND=$(${LSBINARY} -ld ${SUDOERS_D} | ${CUTBINARY} -c 2-10)
             FIND2=$(${LSBINARY} -nd ${SUDOERS_D} | ${AWKBINARY} '{print $3$4}')
             LogText "Result: Found directory permissions: ${FIND} and owner UID GID: ${FIND2}"
-            if [ "${FIND}" = "rwxrwx---" -o "${FIND}" = "rwxr-x---" -o "${FIND}" = "rwx------" ] && [ "${FIND2}" = "00" ]; then
-                LogText "Result: directory ${SUDOERS_D} permissions/ownership OK"
-                Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_OK}" --color GREEN
-            else
-                LogText "Result: directory has possibly unsafe permissions/ownership"
-                Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_WARNING}" --color RED
-            fi
+            case "${FIND}" in
+                rwx[r-][w-][x-]--- )
+                    LogText "Result: directory ${SUDOERS_D} permissions OK"
+                    if [ "${FIND2}" = "00" ]; then
+                        LogText "Result: directory ${SUDOERS_D} ownership OK"
+                        Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_OK}" --color GREEN
+                    else
+                        LogText "Result: directory ${SUDOERS_D} has possibly unsafe ownership"
+                        Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_WARNING}" --color RED
+                    fi
+                    ;;
+                * )
+                    LogText "Result: directory ${SUDOERS_D} has possibly unsafe permissions"
+                    if [ "${FIND2}" = "00" ]; then
+                        LogText "Result: directory ${SUDOERS_D} ownership OK"
+                    else
+                        LogText "Result: directory ${SUDOERS_D} has possibly unsafe ownership"
+                    fi
+                    Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_WARNING}" --color RED
+                    ;;
+            esac
             SUDO_CONFIG_FILES="${SUDO_CONFIG_FILES} $(${FINDBINARY} ${SUDOERS_D} -type f -print)"
         fi
         for f in ${SUDO_CONFIG_FILES}; do
@@ -513,13 +527,27 @@
             FIND=$(${LSBINARY} -l ${f} | ${CUTBINARY} -c 2-10)
             FIND2=$(${LSBINARY} -n ${f} | ${AWKBINARY} '{print $3$4}')
             LogText "Result: Found file permissions: ${FIND} and owner UID GID: ${FIND2}"
-            if [ "${FIND}" = "rw-------" -o "${FIND}" = "rw-rw----" -o "${FIND}" = "r--r-----" ] && [ "${FIND2}" = "00" ]; then
-                LogText "Result: file ${f} permissions/ownership OK"
-                Display --indent 4 --text "- Permissions for: ${f}" --result "${STATUS_OK}" --color GREEN
-            else
-                LogText "Result: file has possibly unsafe permissions/ownership"
-                Display --indent 4 --text "- Permissions for: ${f}" --result "${STATUS_WARNING}" --color RED
-            fi
+            case "${FIND}" in
+                r[w-]-[r-][w-]---- )
+                    LogText "Result: file ${f} permissions OK"
+                    if [ "${FIND2}" = "00" ]; then
+                        LogText "Result: file ${f} ownership OK"
+                        Display --indent 4 --text "- Permissions for: ${f}" --result "${STATUS_OK}" --color GREEN
+                    else
+                        LogText "Result: file ${f} has possibly unsafe ownership"
+                        Display --indent 4 --text "- Permissions for: ${f}" --result "${STATUS_WARNING}" --color RED
+                    fi
+                    ;;
+                * )
+                    LogText "Result: file ${f} has possibly unsafe permissions"
+                    if [ "${FIND2}" = "00" ]; then
+                        LogText "Result: file ${f} ownership OK"
+                    else
+                        LogText "Result: file ${f} has possibly unsafe ownership"
+                    fi
+                    Display --indent 4 --text "- Permissions for: ${f}" --result "${STATUS_WARNING}" --color RED
+                    ;;
+            esac
         done
     fi
 #
@@ -1469,13 +1497,16 @@
         LogText "Test: checking /etc/doas.conf permissions"
         FIND=$(ls -l ${DOAS_FILE} | ${CUTBINARY} -c 2-10)
         LogText "Result: Found /etc/doas.conf file permissions: ${FIND}"
-        if [ "${FIND}" = "rw-------" -o "${FIND}" = "rw-rw----" -o "${FIND}" = "r--r-----" ]; then
-            LogText "Result: file /etc/doas.conf has correct permissions"
-            Display --indent 4 --text "- Check doas file permissions" --result "${STATUS_OK}" --color GREEN
-        else
-            LogText "Result: file has possibly unsafe file permissions"
-            Display --indent 4 --text "- Check doas file permissions" --result "${STATUS_WARNING}" --color RED
-        fi
+        case "${FIND}" in
+            r[w-]-[r-][w-]---- )
+                LogText "Result: file /etc/doas.conf has correct permissions"
+                Display --indent 4 --text "- Check doas file permissions" --result "${STATUS_OK}" --color GREEN
+                ;;
+            * )
+                LogText "Result: file has possibly unsafe file permissions"
+                Display --indent 4 --text "- Check doas file permissions" --result "${STATUS_WARNING}" --color RED
+                ;;
+        esac
     fi
 #
 #################################################################################

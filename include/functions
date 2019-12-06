@@ -98,6 +98,7 @@
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
 #    SkipAtomicTest             Test if a subtest needs to be skipped
+#    Status                     Show execution status, such as active test being performed
 #    StoreNginxSettings         Save parsed nginx settings to file
 #    TestValue                  Evaluate a value in a string or key
 #    ViewCategories             Show available category of tests
@@ -1281,6 +1282,9 @@
                     CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
                 fi
 
+                # Add leading zeros if necessary
+                CHECK_PERMISSION=$(echo "${CHECK_PERMISSION}" | ${AWKBINARY} '{printf "%03d",$1}')
+
                 # First try stat command
                 LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
                 if [ -n "${STATBINARY}" ]; then
@@ -1299,7 +1303,11 @@
                         *)
                             # Only use find when OS is NOT AIX and binaries are NOT busybox
                             if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
-                                DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
+                                if [ -d ${CHECKFILE} ]; then
+                                    DATA=$(${FINDBINARY} ${CHECKFILE} -maxdepth 0 -printf "%m")
+                                else
+                                    DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
+                                fi
                             fi
                         ;;
                     esac
@@ -1317,12 +1325,15 @@
 
                 # Convert permissions to octal when needed
                 case ${DATA} in
-                    "r"|"w"|"x"|"-")
+                    [-r][-w][-x][-r][-w][-x][-r][-w][-x] )
                         LogText "Converting value ${DATA} to octal"
-                        DATA=$(echo ${DATA} | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
-                        if [ "${DATA}" = "0" ]; then DATA="000"; fi
+                        # add a dummy character as first character so it looks like output is a normal file
+                        DATA=$(echo "-${DATA}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
                     ;;
                 esac
+
+                # Add leading zeros if necessary
+                DATA=$(echo "${DATA}" | ${AWKBINARY} '{printf "%03d",$1}')
 
                 if [ -n "${DATA}" ]; then
                     if [ "${DATA}" = "${CHECK_PERMISSION}" ]; then
@@ -3380,6 +3391,22 @@
             ReportException "SkipAtomicTest()" "Function called without right number of arguments (1)"
         fi
         return $RETVAL
+    }
+
+
+    ################################################################################
+    # Name        : Status()
+    # Description : Reports back the status of tool
+    #
+    # Returns     : text to screen
+    # Notes       : kill --signal USR1 <PID> or pkill --signal USR1 lynis
+    ################################################################################
+
+    Status() {
+        echo ""
+        echo "Date / time : $(date "+%Y-%m-%d %H:%M:%S")"
+        echo "Active test : ${TEST_NO:-NONE}"
+        echo ""
     }
 
 

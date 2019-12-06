@@ -55,10 +55,12 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: PROC-3802 - check presence of prelink tooling
 - New report key: openssh_daemon_running
 - New command: lynis generate systemd-units
+- Sending USR1 signal to Lynis process will show active status
 - Measure timing of tests and report slow tests (10+ seconds)
 - Initial support for Clear Linux OS
 - Added end-of-life data for Arch Linux and Debian
 - Detection and end-of-life data added for Amazon Linux
+- Detection of linux-lts on Arch Linux
 
 ### Changed
 - Function: CheckItem() now returns only exit code (ITEM_FOUND is dropped)
@@ -70,6 +72,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
 - AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins
+- BANN-7126 - additional words for login banner are accepted
 - CONT-8106 - support newer 'docker info' output
 - CRYP-8002 - gather kernel entropy on Linux systems
 - FILE-6374 - changed log and allow root location to be changed
@@ -87,6 +90,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - KRNL-5820 - extended check to include limits.d directory
 - LOGG-2154 - added support for rsyslog configurations
 - MAIL-8804 - replaced static strings with translation-aware strings
+- MALW-3280 - Kaspersky detection added
 - NAME-4402 - check if /etc/hosts exists before performing test
 - NAME-4404 - improved screen and log output
 - NAME-4408 - corrected Report function call
@@ -95,6 +99,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - PROC-3612 - show 'Not found' instead of 'OK'
 - PROC-3614 - show 'Not found' instead of 'OK'
 - SCHD-7702 - removed hardening points
+- SINT-7010 - limit test to only macOS systems
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
 - SSH-7408 - changed text in suggestion and report
@@ -108,6 +113,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Use only locations from PATH environment variable, unless it is not defined
 - Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
+- Improved screen output in several tests
 - Several code cleanups, simplification of commands, and code standardization
 - Tests using lsof may ignore individual threads (if supported)
 - Do not show tool tips when quiet option is used

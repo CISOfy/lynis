@@ -57,7 +57,8 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if users' home directories permissions are 750 or more restrictive
         FOUND=0
-        for LINE in $(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print $1 ":" $6}'); do
+        USERDATA=$(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }')
+        while read -r LINE; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
             DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f2)
             if [ -d "${DIR}" ]; then
@@ -70,7 +71,9 @@
                     LogText "Result: permissions of home directory ${DIR} of user ${USER} are fine"
                 fi
             fi
-        done
+        done << EOF
+${USERDATA}
+EOF
 
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Permissions of home directories" --result "${STATUS_WARNING}" --color RED
@@ -89,7 +92,8 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if users own their home directories
         FOUND=0
-        for LINE in $(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print $1 ":" $6}'); do
+        USERDATA=$(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }')
+        while read -r LINE; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
             DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f2)
             if [ -d ${DIR} ]; then
@@ -101,7 +105,9 @@
                     LogText "Result: ownership of home directory ${DIR} for user ${USER} looks to be correct"
                 fi
             fi
-        done
+        done << EOF
+${USERDATA}
+EOF
 
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Ownership of home directories" --result "${STATUS_WARNING}" --color RED

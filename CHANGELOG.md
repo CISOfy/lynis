@@ -88,6 +88,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - INSE-8320 - test for TFTP server tools
 - INSE-8342 - renamed to INSE-8304
 - KRNL-5820 - extended check to include limits.d directory
+- KRNL-5830 - skip test partially when running non-privileged
 - LOGG-2154 - added support for rsyslog configurations
 - MAIL-8804 - replaced static strings with translation-aware strings
 - MALW-3280 - Kaspersky detection added

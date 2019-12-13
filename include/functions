@@ -1288,17 +1288,25 @@
                 # First try stat command
                 LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
                 if [ -n "${STATBINARY}" ]; then
-                    # busybox does not support format
-                    if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
-                        DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
-                    fi
+
+                    case ${OS} in
+                        "*BSD")
+                            DATA=$(${STATBINARY} -f "%OLp" ${CHECKFILE})
+                        ;;
+                        *)
+                            # busybox does not support format
+                            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                                DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
+                            fi
+                        ;;
+                    esac
                 fi
 
                 # See if we can use the find binary
                 if [ -z "${DATA}" ]; then
                     case ${OS} in
-                        "AIX")
-                            Debug "Skipping find command, as AIX does not support -printf"
+                        "AIX" | "*BSD")
+                            Debug "Skipping find command, as this operating system does not support -printf parameter"
                         ;;
                         *)
                             # Only use find when OS is NOT AIX and binaries are NOT busybox

@@ -60,7 +60,8 @@
         USERDATA=$(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }')
         while read -r LINE; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
-            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f2)
+            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+            LogText "Test: checking directory '${DIR}' for user '${USER}'"
             if [ -d "${DIR}" ]; then
                 WRITE_GROUP_PERM=$(${LSBINARY} -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c6)
                 OTHER_PERMS=$(${LSBINARY} -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c8-10)
@@ -77,10 +78,10 @@ EOF
 
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Permissions of home directories" --result "${STATUS_WARNING}" --color RED
-            ReportWarning ${TEST_NO} "Permissions of some users' home directories are not strict enough. Should be 750 or more restrictive."
+            ReportSuggestion "${TEST_NO}" "Double check the permissions of home directories as some might be not strict enough."
         else
             Display --indent 2 --text "- Permissions of home directories" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: Ok, All users' home directories permissions are 750 or more restrictive"
+            LogText "Result: OK, all permissions of the home directories are 750 or more restrictive"
         fi
     fi
 #
@@ -95,11 +96,12 @@ EOF
         USERDATA=$(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }')
         while read -r LINE; do
             USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
-            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f2)
-            if [ -d ${DIR} ]; then
+            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+            LogText "Test: checking directory '${DIR}' for user '${USER}'"
+            if [ -d "${DIR}" ]; then
                 OWNER=$(ls -ld ${DIR} | awk -F" " '{ print $3 }')
                 if [ ! "${OWNER}" = "${USER}" ]; then
-                    LogText "Result: The home directory ${DIR} of user ${USER} is owned by ${OWNER}. Change with: chown ${USER} ${DIR}" 
+                    LogText "Result: the home directory ${DIR} of user ${USER} is owned by ${OWNER}. Correct: chown ${USER} ${DIR}" 
                     FOUND=1
                 else
                     LogText "Result: ownership of home directory ${DIR} for user ${USER} looks to be correct"
@@ -111,10 +113,10 @@ EOF
 
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Ownership of home directories" --result "${STATUS_WARNING}" --color RED
-            ReportWarning ${TEST_NO} "Owner of some users' home directories are not correctly set"
+            ReportSuggestion "${TEST_NO}" "Double check the ownership of home directories as some might be incorrect."
         else
             Display --indent 2 --text "- Ownership of home directories" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: Ok, All users own their home directories"
+            LogText "Result: OK, all users own their home directories"
         fi
     fi
 #
@@ -141,10 +143,10 @@ EOF
                 LogText "Info: above files could be redirected files to avoid logging and should be investigated"
                 ReportWarning ${TEST_NO} "Incorrect file type found for shell history file"
             fi
-            LogText "Remarks: History files are normally of the type 'file'. Symbolic links and other types are suspicious."
+            LogText "Remark: History files are normally of the type 'file'. Symbolic links and other types are suspicious."
         else
             Display --indent 2 --text "- Checking shell history files" --result "${STATUS_SKIPPED}" --color WHITE
-            LogText "Result: Homedirs is empty, test will be skipped"
+            LogText "Result: Homedirs is empty, therefore test will be skipped"
         fi
     fi
 #

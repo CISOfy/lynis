@@ -96,6 +96,8 @@ Using the relevant options, the scan will change base on the intended goal.
 - NAME-4404 - improved screen and log output
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
+- PKGS-7410 - use multiple package managers when available
+- PKGS-7410 - added support for Zypper to test number of kernels
 - PROC-3602 - allow different root directory
 - PROC-3612 - show 'Not found' instead of 'OK'
 - PROC-3614 - show 'Not found' instead of 'OK'

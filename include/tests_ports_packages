@@ -1245,31 +1245,51 @@
     Register --test-no PKGS-7410 --weight L --network NO --category security --description "Count installed kernel packages"
     if [ ${SKIPTEST} -eq 0 ]; then
         KERNELS=0
+        TESTED=0
         LogText "Test: Checking how many kernel packages are installed"
 
-        if [ -n "${DPKGBINARY}" ]; then
+        if [ "${DPKGBINARY}" ]; then
+            TESTED=1
             KERNEL_PKG_NAMES="linux-image-[0-9]|raspberrypi-kernel|pve-kernel-[0-9]"
             KERNELS=$(${DPKGBINARY} -l 2> /dev/null | ${EGREPBINARY} "${KERNEL_PKG_NAMES}" | ${WCBINARY} -l)
             if [ ${KERNELS} -eq 0 ]; then
                 LogText "Result: found no kernels from dpkg -l output, which is unexpected"
-                ReportException "KRNL-5840:2" "Could not find any kernel packages from DPKG output"
             elif [ ${KERNELS} -gt 5 ]; then
                 LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
                 ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages" "${KERNELS} kernels" "text:validate dpkg -l output and perform cleanup with apt autoremove"
             else
                 LogText "Result: found ${KERNELS} kernel packages on the system, which is fine"
             fi
-        elif [ -n "${RPMBINARY}" ]; then
+        fi
+        if [ "${RPMBINARY}" ]; then
+            TESTED=1
             KERNELS=$(${RPMBINARY} -q kernel 2> /dev/null | ${WCBINARY} -l)
             if [ ${KERNELS} -eq 0 ]; then
                 LogText "Result: found no kernels from rpm -q kernel output, which is unexpected"
-                ReportException "KRNL-5840:1" "Could not find any kernel packages from RPM output"
             elif [ ${KERNELS} -gt 5 ]; then
                 LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
                 ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages with package-cleanup utility (--old-kernels)"
             else
                 LogText "Result: found ${KERNELS} kernel packages on the system, which is fine"
             fi
+        fi
+
+        if [ "${ZYPPERBINARY}" ]; then
+            TESTED=1
+            KERNELS=$(${ZYPPERBINARY} --non-interactive -n se --type package --match-exact --installed-only "kernel-default" 2> /dev/null | ${GREPBINARY} "kernel-default" | ${WCBINARY} -l)
+            if [ ${KERNELS} -eq 0 ]; then
+                LogText "Result: found no kernels from zypper output, which is unexpected."
+                ReportException "KRNL-5840:3" "Could not find any kernel packages via package manager. Maybe using a different kernel package?"
+            elif [ ${KERNELS} -gt 3 ]; then
+                LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
+                ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages"
+            else
+                LogText "Result: found ${KERNELS} kernel packages on the system, which is fine"
+            fi
+        fi
+
+        if [ ${KERNELS} -eq 0 -a ${TESTED} -eq 1 ]; then
+            ReportException "KRNL-5840:1" "Could not find any kernel packages via package manager"
         fi
 
         Report "installed_kernel_packages=${KERNELS}"

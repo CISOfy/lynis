@@ -642,27 +642,33 @@
                     fi
                 elif [ -f ${ROOTDIR}boot/vmlinuz-linux -o -f ${ROOTDIR}boot/vmlinuz-linux-lts -o -f $(ls -t ${ROOTDIR}boot/vm[l-]* 2> /dev/null | head -1) ]; then
                     if [ -L ${ROOTDIR}boot/vmlinuz-linux ]; then
+                        LogText "Result: found symlink ${ROOTDIR}boot/vmlinuz-linux"
                         FOUND_VMLINUZ=$(readlink ${ROOTDIR}boot/vmlinuz-linux)
+                        LogText "Result: symlinked target is ${FOUND_VMLINUZ}"
+                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | sed 's/^vmlinuz-//')
                     elif [ -f ${ROOTDIR}boot/vmlinuz-linux-lts ]; then
+                        LogText "Result: found boot/vmlinuz-linux-lts"
                         FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-linux-lts
                     else
                         # Match on /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default
                         FOUND_VMLINUZ=$(ls -t ${ROOTDIR}boot/vm[l-]* 2> /dev/null | head -1)
                     fi
-                    LogText "Result: found ${FOUND_VMLINUZ}"
-                    LogText "Test: checking kernel version on disk"
-                    NEXTLINE=0
-                    VERSION_ON_DISK=""
-                    for I in $(file ${FOUND_VMLINUZ}); do
-                        if [ ${NEXTLINE} -eq 1 ]; then
-                            VERSION_ON_DISK="${I}"
-                            break
-                        else
-                            # Searching for the Linux kernel after the keyword 'version'
-                            if [ "${I}" = "version" ]; then NEXTLINE=1; fi
-                        fi
-                    done
-                    if [ -n "${VERSION_ON_DISK}" ]; then
+
+                    if [ -z "${VERSION_ON_DISK}" ]; then
+                        LogText "Result: found ${FOUND_VMLINUZ}"
+                        LogText "Test: checking kernel version on disk"
+                        NEXTLINE=0
+                        VERSION_ON_DISK=""
+                        for I in $(file ${FOUND_VMLINUZ}); do
+                            if [ ${NEXTLINE} -eq 1 ]; then
+                                VERSION_ON_DISK="${I}"
+                                break
+                            else
+                                # Searching for the Linux kernel after the keyword 'version'
+                                if [ "${I}" = "version" -o  ]; then NEXTLINE=1; fi
+                            fi
+                        done
+                    else
                         LogText "Result: found version ${VERSION_ON_DISK}"
                         ACTIVE_KERNEL=$(uname -r)
                         LogText "Result: active kernel version ${ACTIVE_KERNEL}"
@@ -673,9 +679,10 @@
                             REBOOT_NEEDED=1
                             LogText "Result: reboot needed, as there is a difference between active kernel and the one on disk"
                         fi
-                    else
+                    fi
+                    if [ -z "${VERSION_ON_DISK}" ]; then
                         LogText "Result: could not find the version on disk"
-                        ReportException "${TEST_NO}:4" "Could not find the kernel version from /boot/vmlinux-linux"
+                        ReportException "${TEST_NO}:4" "Could not find the kernel version"
                     fi
                 else
                     if [ -L ${ROOTDIR}boot/vmlinuz ]; then

@@ -759,7 +759,7 @@
     # Test        : FILE-6430
     # Description : Disable mounting of some filesystems
     # Rationale   : Unless there is a specific reason to use a particular file system, disable it.
-    # Data        : cramfs freevxfs hfs hfsplus jffs2 squashfs udf 
+    # Data        : cramfs freevxfs hfs hfsplus jffs2 squashfs udf
     Register --test-no FILE-6430 --weight L --network NO --category security --description "Disable mounting of some filesystems"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -n "${LSMODBINARY}" -a -f /proc/modules ]; then
@@ -770,19 +770,17 @@
             AVAILABLE_MODPROBE_FS=""
             for FS in ${LIST_FS_NOT_SUPPORTED}; do
                 # Check if filesystem is present in modprobe output
-                FIND=$(${MODPROBEBINARY} -v -n $FS 2>/dev/null | ${EGREPBINARY} "/${FS}.ko" | tail -1)
+                FIND=$(${MODPROBEBINARY} -v -n ${FS} 2>/dev/null | ${EGREPBINARY} "/${FS}.ko" | ${TAILBINARY} -1)
                 if [ -n "${FIND}" ]; then
-                    LogText "Result: found module support in kernel: ${FIND}"
+                    LogText "Result: found ${FS} support in the kernel (output = ${FIND})"
                     Debug "Module ${FS} present in the kernel"
                     LogText "Test: Checking if ${FS} is active"
                     # Check if FS is present in lsmod output
                     FIND=$(${LSMODBINARY} | ${EGREPBINARY} "^${FS}")
                     if IsEmpty "${FIND}"; then
-                        LogText "Result: module ${FS} is not loaded in the kernel"
+                        LogText "Result: module ${FS} is currently not loaded in the kernel."
                         AddHP 2 3
                         if IsDebug; then Display --indent 6 --text "- Module ${FS} not loaded (lsmod)" --result OK --color GREEN; fi
-                        # Tip to disable a particular module if it is not loaded TODO
-                        #ReportSuggestion "${TEST_NO}" "The modprobe.d directory should contain a file with the entry 'install ${FS} /bin/true'"
                         FOUND=1
                         AVAILABLE_MODPROBE_FS="${AVAILABLE_MODPROBE_FS}${FS} "
                     else
@@ -796,6 +794,7 @@
             done
             if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "- Discovered kernel modules: ${AVAILABLE_MODPROBE_FS}"
+                ReportSuggestion "${TEST_NO}" "Consider disabling unused kernel modules" "/etc/modprobe.d/blacklist.conf" "Add 'install MODULENAME /bin/true' (without quotes)"
             fi
         else
             LogText "Test skipped lsmod binary not found or /proc/modules can not be opened"

@@ -94,6 +94,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - LOGG-2154 - added support for rsyslog configurations
 - MAIL-8804 - replaced static strings with translation-aware strings
 - MALW-3280 - Kaspersky detection added
+- MALW-3280 - CrowdStrike falcon-sensor detection added
 - NAME-4402 - check if /etc/hosts exists before performing test
 - NAME-4404 - improved screen and log output
 - NAME-4408 - corrected Report function call

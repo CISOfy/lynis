@@ -83,7 +83,9 @@ Using the relevant options, the scan will change base on the intended goal.
 - HOME-9304 - improved selection for normal users
 - HOME-9306 - improved selection for normal users
 - INSE-8050 - added com.apple.ftp-proxy and improved text output
+- INSE-8050 - corrected function call for showing suggestion
 - INSE-8116 - added rsync service
+- INSE-8314 - changed text of suggestion
 - INSE-8318 - test for TFTP client tools
 - INSE-8320 - test for TFTP server tools
 - INSE-8342 - renamed to INSE-8304

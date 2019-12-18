@@ -372,7 +372,7 @@
         else
             Display --indent 2 --text "- Using Zypper to find vulnerable packages" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Zypper found one or more installed packages which are vulnerable."
-            ReportWarning ${TEST_NO} "Found one or more vulnerable packages installed"
+            ReportWarning "${TEST_NO}" "Found one or more vulnerable packages installed"
             # Unfortunately zypper does not properly give back which package it is. Usually best guess is last word on the line
             FIND=$(${ZYPPERBINARY} --non-interactive lp | ${AWKBINARY} '{ if ($5=="security" || $7=="security") { print $NF }}' | ${SEDBINARY} 's/:$//' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
             LogText "List of vulnerable packages/version:"
@@ -487,7 +487,7 @@
                 COUNT=$((COUNT + 1))
                 LogText "Found unpurged package: ${J}"
             done
-            ReportSuggestion ${TEST_NO} "Purge old/removed packages (${COUNT} found) with aptitude purge or dpkg --purge command. This will cleanup old configuration files, cron jobs and startup scripts."
+            ReportSuggestion "${TEST_NO}" "Purge old/removed packages (${COUNT} found) with aptitude purge or dpkg --purge command. This will cleanup old configuration files, cron jobs and startup scripts."
         fi
     else
         LogText "Result: dpkg can NOT be found on this system, test skipped"
@@ -510,7 +510,7 @@
             else
                 Display --indent 2 --text "- Checking presence old distfiles" --result "${STATUS_WARNING}" --color YELLOW
                 LogText "Result: found ${FIND} unused distfiles"
-                ReportSuggestion ${TEST_NO} "Unused distfiles found. Use portsclean to delete these files. For example: portsclean -DD."
+                ReportSuggestion "${TEST_NO}" "Unused distfiles found. Use portsclean to delete these files. For example: portsclean -DD."
             fi
         fi
     fi
@@ -561,7 +561,7 @@
                 # Decrease hardening points for every found vulnerable package
                 AddHP 1 2
             done
-            ReportWarning ${TEST_NO} "Found one or more vulnerable packages. Run: dnf upgrade"
+            ReportWarning "${TEST_NO}" "Found one or more vulnerable packages. Run: dnf upgrade"
             Display --indent 2 --text "- Using DNF to find vulnerable packages" --result "${STATUS_WARNING}" --color RED
         else
             LogText "Result: no security updates found"
@@ -618,13 +618,13 @@
                 LogText "Result: no cron job is configured for debsecan"
                 Display --indent 4 --text "- debsecan cron job" --result "${STATUS_NOT_FOUND}" --color YELLOW
                 AddHP 1 3
-                ReportSuggestion ${TEST_NO} "Check debsecan cron job and ensure it is enabled"
+                ReportSuggestion "${TEST_NO}" "Check debsecan cron job and ensure it is enabled"
             fi
         else
             LogText "Result: debsecan is not installed."
             Display --indent 4 --text "- debsecan utility" --result "${STATUS_NOT_FOUND}" --color YELLOW
             AddHP 0 2
-            ReportSuggestion ${TEST_NO} "Install debsecan to check for vulnerabilities on installed packages."
+            ReportSuggestion "${TEST_NO}" "Install debsecan to check for vulnerabilities on installed packages."
         fi
     fi
 #
@@ -655,7 +655,7 @@
         else
             LogText "Result: debsums utility is not installed."
             AddHP 0 2
-            ReportSuggestion ${TEST_NO} "Install debsums utility for the verification of packages with known good database."
+            ReportSuggestion "${TEST_NO}" "Install debsums utility for the verification of packages with known good database."
         fi
     fi
 #
@@ -702,7 +702,7 @@
                 else
                     Display --indent 2 --text "- Checking pkg_admin audit to obtain vulnerable packages" --result "${STATUS_WARNING}" --color RED
                     LogText "Result: pkg_admin audit found one or more installed packages which are vulnerable."
-                    ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
+                    ReportWarning "${TEST_NO}" "Found one or more vulnerable packages."
                     LogText "List of vulnerable packages/version:"
                     for I in $(${ROOTDIR}usr/sbin/pkg_admin audit | ${AWKBINARY} '{ print $2 }' | ${SORTBINARY} -u); do
                         VULNERABLE_PACKAGES_FOUND=1
@@ -755,7 +755,7 @@
                         LogText "Vulnerable package: ${ITEM}"
                         AddHP 1 2
                     done
-                    ReportWarning ${TEST_NO} "Found vulnerable packages" "${COUNT} vulnerable packages" "text:Run pkg audit"
+                    ReportWarning "${TEST_NO}" "Found vulnerable packages" "${COUNT} vulnerable packages" "text:Run pkg audit"
                 else
                     LogText "Result: found an exit code greater than zero, yet no output"
                 fi
@@ -786,8 +786,8 @@
         else
             Display --indent 2 --text "- Checking portaudit to obtain vulnerabilities" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Portaudit found one or more installed packages which are vulnerable."
-            ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
-            ReportSuggestion ${TEST_NO} "Update your system with portupgrade or other tools"
+            ReportWarning "${TEST_NO}" "Found one or more vulnerable packages."
+            ReportSuggestion "${TEST_NO}" "Update your system with portupgrade or other tools"
             LogText "List of vulnerable packages/version:"
             for PKG in $(${ROOTDIR}usr/local/sbin/portaudit | ${GREPBINARY} "Affected package" | ${CUTBINARY} -d ' ' -f3 | ${SORTBINARY} -u); do
                 VULNERABLE_PACKAGES_FOUND=1
@@ -812,7 +812,7 @@
         if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
             LogText "Result: YUM package update management failed"
             Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_WARNING}" --color RED
-            ReportWarning ${TEST_NO} "YUM is not properly configured or registered for this platform (no repolist found)"
+            ReportWarning "${TEST_NO}" "YUM is not properly configured or registered for this platform (no repolist found)"
         else
             LogText "Result: YUM repository available (${FIND})"
             Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_OK}" --color GREEN
@@ -838,8 +838,8 @@
             else
                 LogText "Result: One or more duplicate packages found"
                 Display --indent 2 --text "- Checking package database duplicates" --result "${STATUS_WARNING}" --color RED
-                ReportWarning ${TEST_NO} "Found one or more duplicate packages installed"
-                ReportSuggestion ${TEST_NO} "Run package-cleanup to solve duplicate package problems"
+                ReportWarning "${TEST_NO}" "Found one or more duplicate packages installed"
+                ReportSuggestion "${TEST_NO}" "Run package-cleanup to solve duplicate package problems"
             fi
 
             # Check for package database problems
@@ -851,13 +851,13 @@
             else
                 LogText "Result: One or more problems found in package database"
                 Display --indent 2 --text "- Checking package database for problems" --result "${STATUS_WARNING}" --color RED
-                ReportWarning ${TEST_NO} "Found one or more problems in the package database"
-                ReportSuggestion ${TEST_NO} "Run package-cleanup to solve package problems"
+                ReportWarning "${TEST_NO}" "Found one or more problems in the package database"
+                ReportSuggestion "${TEST_NO}" "Run package-cleanup to solve package problems"
             fi
         else
             Display --indent 2 --text "- yum-utils package not installed" --result "${STATUS_SUGGESTION}" --color YELLOW
             LogText "Result: YUM utils package not found"
-            ReportSuggestion ${TEST_NO} "Install package 'yum-utils' for better consistency checking of the package database"
+            ReportSuggestion "${TEST_NO}" "Install package 'yum-utils' for better consistency checking of the package database"
         fi
     fi
 #
@@ -927,12 +927,12 @@
                     LogText "Vulnerable package: ${I}"
                     AddHP 1 2
                 done
-                ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
+                ReportWarning "${TEST_NO}" "Found one or more vulnerable packages."
             fi
         else
             LogText "Result: yum-security package not found"
             Display --indent 2 --text "- Checking missing security packages" --result "${STATUS_SKIPPED}" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Install package yum-plugin-security if possible, to maintain security updates easier (yum install yum-plugin-security)"
+            ReportSuggestion "${TEST_NO}" "Install package yum-plugin-security if possible, to maintain security updates easier (yum install yum-plugin-security)"
         fi
     fi
 #
@@ -973,7 +973,7 @@
                 AddHP 3 3
             else
                 Display --indent 2 --text "- Checking GPG checks (yum.conf)" --result "${STATUS_DISABLED}" --color RED
-                ReportWarning ${TEST_NO} "No GPG signing option found in yum.conf"
+                ReportWarning "${TEST_NO}" "No GPG signing option found in yum.conf"
                 AddHP 2 3
             fi
         fi
@@ -1019,7 +1019,7 @@
                 AddHP 3 3
             else
                 Display --indent 2 --text "- Checking security repository in sources.list file or directory" --result "${STATUS_WARNING}" --color RED
-                ReportWarning ${TEST_NO} "Can't find any security repository in /etc/apt/sources.list or sources.list.d directory"
+                ReportWarning "${TEST_NO}" "Can't find any security repository in /etc/apt/sources.list or sources.list.d directory"
                 AddHP 0 3
             fi
         else
@@ -1043,8 +1043,8 @@
         else
             LogText "Result: package database is most likely NOT consistent"
             Display --indent 2 --text "- Checking APT package database" --result "${STATUS_WARNING}" --color RED
-            ReportWarning ${TEST_NO} "apt-get check returned a non successful exit code."
-            ReportSuggestion ${TEST_NO} "Run apt-get to perform a manual package database consistency check."
+            ReportWarning "${TEST_NO}" "apt-get check returned a non successful exit code."
+            ReportSuggestion "${TEST_NO}" "Run apt-get to perform a manual package database consistency check."
         fi
     fi
 #
@@ -1080,7 +1080,7 @@
             # Check if we get the proper line back and amount of security patches available
             if [ -z "${FIND}" ]; then
                 LogText "Result: did not find security updates line"
-                ReportSuggestion ${TEST_NO} "Check if system is up-to-date, security updates test (apt-check) gives an unexpected result"
+                ReportSuggestion "${TEST_NO}" "Check if system is up-to-date, security updates test (apt-check) gives an unexpected result"
                 ReportException "${TEST_NO}:1" "Apt-check did not provide any result"
             else
                 if [ "${FIND}" = "0" ]; then
@@ -1113,8 +1113,8 @@
         fi
         if [ ${SCAN_PERFORMED} -eq 1 ]; then
             if [ ${VULNERABLE_PACKAGES_FOUND} -eq 1 ]; then
-                ReportWarning ${TEST_NO} "Found one or more vulnerable packages."
-                ReportSuggestion ${TEST_NO} "Update your system with apt-get update, apt-get upgrade, apt-get dist-upgrade and/or unattended-upgrades"
+                ReportWarning "${TEST_NO}" "Found one or more vulnerable packages."
+                ReportSuggestion "${TEST_NO}" "Update your system with apt-get update, apt-get upgrade, apt-get dist-upgrade and/or unattended-upgrades"
                 Display --indent 2 --text "- Checking vulnerable packages" --result "${STATUS_WARNING}" --color RED
             else
                 Display --indent 2 --text "- Checking vulnerable packages" --result "${STATUS_OK}" --color GREEN
@@ -1173,7 +1173,7 @@
             fi
         else
             LogText "Result: glsa-check tool not found"
-            ReportSuggestion ${TEST_NO} "Use Emerge to install the gentoolkit package, which includes glsa-check tool for additional security checks."
+            ReportSuggestion "${TEST_NO}" "Use Emerge to install the gentoolkit package, which includes glsa-check tool for additional security checks."
         fi
     fi
 #
@@ -1205,7 +1205,7 @@
         else
             LogText "Result: ${ROOTDIR}usr/bin/apt-show-versions not found"
             Display --indent 2 --text "- Checking upgradeable packages" --result "${STATUS_SKIPPED}" --color WHITE
-            ReportSuggestion ${TEST_NO} "Install package apt-show-versions for patch management purposes"
+            ReportSuggestion "${TEST_NO}" "Install package apt-show-versions for patch management purposes"
         fi
     fi
 
@@ -1219,7 +1219,7 @@
         LogText "Test: checking for package audit tool"
         if [ ${PACKAGE_AUDIT_TOOL_FOUND} -eq 0 ]; then
             Display --indent 2 --text "- Checking package audit tool" --result "${STATUS_NONE}" --color RED
-            ReportSuggestion ${TEST_NO} "Install a package audit tool to determine vulnerable packages"
+            ReportSuggestion "${TEST_NO}" "Install a package audit tool to determine vulnerable packages"
             LogText "Result: no package audit tool found"
         else
             Display --indent 2 --text "- Checking package audit tool" --result INSTALLED --color GREEN

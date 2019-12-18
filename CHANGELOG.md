@@ -77,6 +77,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - CRYP-8002 - gather kernel entropy on Linux systems
 - FILE-6374 - changed log and allow root location to be changed
 - FILE-6374 - corrected condition to find 'defaults' flag in /etc/fstab
+- FILE-6430 - minor code improvements and show suggestion with more details
 - FILE-7524 - optimized file permissions testing
 - FINT-4328 - corrected text in log
 - FINT-4334 - improved process detection for lfd

@@ -520,6 +520,16 @@
             # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
             FIND1=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
             FIND2=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
+            FIND3=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="-" && $3=="core" && $4=="0") { print "core dumps disabled" } else if ($1=="*" && $2=="-" && $3=="core" && $4!="0") { print "core dumps enabled" } }' | ${TAILBINARY} -1)
+
+            # When "* - core [value]" is used, then this sets both soft and core. In that case we set the values, as they the type 'hard' and 'soft' will not be present in the configuration file.
+            if [ "${FIND3}" = "core dumps disabled" ]; then
+                FIND1="soft core disabled"
+                FIND2="hard core disabled"
+            elif [ "${FIND3}" = "core dumps enabled" ]; then
+                FIND1="soft core enabled"
+                FIND2="hard core enabled"
+            fi
 
             IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
             IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"

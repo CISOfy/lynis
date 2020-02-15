@@ -196,22 +196,24 @@
 #################################################################################
 #
     # Test        : CRYP-8004
-    # Description : Test for HWRNG & rngd
-    Register --test-no CRYP-8004 --os Linux --weight L --network NO --root-only NO --category security --description "Test for HWRNG & rngd"
+    # Description : Test for presence of random number generators
+    Register --test-no CRYP-8004 --os Linux --weight L --network NO --root-only NO --category security --description "Presence of random number generators"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -f ${ROOTDIR}sys/class/misc/hw_random/rng_current ]; then
-            DATA=$(${CAT_BINARY} ${ROOTDIR}sys/class/misc/hw_random/rng_current)
+        LogText "Test: looking for ${ROOTDIR}sys/class/misc/hw_random/rng_current"
+        if [ -f "${ROOTDIR}sys/class/misc/hw_random/rng_current" ]; then
+            DATA=$(${HEADBINARY} --lines=1 ${ROOTDIR}sys/class/misc/hw_random/rng_current | ${TRBINARY} -d '[[:cntrl:]]')
             if [ "${DATA}" != "none" ]; then
-                LogText "Result: found HW RNG: ${DATA}"
+                LogText "Result: positive match, found RNG: ${DATA}"
                 if IsRunning "rngd"; then
                     Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_YES}" --color GREEN
                     LogText "Result: rngd is running"
                 else
                     Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color YELLOW
-                    ReportSuggestion "${TEST_NO}" "Utilize HW RNG by running rngd"
+                    # TODO - enable suggestion when website has listing for this control
+                    # ReportSuggestion "${TEST_NO}" "Utilize hardware random number generation by running rngd"
                 fi
             else
-                Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color RED
+                Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color YELLOW
                 LogText "Result: no HW RNG available"
             fi
         else

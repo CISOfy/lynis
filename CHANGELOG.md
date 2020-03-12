@@ -72,6 +72,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
 - Security: the 'nounset' (set -u) parameter is now activated by default
+- AUTH-9228 - HP-UX support
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
 - AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins

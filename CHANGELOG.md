@@ -71,6 +71,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Function: PackageIsInstalled extended with pacman support
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
+- Binaries: skip pacman when it is the game instead of package manager
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - AUTH-9228 - HP-UX support
 - AUTH-9266 - skip .pam-old files in /etc/pam.d

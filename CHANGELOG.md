@@ -79,6 +79,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins
 - BANN-7126 - additional words for login banner are accepted
+- BOOT-5122 - check for defined password in all GRUB configuration files
 - CONT-8106 - support newer 'docker info' output
 - CRYP-8002 - gather kernel entropy on Linux systems
 - FILE-6310 - support for HP-UX

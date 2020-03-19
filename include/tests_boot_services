@@ -331,34 +331,46 @@
     Register --test-no BOOT-5122 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for GRUB boot password"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        LogText "Found file ${GRUBCONFFILE}, proceeding with tests."
-        FileIsReadable ${GRUBCONFFILE}
-        if [ ${CANREAD} -eq 1 ]; then
-            FIND=$(${GREPBINARY} 'password --md5' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND2=$(${GREPBINARY} 'password --encrypted' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND3=$(${GREPBINARY} 'set superusers' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND4=$(${GREPBINARY} 'password_pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND5=$(${GREPBINARY} 'grub.pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            # GRUB1: Password should be set (MD5 or SHA1)
-            if [ -n "${FIND}" -o -n "${FIND2}" ]; then
-                FOUND=1
-            # GRUB2: Superusers AND password should be defined
-            elif [ -n "${FIND3}" ]; then
-                if [ -n "${FIND4}" -o -n "${FIND5}" ]; then FOUND=1; fi
+
+        CONF_FILES=$(${FINDBINARY} /etc/grub.d -type f -name "[0-9][0-9]*" -print0 | ${TRBINARY} '\0' ' ' | ${TRBINARY} -d '[:cntrl:]')
+        CONF_FILES="${GRUBCONFFILE} ${ROOTDIR}boot/grub/custom.cfg ${CONF_FILES}"
+
+        for FILE in ${CONF_FILES}; do
+            if [ -f "${FILE}" ]; then
+                LogText "Found file ${FILE}, proceeding with tests."
+                if FileIsReadable "${FILE}"; then
+                    FIND=$(${GREPBINARY} 'password --md5' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND2=$(${GREPBINARY} 'password --encrypted' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND3=$(${GREPBINARY} 'set superusers' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND4=$(${GREPBINARY} 'password_pbkdf2' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND5=$(${GREPBINARY} 'grub.pbkdf2' ${FILE} | ${GREPBINARY} -v '^#')
+                    # GRUB1: Password should be set (MD5 or SHA1)
+                    if [ -n "${FIND}" -o -n "${FIND2}" ]; then
+                        FOUND=1
+                    # GRUB2: Superusers AND password should be defined
+                    elif [ -n "${FIND3}" ]; then
+                        if [ -n "${FIND4}" -o -n "${FIND5}" ]; then FOUND=1; fi
+                    else
+                        LogText "Result: did not find hashed password line in this file"
+                    fi
+                else
+                    LogText "Result: Can not read '${FILE}' (no permission?)"
+                fi
+            else
+                LogText "Result: File '${FILE}' does not exist"
             fi
-            if [ ${FOUND} -eq 1 ]; then
+        done
+        if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "- Checking for password protection" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: GRUB has password protection."
                 AddHP 4 4
-            else
-                Display --indent 4 --text "- Checking for password protection" --result "${STATUS_NONE}" --color RED
-                LogText "Result: Didn't find hashed password line in GRUB boot file!"
-                ReportSuggestion "${TEST_NO}" "Set a password on GRUB bootloader to prevent altering boot configuration (e.g. boot in single user mode without password)"
-                AddHP 0 2
-            fi
         else
-            LogText "Result: Can not read ${GRUBCONFFILE} (no permission)"
+                Display --indent 4 --text "- Checking for password protection" --result "${STATUS_NONE}" --color RED
+                LogText "Result: Didn't find hashed password line in GRUB configuration"
+                ReportSuggestion "${TEST_NO}" "Set a password on GRUB boot loader to prevent altering boot configuration (e.g. boot in single user mode without password)"
+                AddHP 0 2
         fi
+        unset CONF_FILES FILE FIND FIND2 FIND3 FIND4 FIND5 FOUND
     fi
 #
 #################################################################################

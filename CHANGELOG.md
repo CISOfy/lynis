@@ -121,6 +121,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - SSH-7408 - changed text in suggestion and report
 - SSH-7408 - added forced-commands-only option
 - SSH-7408 - VerifyReverseMapping removed (deprecated)
+- SSH-7408 - corrected OpenSSH server version check
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
 - TOOL-5002 - differentiate between a discovered binary and running process

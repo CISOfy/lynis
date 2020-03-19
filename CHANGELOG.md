@@ -46,6 +46,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New option: --usecwd - run from the current working directory
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
+- New test: BOOT-5109 - Test presence rEFInd boot loader
 - New test: CRYP-7930 - test for LUKS encryption
 - New test: CRYP-8004 - presence of hardware random number generator
 - New test: DBS-1828  - PostgreSQL configuration files

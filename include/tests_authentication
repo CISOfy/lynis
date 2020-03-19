@@ -331,7 +331,7 @@
     # Notes       : AIX: 100+
     #               HPUX: 100+
     #               macOS doesn't have any user info in /etc/passwd, users are managed with opendirectoryd)
-    #               OpenBSD/NetBSD: unknown
+    #               OpenBSD/NetBSD: 1000-60000, excluding 32767 (default)
     #               Arch Linux / CentOS / Ubuntu: 1000+
     Register --test-no AUTH-9234 --weight L --network NO --category security --description "Query user accounts"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -371,6 +371,23 @@
                 else
                     FIND=""
                 fi
+            ;;
+
+            "NetBSD")
+                if [ -f ${ROOTDIR}etc/usermgmt.conf ]; then
+			UID_RANGE=$(${GREPBINARY} "^range" ${ROOTDIR}etc/usermgmt.conf | ${AWKBINARY} '{ sub(/\.\./, "-", $2); print $2 }')
+                fi
+		if [ -n "${UID_RANGE}" ]; then
+                    LogText "Result: found configured user id range specified: ${UID_RANGE}"
+                    UID_MIN=$(echo $UID_RANGE | ${AWKBINARY} -F- '{ print $1 }')
+                    UID_MAX=$(echo $UID_RANGE | ${AWKBINARY} -F- '{ print $2 }')
+                else
+                    UID_MIN=1000
+		    UID_MAX=60000
+                    LogText "Result: no configured user id range specified; using default ${UID_MIN}-${UID_MAX}"
+                fi
+                LogText "NetBSD real users output (ID = 0, or ${UID_MIN}-${UID_MAX}, but not 32767):"
+                FIND=$(${AWKBINARY} -v UID_MIN="${UID_MIN}" -v UID_MAX="${UID_MAX}" -F: '($3 >= UID_MIN && $3 <= UID_MAX && $3 != 32767) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
 
             "OpenBSD")

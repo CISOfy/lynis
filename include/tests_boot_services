@@ -987,6 +987,44 @@
 #
 #################################################################################
 #
+    # Test        : BOOT-5264
+    # Description : Run systemd-analyze security
+    if [ -z "${SYSTEMDANALYZEBINARY}" ]; then SKIPREASON="systemd-analyze not available"; PREQS_MET="NO";
+    else
+        SYSTEMD_VERSION=$("${SYSTEMDANALYZEBINARY}" --version | ${AWKBINARY} '/^systemd / {print $2}')
+        if [ "${SYSTEMD_VERSION}" -ge 240 ]; then PREQS_MET="YES"; else SKIPREASON="systemd-analyze too old (v${SYSTEMD_VERSION}), need at least v240"; PREQS_MET="NO"; fi
+    fi
+    Register --test-no BOOT-5264 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --os Linux --weight L --network NO --category security --description "Run systemd-analyze security"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Run systemd-analyze security"
+        Display --indent 2 --text "- Running 'systemd-analyze security'"
+        ${SYSTEMDANALYZEBINARY} security | while read UNIT EXPOSURE PREDICATE HAPPY; do
+            if [ "${UNIT}" = "UNIT" ]; then
+                continue
+            fi
+            COLOR="BLACK"
+            case ${PREDICATE} in
+                PERFECT | SAFE | OK)
+                    COLOR=GREEN
+                ;;
+                MEDIUM)
+                    COLOR=WHITE
+                ;;
+                EXPOSED)
+                    COLOR=YELLOW
+                ;;
+                UNSAFE | DANGEROUS)
+                    COLOR=RED
+                ;;
+            esac
+            Display --indent 8 --text "- ${UNIT}:" --result "${PREDICATE}" --color "${COLOR}"
+            LogText "Result: ${UNIT}: ${EXPOSURE} ${PREDICATE}"
+        done
+        ReportSuggestion "${TEST_NO}" "Consider hardening system services" "Run '${SYSTEMDANALYZEBINARY} security SERVICE' for each service"
+    fi
+#
+#################################################################################
+#
 
 Report "boot_loader=${BOOT_LOADER}"
 Report "boot_uefi_booted=${UEFI_BOOTED}"

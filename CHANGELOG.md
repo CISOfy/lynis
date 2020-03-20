@@ -53,6 +53,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: FINT-4316 - presence of AIDE database and size test
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
+- New test: NETW-2706 - check DNSSEC (systemd)
 - New test: NETW-3200 - determine avilable network protocols
 - New test: PROC-3802 - check presence of prelink tooling
 - New report key: openssh_daemon_running

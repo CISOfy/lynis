@@ -49,6 +49,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: BOOT-5109 - Test presence rEFInd boot loader
 - New test: CRYP-7930 - test for LUKS encryption
 - New test: CRYP-8004 - presence of hardware random number generator
+- New test: CRYP-8005 - presence of software random number generator
 - New test: DBS-1828  - PostgreSQL configuration files
 - New test: FINT-4316 - presence of AIDE database and size test
 - New test: INSE-8314 - test for NIS client

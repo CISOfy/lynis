@@ -196,8 +196,8 @@
 #################################################################################
 #
     # Test        : CRYP-8004
-    # Description : Test for presence of random number generators
-    Register --test-no CRYP-8004 --os Linux --weight L --network NO --root-only NO --category security --description "Presence of random number generators"
+    # Description : Test for presence of hardware random number generators
+    Register --test-no CRYP-8004 --os Linux --weight L --network NO --root-only NO --category security --description "Presence of hardware random number generators"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: looking for ${ROOTDIR}sys/class/misc/hw_random/rng_current"
         if [ -f "${ROOTDIR}sys/class/misc/hw_random/rng_current" ]; then
@@ -219,6 +219,28 @@
         else
             Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color RED
             LogText "Result: could not find ${ROOTDIR}sys/class/misc/hw_random/rng_current"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-8005
+    # Description : Test for presence of software pseudo random number generators
+    Register --test-no CRYP-8005 --os Linux --weight L --network NO --root-only NO --category security --description "Presence of software pseudo random number generators"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: looking for software pseudo random number generators"
+	FOUND=""
+	for SERVICE in audio-entropyd havegd jitterentropy-rngd; do
+            if IsRunning "${SERVICE}" --full; then
+		FOUND="${FOUND} ${SERVICE}"
+	    fi
+	done
+	if [ -z "${FOUND}" ]; then
+            Display --indent 2 --text "- SW prng" --result "${STATUS_NO}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Utilize software pseudo random number generators"
+        else
+            Display --indent 2 --text "- SW prng" --result "${STATUS_YES}" --color GREEN
+            LogText "Result: found ${FOUND} running"
         fi
     fi
 #

@@ -135,10 +135,11 @@ Using the relevant options, the scan will change base on the intended goal.
 - Use only locations from PATH environment variable, unless it is not defined
 - Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
-- Improved screen output in several tests
 - Several code cleanups, simplification of commands, and code standardization
 - Tests using lsof may ignore individual threads (if supported)
+- Corrected end-of-life detection for CentOS 7 and CentOS 8
 - Do not show tool tips when quiet option is used
+- Improved screen output in several tests
 - Extended output of 'lynis update info'
 - Test if profiles are readable
 - systemd service file adjusted

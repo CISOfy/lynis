@@ -53,6 +53,8 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: CRYP-8005 - presence of software random number generator
 - New test: DBS-1828  - PostgreSQL configuration files
 - New test: FINT-4316 - presence of AIDE database and size test
+- New test: FINT-4340 - check dm-integrity status (Linux)
+- New test: FINT-4341 - verify status of dm-verity (Linux)
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
 - New test: NETW-2706 - check DNSSEC (systemd)

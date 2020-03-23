@@ -75,6 +75,12 @@
                     Report "apparmor_enabled=1"
                     Report "apparmor_policy_loaded=1"
                     AddHP 3 3
+                    # ignore kernel threads (Parent PID = 2 [kthreadd])
+                    NUNCONFINED=$(${PSBINARY} -N --ppid 2 -o label | ${GREPBINARY} '^unconfined' | ${WCBINARY} --lines)
+                    Display --indent 8 --text "Found ${NUNCONFINED} unconfined processes"
+                    for PROCESS in $(${PSBINARY} -N --ppid 2 -o label:1,pid,comm | ${GREPBINARY} '^unconfined' | ${TRBINARY} ' ' ':'); do
+                        LogText "Result: Unconfined process: ${PROCESS}"
+                    done
                 elif [ $? -eq 4 ]; then
                     LogText "Result: Can not determine status, most likely due to lacking permissions"
                     Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED

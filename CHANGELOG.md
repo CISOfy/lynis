@@ -78,6 +78,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Security: the 'nounset' (set -u) parameter is now activated by default
 - AUTH-9228 - HP-UX support
 - AUTH-9234 - NetBSD support
+- AUTH-9252 - corrected permission check
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
 - AUTH-9268 - Perform test also on FreeBSD and NetBSD
 - AUTH-9282 - fix: temporary variable was overwritten

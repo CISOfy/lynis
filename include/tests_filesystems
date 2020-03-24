@@ -555,16 +555,18 @@
     #            ---------------------------------------------------------
     #               Mount point              nodev  noexec  nosuid
     #               /boot                      v      v       v
+    #               /dev                              v       v
     #               /dev/shm                   v      v       v
     #               /home                      v              v
+    #               /run                       v              v
     #               /tmp                       v      v       v
-    #               /var                                      v
+    #               /var                       v              v
     #               /var/log                   v      v       v
     #               /var/log/audit             v      v       v
     #               /var/tmp                   v      v       v
     #            ---------------------------------------------------------
 
-    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /dev/shm:nosuid,nodev,noexec /home:nodev,nosuid /tmp:nodev,noexec,nosuid /var:nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /var/tmp:nodev,noexec,nosuid"
+    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /dev:noexec,nosuid /dev/shm:nosuid,nodev,noexec /home:nodev,nosuid /run:nodev,nosuid /tmp:nodev,noexec,nosuid /var:nodev,nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /var/tmp:nodev,noexec,nosuid"
     Register --test-no FILE-6374 --os Linux --weight L --network NO --category security --description "Linux mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f ${ROOTDIR}etc/fstab ]; then
@@ -578,9 +580,14 @@
                         FS_FSTAB=""
                     fi
                 fi
+		if [ -z "${FS_FSTAB}" ]; then # not found in fstab, check if mounted otherwise
+                    FS_FSTAB=$(mount | ${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($3==fs) { print $6 } }')
+                    FOUND_FLAGS=$(mount | ${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $3==fs) { print $6 } }' | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
+                else
+                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $2==fs) { print $4 } }' ${ROOTDIR}etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
+                fi
                 if [ -n "${FS_FSTAB}" ]; then
                     # In awk using caret/circumflex as first character between brackets, means 'not' (instead of beginning of line)
-                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $2==fs) { print $4 } }' ${ROOTDIR}etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
                     LogText "File system:    ${FILESYSTEM}"
                     LogText "Expected flags: ${EXPECTED_FLAGS}"
                     LogText "Found flags:    ${FOUND_FLAGS}"

@@ -47,6 +47,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
 - New test: AUTH-9229 - check used password hashing methods
+- New test: AUTH-9230 - check group password hashing rounds
 - New test: BOOT-5109 - test presence rEFInd boot loader
 - New test: BOOT-5264 - run systemd-analyze security
 - New test: CRYP-7930 - test for LUKS encryption

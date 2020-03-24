@@ -382,8 +382,58 @@
         else
             Display --indent 2 --text "- Password hashing methods" --result "${STATUS_SUGGESTION}" --color YELLOW
             LogText "Result: poor password hashing methods found: ${FIND}"
-            ReportSuggestion "${TEST_NO}" "Change ${ROOTDIR}etc/login.defs password ENCRYPT_METHOD and SHA_CRYPT_MIN_ROUNDS to more secure values, check also PAM configuration, expire passwords to encrypt with new values"
+            ReportSuggestion "${TEST_NO}" "Check PAM configuration, add rounds if applicable and expire passwords to encrypt with new values"
             AddHP 0 2
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : AUTH-9230
+    # Description : Check group password hashing rounds in login.defs
+    # Notes       : Applicable to all Unix-like OS
+    PREQS_MET="NO"
+    if [ -f ${ROOTDIR}etc/login.defs ]; then
+        PREQS_MET="YES"
+    fi
+    Register --test-no AUTH-9230 --root-only NO --weight L --network NO --category security --description "Check group password hashing rounds"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking SHA_CRYPT_MIN_ROUNDS option in ${ROOTDIR}etc/login.defs"
+        FIND=$(${GREPBINARY} "^SHA_CRYPT_MIN_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MIN_ROUNDS") { print $2 } }')
+        if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
+            LogText "Result: number of minimum rounds used by the encryption algorithm is not configured"
+            Display --indent 2 --text "- Checking minimum group password hashing rounds" --result "${STATUS_DISABLED}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Configure minimum encryption algorithm rounds in /etc/login.defs"
+            AddHP 0 2
+        elif [ "${FIND}" -lt 5000 ]; then
+            LogText "Result: low number of minimum encryption algorithm rounds found: ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (minimum)"  --result "${STATUS_SUGGESTION}" --color YELLOW
+            AddHP 1 2
+        else
+            LogText "Result: number of encryption algorithm rounds is ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (minimum)" --result CONFIGURED --color GREEN
+            AddHP 2 2
+        fi
+
+        LogText "Test: Checking SHA_CRYPT_MAX_ROUNDS option in ${ROOTDIR}etc/login.defs"
+        FIND=$(${GREPBINARY} "^SHA_CRYPT_MAX_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MAX_ROUNDS") { print $2 } }')
+        if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
+            LogText "Result: number of maximum rounds used by the encryption algorithm is not configured"
+            Display --indent 2 --text "- Checking maximum group password hashing rounds" --result "${STATUS_DISABLED}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Configure maximum encryption algorithm rounds in /etc/login.defs"
+            AddHP 0 2
+        elif [ "${FIND}" -lt 10000 ]; then
+            LogText "Result: low number of maximum encryption algorithm rounds found: ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (maximum)"  --result "${STATUS_SUGGESTION}" --color YELLOW
+            AddHP 1 2
+        else
+            LogText "Result: number of encryption algorithm rounds is ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (maximum)" --result CONFIGURED --color GREEN
+            AddHP 2 2
         fi
     fi
 #
@@ -438,15 +488,15 @@
 
             "NetBSD"|"OpenBSD")
                 if [ -f ${ROOTDIR}etc/usermgmt.conf ]; then
-			UID_RANGE=$(${GREPBINARY} "^range" ${ROOTDIR}etc/usermgmt.conf | ${AWKBINARY} '{ sub(/\.\./, "-", $2); print $2 }')
+                    UID_RANGE=$(${GREPBINARY} "^range" ${ROOTDIR}etc/usermgmt.conf | ${AWKBINARY} '{ sub(/\.\./, "-", $2); print $2 }')
                 fi
-		if [ -n "${UID_RANGE}" ]; then
+                if [ -n "${UID_RANGE}" ]; then
                     LogText "Result: found configured user id range specified: ${UID_RANGE}"
                     UID_MIN=$(echo $UID_RANGE | ${AWKBINARY} -F- '{ print $1 }')
                     UID_MAX=$(echo $UID_RANGE | ${AWKBINARY} -F- '{ print $2 }')
                 else
                     UID_MIN=1000
-		    UID_MAX=60000
+                    UID_MAX=60000
                     LogText "Result: no configured user id range specified; using default ${UID_MIN}-${UID_MAX}"
                 fi
                 LogText "${OS} real users output (ID = 0, or ${UID_MIN}-${UID_MAX}, but not 32767):"

@@ -36,6 +36,7 @@
     NTP_CONFIG_TYPE_EVENTBASED=0
     NTP_CONFIG_TYPE_STARTUP=0
     NTPD_RUNNING=0 # Specific for ntpd
+    OPENNTPD_COMMUNICATION=0 # if ntpctl can communicate
     SYSTEMD_NTP_ENABLED=0
 #
 #################################################################################
@@ -79,9 +80,37 @@
             Display --indent 2 --text "- NTP daemon found: dntpd" --result "${STATUS_FOUND}" --color GREEN
         fi
 
-        # Check running processes
-        FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd" | ${GREPBINARY} -v "dntpd" | ${GREPBINARY} -v "grep")
-        if [ -n "${FIND}" ]; then
+        # Check for OpenNTPD, ntpctl comes with a "regular" install
+        if [ -n ${NTPCTLBINARY} ]; then
+            # In contrast to timectl, "synchronised: yes" is not grepped.
+            # Reason: openntpd syncs only if large time corrections are not required or -s is passed.
+            #         This might be not intended by the administrator (-s is NOT the default!)
+            FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd: ntp engine" | ${GREPBINARY} -v "grep")
+            ${NTPCTLBINARY} -s status > /dev/null 2> /dev/null
+            # Status code 0 is when communication over the socket is successfull
+            if [ "$?" -eq 0 ]; then
+                FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="openntpd"
+                LogText "result: found openntpd (method: ntpctl)"
+                OPENNTPD_COMMUNICATION=1
+            elif [ -n "${FIND}" ] ; then
+                # Reasons for ntpctl to fail might be someone spawned a new process thus overwriting the socket,
+                # then ended it, but another openntpd process is still running
+                FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="openntpd"
+                LogText "result: found openntpd (method: ps)"
+            else
+                LogText "result: running openntpd not found, but ntpctl is instaalled"
+            fi
+
+            if [ "${NTP_DAEMON}" == "openntpd" ]; then
+                Display --indent 2 --text "- NTP daemon found: OpenNTPD" --result "${STATUS_FOUND}" --color GREEN
+            fi
+        fi
+
+        # Check running processes (ntpd from ntp.org)
+        # As checking by process name is ambigiouse (openntpd has the same process name),
+        # this check will be skipped if openntpd has been found.
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd" | ${GREPBINARY} -v "dntpd" | ${GREPBINARY} -v "ntpd: " | ${GREPBINARY} -v "grep")
+        if [ "${NTP_DAEMON}" != "openntpd" ] && [  -n "${FIND}" ]; then
             FOUND=1; NTPD_RUNNING=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1
             NTP_DAEMON="ntpd"
             LogText "Result: found running NTP daemon in process list"
@@ -476,7 +505,8 @@
     #               Other should preferably have no access, or read-only at max
 
     FILE_ARRAY="${ROOTDIR}etc/chrony.conf ${ROOTDIR}usr/pkg/etc/chrony.conf \
-        ${ROOTDIR}etc/inet/ntp.conf ${ROOTDIR}etc/ntp.conf ${ROOTDIR}usr/local/etc/ntp.conf"
+        ${ROOTDIR}etc/inet/ntp.conf ${ROOTDIR}etc/ntp.conf ${ROOTDIR}usr/local/etc/ntp.conf\
+        ${ROOTDIR}etc/ntpd.conf ${ROOTDIR}etc/openntpd/ntpd.conf ${ROOTDIR}usr/local/etc/ntpd.conf"
 
     Register --test-no TIME-3170 --weight L --network NO --category security --description "Check configuration files"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -494,6 +524,64 @@
 #
 #################################################################################
 #
+    # Test        : TIME-3180
+    # Description : Report if ntpctl cannot communicate with OpenNTPD
+
+    if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+
+    Register --test-no TIME-3180 --weight L --network NO --category security --description "Report if ntpctl cannot communicate with OpenNTPD"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ "${OPENNTPD_COMMUNICATION}" -eq 0 ]; then
+            ReportWarning "${TEST_NO}" "OpenNTPD found, but ntpctl cannot communicate with" "${NTPCTLBINARY} -s status" "Restart OpenNTPD"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TIME-3181
+    # Description : Check status of OpenNTPD time synchronisation
+
+    if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+
+    Register --test-no TIME-3181 --weight L --network NO --category security --description "Check status of OpenNTPD time synchronisation"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(${NTPCTLBINARY} -s status | ${GREPBINARY} "clock synced" )
+        if [ -z "${FIND}" ]; then
+            ReportWarning "${TEST_NO}" "OpenNTPD is not synchronising system time" "${NTPCTLBINARY} -s status" "text:Set time manually once or check network connectivity."
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TIME-3182
+    # Description : Check OpenNTPD has working peers
+
+    if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+
+    Register --test-no TIME-3182 --weight L --network NO --category security --description "Check OpenNTPD has working peers"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Format is "xx/yy peers valid, ..."
+        FIND=$(${NTPCTLBINARY} -s status | ${EGREPBINARY} -o "[0-9]{1,4}/" | ${EGREPBINARY} -o "[0-9]{1,4}" )
+        if [ -n "${FIND}" ] || [ "${FIND}" -eq 0 ]; then
+            ReportWarning "${TEST_NO}" "OpenNTPD has no peers" "${NTPCTLBINARY} -s status"
+        fi
+    fi
+#
+#################################################################################
+#
+
     Report "ntp_config_found=${NTP_CONFIG_FOUND}"
     Report "ntp_config_type_daemon=${NTP_CONFIG_TYPE_DAEMON}"
     Report "ntp_config_type_eventbased=${NTP_CONFIG_TYPE_EVENTBASED}"

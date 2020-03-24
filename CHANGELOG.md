@@ -62,6 +62,9 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: NETW-2706 - check DNSSEC (systemd)
 - New test: NETW-3200 - determine avilable network protocols
 - New test: PROC-3802 - check presence of prelink tooling
+- New test: TIME-3180 - report if ntpctl cannot communicate with OpenNTPD
+- New test: TIME-3181 - check status of OpenNTPD time synchronisation
+- New test: TIME-3182 - check OpenNTPD has working peers
 - New report key: openssh_daemon_running
 - New command: lynis generate systemd-units
 - Sending USR1 signal to Lynis process will show active status

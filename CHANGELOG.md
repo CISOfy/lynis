@@ -60,7 +60,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
 - New test: NETW-2706 - check DNSSEC (systemd)
-- New test: NETW-3200 - determine avilable network protocols
+- New test: NETW-3200 - determine enabled network protocols
 - New test: PROC-3802 - check presence of prelink tooling
 - New test: TIME-3180 - report if ntpctl cannot communicate with OpenNTPD
 - New test: TIME-3181 - check status of OpenNTPD time synchronisation

@@ -95,6 +95,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - BANN-7126 - additional words for login banner are accepted
 - BOOT-5122 - check for defined password in all GRUB configuration files
 - CONT-8106 - support newer 'docker info' output
+- CRYP-7902 - optionally check also certificates provided by packages
 - CRYP-8002 - gather kernel entropy on Linux systems
 - FILE-6310 - support for HP-UX
 - FILE-6374 - changed log and allow root location to be changed

@@ -2,7 +2,6 @@
 [![Linux Security Expert badge](https://badges.linuxsecurity.expert/tools/ranking/lynis.svg)](https://linuxsecurity.expert/tools/lynis/)
 [![Build Status](https://travis-ci.org/CISOfy/lynis.svg?branch=master)](https://travis-ci.org/CISOfy/lynis)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
-[![Packaging status](https://repology.org/badge/tiny-repos/lynis.svg)](https://repology.org/project/lynis/versions)
 [Documentation]
 
 [Documentation]: https://cisofy.com/documentation/lynis/
@@ -58,8 +57,10 @@ If you want to run the software as `root`, we suggest changing the ownership of 
 
 ### Package
 
-Stable releases of Lynis are packaged and made available as RPM or DEB package. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running:
+For Linux, BSD, macOS, there is typically a package available. The Lynis project also provides packages in RPM or DEB format. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running:
 `CentOS`, `Debian`, `Fedora`, `OEL`, `openSUSE`, `RHEL`, `Ubuntu`, and others.
+
+Some distributions may have Lynis is their repository available. Use the overview by [![Repology](https://repology.org/badge/tiny-repos/lynis.svg)](https://repology.org/project/lynis/versions) to see if they are up-to-date. Otherwise consider the CISOfy repository, tarball (website), or GitHub releases.
 
 ### Enterprise Version
 

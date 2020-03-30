@@ -130,6 +130,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - PROC-3602 - allow different root directory
 - PROC-3612 - show 'Not found' instead of 'OK'
 - PROC-3614 - show 'Not found' instead of 'OK'
+- PROC-3802 - limit to Linux only (prelink package check)
 - SCHD-7702 - removed hardening points
 - SINT-7010 - limit test to only macOS systems
 - SSH-7402 - detect other SSH daemons like dropbear

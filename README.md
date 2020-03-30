@@ -55,12 +55,13 @@ Typical users of the software:
 
 If you want to run the software as `root`, we suggest changing the ownership of the files. Use `chown -R 0:0` to recursively alter the owner and group and set it to user ID `0` (`root`).
 
-### Package
+### Software Package
 
 For Linux, BSD, macOS, there is typically a package available. The Lynis project also provides packages in RPM or DEB format. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running:
 `CentOS`, `Debian`, `Fedora`, `OEL`, `openSUSE`, `RHEL`, `Ubuntu`, and others.
 
-Some distributions may have Lynis is their repository available. Use the overview by [![Repology](https://repology.org/badge/tiny-repos/lynis.svg)](https://repology.org/project/lynis/versions) to see if they are up-to-date. Otherwise consider the CISOfy repository, tarball (website), or GitHub releases.
+Some distributions may also have Lynis in their software repository: [![Repology](https://repology.org/badge/tiny-repos/lynis.svg)](https://repology.org/project/lynis/versions)
+If they don't provide an up-to-date version, consider the CISOfy repository, tarball (website), or GitHub release.
 
 ### Enterprise Version
 

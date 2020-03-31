@@ -154,6 +154,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Do not show tool tips when quiet option is used
 - Improved screen output in several tests
 - Extended output of 'lynis update info'
+- Improved support for NetBSD
 - Test if profiles are readable
 - systemd service file adjusted
 - bash completion script extended

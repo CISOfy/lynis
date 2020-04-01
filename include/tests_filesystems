@@ -689,11 +689,35 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6394 TODO
+    # Test        : FILE-6394
     # Description : Check vm.swappiness (Linux)
-
-    # Want to contribute to Lynis? Create this test
-
+    Register --test-no FILE-6394 --os Linux --weight L --network NO --category security --description "Determine level of swappiness."
+    if [ ${SKIPTEST} -eq 0 ]; then
+        SWAPLEVEL=$(${CAT_BINARY} /proc/sys/vm/swappiness)
+        LogText "Test: checking level of vm.swappiness: ${SWAPLEVEL}"
+		PHYSDISK=$(${LSBLKBINARY} | ${GREPBINARY} -E 'disk|SWAP' | ${GREPBINARY} -B1 SWAP | ${HEADBINARY} -n1 | ${AWKBINARY} '{print $1}')
+        if [ ${SWAPLEVEL} -gt 60 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning that swapping is more frequent than default."
+			# Check if swap is on a HDD or SDD for frequent swapping
+            if [ -d /sys/block/${PHYSDISK} ]; then
+                HDDORSDD=$(${CAT_BINARY} /sys/block/${PHYSDISK}/queue/rotational)
+                if [ ${HDDORSDD} -eq 1 ]; then
+                    ReportSuggestion "${TEST_NO}" "vm.swappiness set to: ${SWAPLEVEL} > 60 (default) - consider installing an SSD for swap partition for better performance."
+                fi
+            fi
+        elif [ ${SWAPLEVEL} -eq 0 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning swapping is disabled."
+            ReportSuggestion "${TEST_NO}" "vm.swappiness set to: ${SWAPLEVEL}. Consider setting value to minimum of 1 for minimizing swappiness, but not quite disabling it. Will prevent OOM killer from killing processes when running out of physical memory."
+        elif [ ${SWAPLEVEL} -eq 1]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning that swapping can still occur but at very minimum."
+        elif [ ${SWAPLEVEL} -eq 10 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} which is the preferred setting for database servers."
+        elif [ ${SWAPLEVEL} -lt 60 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning that swapping is less frequent than default. This is only recommended for servers."
+        else
+            LogText "Result: vm.swappiness=${SWAPLEVEL} which is the standard level of swappiness and works well for desktop systems."
+        fi
+    fi
 #
 #################################################################################
 #

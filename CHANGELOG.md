@@ -54,6 +54,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: CRYP-8004 - presence of hardware random number generator
 - New test: CRYP-8005 - presence of software random number generator
 - New test: DBS-1828  - PostgreSQL configuration files
+- New test: FILE-6394 - test virtual memory swappiness (Linux)
 - New test: FINT-4316 - presence of AIDE database and size test
 - New test: FINT-4340 - check dm-integrity status (Linux)
 - New test: FINT-4341 - verify status of dm-verity (Linux)
@@ -141,6 +142,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - SSH-7408 - corrected OpenSSH server version check
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
+- TIME-3104 - use find to discover files in cron directories
 - TOOL-5002 - differentiate between a discovered binary and running process
 - TOOL-5160 - added support for OSSEC agent daemon
 - Perform additional check to ensure pacman package manager is used

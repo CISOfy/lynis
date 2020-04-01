@@ -74,10 +74,18 @@
             fi
         done
 
+        if [ -x /bin/readelf -o -x /usr/bin/readelf -o -x /usr/local/bin/readelf ]; then
+            CHECK_PIE=1
+        else
+            CHECK_PIE=0
+        fi
+
         NSUID_BINARIES=0
         NSGID_BINARIES=0
+        NNO_PIE_BINARIES=0
         SUID_BINARIES=
         SGID_BINARIES=
+        NO_PIE_BINARIES=
         # Now perform binary detection
         for SCANDIR in ${BIN_PATHS}; do
             SCANDIR=$(echo "${SCANDIR}" | sed 's/!!space!!/ /g')
@@ -126,6 +134,14 @@
                         if [ -g ${BINARY} ]; then
                             NSGID_BINARIES=$((NSGID_BINARIES + 1))
                             SGID_BINARIES="${SGID_BINARIES}${BINARY} "
+                        fi
+                        if [ ${CHECK_PIE} -eq 1 ]; then
+                            if ! readelf -d ${BINARY} 2>&1 | grep -q 'Error:'; then
+                                if ! readelf -d ${BINARY} | egrep -q 'FLAGS_1.*PIE'; then
+                                    NNO_PIE_BINARIES=$((NNO_PIE_BINARIES + 1))
+                                    NO_PIE_BINARIES="${NO_PIE_BINARIES}${BINARY} "
+                                fi
+                            fi
                         fi
                         # Optimized, much quicker (limited file access needed)
                         case ${FILENAME} in
@@ -326,10 +342,20 @@
         LogText "Result: found ${COUNT} binaries including ${NSUID_BINARIES} set-uid and ${NSGID_BINARIES} set-gid"
         LogText "Result: set-uid binaries: ${SUID_BINARIES}"
         LogText "Result: set-gid binaries: ${SGID_BINARIES}"
+        if [ ${CHECK_PIE} -eq 1 ]; then
+            LogText "Result: ${NNO_PIE_BINARIES} binaries which are not Position Independent Executables"
+            # This can match thousands of binaries, so let's limit this a bit
+            if [ ${NNO_PIE_BINARIES} -lt 100 ]; then
+                LogText "Result: binaries without PIE: ${NO_PIE_BINARIES}"
+            fi
+        fi
         Report "binaries_count=${COUNT}"
         Report "binaries_suid_count=${SUID_BINARIES}"
         Report "binaries_sgid_count=${SGID_BINARIES}"
         Report "binary_paths=${BINARY_PATHS_FOUND}"
+        if [ ${CHECK_PIE} -eq 1 ]; then
+            Report "binaries_without_PIE=${NNO_PIE_BINARIES}"
+        fi
 
         # Test if the basic system tools are defined. These will be used during the audit.
         [ "${AWKBINARY:-}" ] || ExitFatal "awk binary not found"

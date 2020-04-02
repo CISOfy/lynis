@@ -129,7 +129,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - PKGS-7388 - only perform check for Debian/Ubuntu/Mint
 - PKGS-7410 - use multiple package managers when available
 - PKGS-7410 - added support for Zypper to test number of kernels
-- PRNT-2308 - check also SSLListen statements
+- PRNT-2308 - check also for Port and SSLListen statements
 - PROC-3602 - allow different root directory
 - PROC-3612 - show 'Not found' instead of 'OK'
 - PROC-3614 - show 'Not found' instead of 'OK'

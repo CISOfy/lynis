@@ -1516,6 +1516,7 @@
     # Returns     : 0 (process is running), 1 (process not running)
     #               RUNNING (1 = running, 0 = not running) - will be deprecated
     # Notes       : PSOPTIONS are declared globally, to prevent testing each call
+    #               Fallback is used on binaries as IsRunning is used for 'show' command
     ################################################################################
 
     IsRunning() {
@@ -1548,10 +1549,10 @@
         # AIX does not fully support pgrep options, so using ps instead
         if [ "${OS}" != "AIX" ]; then
             # When --user is used, perform a search using the -u option
-                            # Initialize users for strict mode
+            # Initialize users for strict mode
             if [ -n "${users:-}" ]; then
                 for u in ${users}; do
-                    user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY} -F: '{print $3}')
+                    user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY:-awk} -F: '{print $3}')
                     # Only perform search if user exists and we had no match yet
                     if [ -n "${user_uid}" ]; then
                         if [ -z "${FIND}" ]; then
@@ -1562,7 +1563,7 @@
                 done
             else
                 LogText "Performing pgrep scan without uid"
-                FIND=$(${PGREPBINARY:-pgrep} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
+                FIND=$(${PGREPBINARY:-pgrep} ${pgrep_options} "${search}" | ${TRBINARY:-tr} '\n' ' ')
             fi
         else
             if [ "${SHELL_IS_BUSYBOX}" -eq 1 ]; then
@@ -1862,7 +1863,7 @@
         fi
 
         # Check if we caught some string along all tests
-        if [ ! "${SHORT}" = "" ]; then
+        if [ -n "${SHORT}" ]; then
             # Lowercase and see if we found a match
             SHORT=$(echo ${SHORT} | awk '{ print $1 }' | tr '[:upper:]' '[:lower:]')
 

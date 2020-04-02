@@ -31,6 +31,7 @@
     LINUXCONFIGFILE=""
     LINUXCONFIGFILE_ZIPPED=0
     LIMITS_DIRECTORY="${ROOTDIR}etc/security/limits.d"
+    APT_ARCHIVE_DIRECTORY="${ROOTDIR}var/cache/apt/archives"
 #
 #################################################################################
 #
@@ -771,6 +772,107 @@
             fi
         else
             LogText "Result: /boot does not exist or not privileged to read files"
+        fi
+
+        # Attempt to check for Raspbian if reboot is needed
+        # This check searches for apt package "raspberrypi-kernel-[package-date]", trys to extract the date of packaging from the filename
+        # and compares that date with the currently running kernel's build date (uname -v).
+        # Of course there can be a time difference between kernel build and kernel packaging, therefor a time difference of
+        # 3 days is accepted and it is assumed with only 3 days apart, this must be the same kernel version.
+        if [ ${REBOOT_NEEDED} -eq 2 ] && [ -d "${APT_ARCHIVE_DIRECTORY}" ]; then
+            LogText "Result: found folder ${APT_ARCHIVE_DIRECTORY}; assuming this is a debian based distribution"
+            LogText "Check: try to find raspberrypi-kernel file in ${APT_ARCHIVE_DIRECTORY} and extract package date from file name"
+
+            FOUND_KERNEL_DATE=$(${FINDBINARY} ${APT_ARCHIVE_DIRECTORY} -name "raspberrypi-kernel*" -printf "%T@ %Tc %p\n" 2> /dev/null \
+            | ${SORTBINARY} -nr | ${HEADBINARY} -1 | ${GREPBINARY} -o "raspberrypi-kernel.*deb" | ${EGREPBINARY} -o "\.[0-9]+" | ${SEDBINARY} 's/\.//g')
+
+            if [ -n "${FOUND_KERNEL_DATE}" ]; then
+                FOUND_KERNEL_IN_SECONDS=$(date -d "${FOUND_KERNEL_DATE}" "+%s" 2> /dev/null)
+            else
+                LogText "Result: Skipping this test, as there was no package date to extract"
+            fi
+
+            if [ -n "${FOUND_KERNEL_IN_SECONDS}" ] && [ ${FOUND_KERNEL_IN_SECONDS} -gt 1 ]; then
+                LogText "Result: Got package date: ${FOUND_KERNEL_DATE} (= ${FOUND_KERNEL_IN_SECONDS} seconds)"
+                UNAME_OUTPUT="$(${UNAMEBINARY} -v 2> /dev/null)"
+            else
+                LogText "Result: Skipping this test, as extracting the seconds of package date failed"
+            fi
+            
+            if [ -n "${UNAME_OUTPUT}" ]; then
+                LogText "Result: Got an output from 'uname -v'"
+                LogText "Check: Trying to extract kernel build date from 'uname -v' output"
+                next=""
+                for part in ${UNAME_OUTPUT}; do
+                    if [ -z "$next" ]; then
+                        if [ "${part}" = "Mon" ] || [ "${part}" = "Tue" ] || [ "${part}" = "Wed" ] || [ "${part}" = "Thu" ] || [ "${part}" = "Fri" ] || [ "${part}" = "Sat" ] || [ "${part}" = "Sun" ]; then
+                            next="month"
+                        fi
+                    elif [ "$next" = "month" ]; then
+                        if [ $(${ECHOCMD} "${part}" | ${EGREPBINARY} -c "[A-Z][a-z]") -ge 1 ]; then
+                            UNAME_DATE_MONTH="${part}"
+                            next="day"
+                        fi
+                    elif [ "${next}" = "day" ]; then
+                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                            UNAME_DATE_DAY="${part}"
+                            next="time"
+                        fi
+                    elif [ "${next}" = "time" ]; then
+                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c ":[0-9][0-9]:") -ge 1 ]; then
+                            next="year"
+                        fi
+                    elif [ "${next}" = "year" ]; then
+                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                            UNAME_DATE_YEAR="${part}"
+                            break
+                        fi
+                    fi
+                done
+                if [ -n "${UNAME_DATE_MONTH}" ] && [ -n "${UNAME_DATE_DAY}" ] && [ -n "${UNAME_DATE_YEAR}" ]; then
+                    LogText "Result: Extracted kernel build date is: ${UNAME_DATE_DAY} ${UNAME_DATE_MONTH} ${UNAME_DATE_YEAR}"
+                    UNAME_DATE_IN_SECONDS=$(date -d "${UNAME_DATE_DAY} ${UNAME_DATE_MONTH} ${UNAME_DATE_YEAR}" "+%s" 2> /dev/null)
+                    LogText "Check: Comparing kernel build date in seconds (${UNAME_DATE_IN_SECONDS}s) with package date in seconds (${FOUND_KERNEL_IN_SECONDS}s)"
+                    if [ -n "${UNAME_DATE_IN_SECONDS}" ] && [ ${FOUND_KERNEL_IN_SECONDS} -ge ${UNAME_DATE_IN_SECONDS} ]; then
+                        LogText "Result: package creation date is older than running kernel. Hence, this check should be valid."
+                        LogText "Check if package create date and kernel build date are not more than 3 days apart."
+
+                        SECONDS_APART=$(( ${FOUND_KERNEL_IN_SECONDS} - ${UNAME_DATE_IN_SECONDS} ))
+                        if [ ${SECONDS_APART} -ge 60 ]; then
+                            MINUTES_APART=$(( ${SECONDS_APART} / 60 ))
+                            if [ ${MINUTES_APART} -ge 60 ]; then
+                                DAYS_APART=$(( ${MINUTES_APART} / 60 ))
+                                if [ ${DAYS_APART} -ge 24 ]; then DAYS_APART=$(( ${DAYS_APART} / 24 )); else DAYS_APART=0; fi
+                            else
+                                DAYS_APART=0
+                            fi
+                        else
+                            DAYS_APART=0
+                        fi
+                        # assuming kernels are packaged definitely within 3 days. ACCEPTED_TIME_DIFF needs a value in seconds
+                        ACCEPTED_TIME_DIFF=$((3 * 24 * 60 * 60))
+                        if [ ${FOUND_KERNEL_IN_SECONDS} -le $((${UNAME_DATE_IN_SECONDS} + ${ACCEPTED_TIME_DIFF})) ]; then
+                            LogText "Result: package create date and kernel build date are only ${DAYS_APART} day(s) apart."
+                            LogText "Result: Assuming no reboot needed."
+                            REBOOT_NEEDED=0
+                        else
+                            LogText "Result: package create date and kernel build date are ${DAYS_APART} day(s) apart."
+                            LogText "Result: Assuming reboot is needed."
+                            REBOOT_NEEDED=1
+                        fi
+                    else
+                        LogText "Result: Package's create date is older than running kernel, which is unexpected. Might not be a valid test. Skipping..."
+                    fi
+                else
+                    LogText "Result: Could not extract Day, Month and Year from 'uname -v' output"
+                fi
+            else
+                LogText "Result: Did not get output from 'uname -v'. Skipping test."
+            fi
+                
+            
+        else
+            LogText "Result: /var/cache/apt/archives/ does not exist"
         fi
 
         # Display discovered status

@@ -116,6 +116,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - KRNL-5788 - don't complain about missing /vmlinuz for Raspi
 - KRNL-5820 - extended check to include limits.d directory
 - KRNL-5830 - skip test partially when running non-privileged
+- KRNL-5830 - detect required reboots on Raspbian
 - LOGG-2154 - added support for rsyslog configurations
 - LOGG-2190 - skip mysqld related entries
 - MACF-6234 - SELinux tests extended

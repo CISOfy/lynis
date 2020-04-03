@@ -191,23 +191,32 @@
 #################################################################################
 #
     # Test        : NETW-2706
-    # Description : Check systemd-resolved and upstream DNSSEC status
-    if [ -n "${RESOLVECTLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-2706 --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check systemd-resolved and upstream DNSSEC status"
+    # Description : Check systemd-resolve output and upstream DNSSEC status
+    # Notes       : Ubuntu 16.04 uses systemd-resolve, newer ones most likely resolvectl
+    if [ -n "${RESOLVECTLBINARY}" ]; then
+        PREQS_MET="YES"
+        RESOLVE_CMD="${RESOLVECTLBINARY}"
+        RESOLVE_CMD_PARAM="statistics"
+    elif [ -n "$(command -v systemd-resolve 2> /dev/null)" ]; then
+        PREQS_MET="YES"
+        RESOLVE_CMD="$(command -v systemd-resolve 2> /dev/null)"
+        RESOLVE_CMD_PARAM="--statistics"
+    else
+        PREQS_MET="NO"
+    fi
+    Register --test-no NETW-2706 --preqs-met "${PREQS_MET}" --weight L --network YES --category security --description "Check systemd-resolved and upstream DNSSEC status"
     if [ ${SKIPTEST} -eq 0 ]; then
         SKIP=0
-        if [ -n "${RESOLVECTLBINARY}" ]; then
-            DNSSEC_STATUS=$(${RESOLVECTLBINARY} statistics 2> /dev/null | ${AWKBINARY} -F ":" '/DNSSEC supported/ { print $2 }' | ${TRBINARY} -d ' ')
-            if [ "${DNSSEC_STATUS}" = "yes" ]; then
-                Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_OK}" --color GREEN
-                LogText "Result: DNSSEC supported by systemd-resolved and upstream DNS servers"
-            else
-                Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_WARNING}" --color RED
-                LogText "Result: DNSSEC not supported by systemd-resolved or upstream DNS servers"
-            fi
+        DNSSEC_STATUS=$(${RESOLVE_CMD} ${RESOLVE_CMD_PARAM} 2> /dev/null | ${AWKBINARY} -F ":" '/DNSSEC supported/ { print $2 }' | ${TRBINARY} -d ' ')
+        if [ "${DNSSEC_STATUS}" = "yes" ]; then
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_YES}" --color GREEN
+            LogText "Result: DNSSEC supported by systemd-resolved and upstream DNS servers"
+        elif [ "${DNSSEC_STATUS}" = "no" ]; then
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_NO}" --color YELLOW
+            LogText "Result: DNSSEC not supported by systemd-resolved or upstream DNS servers"
         else
-            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_SKIPPED}" --color YELLOW
-            LogText "Result: resolvectl not installed, test can't be fully performed"
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_UNKNOWN}" --color RED
+            LogText "Result: command '${RESOLVE_CMD} ${RESOLVE_CMD_PARAM}' returned an error. Please run command manually to check for details."
         fi
     else
         LogText "Result: Test most likely skipped due to not having resolvectl"

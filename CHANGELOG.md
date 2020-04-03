@@ -93,6 +93,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - AUTH-9268 - Perform test also on DragonFly, FreeBSD, and NetBSD
 - AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins
+- AUTH-9489 - test removedd as it is merged with AUTH-9218
 - BANN-7126 - additional words for login banner are accepted
 - BOOT-5122 - check for defined password in all GRUB configuration files
 - CONT-8106 - support newer 'docker info' output

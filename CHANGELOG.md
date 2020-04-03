@@ -90,7 +90,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - AUTH-9234 - NetBSD support
 - AUTH-9252 - corrected permission check
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
-- AUTH-9268 - Perform test also on FreeBSD and NetBSD
+- AUTH-9268 - Perform test also on DragonFly, FreeBSD, and NetBSD
 - AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins
 - BANN-7126 - additional words for login banner are accepted

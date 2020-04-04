@@ -60,6 +60,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: FINT-4341 - verify status of dm-verity (Linux)
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
+- New test: NETW-2400 - test hostname for valid characters and length
 - New test: NETW-2706 - check DNSSEC (systemd)
 - New test: NETW-3200 - determine enabled network protocols
 - New test: PHP-2382 - detect listen option in PHP (FPM)

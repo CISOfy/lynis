@@ -35,6 +35,53 @@
 #
 #################################################################################
 #
+    # Test        : NETW-2400
+    # Description : Test hostname for valid characters and length
+    # Notes       : FQDN: max 253 characters
+    #             : component: a-z, 0-9, hyphen, not start with hyphen, max 63 characters
+    #               dots allowed as separator
+    Register --test-no NETW-2400 --weight L --network YES --category basics --description "Hostname length and value check"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Test first the fully qualified domain name
+        if [ ${#FQDN} -gt 253 ]; then
+            # Too long
+            LogText "Result: FQDN is more than 253 characters"
+            Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_WARNING}" --color RED
+            ReportWarning "${TEST_NO}" "Hostname is too long (more than 253 characters)"
+        elif [ ${#FQDN} -eq 0 ]; then
+            # FQDN not defined
+            LogText "Result: FQDN is not defined"
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_UNKNOWN}" --color YELLOW; fi
+        else
+            # Fine
+            LogText "Result: FQDN is defined and shorter than 253 characters (${#FQDN} characters)"
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_OK}" --color GREEN; fi
+        fi
+        # Now test short hostname
+        if [ ${#HOSTNAME} -eq 0 ]; then
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_NONE}" --color RED; fi
+            LogText "Result: hostname is not defined"
+        else
+            # Test length
+            if [ ${#HOSTNAME} -gt 63 ]; then
+                LogText "Result: hostname is more than 63 characters"
+                Display --indent 2 --text "- Hostname (length)" --result "${STATUS_WARNING}" --color RED
+            fi
+            # Test valid characters (normally a dot should not be in the name, but we can't be 100% sure we have short name)
+            FIND=$(echo "${HOSTNAME}" | ${TRBINARY} -d '[a-z0-9\.\-]')
+            if [ -z "${FIND}" ]; then
+                LogText "Result: good, no unexpected characters discovered in hostname"
+                if IsVerbose; then Display --indent 2 --text "- Hostname (allowed characters)" --result "${STATUS_OK}" --color GREEN; fi
+            else
+                LogText "Result: unexpected characters discovered in hostname (characters: ${FIND}), which may impact network connectivity"
+                Display --indent 2 --text "- Hostname (allowed characters)" --result "${STATUS_WARNING}" --color RED
+                ReportWarning "${TEST_NO}" "Hostname contains invalid characters" "hostname" "text:See log file for invalid characters"
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : NETW-2600
     # Description : Gather IPv6 configuration
     Register --test-no NETW-2600 --os "Linux" --weight L --network YES --category security --description "Checking IPv6 configuration"
@@ -735,7 +782,6 @@
 #
 #################################################################################
 #
-
 
 WaitForKeyPress
 

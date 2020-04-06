@@ -78,6 +78,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Added end-of-life data for Arch Linux and Debian
 - Detection and end-of-life data added for Amazon Linux
 - Detection of linux-lts on Arch Linux
+- Translations: Russian added
 
 ### Changed
 - Function: CheckItem() now returns only exit code (ITEM_FOUND is dropped)

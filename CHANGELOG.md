@@ -159,6 +159,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - Several code cleanups, simplification of commands, and code standardization
 - Tests using lsof may ignore individual threads (if supported)
 - Corrected end-of-life detection for CentOS 7 and CentOS 8
+- Tests can require detected package manager (--package-manager-required)
 - Do not show tool tips when quiet option is used
 - Improved screen output in several tests
 - Extended output of 'lynis update info'

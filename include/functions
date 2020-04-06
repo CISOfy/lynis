@@ -2019,6 +2019,7 @@
     PackageIsInstalled() {
         exit_code=255
 
+        # First parameter is package name (or __dummy__ for initial test to see if package manager is available and works as expected)
         if [ $# -eq 1 ]; then
             package="$1"
         else
@@ -2056,7 +2057,21 @@
             output=$(${XBPSBINARY} ${package} 2> /dev/null | ${GREPBINARY} "^ii")
             exit_code=$?
         else
-            ReportException "PackageIsInstalled:01"
+            if [ "${package}" != "__dummy__" ]; then
+                ReportException "PackageIsInstalled:01 (test=${TEST_NO:-unknown})"
+            fi
+        fi
+
+        # Give thumbs up if dummy package is used during initial test for package manager availability
+        if [ "${package}" = "__dummy__" ]; then
+            # There should be no positive match on this dummy package
+            if [ ${exit_code} -eq 0 ]; then
+                exit_code=1
+            elif [ ${exit_code} -eq 255 ]; then
+                exit_code=1
+            else
+                exit_code=0
+            fi
         fi
 
         return ${exit_code}
@@ -2499,8 +2514,8 @@
     Register() {
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
-        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; SKIPREASON=""; TEST_NEED_OS=""; PREQS_MET=""
-        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
+        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; SKIPREASON=""; PREQS_MET=""
+        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_OS=""; TEST_NEED_PKG_MGR=0; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         while [ $# -ge 1 ]; do
             case $1 in
@@ -2523,6 +2538,9 @@
                 --os)
                     shift
                     TEST_NEED_OS=$1
+                ;;
+                --package-manager-required)
+                    TEST_NEED_PKG_MGR=1
                 ;;
                 --preqs-met)
                     shift
@@ -2635,6 +2653,9 @@
 
         # Check for correct hardware platform
         if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
+
+        # Check for required (and discovered) package manager
+        if [ ${SKIPTEST} -eq 0 -a ${TEST_NEED_PKG_MGR} -eq 1 -a ${HAS_PACKAGE_MANAGER} -eq 0 ]; then SKIPTEST=1; SKIPREASON="Requires a known package manager to test presence of a particular package"; fi
 
         # Not all prerequisites met, like missing tool
         if [ ${SKIPTEST} -eq 0 -a "${PREQS_MET}" = "NO" ]; then SKIPTEST=1; if [ -z "${SKIPREASON}" ]; then SKIPREASON="Prerequisites not met (ie missing tool, other type of Linux distribution)"; fi; fi

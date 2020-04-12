@@ -174,6 +174,31 @@
 #
 #################################################################################
 #
+    # Test        : CRYP-7931
+    # Description : Determine if system uses encrypted swap
+    if [ -e "${SWAPONBINARY}" -a -e "${CRYPTSETUPBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CRYP-7931 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Determine if system uses encrypted swap"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        ENCRYPTED_SWAPS=0
+        UNENCRYPTED_SWAPS=0
+        SWAPS=$(${SWAPONBINARY} --show=NAME --noheadings)
+        for BLOCK_DEV in ${SWAPS}; do
+            if ${CRYPTSETUPBINARY} isLuks "${BLOCK_DEV}" 2> /dev/null; then
+                LogText "Result: Found LUKS encrypted swap device: ${BLOCK_DEV}"
+                ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS +1))
+            elif ${CRYPTSETUPBINARY} status "${BLOCK_DEV}" | ${GREPBINARY} --quiet "cipher:"; then
+                LogText "Result: Found non-LUKS encrypted swap device: ${BLOCK_DEV}"
+                ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS +1))
+            else
+                LogText "Result: Found unencrypted swap device: ${BLOCK_DEV}"
+                UNENCRYPTED_SWAPS=$((UNENCRYPTED_SWAPS +1))
+            fi
+        done
+        Display --indent 2 --text "- Found ${ENCRYPTED_SWAPS} encrypted and ${UNENCRYPTED_SWAPS} unencrypted swap devices in use." --result OK --color WHITE
+    fi
+#
+#################################################################################
+#
     # Test        : CRYP-8002
     # Description : Gather available kernel entropy
     Register --test-no CRYP-8002 --os Linux --weight L --network NO --root-only NO --category security --description "Gather available kernel entropy"

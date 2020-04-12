@@ -51,6 +51,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: BOOT-5109 - test presence rEFInd boot loader
 - New test: BOOT-5264 - run systemd-analyze security
 - New test: CRYP-7930 - test for LUKS encryption
+- New test: CRYP-7931 - determine if system uses encrypted swap
 - New test: CRYP-8004 - presence of hardware random number generator
 - New test: CRYP-8005 - presence of software random number generator
 - New test: DBS-1828  - PostgreSQL configuration files

@@ -720,11 +720,29 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6398 TODO
+    # Test        : FILE-6398
     # Description : Check if JBD (Journal Block Device) driver is loaded
-
-    # Want to contribute to Lynis? Create this test
-
+    Register --test-no FILE-6398 --os Linux --weight L --network NO --category security --description "Checking if JBD (Journal Block Device) driver is loaded"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking if JBD (Journal Block Device) driver is loaded"
+        NOTINUSE=0
+        JBD=$(${LSMODBINARY} | ${GREPBINARY} ^jbd)
+        if [ -n "${JBD}" ]; then
+            LogText "Result: JBD driver is loaded"
+            INUSE=$(echo ${JBD} | ${AWKBINARY} '{if ($3 -ne 0) {print $4}}')
+            if [ -n "${INUSE}" ]; then
+                Report "JBD driver is in use by drivers: ${INUSE}"
+            else
+                NOTINUSE=1
+                LogText "JBD driver loaded, but not in use"
+            fi
+        else
+            LogText "Result: JBD driver not loaded"
+        fi
+        if [ ${NOTINUSE} -eq 1 ]; then
+            ReportSuggestion "${TEST_NO}" "The JBD (Journal Block Device) driver is loaded but not in use. Consider unloading the module if you are not using filesystems with journaling."
+        fi
+    fi
 #
 #################################################################################
 #

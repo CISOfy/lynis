@@ -46,6 +46,7 @@ These people made a significant impact to the development of Lynis:
 * Mikko Lehtisalo, Finland
 * Steve Bosek, France
 * Thomas Siebel, Germany
+* Topi Miettinen, Finland
 * Zach Crownover
 
 

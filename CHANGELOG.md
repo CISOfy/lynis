@@ -46,21 +46,40 @@ Using the relevant options, the scan will change base on the intended goal.
 - New option: --usecwd - run from the current working directory
 - New profile option: disable-plugin - disables a single plugin
 - New profile option: ssl-certificate-paths-to-ignore - ignore a path
+- New test: AUTH-9229 - check used password hashing methods
+- New test: AUTH-9230 - check group password hashing rounds
+- New test: BOOT-5109 - test presence rEFInd boot loader
+- New test: BOOT-5264 - run systemd-analyze security
 - New test: CRYP-7930 - test for LUKS encryption
+- New test: CRYP-7931 - determine if system uses encrypted swap
+- New test: CRYP-8004 - presence of hardware random number generator
+- New test: CRYP-8005 - presence of software random number generator
 - New test: DBS-1828  - PostgreSQL configuration files
+- New test: FILE-6394 - test virtual memory swappiness (Linux)
 - New test: FINT-4316 - presence of AIDE database and size test
+- New test: FINT-4340 - check dm-integrity status (Linux)
+- New test: FINT-4341 - verify status of dm-verity (Linux)
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
-- New test: NETW-3200 - determine avilable network protocols
+- New test: NETW-2400 - test hostname for valid characters and length
+- New test: NETW-2706 - check DNSSEC (systemd)
+- New test: NETW-3200 - determine enabled network protocols
+- New test: PHP-2382 - detect listen option in PHP (FPM)
 - New test: PROC-3802 - check presence of prelink tooling
+- New test: TIME-3180 - report if ntpctl cannot communicate with OpenNTPD
+- New test: TIME-3181 - check status of OpenNTPD time synchronisation
+- New test: TIME-3182 - check OpenNTPD has working peers
 - New report key: openssh_daemon_running
 - New command: lynis generate systemd-units
 - Sending USR1 signal to Lynis process will show active status
 - Measure timing of tests and report slow tests (10+ seconds)
 - Initial support for Clear Linux OS
+- Initial support for PureOS
+- Support for X Binary Package (xbps)
 - Added end-of-life data for Arch Linux and Debian
 - Detection and end-of-life data added for Amazon Linux
 - Detection of linux-lts on Arch Linux
+- Translations: Russian added
 
 ### Changed
 - Function: CheckItem() now returns only exit code (ITEM_FOUND is dropped)
@@ -68,13 +87,22 @@ Using the relevant options, the scan will change base on the intended goal.
 - Function: PackageIsInstalled extended with pacman support
 - Profiles: unused options removed
 - Profiles: message is displayed when old format "key:value" is used
+- Binaries: skip pacman when it is the game instead of package manager
 - Security: the 'nounset' (set -u) parameter is now activated by default
+- AUTH-9228 - HP-UX support
+- AUTH-9234 - NetBSD support
+- AUTH-9252 - corrected permission check
 - AUTH-9266 - skip .pam-old files in /etc/pam.d
+- AUTH-9268 - Perform test also on DragonFly, FreeBSD, and NetBSD
 - AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins
+- AUTH-9489 - test removedd as it is merged with AUTH-9218
 - BANN-7126 - additional words for login banner are accepted
+- BOOT-5122 - check for defined password in all GRUB configuration files
 - CONT-8106 - support newer 'docker info' output
+- CRYP-7902 - optionally check also certificates provided by packages
 - CRYP-8002 - gather kernel entropy on Linux systems
+- FILE-6310 - support for HP-UX
 - FILE-6374 - changed log and allow root location to be changed
 - FILE-6374 - corrected condition to find 'defaults' flag in /etc/fstab
 - FILE-6430 - minor code improvements and show suggestion with more details
@@ -90,9 +118,13 @@ Using the relevant options, the scan will change base on the intended goal.
 - INSE-8318 - test for TFTP client tools
 - INSE-8320 - test for TFTP server tools
 - INSE-8342 - renamed to INSE-8304
+- KRNL-5788 - don't complain about missing /vmlinuz for Raspi
 - KRNL-5820 - extended check to include limits.d directory
 - KRNL-5830 - skip test partially when running non-privileged
+- KRNL-5830 - detect required reboots on Raspbian
 - LOGG-2154 - added support for rsyslog configurations
+- LOGG-2190 - skip mysqld related entries
+- MACF-6234 - SELinux tests extended
 - MAIL-8804 - replaced static strings with translation-aware strings
 - MALW-3280 - Kaspersky detection added
 - MALW-3280 - CrowdStrike falcon-sensor detection added
@@ -100,19 +132,26 @@ Using the relevant options, the scan will change base on the intended goal.
 - NAME-4404 - improved screen and log output
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
+- PHP-2372 - don't look in the cli configuration files
+- PKGS-7388 - only perform check for Debian/Ubuntu/Mint
 - PKGS-7410 - use multiple package managers when available
 - PKGS-7410 - added support for Zypper to test number of kernels
+- PRNT-2308 - check also for Port and SSLListen statements
 - PROC-3602 - allow different root directory
 - PROC-3612 - show 'Not found' instead of 'OK'
 - PROC-3614 - show 'Not found' instead of 'OK'
+- PROC-3802 - limit to Linux only (prelink package check)
 - SCHD-7702 - removed hardening points
 - SINT-7010 - limit test to only macOS systems
 - SSH-7402 - detect other SSH daemons like dropbear
 - SSH-7406 - strip OpenSSH patch version and remove characters (carriage return)
 - SSH-7408 - changed text in suggestion and report
 - SSH-7408 - added forced-commands-only option
+- SSH-7408 - VerifyReverseMapping removed (deprecated)
+- SSH-7408 - corrected OpenSSH server version check
 - STRG-1840 - renamed to USB-1000
 - STRG-1842 - added default authorized devices and renamed to USB-2000
+- TIME-3104 - use find to discover files in cron directories
 - TOOL-5002 - differentiate between a discovered binary and running process
 - TOOL-5160 - added support for OSSEC agent daemon
 - Perform additional check to ensure pacman package manager is used
@@ -120,11 +159,14 @@ Using the relevant options, the scan will change base on the intended goal.
 - Use only locations from PATH environment variable, unless it is not defined
 - Show tip to use 'lynis generate hostids' when host IDs are missing
 - The 'show changelog' command works again for newer versions
-- Improved screen output in several tests
 - Several code cleanups, simplification of commands, and code standardization
 - Tests using lsof may ignore individual threads (if supported)
+- Corrected end-of-life detection for CentOS 7 and CentOS 8
+- Tests can require detected package manager (--package-manager-required)
 - Do not show tool tips when quiet option is used
+- Improved screen output in several tests
 - Extended output of 'lynis update info'
+- Improved support for NetBSD
 - Test if profiles are readable
 - systemd service file adjusted
 - bash completion script extended

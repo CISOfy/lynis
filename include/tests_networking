@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -32,6 +32,55 @@
 #################################################################################
 #
     InsertSection "Networking"
+#
+#################################################################################
+#
+    # Test        : NETW-2400
+    # Description : Test hostname for valid characters and length
+    # Notes       : FQDN: max 253 characters
+    #             : component: a-z, 0-9, hyphen, not start with hyphen, max 63 characters
+    #               dots allowed as separator
+    Register --test-no NETW-2400 --weight L --network YES --category basics --description "Hostname length and value check"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Test first the fully qualified domain name
+        if [ ${#FQDN} -gt 253 ]; then
+            # Too long
+            LogText "Result: FQDN is more than 253 characters"
+            Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_WARNING}" --color RED
+            ReportWarning "${TEST_NO}" "Hostname is too long (more than 253 characters)"
+        elif [ ${#FQDN} -eq 0 ]; then
+            # FQDN not defined
+            LogText "Result: FQDN is not defined"
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_UNKNOWN}" --color YELLOW; fi
+        else
+            # Fine
+            LogText "Result: FQDN is defined and not longer than 253 characters (${#FQDN} characters)"
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_OK}" --color GREEN; fi
+        fi
+        # Now test short hostname
+        if [ ${#HOSTNAME} -eq 0 ]; then
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_NONE}" --color RED; fi
+            LogText "Result: hostname is not defined"
+        else
+            # Test length
+            if [ ${#HOSTNAME} -gt 63 ]; then
+                LogText "Result: hostname is more than 63 characters"
+                Display --indent 2 --text "- Hostname (length)" --result "${STATUS_WARNING}" --color RED
+            else
+                LogText "Result: hostnamed is defined and not longer than 63 characters"
+            fi
+            # Test valid characters (normally a dot should not be in the name, but we can't be 100% sure we have short name)
+            FIND=$(echo "${HOSTNAME}" | ${TRBINARY} -d '[a-z0-9\.\-]')
+            if [ -z "${FIND}" ]; then
+                LogText "Result: good, no unexpected characters discovered in hostname"
+                if IsVerbose; then Display --indent 2 --text "- Hostname (allowed characters)" --result "${STATUS_OK}" --color GREEN; fi
+            else
+                LogText "Result: unexpected characters discovered in hostname (characters: ${FIND}), which may impact network connectivity"
+                Display --indent 2 --text "- Hostname (allowed characters)" --result "${STATUS_WARNING}" --color RED
+                ReportWarning "${TEST_NO}" "Hostname contains invalid characters" "hostname" "text:See log file for invalid characters"
+            fi
+        fi
+    fi
 #
 #################################################################################
 #
@@ -186,6 +235,40 @@
         fi
     else
         LogText "Result: Test most likely skipped due having local resolver in /etc/resolv.conf"
+    fi
+#
+#################################################################################
+#
+    # Test        : NETW-2706
+    # Description : Check systemd-resolve output and upstream DNSSEC status
+    # Notes       : Ubuntu 16.04 uses systemd-resolve, newer ones most likely resolvectl
+    if [ -n "${RESOLVECTLBINARY}" ]; then
+        PREQS_MET="YES"
+        RESOLVE_CMD="${RESOLVECTLBINARY}"
+        RESOLVE_CMD_PARAM="statistics"
+    elif [ -n "$(command -v systemd-resolve 2> /dev/null)" ]; then
+        PREQS_MET="YES"
+        RESOLVE_CMD="$(command -v systemd-resolve 2> /dev/null)"
+        RESOLVE_CMD_PARAM="--statistics"
+    else
+        PREQS_MET="NO"
+    fi
+    Register --test-no NETW-2706 --preqs-met "${PREQS_MET}" --weight L --network YES --category security --description "Check systemd-resolved and upstream DNSSEC status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        SKIP=0
+        DNSSEC_STATUS=$(${RESOLVE_CMD} ${RESOLVE_CMD_PARAM} 2> /dev/null | ${AWKBINARY} -F ":" '/DNSSEC supported/ { print $2 }' | ${TRBINARY} -d ' ')
+        if [ "${DNSSEC_STATUS}" = "yes" ]; then
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_YES}" --color GREEN
+            LogText "Result: DNSSEC supported by systemd-resolved and upstream DNS servers"
+        elif [ "${DNSSEC_STATUS}" = "no" ]; then
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_NO}" --color YELLOW
+            LogText "Result: DNSSEC not supported by systemd-resolved or upstream DNS servers"
+        else
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_UNKNOWN}" --color RED
+            LogText "Result: command '${RESOLVE_CMD} ${RESOLVE_CMD_PARAM}' returned an error. Please run command manually to check for details."
+        fi
+    else
+        LogText "Result: Test most likely skipped due to not having resolvectl"
     fi
 #
 #################################################################################
@@ -489,10 +572,10 @@
                 # Check if this interface was whitelisted
                 if [ ${WHITELISTED} -eq 0 ]; then
                     FOUNDPROMISC=1
-                    ReportWarning "${TEST_NO}" "Found promiscuous interface (${I})"
+                    ReportWarning "${TEST_NO}" "Found promiscuous interface (${ITEM})"
                     LogText "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
                 else
-                    LogText "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
+                    LogText "Result: Found promiscuous interface ${ITEM} (*whitelisted via profile*)"
                 fi
             done
         fi
@@ -530,7 +613,7 @@
             FOUNDPROMISC=0
             for I in ${NETWORK}; do
                 if [ ${USE_IP_INSTEAD_IFCONFIG} -eq 1 ]; then
-                    FIND=$(${IPBINARY} -o -d link show ${I} 2> /dev/null | ${GREPBINARY} 'promiscuity 1')
+                    FIND=$(${IPBINARY} -o -d link show ${I} 2> /dev/null | ${GREPBINARY} "promiscuity [1-9]")
                 else
                     FIND=$(${IFCONFIGBINARY} ${I} 2> /dev/null | ${GREPBINARY} PROMISC)
                 fi
@@ -641,40 +724,44 @@
 #
     # Test        : NETW-3200
     # Description : Determine available network protocols
+    # Notes       : See all available supported modules: ls -d /lib/modules/$(uname -r )/kernel/net
+    #               To see active/enabled protocols: ls -d /proc/sys/net
     Register --test-no NETW-3200 --weight L --network YES --category security --description "Determine available network protocols"
     if [ ${SKIPTEST} -eq 0 ]; then
         TESTED=0
+        FOUND_UNCOMMON_PROTOCOL_ENABLED=0
         case ${OS} in
             Linux)
                 TESTED=1
                 LogText "Test: checking the status of some network protocols that typically are not used"
                 UNCOMMON_PROTOCOLS="dccp sctp rds tipc"
                 for P in ${UNCOMMON_PROTOCOLS}; do
+                    LogText "Test: now checking module '${P}'"
                     if ! SkipAtomicTest "${TEST_NO}:${P}"; then
-                        FOUND_UNCOMMON_PROTOCOL=0
+                        UNCOMMON_PROTOCOL_DISABLED=0
+                        # First check modprobe.conf
                         if [ -f ${ROOTDIR}etc/modprobe.conf ]; then
                             DATA=$(${GREPBINARY} "^install ${P} /bin/true" ${ROOTDIR}etc/modprobe.conf)
                             if [ -n "${DATA}" ]; then
-                                LogText "Result: found ${P} module loaded via modprobe.conf"
-                                FOUND_UNCOMMON_PROTOCOL=1
+                                LogText "Result: found ${P} module disabled via modprobe.conf"
+                                UNCOMMON_PROTOCOL_DISABLED=1
                             fi
                         fi
+                        # Then additional modprobe configuration files
                         if [ -d ${ROOTDIR}etc/modprobe.d ]; then
                             DATA=$(${GREPBINARY} --files-with-matches --no-messages "^install ${P} /bin/true" ${ROOTDIR}etc/modprobe.d/*)
                             if [ -n "${DATA}" ]; then
-                                FOUND_UNCOMMON_PROTOCOL=1
+                                UNCOMMON_PROTOCOL_DISABLED=1
                                 for F in ${DATA}; do
-                                    LogText "Result: found ${P} module loaded via ${F}"
+                                    LogText "Result: found ${P} module disabled via ${F}"
                                 done
                             fi
                         fi
 
-                        # Although a protocol may not been enabled using install, it can be loaded. This may be revealed using /proc
-                        #/proc/sys/net/
-
-                        if [ ${FOUND_UNCOMMON_PROTOCOL} -eq 1 ]; then
-                            ReportSuggestion "${TEST_NO}" "Determine if network protocol ${P} needs to be used on this system"
+                        if [ ${UNCOMMON_PROTOCOL_DISABLED} -eq 0 ]; then
+                            ReportSuggestion "${TEST_NO}" "Determine if protocol '${P}' is really needed on this system"
                             Report "uncommon_network_protocol_enabled=${P}"
+                            FOUND_UNCOMMON_PROTOCOL_ENABLED=1
                         fi
                     fi
                 done
@@ -686,7 +773,7 @@
             ;;
         esac
         if [ ${TESTED} -eq 1 ]; then
-            if [ ${FOUND_UNCOMMON_PROTOCOL} -eq 1 ]; then
+            if [ ${FOUND_UNCOMMON_PROTOCOL_ENABLED} -eq 1 ]; then
                 Display --indent 2 --text "- Uncommon network protocols" --result "${FOUND}" --color YELLOW
             else
                 Display --indent 2 --text "- Uncommon network protocols" --result "${STATUS_NOT_FOUND}" --color GREEN
@@ -697,7 +784,6 @@
 #
 #################################################################################
 #
-
 
 WaitForKeyPress
 

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -81,7 +81,7 @@
         fi
 
         # Check for OpenNTPD, ntpctl comes with a "regular" install
-        if [ -n ${NTPCTLBINARY} ]; then
+        if [ -n "${NTPCTLBINARY}" ]; then
             # In contrast to timectl, "synchronised: yes" is not grepped.
             # Reason: openntpd syncs only if large time corrections are not required or -s is passed.
             #         This might be not intended by the administrator (-s is NOT the default!)
@@ -163,22 +163,28 @@
             fi
         done
 
-        # Don't run check in cron job directory on Solaris
-        # /etc/cron.d/FIFO is a special file and test get stuck at this file
+        # Notes: only test for normal files. File /etc/cron.d/FIFO on solaris is a special file and test may hang
+        # Linux systems may have a .placeholder file
         FOUND_IN_CRON=0
 
         # Check cron jobs
         for I in ${CRON_DIRS}; do
             if [ -d ${I} ]; then
                 if FileIsReadable ${I}; then
-                    FIND=$(${LSBINARY} ${I} | ${GREPBINARY} -v FIFO)
+                    FIND=$(${FINDBINARY} ${I} -type f -a ! -name ".placeholder" -print 2> /dev/null | ${SEDBINARY} 's/ /__space__/g' | ${TRBINARY} '\n' '\0' | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} '\0' ' ')
                     if [ -n "${FIND}" ]; then
                         for J in ${FIND}; do
-                            LogText "Test: checking for ntpdate or rdate in ${I}/${J}"
-                            FIND2=$(${EGREPBINARY} "rdate|ntpdate" ${I}/${J} | ${GREPBINARY} -v "^#")
-                            if [ -n "${FIND2}" ]; then
-                                LogText "Positive match found: ${FIND2}"
-                                FOUND=1; FOUND_IN_CRON=1; NTP_CONFIG_TYPE_SCHEDULED=1
+                            # Place back spaces if needed
+                            J=$(echo ${J} | ${SEDBINARY} 's/__space__/ /g')
+                            LogText "Test: checking for ntpdate or rdate in ${J}"
+                            if FileIsReadable ${J}; then
+                                FIND2=$(${EGREPBINARY} "rdate|ntpdate" "${J}" | ${GREPBINARY} -v "^#")
+                                if [ -n "${FIND2}" ]; then
+                                    LogText "Positive match found: ${FIND2}"
+                                    FOUND=1; FOUND_IN_CRON=1; NTP_CONFIG_TYPE_SCHEDULED=1
+                                fi
+                            else
+                                LogText "Result: could not test in file '${J}' as it is not readable"
                             fi
                         done
                     else
@@ -526,14 +532,12 @@
 #
     # Test        : TIME-3180
     # Description : Report if ntpctl cannot communicate with OpenNTPD
-
     if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ]; then
         PREQS_MET="YES"
     else
         PREQS_MET="NO"
     fi
-
-    Register --test-no TIME-3180 --weight L --network NO --category security --description "Report if ntpctl cannot communicate with OpenNTPD"
+    Register --test-no TIME-3180 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Report if ntpctl cannot communicate with OpenNTPD"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ "${OPENNTPD_COMMUNICATION}" -eq 0 ]; then
             ReportWarning "${TEST_NO}" "OpenNTPD found, but ntpctl cannot communicate with" "${NTPCTLBINARY} -s status" "Restart OpenNTPD"
@@ -544,14 +548,13 @@
 #
     # Test        : TIME-3181
     # Description : Check status of OpenNTPD time synchronisation
-
     if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
         PREQS_MET="YES"
     else
         PREQS_MET="NO"
     fi
 
-    Register --test-no TIME-3181 --weight L --network NO --category security --description "Check status of OpenNTPD time synchronisation"
+    Register --test-no TIME-3181 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Check status of OpenNTPD time synchronisation"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${NTPCTLBINARY} -s status | ${GREPBINARY} "clock synced" )
         if [ -z "${FIND}" ]; then
@@ -570,7 +573,7 @@
         PREQS_MET="NO"
     fi
 
-    Register --test-no TIME-3182 --weight L --network NO --category security --description "Check OpenNTPD has working peers"
+    Register --test-no TIME-3182 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Check OpenNTPD has working peers"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Format is "xx/yy peers valid, ..."
         FIND=$(${NTPCTLBINARY} -s status | ${EGREPBINARY} -o "[0-9]{1,4}/" | ${EGREPBINARY} -o "[0-9]{1,4}" )

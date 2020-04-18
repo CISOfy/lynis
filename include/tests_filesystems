@@ -639,6 +639,67 @@
 #
 #################################################################################
 #
+    # Test        : FILE-6375
+    # Description : Check mount options of tmpfs filesystems
+    # Notes       : Depending on the primary goals of a machine, some mount points might be too restrictive. Before applying any
+    #               mount flags, test them on a similar or cloned test system.
+    #
+    #            --------------------------------------------------------------------------------
+    #               FS type                  nodev  noexec  nosuid  size  typical mount points
+    #               devtmpfs                          v       v      v    /dev
+    #               tmpfs                      v      v       v      v    /dev/shm, /run, /run/user/UID, /tmp, /var/tmp
+    #            --------------------------------------------------------------------------------
+    #
+    #               Sum of sizes of all tmpfs and devtmpfs mounts should be less than the size of the RAM to prevent out
+    #               of memory situations.
+    #               Without the size= mount option, default size of each mount is 50% of RAM.
+    #               The default without nr_inodes= is half of the number of RAM pages on modern hardware.
+    #
+    FILESYSTEMS_TO_CHECK="tmpfs:nodev,noexec,nosuid,size=,nr_inodes= devtmpfs:noexec,nosuid,size=,nr_inodes="
+    Register --test-no FILE-6375 --os Linux --weight L --network NO --category security --description "Check mount options of tmpfs filesystems"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for I in ${FILESYSTEMS_TO_CHECK}; do
+            FS_TYPE=$(echo ${I} | ${CUTBINARY} -d: -f1)
+            EXPECTED_FLAGS=$(echo ${I} | ${CUTBINARY} -d: -f2 | ${SEDBINARY} 's/,/ /g')
+            FS_FSTAB=$(mount | ${AWKBINARY} -v fs=${FS_TYPE} '{ if ($5==fs) { print $3 } }' | ${SORTBINARY})
+            for FILESYSTEM in ${FS_FSTAB}; do
+                FOUND_FLAGS=$(mount | ${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $3==fs) { print $6 } }' | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
+                LogText "File system:    ${FILESYSTEM}"
+                LogText "Expected flags: ${EXPECTED_FLAGS}"
+                LogText "Found flags:    ${FOUND_FLAGS}"
+                PARTIALLY_HARDENED=0
+                FULLY_HARDENED=1
+                for FLAG in ${EXPECTED_FLAGS}; do
+                    FLAG_AVAILABLE=$(echo ${FOUND_FLAGS} | ${GREPBINARY} ${FLAG})
+                    if [ -z "${FLAG_AVAILABLE}" ]; then
+                        LogText "Result: Could not find mount option ${FLAG} on file system ${FILESYSTEM}"
+                        FULLY_HARDENED=0
+                    else
+                        LogText "Result: GOOD, found mount option ${FLAG} on file system ${FILESYSTEM}"
+                        PARTIALLY_HARDENED=1
+                    fi
+                done
+                if [ ${FULLY_HARDENED} -eq 1 ]; then
+                    LogText "Result: marked ${FILESYSTEM} as fully hardened"
+                    Display --indent 2 --text "- Mount options of ${FS_TYPE}: ${FILESYSTEM}" --result HARDENED --color GREEN
+                elif [ ${PARTIALLY_HARDENED} -eq 1 ]; then
+                    LogText "Result: marked ${FILESYSTEM} as partially hardened"
+                    Display --indent 2 --text "- Mount options of ${FS_TYPE}: ${FILESYSTEM}" --result "PARTIALLY HARDENED" --color YELLOW
+                else
+                    if ContainsString "defaults" "${FOUND_FLAGS}"; then
+                        LogText "Result: marked ${FILESYSTEM} options as default (not hardened)"
+                        Display --indent 2 --text "- Mount options of ${FS_TYPE}: ${FILESYSTEM}" --result DEFAULT --color YELLOW
+                    else
+                        LogText "Result: marked ${FILESYSTEM} options as not hardened"
+                        Display --indent 2 --text "- Mount options of ${FS_TYPE}: ${FILESYSTEM}" --result "NOT HARDENED" --color YELLOW
+                    fi
+                fi
+            done
+        done
+    fi
+#
+#################################################################################
+#
     # Test        : FILE-6376
     # Description : Bind mount the /var/tmp directory to /tmp
     Register --test-no FILE-6376 --os Linux --weight L --network NO --category security --description "Determine if /var/tmp is bound to /tmp"

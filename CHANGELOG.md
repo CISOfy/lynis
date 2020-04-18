@@ -55,6 +55,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: CRYP-8004 - presence of hardware random number generator
 - New test: CRYP-8005 - presence of software random number generator
 - New test: DBS-1828  - PostgreSQL configuration files
+- New test: FILE-6375 - Check mount options of tmpfs filesystems (Linux)
 - New test: FILE-6394 - test virtual memory swappiness (Linux)
 - New test: FINT-4316 - presence of AIDE database and size test
 - New test: FINT-4340 - check dm-integrity status (Linux)

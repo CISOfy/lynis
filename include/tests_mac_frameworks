@@ -169,6 +169,25 @@
             Display --indent 8 --text "Found ${NUNCONFINED} unconfined and ${NINITRC} initrc_t processes"
             LogText "Unconfined processes: ${UNCONFINED}"
             LogText "Processes with initrc_t type: ${INITRC}"
+	    SECMARK=0
+	    if [ -n ${NFTBINARY} ]; then
+		if ${NFTBINARY} list ruleset | ${GREPBINARY} --quiet --ignore-case secmark; then
+		    SECMARK=1
+		fi
+	    elif [ -n ${IPTABLESBINARY} ]; then
+		if ${IPTABLESBINARY} --list | ${GREPBINARY} --quiet --ignore-case secmark; then
+		    SECMARK=1
+		elif ${IPTABLESBINARY} --table security --list | ${GREPBINARY} --quiet --ignore-case secmark; then
+		    SECMARK=1
+		fi
+	    fi
+	    if [ ${SECMARK} -eq 1 ]; then
+		Display --indent 8 --text "SELinux packet labeling: found Netfilter SECMARK rules"
+		LogText "SELinux packet labeling: found Netfilter SECMARK rules"
+	    else
+		Display --indent 8 --text "SELinux packet labeling: Netfilter SECMARK rules not found"
+		LogText "SELinux packet labeling: Netfilter SECMARK rules not found"
+	    fi
         else
             LogText "Result: SELinux framework is disabled"
             Display --indent 4 --text "- Checking SELinux status" --result "${STATUS_DISABLED}" --color YELLOW

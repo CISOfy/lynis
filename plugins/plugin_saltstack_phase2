@@ -1,0 +1,91 @@
+#!/bin/sh
+
+# -------------------------- REFERENCE ---------------------------
+#  https://cisofy.com/documentation/lynis/plugins/development/
+#
+#  Each plugin should at least have several variables defined with the
+#  prefix PLUGIN_* (see below)
+#
+#  If you want to learn what functions you can use, check include/functions
+# 
+#  Lynus Execution Steps:
+#  [Initialization] → [OS detection] → [Detection of binaries] → [Plugins phase 1] → [Built-in tests] → [Custom tests] → [Plugins phase 2] → [Report]
+#
+# -------------------------- REFERENCE ---------------------------
+
+#########################################################################
+#
+#    * DO NOT REMOVE *
+#-----------------------------------------------------
+# PLUGIN_AUTHOR=Everactive <carlos.olmos@everactive.com>
+# PLUGIN_CATEGORY=saltstack
+# PLUGIN_DESC=Scan for saltstak exploit CVE-2020-11651
+# PLUGIN_NAME=saltstack
+# PLUGIN_REQUIRED_TESTS=
+#-----------------------------------------------------
+#
+#########################################################################
+#
+    # Add custom section to screen output
+    InsertSection "Saltstack"
+#
+#################################################################################
+#
+    # Test        : CUST-0001
+    # Description : CVE-2020-11651
+
+    # Register our first custom test
+    # We consider it to be a lightweight test (no heavy IO, or long searches), no network connection needed
+    Register --test-no CUST-0001 --weight L --network NO --description "Scan for malware from saltstack exploit CVE-2020-11651" --category saltstack
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Set variable to zero, to indicate that we have no problems found (yet)        
+        FOUNDPROBLEM=0
+
+        MALWAREFILES="/tmp/salt-minions /var/tmp/salt-store /usr/bin/salt-store /root/.wget-hsts /tmp/xmrig"
+        LogText "Test: we are going to check if the exploit files exist (${MALWAREFILES})"
+        for BADFILE in ${MALWAREFILES}; do
+            if FileExists $BADFILE; then            
+                FOUNDPROBLEM=1
+                MD5SIG=$(md5sum $BADFILE)
+                Display --indent 2 --text "Found malicious file $BADFILE (md5=$MD5SIG)" --result WARNING --color RED
+                ReportWarning "${TEST_NO}" "Malicious file " "${BADFILE}" "Remove malicious file"
+            fi
+        done
+        MALWAREDIRS="/tmp/.ICEd* /var/tmp/.ICE*"
+        LogText "Test: we are going to check if the exploit directoriess exist (${MALWAREDIRS})"
+        for BADDIR in ${MALWAREDIRS}; do
+            if DirectoryExists $BADDIR; then
+                FOUNDPROBLEM=1                
+                Display --indent 2 --text "Found potential malicious directory $BADDIR" --result WARNING --color RED
+                ReportWarning "${TEST_NO}" "Potential malicious directory " "${BADDIR}" "Remove unwanted directory"
+            fi
+        done
+        
+        LogText "Test: checking for unwanted processes"
+        if IsRunning "salt-store"; then
+            FOUNDPROBLEM=1
+            Display --indent 2 --text "Found salt-store running" --result WARNING --color RED            
+            ReportWarning "${TEST_NO}" "Found salt-store running" "salt-store" "Scan for potential malware"
+        fi
+
+        if IsRunning "xmrig"; then
+            FOUNDPROBLEM=1
+            Display --indent 2 --text "Found xmrig running" --result WARNING --color RED            
+            ReportWarning "${TEST_NO}" "Found xmrig running" "xmrig" "Kill this process"
+        fi
+    
+        if [ ${FOUNDPROBLEM} -eq 0 ]; then
+            Display --indent 2 --text "- Checking if everything is OK..." --result "${STATUS_OK}" --color GREEN
+        else
+            Display --indent 2 --text "- Checking if everything is OK..." --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Investigate for potential saltstack master infection with CVE-2020-11651"
+        fi
+    fi
+#
+#################################################################################
+#
+
+# Wait for keypress (unless --quick is being used)
+WaitForKeyPress
+
+#EOF

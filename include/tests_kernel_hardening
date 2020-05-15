@@ -112,6 +112,44 @@
 #
 #################################################################################
 #
+    # Test        : KRNL-6001
+    # Description : Check SysV shared memory configuration
+    if [ ! "${SYSCTLBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no KRNL-6001 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --category security --description "Check SysV shared memory configuration"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        # Sysctl option
+        LogText "Test: Read system RAM size"
+        # value is in kB
+        RAM_SIZE=$(${AWKBINARY} '/MemTotal/ { print $2 * 1024 }' /proc/meminfo)
+        LogText "Test: RAM size ${RAM_SIZE} bytes"
+        LogText "Test: Read OS page size"
+        if [ -n "${GETCONFBINARY}" ]; then
+            PAGE_SIZE=$(${GETCONFBINARY} PAGE_SIZE)
+            LogText "Test: Page size is ${PAGE_SIZE}"
+        else
+            PAGE_SIZE=4096
+            LogText "Test: Assuming typical OS page size of 4096"
+        fi
+        LogText "Test: Checking sysctl value of kernel.shmall"
+        # value is in pages (typically 4k)
+        FIND=$(${SYSCTLBINARY} kernel.shmall 2> /dev/null | ${AWKBINARY} -v PAGE_SIZE=${PAGE_SIZE} '{ if ($1=="kernel.shmall") { print $3 * PAGE_SIZE } }')
+        if [ -z "${FIND}" ]; then
+            LogText "Result: sysctl key kernel.shmall not found"
+        else
+            LogText "Result: shared memory limited to ${FIND} bytes"
+            if [ "${FIND}" -lt ${RAM_SIZE} ]; then
+                LogText "Result: programs can't allocate more SysV shared memory than there is RAM"
+                Display --indent 4 --text "- Checking SysV shared memory configuration" --result "${STATUS_OK}" --color GREEN
+            else
+                LogText "Result: programs can allocate more SysV shared memory than there is RAM"
+                Display --indent 4 --text "- Checking SysV shared memory configuration" --result "${STATUS_WARNING}" --color YELLOW
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
 
 WaitForKeyPress
 

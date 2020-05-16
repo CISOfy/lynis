@@ -2,7 +2,7 @@
 
 ## Community
 
-Since 2007 the Lynis project helped many system administrators and security
+Since 2007, the Lynis project helped many system administrators and security
 professionals to scan their systems and perform system hardening. Happy users
 and contributors are the foundation of a healthy project.
 

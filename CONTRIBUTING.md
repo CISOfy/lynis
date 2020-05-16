@@ -1,3 +1,4 @@
+
 # Contributions
 
 ## Helping out
@@ -6,13 +7,13 @@
 Run the tool in debug mode (use lynis audit system --profile developer.prf) and see if it shows any error.
 
 ### Report bugs
-Create an GitHub issue on the issue tracker
+Create a GitHub issue on the issue tracker.
 
 ### Suggest changes (pull request)
 When you find something that can be improved, fork the project and create a pull request.
 
 ### Translations
-See the db/languages directory
+See the db/languages directory.
 
 
 ## Developer Guidelines
@@ -30,13 +31,13 @@ Identation should be 4 spaces (no tab character).
 
 ### Comments
 Comments: use # sign followed by a space. When needed, create a comment block.
-Blank lines: allowed, one line maximum
+Blank lines: allowed, one line maximum.
 
 ### Functions
 All functions use CamelCase to clearly show a difference between shell built-in commands, or external commands.
 
 ### Variables
-Variables should be capitalized, with underscore as word separator (e.g. PROCESS_EXISTS=1)
+Variables should be capitalized, with underscore as word separator (e.g. PROCESS_EXISTS=1).
 
 
 ## Pull Requests
@@ -56,7 +57,7 @@ to this repository, you agree that you:
 
 4. Allow the project the [Unlimited Rights](#Unlimited-Rights) to your contribution
 
-If you have questions regarding development, send us an e-mail at [lynis-dev](mailto:lynis-dev@cisofy.com)
+If you have questions regarding development, send us an e-mail at [lynis-dev](mailto:lynis-dev@cisofy.com).
 
 
 ## Unlimited Rights

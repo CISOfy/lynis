@@ -730,11 +730,12 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         TESTED=0
         FOUND_UNCOMMON_PROTOCOL_ENABLED=0
+        FOUND_UNCOMMON_PROTOCOLS=""
         case ${OS} in
             Linux)
                 TESTED=1
                 LogText "Test: checking the status of some network protocols that typically are not used"
-                UNCOMMON_PROTOCOLS="dccp sctp rds tipc"
+                UNCOMMON_PROTOCOLS="af_packet_diag appletalk atm batman_adv can ceph dccp dccp_diag decnet diag ife l2tp_ip l2tp_ip6 l2tp_netlink l2tp_ppp lapb llc llc2 mpls_router netlink_diag netrom openvswitch phonet pktgen pn_pep pppoe ppox pptp raw_diag rose rxrpc scsi_transport_iscsi sctp sctp_diag smc smc_diag rds tipc unix_diag vsock vsock_diag"
                 for P in ${UNCOMMON_PROTOCOLS}; do
                     LogText "Test: now checking module '${P}'"
                     if ! SkipAtomicTest "${TEST_NO}:${P}"; then
@@ -759,8 +760,7 @@
                         fi
 
                         if [ ${UNCOMMON_PROTOCOL_DISABLED} -eq 0 ]; then
-                            ReportSuggestion "${TEST_NO}" "Determine if protocol '${P}' is really needed on this system"
-                            Report "uncommon_network_protocol_enabled=${P}"
+                            FOUND_UNCOMMON_PROTOCOLS="${FOUND_UNCOMMON_PROTOCOLS} ${P}"
                             FOUND_UNCOMMON_PROTOCOL_ENABLED=1
                         fi
                     fi
@@ -774,12 +774,14 @@
         esac
         if [ ${TESTED} -eq 1 ]; then
             if [ ${FOUND_UNCOMMON_PROTOCOL_ENABLED} -eq 1 ]; then
-                Display --indent 2 --text "- Uncommon network protocols" --result "${FOUND}" --color YELLOW
+                Display --indent 2 --text "- Uncommon network protocols" --result "${STATUS_FOUND}" --color YELLOW
+                ReportSuggestion "${TEST_NO}" "Determine if all network protocols are really needed on this system"
+                Report "uncommon_network_protocol_enabled=${FOUND_UNCOMMON_PROTOCOLS}"
             else
                 Display --indent 2 --text "- Uncommon network protocols" --result "${STATUS_NOT_FOUND}" --color GREEN
             fi
         fi
-        unset DATA F FOUND TESTED UNCOMMON_PROTOCOLS
+        unset DATA F FOUND FOUND_UNCOMMON_PROTOCOLS TESTED UNCOMMON_PROTOCOLS
     fi
 #
 #################################################################################

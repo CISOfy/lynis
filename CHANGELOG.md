@@ -132,6 +132,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - NAME-4404 - improved screen and log output
 - NAME-4408 - corrected Report function call
 - NETW-3032 - small rewrite of test and extended with addrwatch
+- NETW-3200 - check lots of uncommon protocols
 - PHP-2372 - don't look in the cli configuration files
 - PKGS-7388 - only perform check for Debian/Ubuntu/Mint
 - PKGS-7410 - use multiple package managers when available

@@ -1,10 +1,15 @@
 # Lynis Changelog
 
-## Lynis 3.0.0 (not released yet)
+## Lynis 3.0.0 (2020-06-18)
 
 This is a major release of Lynis and includes several big changes.
 Some of these changes may break your current usage of the tool, so test before
 deployment!
+
+### Security issues
+This release resolves two security issues
+* CVE-2020-13882 - Discovered by Sander Bos, code submission by Katarina Durechova
+* CVE-2019-13033 - Discovered by Sander Bos
 
 ### Breaking change: Non-interactive by default
 Lynis now runs non-interactive by default, to be more in line with the Unix

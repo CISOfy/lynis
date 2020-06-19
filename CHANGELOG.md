@@ -1,5 +1,13 @@
 # Lynis Changelog
 
+## Lynis 3.0.1 (not released yet)
+
+### Changed
+- Added Kali Linux
+- Small code enhancements
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.0 (2020-06-18)
 
 This is a major release of Lynis and includes several big changes.

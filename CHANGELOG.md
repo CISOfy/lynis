@@ -3,6 +3,7 @@
 ## Lynis 3.0.1 (not released yet)
 
 ### Changed
+- KRNL-5830 - Improved version detection for non-symlinked kernel
 - Added Kali Linux
 - End-of-life database updated
 - Small code enhancements

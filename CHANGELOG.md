@@ -4,6 +4,7 @@
 
 ### Changed
 - Added Kali Linux
+- End-of-life database updated
 - Small code enhancements
 
 ---------------------------------------------------------------------------------

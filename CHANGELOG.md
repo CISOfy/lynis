@@ -6,6 +6,7 @@
 - BOOT-5122 - Presence check for grub.d added
 - KRNL-5830 - Improved version detection for non-symlinked kernel
 - Added Kali Linux
+- Fix: language detection
 - End-of-life database updated
 - Small code enhancements
 

@@ -4,6 +4,7 @@
 
 ### Changed
 - BOOT-5122 - Presence check for grub.d added
+- CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
 - KRNL-5830 - Improved version detection for non-symlinked kernel
 - Added Kali Linux
 - Fix: language detection

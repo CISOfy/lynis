@@ -3,6 +3,7 @@
 ## Lynis 3.0.1 (not released yet)
 
 ### Changed
+- BOOT-5122 - Presence check for grub.d added
 - KRNL-5830 - Improved version detection for non-symlinked kernel
 - Added Kali Linux
 - End-of-life database updated

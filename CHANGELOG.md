@@ -2,12 +2,16 @@
 
 ## Lynis 3.0.1 (not released yet)
 
+### Added
+- Detection of macOS Big Sur (11.0)
+- Detection of Kali Linux
+
 ### Changed
 - BOOT-5122 - Presence check for grub.d added
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
 - KRNL-5830 - Improved version detection for non-symlinked kernel
-- Added Kali Linux
 - Fix: language detection
+- German translation updated
 - End-of-life database updated
 - Small code enhancements
 

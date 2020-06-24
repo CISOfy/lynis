@@ -10,7 +10,8 @@
 - AUTH-9229 - Added option for LOCKED accounts
 - BOOT-5122 - Presence check for grub.d added
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
-- INSE-8312 - corrected text on screen
+- INSE-8312 - Corrected text on screen
+- KRNL-5728 - Handle zipped kernel configuration correctly
 - KRNL-5830 - Improved version detection for non-symlinked kernel
 - MALW-3280 - Extended detection of BitDefender
 - Fix: language detection

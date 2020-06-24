@@ -12,6 +12,7 @@
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
 - INSE-8312 - corrected text on screen
 - KRNL-5830 - Improved version detection for non-symlinked kernel
+- MALW-3280 - Extended detection of BitDefender
 - Fix: language detection
 - German translation updated
 - End-of-life database updated

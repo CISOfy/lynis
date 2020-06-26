@@ -285,15 +285,24 @@
     # Test        : AUTH-9229
     # Description : Check password hashing methods vs. recommendations in crypt(5)
     # Notes       : Applicable to all Unix-like OS
+    #               Does not work correctly on AIX and macOS (unknown why)
     #               Requires read access to /etc/shadow (if it exists)
-    Register --test-no AUTH-9229 --root-only YES --weight L --network NO --category security --description "Check password hashing methods"
+    case ${OS} in
+        "AIX" | "macOS")
+            PREQS_MET="NO"
+        ;;
+        *)
+            PREQS_MET="YES"
+        ;;
+    esac
+    Register --test-no AUTH-9229 --preqs-met ${PREQS_MET} --root-only YES --weight L --network NO --category security --description "Check password hashing methods"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking password hashing methods"
         SHADOW="";
         if [ -e ${ROOTDIR}etc/shadow ]; then SHADOW="${ROOTDIR}etc/shadow"; fi
         FIND=$(${CAT_BINARY} ${ROOTDIR}etc/passwd ${SHADOW} | ${AWKBINARY} -F : '{print length($2) ":" $2 }' | while read METHOD; do
             case ${METHOD} in
-                1:\* | 1:x | 0: | *:\!* | *LOCK*)
+                1:\* | 1:x | 0: | *:!* | *LOCK*)
                     # disabled | shadowed | no password | locked account (can be literal *LOCK* or something like LOCKED)
                     ;;
                 *:\$5\$*| *:\$6\$*)

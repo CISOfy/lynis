@@ -295,50 +295,56 @@
             PREQS_MET="YES"
         ;;
     esac
+
+    function ParsePasswordEntry() {
+        METHOD=$1
+        case ${METHOD} in
+            1:\* | 1:x | 0: | *:!* | *LOCK*)
+                # disabled | shadowed | no password | locked account (can be literal *LOCK* or something like LOCKED)
+                ;;
+            *:\$5\$*| *:\$6\$*)
+                # sha256crypt | sha512crypt: check number of rounds, should be >5000
+                ROUNDS=$(echo "${METHOD}" | sed -n 's/.*rounds=\([0-9]*\)\$.*/\1/gp')
+                if [ -z "${ROUNDS}" ]; then
+                    echo 'sha256crypt/sha512crypt(default<=5000rounds)'
+                elif [ "${ROUNDS}" -le 5000 ]; then
+                    echo 'sha256crypt/sha512crypt(<=5000rounds)'
+                fi
+                ;;
+            *:\$y\$* | *:\$gy\$* | *:\$2b\$* | *:\$7\$*)
+                # yescrypt | gost-yescrypt | bcrypt | scrypt
+                ;;
+            *:_*)
+                echo bsdicrypt
+                ;;
+            *:\$1\$*)
+                echo md5crypt
+                ;;
+            *:\$3\$*)
+                echo NT
+                ;;
+            *:\$md5*)
+                echo SunMD5
+                ;;
+            *:\$sha1*)
+                echo sha1crypt
+                ;;
+            13:* | 178:*)
+                echo bigcrypt/descrypt
+                ;;
+            *)
+                echo "Unknown password hashing method ${METHOD}. Please report to lynis-dev@cisofy.com"
+                ;;
+        esac
+    }
+
     Register --test-no AUTH-9229 --preqs-met ${PREQS_MET} --root-only YES --weight L --network NO --category security --description "Check password hashing methods"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking password hashing methods"
         SHADOW="";
         if [ -e ${ROOTDIR}etc/shadow ]; then SHADOW="${ROOTDIR}etc/shadow"; fi
         FIND=$(${CAT_BINARY} ${ROOTDIR}etc/passwd ${SHADOW} | ${AWKBINARY} -F : '{print length($2) ":" $2 }' | while read METHOD; do
-            case ${METHOD} in
-                1:\* | 1:x | 0: | *:!* | *LOCK*)
-                    # disabled | shadowed | no password | locked account (can be literal *LOCK* or something like LOCKED)
-                    ;;
-                *:\$5\$*| *:\$6\$*)
-                    # sha256crypt | sha512crypt: check number of rounds, should be >5000
-                    ROUNDS=$(echo "${METHOD}" | sed -n 's/.*rounds=\([0-9]*\)\$.*/\1/gp')
-                    if [ -z "${ROUNDS}" ]; then
-                        echo 'sha256crypt/sha512crypt(default<=5000rounds)'
-                    elif [ "${ROUNDS}" -le 5000 ]; then
-                        echo 'sha256crypt/sha512crypt(<=5000rounds)'
-                    fi
-                    ;;
-                *:\$y\$* | *:\$gy\$* | *:\$2b\$* | *:\$7\$*)
-                    # yescrypt | gost-yescrypt | bcrypt | scrypt
-                    ;;
-                *:_*)
-                    echo bsdicrypt
-                    ;;
-                *:\$1\$*)
-                    echo md5crypt
-                    ;;
-                *:\$3\$*)
-                    echo NT
-                    ;;
-                *:\$md5*)
-                    echo SunMD5
-                    ;;
-                *:\$sha1*)
-                    echo sha1crypt
-                    ;;
-                13:* | 178:*)
-                    echo bigcrypt/descrypt
-                    ;;
-                *)
-                    echo "Unknown password hashing method ${METHOD}. Please report to lynis-dev@cisofy.com"
-                    ;;
-            esac
+            ParsePasswordEntry ${METHOD}
         done | ${SORTBINARY} -u | ${TRBINARY} '\n' ' ')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Password hashing methods" --result "${STATUS_OK}" --color GREEN

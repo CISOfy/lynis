@@ -10,6 +10,7 @@
 - AUTH-9229 - Added option for LOCKED accounts
 - BOOT-5122 - Presence check for grub.d added
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
+- FIRE-4535 - Set initial firewall state
 - INSE-8312 - Corrected text on screen
 - KRNL-5728 - Handle zipped kernel configuration correctly
 - KRNL-5830 - Improved version detection for non-symlinked kernel

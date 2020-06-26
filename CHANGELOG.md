@@ -7,7 +7,7 @@
 - Detection of Kali Linux
 
 ### Changed
-- AUTH-9229 - Added option for LOCKED accounts
+- AUTH-9229 - Added option for LOCKED accounts, disabled test for AIX/macOS
 - BOOT-5122 - Presence check for grub.d added
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
 - FIRE-4535 - Set initial firewall state

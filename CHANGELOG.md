@@ -15,6 +15,7 @@
 - KRNL-5728 - Handle zipped kernel configuration correctly
 - KRNL-5830 - Improved version detection for non-symlinked kernel
 - MALW-3280 - Extended detection of BitDefender
+- Generic improvements for macOS
 - Fix: language detection
 - German translation updated
 - End-of-life database updated

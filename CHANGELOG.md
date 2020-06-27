@@ -3,8 +3,9 @@
 ## Lynis 3.0.1 (not released yet)
 
 ### Added
-- Detection of macOS Big Sur (11.0)
 - Detection of Kali Linux
+- Detection of macOS Big Sur (11.0)
+- Detection of Pop!_OS
 
 ### Changed
 - AUTH-9229 - Added option for LOCKED accounts and bugfix for older bash versions

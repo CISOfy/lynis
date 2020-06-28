@@ -4,6 +4,7 @@
 
 ### Added
 - Detection of Kali Linux
+- Detection of Linux Mint
 - Detection of macOS Big Sur (11.0)
 - Detection of Pop!_OS
 

@@ -17,6 +17,7 @@
 - KRNL-5728 - Handle zipped kernel configuration correctly
 - KRNL-5830 - Improved version detection for non-symlinked kernel
 - MALW-3280 - Extended detection of BitDefender
+- Fix: hostid generation routine would sometimes show too short IDs
 - Generic improvements for macOS
 - Fix: language detection
 - German translation updated

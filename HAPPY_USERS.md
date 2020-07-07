@@ -33,3 +33,6 @@ installed on all my systems to uncover unexpected configuration issues. The
 valuable feedback and contributions give me the energy to continue to work on
 its development, even after 12+ years!
 
+* Catalyst.net IT - January 2020
+Lynis gave us great insight in to the security state of our systems, as well as where we can improve.
+

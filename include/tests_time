@@ -585,11 +585,12 @@
 
 
     Register --test-no TIME-3185 --preqs-met "${PREQS_MET}" --weight L --network NO --category "security" --description "Check systemd-timesyncd synchronized time"
+    SYNCHRONIZED_FILE="/run/systemd/timesync/synchronized"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -e /run/systemd/timesync/synchronized ]; then
-           FIND=$(( $(date +%s) - $(stat -L --format %Y /run/systemd/timesync/synchronized) ))
+        if [ -e "${SYNCHRONIZED_FILE}" ]; then
+           FIND=$(( $(date +%s) - $(${STATBINARY} -L --format %Y "${SYNCHRONIZED_FILE}") ))
            # Check if last sync was more than 2048 seconds (= the default of systemd) ago
-           if [ ${FIND} -ge 2048 ]; then
+           if [ "${FIND}" -ge 2048 ]; then
                COLOR=RED
                ReportWarning "${TEST_NO}" "systemd-timesyncd did not synchronized the time recently."
            else
@@ -602,7 +603,7 @@
            ReportWarning "${TEST_NO}" "systemd-timesyncd never successfully synchronized time"
         fi
     fi
-
+    unset SYNCHRONIZED_FILE
 
 #
 #################################################################################

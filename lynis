@@ -43,10 +43,10 @@
     PROGRAM_WEBSITE="https://cisofy.com/lynis/"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2020-03-20"
-    PROGRAM_RELEASE_TIMESTAMP=1584711965
+    PROGRAM_RELEASE_DATE="2020-06-26"
+    PROGRAM_RELEASE_TIMESTAMP=1593159916
     PROGRAM_RELEASE_TYPE="pre-release" # pre-release or release
-    PROGRAM_VERSION="3.0.0"
+    PROGRAM_VERSION="3.0.1"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
@@ -216,7 +216,7 @@
 
     # Extract the short notation of the language (first two characters).
     if [ -x "$(command -v locale 2> /dev/null)" ]; then
-        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
+        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | egrep "^[a-z]{2}$")
         # Try locale command if shell variable had no value
         if [ -z "${DISPLAY_LANG}" ]; then
             DISPLAY_LANG=$(locale | egrep "^LANG=" | cut -d= -f2)
@@ -241,6 +241,11 @@
         echo "Could not find languages directory (file: ${DBDIR}/languages/en)"
         exit 1
     fi
+
+    # Now that we have determined the language, we unset it from shell
+    # Some tools with translated strings are very hard to parse
+    unset LANG
+
 #
 #################################################################################
 #
@@ -267,21 +272,21 @@
     # Disable logging if no alternative was provided
     if [ ${PRIVILEGED} -eq 0 ]; then
         if [ -z "${LOGFILE}" ]; then
-            # Try creating a log file in temporary directory
-            if [ ! -f /tmp/lynis.log ]; then
-                if [ -L /tmp/lynis.log ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
-                touch /tmp/lynis.log
-                if [ $? -eq 0 ]; then LOGFILE="/tmp/lynis.log"; else LOGFILE="/dev/null"; fi
+            # Try creating a log file in home directory
+            if [ ! -f "$HOME/lynis.log" ]; then
+                if [ -L "$HOME/lynis.log" ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
+                touch "$HOME/lynis.log"
+                if [ $? -eq 0 ]; then LOGFILE="$HOME/lynis.log"; else LOGFILE="/dev/null"; fi
             else
-                LOGFILE="/tmp/lynis.log"
+                LOGFILE="$HOME/lynis.log"
             fi
         else
             if [ -L "${LOGFILE}" ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi
         if [ -z "${REPORTFILE}" ]; then
-            touch /tmp/lynis-report.dat
-            if [ -L /tmp/lynis-report.dat ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
-            if [ $? -eq 0 ]; then REPORTFILE="/tmp/lynis-report.dat"; else REPORTFILE="/dev/null"; fi
+            touch "$HOME/lynis-report.dat"
+            if [ -L "$HOME/lynis-report.dat" ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
+            if [ $? -eq 0 ]; then REPORTFILE="$HOME/lynis-report.dat"; else REPORTFILE="/dev/null"; fi
         else
             if [ -L "${REPORTFILE}" ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi

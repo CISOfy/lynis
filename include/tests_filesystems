@@ -212,10 +212,11 @@
 #################################################################################
 #
     # Test        : FILE-6330
-    # Description : Query all ZFS mounts from /etc/fstab
+    # Description : Query ZFS mounts
+    # Note        : mount -p does not work under Linux
     Register --test-no FILE-6330 --os FreeBSD --weight L --network NO --category security --description "Checking ZFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Query /etc/fstab for available ZFS mount points"
+        LogText "Test: Discover for available ZFS mount points"
         FIND=$(${MOUNTBINARY} -p | ${AWKBINARY} '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result "${STATUS_NONE}" --color WHITE
@@ -236,7 +237,7 @@
     # Description : Query all HAMMER PFS mounts from /etc/fstab
     Register --test-no FILE-6439 --os DragonFly --weight L --network NO --category security --description "Checking HAMMER PFS mounts"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Query /etc/fstab for available HAMMER PFS  mount points"
+        LogText "Test: Query /etc/fstab for available HAMMER PFS mount points"
         FIND=$(${MOUNTBINARY} -p | ${AWKBINARY} '{ if ($3 == "null") { print $1":"$2":"$3":"$4":" }}')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Querying HAMMER PFS mount points (mount -p)" --result "${STATUS_NONE}" --color WHITE
@@ -847,12 +848,15 @@
                     AddHP 3 3
                     if IsDebug; then Display --indent 6 --text "- Module ${FS} not present in the kernel" --result OK --color GREEN; fi
                 fi
-                FIND1=$(${EGREPBINARY} "blacklist ${FS}" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
-                FIND2=$(${EGREPBINARY} "install ${FS} /bin/true" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
-                if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
-                    Display --indent 4 --text "- Module $FS is blacklisted" --result "OK" --color GREEN
-                    LogText "Result: module ${FS} is blacklisted"
-                fi
+                FIND=$(${LSBINARY} ${ROOTDIR}etc/modprobe.d/* 2> /dev/null)
+                if [ -n "${FIND}" ]; then
+		                FIND1=$(${EGREPBINARY} "blacklist ${FS}" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+		                FIND2=$(${EGREPBINARY} "install ${FS} /bin/true" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+                    if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
+                        Display --indent 4 --text "- Module $FS is blacklisted" --result "OK" --color GREEN
+                        LogText "Result: module ${FS} is blacklisted"
+                    fi
+		            fi
             done
             if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "- Discovered kernel modules: ${AVAILABLE_MODPROBE_FS}"

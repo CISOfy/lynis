@@ -235,12 +235,13 @@
     Register --test-no KRNL-5728 --os Linux --weight L --network NO --category security --description "Checking Linux kernel config"
     if [ ${SKIPTEST} -eq 0 ]; then
         CHECKFILE="${ROOTDIR}boot/config-$(uname -r)"
+        CHECKFILE_ZIPPED="${ROOTDIR}proc/config.gz"
         if [ -f ${CHECKFILE} ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LogText "Result: found config (${LINUXCONFIGFILE})"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
-        elif [ -f ${ROOTDIR}proc/config.gz ]; then
-            LINUXCONFIGFILE="${CHECKFILE}"
+        elif [ -f ${CHECKFILE_ZIPPED} ]; then
+            LINUXCONFIGFILE="${CHECKFILE_ZIPPED}"
             LINUXCONFIGFILE_ZIPPED=1
             LogText "Result: found config: ${ROOTDIR}proc/config.gz (compressed)"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
@@ -674,7 +675,10 @@
                         LogText "Result: found a symlink, retrieving destination"
                         FOUND_VMLINUZ=$(readlink "${FOUND_VMLINUZ}")
                         LogText "Result: destination file is ${FOUND_VMLINUZ}"
-                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's/^vmlinuz-//')
+                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's#^/boot/##' | ${SEDBINARY} 's/^vmlinuz-//')
+                        LogText "Result: version derived from file name is '${VERSION_ON_DISK}'"
+                    elif [ -f "${FOUND_VMLINUZ}" ]; then
+                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's#^/boot/##' | ${SEDBINARY} 's/^vmlinuz-//')
                         LogText "Result: version derived from file name is '${VERSION_ON_DISK}'"
                     fi
 

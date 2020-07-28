@@ -1286,11 +1286,12 @@
                 CHECK_PERMISSION=$(echo "${CHECK_PERMISSION}" | ${AWKBINARY} '{printf "%03d",$1}')
 
                 # First try stat command
-                LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
+                LogText "Test: checking if file ${CHECKFILE} has the permissions set to ${CHECK_PERMISSION} or more restrictive"
                 if [ -n "${STATBINARY}" ]; then
 
                     case ${OS} in
-                        *BSD)
+                        *BSD | "macOS")
+                            # BSD and macOS have no --format, only short notation
                             DATA=$(${STATBINARY} -f "%OLp" ${CHECKFILE})
                         ;;
                         *)
@@ -1344,7 +1345,7 @@
                 DATA=$(echo "${DATA}" | ${AWKBINARY} '{printf "%03d",$1}')
 
                 if [ -n "${DATA}" ]; then
-                    if [ "${DATA}" = "${CHECK_PERMISSION}" ]; then
+                    if [ "${DATA}" -le "${CHECK_PERMISSION}" ]; then
                         LogText "Outcome: correct permissions (${DATA})"
                         return 0
                     fi

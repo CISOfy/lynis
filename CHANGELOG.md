@@ -1,10 +1,42 @@
 # Lynis Changelog
 
-## Lynis 3.0.0 (not released yet)
+## Lynis 3.0.1 (not released yet)
+
+### Added
+- Detection of Kali Linux
+- Detection of Linux Mint
+- Detection of macOS Big Sur (11.0)
+- Detection of Pop!_OS
+
+### Changed
+- AUTH-9229 - Added option for LOCKED accounts and bugfix for older bash versions
+- BOOT-5122 - Presence check for grub.d added
+- CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
+- FILE-6430 - Don't grep nonexistant modprobe.d files
+- FIRE-4535 - Set initial firewall state
+- INSE-8312 - Corrected text on screen
+- KRNL-5728 - Handle zipped kernel configuration correctly
+- KRNL-5830 - Improved version detection for non-symlinked kernel
+- MALW-3280 - Extended detection of BitDefender
+- Fix: hostid generation routine would sometimes show too short IDs
+- Generic improvements for macOS
+- Fix: language detection
+- German translation updated
+- End-of-life database updated
+- Small code enhancements
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.0 (2020-06-18)
 
 This is a major release of Lynis and includes several big changes.
 Some of these changes may break your current usage of the tool, so test before
 deployment!
+
+### Security issues
+This release resolves two security issues
+* CVE-2020-13882 - Discovered by Sander Bos, code submission by Katarina Durechova
+* CVE-2019-13033 - Discovered by Sander Bos
 
 ### Breaking change: Non-interactive by default
 Lynis now runs non-interactive by default, to be more in line with the Unix
@@ -103,6 +135,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - CRYP-7902 - optionally check also certificates provided by packages
 - CRYP-8002 - gather kernel entropy on Linux systems
 - FILE-6310 - support for HP-UX
+- FILE-6330 - corrected description
 - FILE-6374 - changed log and allow root location to be changed
 - FILE-6374 - corrected condition to find 'defaults' flag in /etc/fstab
 - FILE-6430 - minor code improvements and show suggestion with more details

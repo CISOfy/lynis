@@ -7,7 +7,8 @@
 - Detection of Linux Mint
 - Detection of macOS Big Sur (11.0)
 - Detection of Pop!_OS
-- Detection of PHP 7.4 
+- Detection of PHP 7.4
+- Malware detection tool: Microsoft Defender ATP
 
 ### Changed
 - AUTH-9229 - Added option for LOCKED accounts and bugfix for older bash versions

@@ -135,6 +135,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - BOOT-5122 - check for defined password in all GRUB configuration files
 - CONT-8106 - support newer 'docker info' output
 - CRYP-7902 - optionally check also certificates provided by packages
+- CRYP-7902 - check also certificates in DER format
 - CRYP-8002 - gather kernel entropy on Linux systems
 - FILE-6310 - support for HP-UX
 - FILE-6330 - corrected description

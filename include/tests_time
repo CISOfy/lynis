@@ -86,9 +86,8 @@
             # Reason: openntpd syncs only if large time corrections are not required or -s is passed.
             #         This might be not intended by the administrator (-s is NOT the default!)
             FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd: ntp engine" | ${GREPBINARY} -v "grep")
-            ${NTPCTLBINARY} -s status > /dev/null 2> /dev/null
             # Status code 0 is when communication over the socket is successfull
-            if [ "$?" -eq 0 ]; then
+            if ${NTPCTLBINARY} -s status > /dev/null 2> /dev/null; then
                 FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="openntpd"
                 LogText "result: found openntpd (method: ntpctl)"
                 OPENNTPD_COMMUNICATION=1
@@ -101,7 +100,7 @@
                 LogText "result: running openntpd not found, but ntpctl is instaalled"
             fi
 
-            if [ "${NTP_DAEMON}" == "openntpd" ]; then
+            if [ "${NTP_DAEMON}" = "openntpd" ]; then
                 Display --indent 2 --text "- NTP daemon found: OpenNTPD" --result "${STATUS_FOUND}" --color GREEN
             fi
         fi
@@ -510,7 +509,7 @@
 #
     # Test        : TIME-3180
     # Description : Report if ntpctl cannot communicate with OpenNTPD
-    if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ]; then
+    if [ "${NTP_DAEMON_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" = "openntpd" ]; then
         PREQS_MET="YES"
     else
         PREQS_MET="NO"
@@ -526,7 +525,7 @@
 #
     # Test        : TIME-3181
     # Description : Check status of OpenNTPD time synchronisation
-    if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
+    if [ "${NTP_DAEMON_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" = "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
         PREQS_MET="YES"
     else
         PREQS_MET="NO"
@@ -545,7 +544,7 @@
     # Test        : TIME-3182
     # Description : Check OpenNTPD has working peers
 
-    if [ "${NTPD_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" == "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
+    if [ "${NTP_DAEMON_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" = "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
         PREQS_MET="YES"
     else
         PREQS_MET="NO"
@@ -554,8 +553,8 @@
     Register --test-no TIME-3182 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Check OpenNTPD has working peers"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Format is "xx/yy peers valid, ..."
-        FIND=$(${NTPCTLBINARY} -s status | ${EGREPBINARY} -o "[0-9]{1,4}/" | ${EGREPBINARY} -o "[0-9]{1,4}" )
-        if [ -n "${FIND}" ] || [ "${FIND}" -eq 0 ]; then
+        FIND=$(${NTPCTLBINARY} -s status | ${EGREPBINARY} -o '[0-9]+/[0-9]+' | ${CUTBINARY} -d '/' -f 1)
+        if [ -z "${FIND}" ] || [ "${FIND}" -eq 0 ]; then
             ReportWarning "${TEST_NO}" "OpenNTPD has no peers" "${NTPCTLBINARY} -s status"
         fi
     fi

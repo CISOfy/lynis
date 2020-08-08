@@ -574,7 +574,16 @@
         "AIX")                           ECHOCMD="echo"; ECHONB="printf" ;;
         "DragonFly"|"FreeBSD"|"NetBSD")  ECHOCMD="echo -e"; ECHONB="echo -n" ;;
         "macOS" | "Mac OS X")                         ECHOCMD="echo"; ECHONB="/bin/echo -n" ;;
-        "Solaris")                       ECHOCMD="echo" ; test -f /usr/ucb/echo && ECHONB="/usr/ucb/echo -n" ;;
+        "Solaris")
+            ECHOCMD="echo"
+            if [ -f /usr/ucb/echo ]; then
+                ECHONB="/usr/ucb/echo -n"
+            elif [ -f /usr/gnu/bin/echo ]; then
+                ECHONB="/usr/gnu/bin/echo -n"
+            else
+                ECHONB="printf"
+            fi
+        ;;
         "Linux")
             # Check if dash is used (Debian/Ubuntu)
             DEFAULT_SHELL=$(ls -l /bin/sh | awk -F'>' '{print $2}')
@@ -603,6 +612,13 @@
         QNAP_DEVICE=1
     fi
 
+    # Solaris does not have compatible awk
+    if [ $OS = "Solaris" ] && [ -f /usr/bin/nawk ]; then
+        AWK=/usr/bin/nawk
+    else
+        AWK=awk
+    fi
+
     # Check if this OS is end-of-life
     EOL=255
     EOL_DATE=""
@@ -610,9 +626,9 @@
     if [ -n "${OS_VERSION}" ]; then
         if [ -f "${DBDIR}/software-eol.db" ]; then
             FIND="${OS_FULLNAME}"
-            EOL_TIMESTAMP=$(awk -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $4}}' ${DBDIR}/software-eol.db | head -n 1)
+            EOL_TIMESTAMP=$($AWK -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $4}}' ${DBDIR}/software-eol.db | head -n 1)
             if [ -n "${EOL_TIMESTAMP}" ]; then
-                EOL_DATE=$(awk -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $3}}' ${DBDIR}/software-eol.db | head -n 1)
+                EOL_DATE=$($AWK -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $3}}' ${DBDIR}/software-eol.db | head -n 1)
                 if [ -n "${EOL_DATE}" ]; then
                     NOW=$(date "+%s")
                     if [ -n "${NOW}" ]; then
@@ -628,6 +644,7 @@
             fi
         fi
     fi
+    unset AWK
 
 
 #================================================================================

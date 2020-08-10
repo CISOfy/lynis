@@ -139,6 +139,13 @@
                     SERVICE_MANAGER="launchd"
                 fi
             ;;
+            "Solaris")
+                if [ -n "${ROOTDIR}usr/bin/svcs" ]; then
+                    SERVICE_MANAGER="IPS"
+                elif [ -d "${ROOTDIR}etc/init.d" ]; then
+                    SERVICE_MANAGER="SysV Init"
+                fi
+            ;;
             *)
                 LogText "Result: unknown service manager"
             ;;
@@ -587,6 +594,55 @@
 #
 #################################################################################
 #
+    # Test        : BOOT-5170
+    # Description : Check for Solaris boot daemons
+    Register --test-no BOOT-5170 --os Solaris --weight L --network NO --category security --description "Check for Solaris boot daemons"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -n "${SVCSBINARY}" ]; then
+            LogText "Result: Using svcs binary to check for daemons"
+            LogText "SysV style services may be incorrectly counted as running."
+
+            Report "running_service_tool=svcs"
+
+            # For the documentation of the states (field $1) see
+            # "Managing System Services in Oracle Solaris 11.4" pp. 24, available
+            # at https://docs.oracle.com/cd/E37838_01/pdf/E60998.pdf
+
+            FIND=$("${SVCSBINARY}" -Ha | ${AWKBINARY} '{ if ($1 == "online" || $1 == "legacy_run") print $3 }')
+            COUNT=0
+            for ITEM in ${FIND}; do
+                LogText "Found running daemon: ${ITEM}"
+                Report "running_service[]=${ITEM}"
+                COUNT=$((COUNT + 1 ))
+            done
+            Display --indent 2 --text "- Check running daemons (svcs)" --result "${STATUS_DONE}" --color GREEN
+            Display --indent 8 --text "Result: found ${COUNT} running daemons"
+            LogText "Result: Found ${COUNT} running daemons"
+
+            LogText "Searching for enabled daemons (svcs)"
+            Report "boot_service_tool=svcs"
+
+            FIND=$("${SVCSBINARY}" -Ha | ${AWKBINARY} '{ if ($1 != "disabled" && $1 != "uninitialized") print $3 }')
+            COUNT=0
+            for ITEM in ${FIND}; do
+                LogText "Found enabled daemon at boot: ${ITEM}"
+                Report "boot_service[]=${ITEM}"
+                COUNT=$((COUNT + 1 ))
+            done
+            LogText "Note: Run svcs -a see all services"
+            Display --indent 2 --text "- Check enabled daemons at boot (svcs)" --result "${STATUS_DONE}" --color GREEN
+            Display --indent 8 --text "Result: found ${COUNT} enabled daemons at boot"
+            LogText "Result: Found ${COUNT} enabled daemons at boot"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : BOOT-5171
+    # Description : Check for services with errors on solaris
+#
+#################################################################################
+#
     # Test        : BOOT-5177
     # Description : Check for Linux boot services (systemd and chkconfig)
     # Notes       : We skip using chkconfig if systemd is being used.
@@ -686,7 +742,7 @@
 #
     # Test        : BOOT-5184
     # Description : Check world writable startup scripts
-    Register --test-no BOOT-5184 --os Linux --weight L --network NO --category security --description "Check permissions for boot files/scripts"
+    Register --test-no BOOT-5184 --os "Linux Solaris" --weight L --network NO --category security --description "Check permissions for boot files/scripts"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         CHECKDIRS="${ROOTDIR}etc/init.d ${ROOTDIR}etc/rc.d ${ROOTDIR}etc/rcS.d"

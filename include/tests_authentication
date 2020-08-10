@@ -859,23 +859,27 @@
                     PREQS_MET="YES"
                     FIND_P=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
                     FIND2=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
+                    FIND3=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="L") print $1 }' | sort | uniq)
                     ;;
                 *)
                     PREQS_MET="YES"
                     FIND_P=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
                     FIND2=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
+                    FIND3=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="L") print $1 }' | sort | uniq)
                     ;;
             esac
         elif [ "${OS_REDHAT_OR_CLONE}" -eq 1 ]; then
             PREQS_MET="YES"
             FIND_P=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="PS" && $5=="99999") print $1 }' ; done)
             FIND2=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="NP") print $1 }' ; done)
+            FIND3=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="L") print $1 }' | sort | uniq ; done)
         else
             LogText "Result: skipping test for this Linux version"
             ReportManual "AUTH-9282:01"
             PREQS_MET="NO"
             FIND_P=""
             FIND2=""
+            FIND3=""
         fi
      else
         PREQS_MET="NO"
@@ -917,6 +921,31 @@
             done
             Display --indent 2 --text "- Accounts without password" --result "${STATUS_WARNING}" --color RED
             ReportWarning "${TEST_NO}" "Found accounts without password"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : AUTH-9284
+    # Description : Search locked accounts
+    Register --test-no AUTH-9284 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking locked accounts"
+    if [ "${SKIPTEST}" -eq 0 ]; then
+        LogText "Test: Checking locked accounts"
+        SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 <= 999 || $3 == 65534 {print $1}' /etc/passwd | sort | uniq)
+        if [ "${FIND3}" = "${SYSTEM_ACCOUNTS}" ]; then
+            LogText "Result: all accounts seem to be unlocked"
+            Display --indent 2 --text "- Locked accounts" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: found one or more locked accounts"
+            NON_SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 > 999 && $3 != 65534 {print $1}' /etc/passwd | sort | uniq)
+            for I in ${FIND3}; do
+                if echo "${NON_SYSTEM_ACCOUNTS}" | grep -w "${I}" > /dev/null ; then
+                    LogText "Locked account: ${I}"
+                    Report "locked_account=${I}"
+                fi
+            done
+            Display --indent 2 --text "- Locked accounts" --result "${STATUS_WARNING}" --color RED
+            ReportWarning "${TEST_NO}" "Found locked accounts"
         fi
     fi
 #

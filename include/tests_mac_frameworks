@@ -23,6 +23,7 @@
     RBAC_FRAMEWORK_ACTIVE=0             # Default no RBAC framework active
     SELINUXFOUND=0
     TOMOYOFOUND=0
+    TRUSTEDSOLARIS=0
 
     InsertSection "Security frameworks"
 #
@@ -30,7 +31,7 @@
 #
     # Test        : MACF-6204
     # Description : Check if AppArmor is installed
-    Register --test-no MACF-6204 --weight L --network NO --category security --description "Check AppArmor presence"
+    Register --test-no MACF-6204 --os Linux --weight L --network NO --category security --description "Check AppArmor presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -z "${AASTATUSBINARY}" ]; then
             APPARMORFOUND=0
@@ -48,7 +49,7 @@
     # Test        : MACF-6208
     # Description : Check AppArmor active status
     if [ ${APPARMORFOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no MACF-6208 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check if AppArmor is enabled"
+    Register --test-no MACF-6208 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check if AppArmor is enabled"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -n "${AASTATUSBINARY}" ]; then
             CAN_READ_FILE=0
@@ -117,7 +118,7 @@
 #
     # Test        : MACF-6232
     # Description : Check SELINUX for installation
-    Register --test-no MACF-6232 --weight L --network NO --category security --description "Check SELINUX presence"
+    Register --test-no MACF-6232 --os Linux --weight L --network NO --category security --description "Check SELINUX presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking if we have sestatus binary"
         if [ -n "${SESTATUSBINARY}" ]; then
@@ -134,7 +135,7 @@
     # Test        : MACF-6234
     # Description : Check SELINUX status
     if HasData "${SESTATUSBINARY}"; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no MACF-6234 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SELINUX status"
+    Register --test-no MACF-6234 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check SELINUX status"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Status: Enabled/Disabled
         FIND=$(${SESTATUSBINARY} | ${GREPBINARY} "^SELinux status" | ${AWKBINARY} '{ print $3 }')
@@ -179,7 +180,7 @@
 #
     # Test        : MACF-6240
     # Description : Check if the tomoyo-init binary is available on the system
-    Register --test-no MACF-6240 --weight L --network NO --category security --description "Check TOMOYO Linux presence"
+    Register --test-no MACF-6240 --os Linux --weight L --network NO --category security --description "Check TOMOYO Linux presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking if we have tomoyo-init binary"
         if [ -z "${TOMOYOINITBINARY}" ]; then
@@ -198,7 +199,7 @@
     # Test        : MACF-6242
     # Description : Check TOMOYO Linux status
     if [ ${TOMOYOFOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no MACF-6242 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check TOMOYO Linux status"
+    Register --test-no MACF-6242 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check TOMOYO Linux status"
     if [ ${SKIPTEST} -eq 0 ]; then
         FILE="/sys/kernel/security/tomoyo/stat"
         if [ -f ${FILE} ]; then
@@ -224,10 +225,53 @@
 #
 #################################################################################
 #
+    # Test        : MACF-6250
+    # Description : Check Trusted Solaris presence
+    Register --test-no RBAC-6250 --os Solaris --weight L --network NO --category security --description "Check trusted solaris presence"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -n "${LABELADM_BINARY}" ]; then
+            TRUSTEDSOLARIS=1
+            Display --indent 2 --text "- Checking Trusted Solaris presence" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: labeladm found"
+        else
+            Display --indent 2 --text "- Checking Trusted Solaris presence" --result "${STATUS_NOT_FOUND}" --color WHITE
+            LogText "Result: Not Found"
+        fi
+    fi
+
+#
+#################################################################################
+#
+    # Test        : MACF-6251
+    # Description : Check Trusted Solaris status
+    if [ ${TRUSTEDSOLARIS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no RBAC-6251 --os Solaris --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check trusted solaris status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$("${LABELADM_BINARY}")
+        if echo "${FIND}" | "${GREPBINARY}" "Labeling status: enabled" > /dev/null; then
+            LogText "Result: enabled"
+            Display --indent 4 --text "- Checking Trusted Solaris" --result "${STATUS_ENABLED}" --color GREEN
+            Report "trustedsolaris_enabled=1"
+            AddHP 3 3
+            MAC_FRAMEWORK_ACTIVE=1
+        elif echo "${FIND}" | "${GREPBINARY}" "Labeling status: disabled" > /dev/null; then
+            LogText "Result: disabled"
+            Display --indent 4 --text "- Checking Trusted Solaris" --result "${STATUS_DISABLED}" --color YELLOW
+            Report "trustedsolaris_enabled=0"
+            AddHP 0 3
+        else
+            # Transition between enabled and disabled, etc.
+            LogText "Result: unknown, check labeladm output"
+            Display --indent 4 --text "- Checking Trusted Solaris" --result "${STATUS_UNKOWN}" --color YELLOW
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : RBAC-6272
     # Description : Check if grsecurity is installed
     # Notes       : We already checked grsecurity in osdetection
-    Register --test-no RBAC-6272 --weight L --network NO --category security --description "Check grsecurity presence"
+    Register --test-no RBAC-6272 --os Linux --weight L --network NO --category security --description "Check grsecurity presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check Linux kernel configuration
         if [ -n "${LINUXCONFIGFILE}" -a -f "${LINUXCONFIGFILE}" ]; then
@@ -255,6 +299,7 @@
 #
 #################################################################################
 #
+
     # Test        : MACF-6290
     # Description : Check if at least one MAC framework is implemented
     Register --test-no MACF-6290 --weight L --network NO --category security --description "Check for implemented MAC framework"

@@ -931,17 +931,22 @@
     Register --test-no AUTH-9284 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking locked accounts"
     if [ "${SKIPTEST}" -eq 0 ]; then
         LogText "Test: Checking locked accounts"
-        SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 <= 999 || $3 == 65534 {print $1}' /etc/passwd | sort | uniq)
-        if [ "${FIND3}" = "${SYSTEM_ACCOUNTS}" ]; then
+        NON_SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 > 999 && $3 != 65534 {print $1}' /etc/passwd | sort | uniq)
+        LOCKED_NON_SYSTEM_ACCOUNTS=0
+        for account in ${FIND3};do
+            if echo "${NON_SYSTEM_ACCOUNTS}" | grep -w "${account}" > /dev/null ; then
+                LOCKED_NON_SYSTEM_ACCOUNTS=$((LOCKED_NON_SYSTEM_ACCOUNTS+1))
+            fi
+        done
+        if [ $LOCKED_NON_SYSTEM_ACCOUNTS -eq 0 ]; then
             LogText "Result: all accounts seem to be unlocked"
             Display --indent 2 --text "- Locked accounts" --result "${STATUS_OK}" --color GREEN
         else
             LogText "Result: found one or more locked accounts"
-            NON_SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 > 999 && $3 != 65534 {print $1}' /etc/passwd | sort | uniq)
-            for I in ${FIND3}; do
-                if echo "${NON_SYSTEM_ACCOUNTS}" | grep -w "${I}" > /dev/null ; then
-                    LogText "Locked account: ${I}"
-                    Report "locked_account=${I}"
+            for account in ${FIND3}; do
+                if echo "${NON_SYSTEM_ACCOUNTS}" | grep -w "${account}" > /dev/null ; then
+                    LogText "Locked account: ${account}"
+                    Report "locked_account=${account}"
                 fi
             done
             Display --indent 2 --text "- Locked accounts" --result "${STATUS_WARNING}" --color RED

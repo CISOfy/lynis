@@ -2180,7 +2180,8 @@
         for I in ${FIND}; do
             I=$(echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//')
             OPTION=$(echo ${I} | awk '{ print $1 }')
-            VALUE=$(echo ${I}| cut -d' ' -f2-)
+            # Use quotes here to prevent wildcard expansion
+            VALUE=$(echo "${I}"| cut -d' ' -f2-)
             LogText "Result: found option ${OPTION} in ${CONFIG_FILE} with value '${VALUE}'"
             STORE_SETTING=1
             case ${OPTION} in
@@ -2303,9 +2304,21 @@
                         done
                         if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${VALUE}"; fi
                     # Check for additional config files included as follows
-                    # "include sites-enabled/*.conf"
-                    elif [ $(echo ${VALUE} | grep -F -c "*.conf") -gt 0 ]; then
-                        for FOUND_CONF in $(ls ${CONFIG_FILE%nginx.conf}${VALUE%;*}); do
+                    # "include sites-enabled/*.conf" (relative path)
+                    # "include /etc/nginx/sites-enabled/*.conf" (absolute path)
+                    elif [ $(echo "${VALUE}" | grep -F -c "*.conf") -gt 0 ]; then
+                        # Check if path is absolute or relative
+                        case $VALUE in
+                            /*)
+                                # Absolute path, so list files directly from that path
+                                CONF_LS=$(${LSBINARY} ${VALUE%;*} 2>/dev/null) # Will error if wildcard doesn't match anything, so pipe stderr to /dev/null
+                            ;;
+                            *)
+                                # Relative path, so construct absolute path first to list files for
+                                CONF_LS=$(${LSBINARY} ${CONFIG_FILE%nginx.conf}${VALUE%;*} 2>/dev/null)
+                            ;;
+                        esac
+                        for FOUND_CONF in CONF_LS; do
                             FOUND=0
                             for CONF in ${NGINX_CONF_FILES}; do
                                 if [ "${CONF}" = "${FOUND_CONF}" ]; then FOUND=1; LogText "Found this file already in our configuration files array, not adding to queue"; fi

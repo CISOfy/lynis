@@ -22,6 +22,10 @@
 #
 #################################################################################
 #
+    RNG_FOUND=0
+#
+#################################################################################
+#
     InsertSection "Cryptography"
 #
 #################################################################################
@@ -181,20 +185,28 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         ENCRYPTED_SWAPS=0
         UNENCRYPTED_SWAPS=0
-        SWAPS=$(${SWAPONBINARY} --show=NAME --noheadings)
-        for BLOCK_DEV in ${SWAPS}; do
-            if ${CRYPTSETUPBINARY} isLuks "${BLOCK_DEV}" 2> /dev/null; then
-                LogText "Result: Found LUKS encrypted swap device: ${BLOCK_DEV}"
-                ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS +1))
-            elif ${CRYPTSETUPBINARY} status "${BLOCK_DEV}" 2> /dev/null | ${GREPBINARY} --quiet "cipher:"; then
-                LogText "Result: Found non-LUKS encrypted swap device: ${BLOCK_DEV}"
-                ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS +1))
-            else
-                LogText "Result: Found unencrypted swap device: ${BLOCK_DEV}"
-                UNENCRYPTED_SWAPS=$((UNENCRYPTED_SWAPS +1))
-            fi
-        done
-        Display --indent 2 --text "- Found ${ENCRYPTED_SWAPS} encrypted and ${UNENCRYPTED_SWAPS} unencrypted swap devices in use." --result OK --color WHITE
+        # Redirect errors, as RHEL 5/6 and others don't have the --show option
+        SWAPS=$(${SWAPONBINARY} --show=NAME --noheadings 2> /dev/null)
+        if [ $? -eq 0 ]; then
+            for BLOCK_DEV in ${SWAPS}; do
+                if ${CRYPTSETUPBINARY} isLuks "${BLOCK_DEV}" 2> /dev/null; then
+                    LogText "Result: Found LUKS encrypted swap device: ${BLOCK_DEV}"
+                    ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS + 1))
+                    Report "encrypted_swap[]=${BLOCK_DEV},LUKS"
+                elif ${CRYPTSETUPBINARY} status "${BLOCK_DEV}" 2> /dev/null | ${GREPBINARY} --quiet "cipher:"; then
+                    LogText "Result: Found non-LUKS encrypted swap device: ${BLOCK_DEV}"
+                    ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS + 1))
+                    Report "encrypted_swap[]=${BLOCK_DEV},other"
+                else
+                    LogText "Result: Found unencrypted swap device: ${BLOCK_DEV}"
+                    UNENCRYPTED_SWAPS=$((UNENCRYPTED_SWAPS +1))
+                    Report "non_encrypted_swap[]=${BLOCK_DEV}"
+                fi
+            done
+            Display --indent 2 --text "- Found ${ENCRYPTED_SWAPS} encrypted and ${UNENCRYPTED_SWAPS} unencrypted swap devices in use." --result OK --color WHITE
+        else
+            LogText "Result: skipping testing as swapon returned an error."
+        fi
     fi
 #
 #################################################################################
@@ -232,6 +244,7 @@
                 if IsRunning "rngd"; then
                     Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_YES}" --color GREEN
                     LogText "Result: rngd is running"
+                    RNG_FOUND=1
                 else
                     Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color YELLOW
                     # TODO - enable suggestion when website has listing for this control
@@ -263,8 +276,9 @@
         done
         if [ -z "${FOUND}" ]; then
             Display --indent 2 --text "- SW prng" --result "${STATUS_NO}" --color YELLOW
-            ReportSuggestion "${TEST_NO}" "Utilize software pseudo random number generators"
+            # ReportSuggestion "${TEST_NO}" "Utilize software pseudo random number generators"
         else
+            RNG_FOUND=1
             Display --indent 2 --text "- SW prng" --result "${STATUS_YES}" --color GREEN
             LogText "Result: found ${FOUND} running"
         fi

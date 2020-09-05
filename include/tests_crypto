@@ -50,7 +50,7 @@
                     LASTSUBDIR=""
                     LogText "Result: found directory ${DIR}"
                     # Search for certificate files
-                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".crt$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /__space__/g')
+                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".cer$|.crt$|.der$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /__space__/g')
                     for FILE in ${FILES}; do
                         FILE=$(echo ${FILE} | ${SEDBINARY} 's/__space__/ /g')
                         # See if we need to skip this path
@@ -76,16 +76,23 @@
                             if [ ${CANREAD} -eq 1 ]; then
                                 # Only check the files that are not installed by a package, unless enabled by profile
                                 if [ ${SSL_CERTIFICATE_INCLUDE_PACKAGES} -eq 1 ] || ! FileInstalledByPackage "${FILE}"; then
+                                    echo ${FILE} | ${EGREPBINARY} --quiet ".cer$|.der$"
+                                    CER_DER=$?
                                     OUTPUT=$(${GREPBINARY} -q 'BEGIN CERT' "${FILE}")
-                                    if [ $? -eq 0 ]; then
+                                    if [ $? -eq 0 -o ${CER_DER} -eq 0 ]; then
                                         LogText "Result: file is a certificate file"
-                                        FIND=$(${OPENSSLBINARY} x509 -noout -in "${FILE}" -enddate 2> /dev/null | ${GREPBINARY} "^notAfter")
+                                        if [ ${CER_DER} -eq 0 ]; then
+                                            SSL_DER_OPT="-inform der"
+                                        else
+                                            SSL_DER_OPT=
+                                        fi
+                                        FIND=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -in "${FILE}" -enddate 2> /dev/null | ${GREPBINARY} "^notAfter")
                                         if [ $? -eq 0 ]; then
                                             # Check certificate where 'end date' has been expired
-                                            FIND=$(${OPENSSLBINARY} x509 -noout -checkend 0 -in "${FILE}" -enddate 2> /dev/null)
+                                            FIND=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -checkend 0 -in "${FILE}" -enddate 2> /dev/null)
                                             EXIT_CODE=$?
-                                            CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in "${FILE}" 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
-                                            CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in "${FILE}" 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
+                                            CERT_CN=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -subject -in "${FILE}" 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
+                                            CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -enddate -in "${FILE}" 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
                                             Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
                                             if [ ${EXIT_CODE} -eq 0 ]; then 
                                                 LogText "Result: certificate ${FILE} seems to be correct and still valid"

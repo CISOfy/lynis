@@ -354,12 +354,12 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Proc should be mounted with 'hidepid=2' or 'hidepid=1' at least
         LogText "Test: check proc mount with incorrect mount options"
-        FIND=$(${MOUNTBINARY} | ${EGREPBINARY} "${ROOTDIR}proc " | ${EGREPBINARY} -o "hidepid=[0-9]")
-        if [ "${FIND}" = "hidepid=2" ]; then
+        FIND=$(${MOUNTBINARY} | ${EGREPBINARY} "${ROOTDIR}proc " | ${EGREPBINARY} -oE "hidepid=([0-9]|off|noaccess|invisible|ptraceable)")
+        if [ "${FIND}" = "hidepid=2" ] || [ "${FIND}" = "hidepid=invisible" ]; then
             Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
             LogText "Result: proc mount mounted with hidepid=2"
             AddHP 3 3
-        elif [ "${FIND}" = "hidepid=1" ]; then
+        elif [ "${FIND}" = "hidepid=1" ] || [ "${FIND}" = "hidepid=noaccess" ]; then
             Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
             LogText "Result: proc mount mounted with hidepid=1"
             AddHP 2 3
@@ -613,7 +613,7 @@
                         Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result "PARTIALLY HARDENED" --color YELLOW
                         AddHP 4 5
                     else
-                        # if 
+                        # if
                         if ContainsString "defaults" "${FOUND_FLAGS}"; then
                             LogText "Result: marked ${FILESYSTEM} options as default (not hardened)"
                             Display --indent 2 --text "- Mount options of ${FILESYSTEM}" --result DEFAULT --color YELLOW

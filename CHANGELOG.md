@@ -3,6 +3,7 @@
 ## Lynis 3.0.1 (not released yet)
 
 ### Added
+- Detection of CloudLinux
 - Detection of Kali Linux
 - Detection of Linux Mint
 - Detection of macOS Big Sur (11.0)

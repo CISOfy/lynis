@@ -3,6 +3,7 @@
 ## Lynis 3.0.1 (not released yet)
 
 ### Added
+- Detection of Alpine Linux
 - Detection of CloudLinux
 - Detection of Kali Linux
 - Detection of Linux Mint
@@ -10,24 +11,30 @@
 - Detection of Pop!_OS
 - Detection of PHP 7.4
 - Malware detection tool: Microsoft Defender ATP
+- New flag: --slow-warning to allow tests more time before showing a warning
+- Test TIME-3185 to check systemd-timesyncd synchronized time
+- rsh host file permissions
 
 ### Changed
 - AUTH-9229 - Added option for LOCKED accounts and bugfix for older bash versions
 - BOOT-5122 - Presence check for grub.d added
-- CRYP-7931 - Redirect errors
+- CRYP-7902 - Added support for certificates in DER format
 - CRYP-7931 - Added data to report
+- CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
 - FILE-6430 - Don't grep nonexistant modprobe.d files
 - FIRE-4535 - Set initial firewall state
 - INSE-8312 - Corrected text on screen
 - KRNL-5728 - Handle zipped kernel configuration correctly
 - KRNL-5830 - Improved version detection for non-symlinked kernel
 - MALW-3280 - Extended detection of BitDefender
+- TIME-3104 - Find more time synchronization commands
+- TIME-3182 - Corrected detection of time peers
 - Fix: hostid generation routine would sometimes show too short IDs
-- Generic improvements for macOS
 - Fix: language detection
+- Generic improvements for macOS
 - German translation updated
 - End-of-life database updated
-- Small code enhancements
+- Several minor code enhancements
 
 ---------------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 3.0.1 (not released yet)
+## Lynis 3.0.1 (2020-10-05)
 
 ### Added
 - Detection of Alpine Linux

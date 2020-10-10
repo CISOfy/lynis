@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -44,8 +44,7 @@
     Register --test-no MAIL-8802 --weight L --network NO --category security --description "Check Exim status"
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check Exim status"
-        IsRunning exim4 || IsRunning exim
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "exim4" || IsRunning "exim"; then
             LogText "Result: found running Exim process"
             Display --indent 2 --text "- Exim status" --result "${STATUS_RUNNING}" --color GREEN
             EXIM_RUNNING=1
@@ -62,11 +61,11 @@
     # Test        : MAIL-8804
     # Description : Exim configuration options
     if [ ${EXIM_RUNNING} -eq 1 -a ! "${EXIMBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no MAIL-8803 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Exim configuration options"
+    Register --test-no MAIL-8804 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Exim configuration options"
     if [ ${SKIPTEST} -eq 0 -a ${EXIM_RUNNING} -eq 1 ]; then
         LogText "Test: Exim configuration options"
 
-        EXIM_ROUTERS=$(exim -bP router_list)
+        EXIM_ROUTERS=$(${EXIMBINARY} -bP router_list)
 
         unset FIND FIND2 FIND3 FIND4
 
@@ -77,31 +76,31 @@
         # Smarthost or Satellite
         FIND3=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^smarthost')
 
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             EXIM_TYPE="LOCAL ONLY"
-        elif [ ! -z "${FIND2}" ]; then
+        elif [ -n "${FIND2}" ]; then
             EXIM_TYPE="INTERNET HOST"
-        elif [ ! -z "${FIND3}" ]; then
+        elif [ -n "${FIND3}" ]; then
             FIND4=$(echo "${EXIM_ROUTERS}" | ${EGREPBINARY} '^hub_user_smarthost')
-            if [ ! -z "${FIND4}" ]; then
+            if [ -n "${FIND4}" ]; then
                 EXIM_TYPE="SATELLITE"
             else
                 EXIM_TYPE="SMARTHOST"
             fi
         fi
 
-        if [ ! -z "${EXIM_TYPE}" ]; then
+        if [ -n "${EXIM_TYPE}" ]; then
             LogText "Result: Exim Type - ${EXIM_TYPE}"
             Display --indent 4 --text "- Type" --result "${EXIM_TYPE}" --color GREEN
         else
             LogText "Result: Exim Type - Not Configured"
-            Display --indent 4 --text "- Type" --result "Not Configured" --color WHITE
+            Display --indent 4 --text "- Type" --result "${STATUS_NOT_CONFIGURED}" --color WHITE
         fi
 
         if [ "${EXIM_TYPE}" = "INTERNET HOST" -o "${EXIM_TYPE}" = "SMARTHOST" ]; then
             LogText "Test: Exim Public Interfaces"
-            EXIM_IP=$(exim -bP local_interfaces | cut -d '=' -f2 | sed -e 's/\s*<\s*\;\?//' -e 's/\s*::0\s*\;\?//' -e 's/\s*127.0.0.1\s*\;\?//' -e 's/^\s*//' -e 's/\s*$//')
-            if [ ! -z "${EXIM_IP}" ]; then
+            EXIM_IP=$(${EXIMBINARY} -bP local_interfaces | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/\s*<\s*\;\?//' -e 's/\s*::0\s*\;\?//' -e 's/\s*127.0.0.1\s*\;\?//' -e 's/^\s*//' -e 's/\s*$//')
+            if [ -n "${EXIM_IP}" ]; then
                 LogText "Result: ${EXIM_IP}"
                 Display --indent 4 --text "- Public Interface(s)" --result "${EXIM_IP}" --color GREEN
             else
@@ -110,56 +109,129 @@
             fi
 
             LogText "Test: Exim TLS State"
-            EXIM_TLS=$(exim -bP tls_advertise_hosts | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
-            if [ ! -z "${EXIM_TLS}" ]; then
+            EXIM_TLS=$(${EXIMBINARY} -bP tls_advertise_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+            if [ -n "${EXIM_TLS}" ]; then
                 LogText "Result: Enabled"
-                Display --indent 4 --text "- TLS" --result "ENABLED" --color GREEN
+                Display --indent 4 --text "- TLS" --result "${STATUS_ENABLED}" --color GREEN
             else
                 LogText "Result: Not enabled"
-                Display --indent 4 --text "- TLS" --result "NOT ENABLED" --color WHITE
+                Display --indent 4 --text "- TLS" --result "${STATUS_DISABLED}" --color WHITE
             fi
         fi
 
-        if [ ! -z "${EXIM_TYPE}" -a "${EXIM_TYPE}" != "LOCAL ONLY" ]; then
+        if [ -n "${EXIM_TYPE}" -a "${EXIM_TYPE}" != "LOCAL ONLY" ]; then
             LogText "Test: Exim Certificate and Private Key"
 
             case "${EXIM_TYPE}" in
                 "INTERNET HOST" | "SMARTHOST" )
-                    EXIM_CERTIFICATE=$(exim -bP tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
-                    EXIM_PRIVATEKEY=$(exim -bP tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_CERTIFICATE=$(${EXIMBINARY} -bP tls_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_PRIVATEKEY=$(${EXIMBINARY} -bP tls_privatekey | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
                 "SATELLITE" )
-                    EXIM_CERTIFICATE=$(exim -bP transport remote_smtp_smarthost | grep tls_certificate | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
-                    EXIM_PRIVATEKEY=$(exim -bP transport remote_smtp_smarthost | grep tls_privatekey | cut -d '=' -f2 | sed -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_CERTIFICATE=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_PRIVATEKEY=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_privatekey | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
                     ;;
             esac
 
-            if [ ! -z "${EXIM_CERTIFICATE}" ]; then
+            if [ -n "${EXIM_CERTIFICATE}" ]; then
                 LogText "Result: ${EXIM_CERTIFICATE}"
                 if [ -f "${EXIM_CERTIFICATE}" ]; then
                     Display --indent 4 --text "- Certificate" --result "${STATUS_FOUND}" --color GREEN
-                    LogText "Result: Certificate found."
+                    LogText "Result: Certificate found"
                 else
                     Display --indent 4 --text "- Certificate" --result "${STATUS_NOT_FOUND}" --color YELLOW
-                    LogText "Result: Certificate not found."
+                    LogText "Result: Certificate not found"
                 fi
             else
-                LogText "Result: Certificate not set."
-                Display --indent 4 --text "- Certificate not set" --result "${STATUS_WARNING}" --color WHITE
+                LogText "Result: Certificate not set"
+                Display --indent 4 --text "- Certificate" --result "${STATUS_NOT_CONFIGURED}" --color WHITE
             fi
 
-            if [ ! -z "${EXIM_PRIVATEKEY}" ]; then
+            if [ -n "${EXIM_PRIVATEKEY}" ]; then
                 LogText "Result: ${EXIM_PRIVATEKEY}"
                 if [ -f "${EXIM_PRIVATEKEY}" ]; then
-                    LogText "Result: Private Key found."
+                    LogText "Result: Private Key found"
                     Display --indent 4 --text "- Private Key" --result "${STATUS_FOUND}" --color GREEN
                 else
                     Display --indent 4 --text "- Private Key" --result "${STATUS_NOT_FOUND}" --color YELLOW
-                    LogText "Result: Private Key not found."
+                    LogText "Result: Private Key not found"
                 fi
             else
-                LogText "Result: Private Key not set."
-                Display --indent 4 --text "- Private Key not set" --result "${STATUS_WARNING}" --color WHITE
+                LogText "Result: Private Key not set"
+                Display --indent 4 --text "- Private Key" --result "${STATUS_NOT_CONFIGURED}" --color WHITE
+            fi
+
+            LogText "Test: Exim Verify Certificates"
+
+            case "${EXIM_TYPE}" in
+                "INTERNET HOST" | "SMARTHOST" )
+                    EXIM_CERTIFICATES=$(${EXIMBINARY} -bP tls_verify_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+                "SATELLITE" )
+                    EXIM_CERTIFICATES=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_verify_certificate | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+            esac
+
+            case "${EXIM_CERTIFICATES}" in
+                "")
+                    # This condition results in a RED warning because it should never be hit
+                    LogText "Result: Verify Certificates not set"
+                    Display --indent 4 --text "- Verify Certificates not set" --result "${STATUS_WARNING}" --color RED
+                    ;;
+                "system")
+                    # This is the default setting and should be the most common
+                    LogText "Result: Verify Certificates set to system default"
+                    Display --indent 4 --text "- Verify Certificates" --result "DEFAULT" --color WHITE
+                    ;;
+                *)
+                    # This condition should only be hit when it has been set to a custom value
+                    LogText "Result: Verify Certificates set to \"${EXIM_CERTIFICATES}\""
+                    Display --indent 4 --text "- Verify Certificates" --result "CUSTOM" --color GREEN
+                    ;;
+            esac
+
+
+            case "${EXIM_TYPE}" in
+                "INTERNET HOST" | "SMARTHOST" )
+                    EXIM_VERIFY_HOSTS=$(${EXIMBINARY} -bP tls_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_TRY_VERIFY_HOSTS=$(${EXIMBINARY} -bP tls_try_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+                "SATELLITE" )
+                    EXIM_VERIFY_HOSTS=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    EXIM_TRY_VERIFY_HOSTS=$(${EXIMBINARY} -bP transport remote_smtp_smarthost | ${GREPBINARY} tls_try_verify_hosts | ${CUTBINARY} -d '=' -f2 | ${SEDBINARY} -e 's/^\s*//' -e 's/\s*$//')
+                    ;;
+            esac
+
+            LogText "Test: Exim Try Verify Hosts"
+            if [ -n "${EXIM_TRY_VERIFY_HOSTS}" ]; then
+                LogText "Result: Try Verify Hosts enabled"
+                case "${EXIM_TYPE}" in
+                    "INTERNET HOST" )
+                        Display --indent 4 --text "- Try Verify Hosts" --result "${STATUS_ENABLED}" --color GREEN
+                        ;;
+                    "SATELLITE" | "SMARTHOST" )
+                        Display --indent 4 --text "- Try Verify Hosts" --result "${STATUS_ENABLED}" --color YELLOW
+                        ;;
+                esac
+            else
+                LogText "Result: Try Verify Hosts not enabled"
+                Display --indent 4 --text "- Try Verify Hosts" --result "${STATUS_DISABLED}" --color WHITE
+            fi
+
+            LogText "Test: Exim Verify Hosts"
+            if [ -n "${EXIM_VERIFY_HOSTS}" ]; then
+                LogText "Result: Verify Hosts enabled"
+                case "${EXIM_TYPE}" in
+                    "INTERNET HOST" )
+                        Display --indent 4 --text "- Verify Hosts" --result "${STATUS_ENABLED}" --color YELLOW
+                        ;;
+                    "SATELLITE" | "SMARTHOST" )
+                        Display --indent 4 --text "- Verify Hosts" --result "${STATUS_ENABLED}" --color GREEN
+                        ;;
+                esac
+            else
+                LogText "Result: Verify Hosts not enabled"
+                Display --indent 4 --text "- Verify Hosts" --result "${STATUS_DISABLED}" --color WHITE
             fi
         fi
     fi
@@ -175,7 +247,7 @@
         LogText "Test: check Postfix status"
         # Some other processes also use master, therefore it should include both master and postfix
         FIND1=$(${PSBINARY} ax | ${GREPBINARY} "master" | ${GREPBINARY} "postfix" | ${GREPBINARY} -v "grep")
-        if [ ! -z "${FIND1}" ]; then
+        if [ -n "${FIND1}" ]; then
             LogText "Result: found running Postfix process"
             Display --indent 2 --text "- Postfix status" --result "${STATUS_RUNNING}" --color GREEN
             POSTFIX_RUNNING=1
@@ -210,11 +282,11 @@
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: using postconf to see if Postfix configuration has errors"
         FIND=$(${POSTCONFBINARY} 2>&1 | ${GREPBINARY} "warning:")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             Report "postfix_config_error=1"
             Display --indent 6 --text "- Postfix configuration errors" --result "${STATUS_WARNING}" --color RED
             LogText "Result: found an error or warning in the Postfix configuration. Manual check suggested."
-            ReportSuggestion ${TEST_NO} "Found a configuration error in Postfix" "${POSTFIX_CONFIGFILE}" "text:run postconf > /dev/null"
+            ReportSuggestion "${TEST_NO}" "Found a configuration error in Postfix" "${POSTFIX_CONFIGFILE}" "text:run postconf > /dev/null"
         else
             LogText "Result: all looks to be fine with Postfix configuration"
             if IsVerbose; then Display --indent 6 --text "- Postfix configuration errors" --result "${STATUS_OK}" --color GREEN; fi
@@ -233,21 +305,21 @@
         FIND2=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^smtpd_banner' | ${GREPBINARY} '$mail_name')
         FIND3=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^mail_name' | ${GREPBINARY} -i 'postfix')
         FIND4=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^smtpd_banner' | ${GREPBINARY} -i "${OS}")
-        if [ ! -z "${LINUX_VERSION}" ]; then
+        if [ -n "${LINUX_VERSION}" ]; then
             FIND5=$(${POSTCONFBINARY} 2> /dev/null | ${GREPBINARY} '^smtpd_banner' | ${GREPBINARY} -i "${LINUX_VERSION}")
         fi
         SHOWWARNING=0
 
-        if [ ! -z "${FIND1}" ]; then
+        if [ -n "${FIND1}" ]; then
             SHOWWARNING=1
             Report "banner_software_disclosure[]=${FIND1}"
-        elif [ ! -z "${FIND2}" -a ! -z "${FIND3}" ]; then
+        elif [ -n "${FIND2}" -a -n "${FIND3}" ]; then
             SHOWWARNING=1
             Report "banner_software_disclosure[]=${FIND2}"
-        elif [ ! -z "${FIND4}" ]; then
+        elif [ -n "${FIND4}" ]; then
             SHOWWARNING=1
             Report "banner_os_disclosure[]=${FIND4}"
-        elif [ ! -z "${FIND5}" ]; then
+        elif [ -n "${FIND5}" ]; then
             SHOWWARNING=1
             Report "banner_os_disclosure[]=${FIND5}"
         fi
@@ -255,8 +327,8 @@
         if [ ${SHOWWARNING} -eq 1 ]; then
             Display --indent 6 --text "- Postfix banner" --result "${STATUS_WARNING}" --color RED
             LogText "Result: found OS, or mail_name in SMTP banner, and/or mail_name contains 'Postfix'."
-            ReportWarning ${TEST_NO} "Found some information disclosure in SMTP banner (OS or software name)"
-            ReportSuggestion ${TEST_NO} "You are advised to hide the mail_name (option: smtpd_banner) from your postfix configuration. Use postconf -e or change your main.cf file (${POSTFIX_CONFIGFILE})"
+            ReportWarning "${TEST_NO}" "Found some information disclosure in SMTP banner (OS or software name)"
+            ReportSuggestion "${TEST_NO}" "You are advised to hide the mail_name (option: smtpd_banner) from your postfix configuration. Use postconf -e or change your main.cf file (${POSTFIX_CONFIGFILE})"
         else
             if IsVerbose; then Display --indent 6 --text "- Postfix banner" --result "${STATUS_OK}" --color GREEN; fi
         fi
@@ -283,8 +355,7 @@
     Register --test-no MAIL-8838 --weight L --network NO --category security --description "Check dovecot process"
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check dovecot status"
-        IsRunning dovecot
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "dovecot"; then
             LogText "Result: found running dovecot process"
             Display --indent 2 --text "- Dovecot status" --result "${STATUS_RUNNING}" --color GREEN
             DOVECOT_RUNNING=1
@@ -305,8 +376,7 @@
     Register --test-no MAIL-8860 --weight L --network NO --category security --description "Check Qmail status"
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check Qmail status"
-        IsRunning qmail-smtpd
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "qmail-smtpd"; then
             LogText "Result: found running Qmail process"
             Display --indent 2 --text "- Qmail status" --result "${STATUS_RUNNING}" --color GREEN
             QMAIL_RUNNING=1
@@ -325,8 +395,7 @@
     Register --test-no MAIL-8880 --weight L --network NO --category security --description "Check Sendmail status"
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check sendmail status"
-        IsRunning sendmail
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "sendmail"; then
             LogText "Result: found running Sendmail process"
             Display --indent 2 --text "- Sendmail status" --result "${STATUS_RUNNING}" --color GREEN
             SENDMAIL_RUNNING=1
@@ -342,7 +411,7 @@
 #
     # Test        : MAIL-8920
     # Description : Check OpenSMTPD process status
-    if [ ! -z "${SMTPCTLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${SMTPCTLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no MAIL-8920 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check OpenSMTPD status"
     if [ ${SKIPTEST} -eq 0  ]; then
         LogText "Test: check smtpd status"

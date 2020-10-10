@@ -39,12 +39,14 @@ These people made a significant impact to the development of Lynis:
 * C.J. Adams-Collier, US
 * Charlie Heselton, US
 * Dave Vehrs
+* David Marzal Cánovas, Spain
 * Eric Light, New Zealand
 * Kamil Boratyński, Poland
 * Mike Slifcak, US
 * Mikko Lehtisalo, Finland
 * Steve Bosek, France
 * Thomas Siebel, Germany
+* Topi Miettinen, Finland
 * Zach Crownover
 
 

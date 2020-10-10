@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -50,7 +50,7 @@
     if [ ${APPARMORFOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no MACF-6208 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check if AppArmor is enabled"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! -z "${AASTATUSBINARY}" ]; then
+        if [ -n "${AASTATUSBINARY}" ]; then
             CAN_READ_FILE=0
             FILE="/sys/kernel/security/apparmor/profiles"
             if [ -f ${FILE} ]; then
@@ -75,6 +75,12 @@
                     Report "apparmor_enabled=1"
                     Report "apparmor_policy_loaded=1"
                     AddHP 3 3
+                    # ignore kernel threads (Parent PID = 2 [kthreadd])
+                    NUNCONFINED=$(${PSBINARY} -N --ppid 2 -o label | ${GREPBINARY} '^unconfined' | ${WCBINARY} --lines)
+                    Display --indent 8 --text "Found ${NUNCONFINED} unconfined processes"
+                    for PROCESS in $(${PSBINARY} -N --ppid 2 -o label:1,pid,comm | ${GREPBINARY} '^unconfined' | ${TRBINARY} ' ' ':'); do
+                        LogText "Result: Unconfined process: ${PROCESS}"
+                    done
                 elif [ $? -eq 4 ]; then
                     LogText "Result: Can not determine status, most likely due to lacking permissions"
                     Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
@@ -83,7 +89,7 @@
                     Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
                 elif [ $? -eq 2 ]; then
                     LogText "Result: AppArmor is enabled, but no policy is loaded"
-                    ReportSuggestion ${TEST_NO} "Load AppArmor policies"
+                    ReportSuggestion "${TEST_NO}" "Load AppArmor policies"
                     Display --indent 4 --text "- Checking AppArmor status" --result "NON-ACTIVE" --color GREEN
                     Report "apparmor_enabled=1"
                     Report "apparmor_policy_loaded=0"
@@ -114,7 +120,7 @@
     Register --test-no MACF-6232 --weight L --network NO --category security --description "Check SELINUX presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking if we have sestatus binary"
-        if [ ! -z "${SESTATUSBINARY}" ]; then
+        if [ -n "${SESTATUSBINARY}" ]; then
             LogText "Result: found sestatus binary (${SESTATUSBINARY})"
             Display --indent 2 --text "- Checking presence SELinux" --result "${STATUS_FOUND}" --color GREEN
         else
@@ -148,10 +154,21 @@
                 Display --indent 6 --text "- Checking current mode and config file" --result "${STATUS_OK}" --color GREEN
             else
                 LogText "Result: Current SELinux mode (${FIND}) is NOT the same as in config file (${FIND2})."
-                ReportWarning ${TEST_NO} "Current SELinux mode is different from config file (current: ${FIND}, config file: ${FIND2})"
+                ReportWarning "${TEST_NO}" "Current SELinux mode is different from config file (current: ${FIND}, config file: ${FIND2})"
                 Display --indent 6 --text "- Checking current mode and config file" --result "${STATUS_WARNING}" --color RED
             fi
             Display --indent 8 --text "Current SELinux mode: ${FIND}"
+            PERMISSIVE=$(${SEMANAGEBINARY} permissive --list --noheading | ${TRBINARY} '\n' ' ')
+            NPERMISSIVE=$(${SEMANAGEBINARY} permissive --list --noheading | ${WCBINARY} --lines)
+            Display --indent 8 --text "Found ${NPERMISSIVE} permissive SELinux object types"
+            LogText "Permissive SELinux object types: ${PERMISSIVE}"
+            UNCONFINED=$(${PSBINARY} -eo label,pid,command | ${GREPBINARY} '[u]nconfined_t' | ${TRBINARY} '\n' ' ')
+            INITRC=$(${PSBINARY} -eo label,pid,command | ${GREPBINARY} '[i]nitrc_t' | ${TRBINARY} '\n' ' ')
+            NUNCONFINED=$(${PSBINARY} -eo label | ${GREPBINARY} '[u]nconfined_t' | ${WCBINARY} --lines)
+            NINITRC=$(${PSBINARY} -eo label | ${GREPBINARY} '[i]nitrc_t' | ${WCBINARY} --lines)
+            Display --indent 8 --text "Found ${NUNCONFINED} unconfined and ${NINITRC} initrc_t processes"
+            LogText "Unconfined processes: ${UNCONFINED}"
+            LogText "Processes with initrc_t type: ${INITRC}"
         else
             LogText "Result: SELinux framework is disabled"
             Display --indent 4 --text "- Checking SELinux status" --result "${STATUS_DISABLED}" --color YELLOW
@@ -189,6 +206,13 @@
             LogText "Result: TOMOYO Linux is enabled"
             Display --indent 4 --text "- Checking TOMOYO Linux status" --result "${STATUS_ENABLED}" --color GREEN
             Report "tomoyo_enabled=1"
+            if [ ! -z ${TOMOYOPSTREEBINARY} ]; then
+                NUNCONFINED=$(${TOMOYOPSTREEBINARY} | ${GREPBINARY} -v '^  3 ' | ${WCBINARY} --lines)
+                Display --indent 8 --text "Found ${NUNCONFINED} unconfined (not profile 3) processes"
+                for PROCESS in $(${TOMOYOPSTREEBINARY} | ${GREPBINARY} -v '^  3 ' | ${SEDBINARY} -e 's/+-//g' -e 's/^ *//g' -e 's/ \+/:/g' | ${SORTBINARY}); do
+                    LogText "Result: Unconfined process: ${PROCESS}"
+                done
+            fi
             AddHP 3 3
         else
             LogText "Result: TOMOYO Linux is disabled"
@@ -206,7 +230,7 @@
     Register --test-no RBAC-6272 --weight L --network NO --category security --description "Check grsecurity presence"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check Linux kernel configuration
-        if [ ! -z "${LINUXCONFIGFILE}" -a -f "${LINUXCONFIGFILE}" ]; then
+        if [ -n "${LINUXCONFIGFILE}" -a -f "${LINUXCONFIGFILE}" ]; then
             FIND=$(${GREPBINARY} ^CONFIG_GRKERNSEC=y ${LINUXCONFIGFILE})
             if [ ! "${FIND}" = "" ]; then
                 LogText "Result: grsecurity available (in kernel config)"
@@ -222,7 +246,7 @@
             Display --indent 2 --text "- Checking presence grsecurity" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
         if HasData "${GRADMBINARY}"; then
-            FIND=$(${GRADMBINARY} --status)
+            FIND=$(${GRADMBINARY} --status 2>/dev/null)
             if [ "${FIND}" = "The RBAC system is currently enabled." ]; then
                 MAC_FRAMEWORK_ACTIVE=1
             fi

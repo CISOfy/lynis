@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -37,8 +37,8 @@
     Register --test-no HOME-9302 --weight L --network NO --category security --description "Create list with home directories"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Read sixth field of /etc/passwd
-        LogText "Test: query /etc/passwd to obtain home directories"
-        FIND=$(${AWKBINARY} -F: '{ if ($1 !~ "#") print $6 }' /etc/passwd | ${SORTBINARY} -u)
+        LogText "Test: query ${ROOTDIR}etc/passwd to obtain home directories"
+        FIND=$(${AWKBINARY} -F: '{ if ($1 !~ "#") print $6 }' ${ROOTDIR}etc/passwd | ${SORTBINARY} -u)
         for I in ${FIND}; do
             if [ -d ${I} ]; then
                 LogText "Result: found home directory: ${I} (directory exists)"
@@ -51,11 +51,82 @@
 #
 #################################################################################
 #
+    # Test        : HOME-9304
+    # Description : Check if users' home directories permissions are 750 or more restrictive
+    Register --test-no HOME-9304 --weight L --network NO --category security --description "Check if users' home directories permissions are 750 or more restrictive"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if users' home directories permissions are 750 or more restrictive
+        FOUND=0
+        USERDATA=$(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }')
+        while read -r LINE; do
+            USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
+            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+            LogText "Test: checking directory '${DIR}' for user '${USER}'"
+            if [ -d "${DIR}" ]; then
+                WRITE_GROUP_PERM=$(${LSBINARY} -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c6)
+                OTHER_PERMS=$(${LSBINARY} -ld ${DIR} | ${CUTBINARY} -f1 -d" " | ${CUTBINARY} -c8-10)
+                if [ ! ${WRITE_GROUP_PERM} = "-" -o ! ${OTHER_PERMS} = "---" ]; then
+                    LogText "Result: permissions of home directory ${DIR} of user ${USER} are not strict enough. Should be 750 or more restrictive. Change with: chmod 750 ${DIR}"
+                    FOUND=1
+                else
+                    LogText "Result: permissions of home directory ${DIR} of user ${USER} are fine"
+                fi
+            fi
+        done << EOF
+${USERDATA}
+EOF
+
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Permissions of home directories" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Double check the permissions of home directories as some might be not strict enough."
+        else
+            Display --indent 2 --text "- Permissions of home directories" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: OK, all permissions of the home directories are 750 or more restrictive"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : HOME-9306
+    # Description : Check if users own their home directories
+    Register --test-no HOME-9306 --weight L --network NO --category security --description "Check if users own their home directories"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Check if users own their home directories
+        FOUND=0
+        USERDATA=$(${EGREPBINARY} -v '^(daemon|git|halt|root|shutdown|sync)' ${ROOTDIR}etc/passwd | ${AWKBINARY} -F: '($7 !~ "/(false|nologin)$") { print }')
+        while read -r LINE; do
+            USER=$(echo ${LINE} | ${CUTBINARY} -d: -f1)
+            DIR=$(echo ${LINE} | ${CUTBINARY} -d: -f6)
+            LogText "Test: checking directory '${DIR}' for user '${USER}'"
+            if [ -d "${DIR}" ]; then
+                OWNER=$(ls -ld ${DIR} | awk -F" " '{ print $3 }')
+                if [ ! "${OWNER}" = "${USER}" ]; then
+                    LogText "Result: the home directory ${DIR} of user ${USER} is owned by ${OWNER}. Correct: chown ${USER} ${DIR}" 
+                    FOUND=1
+                else
+                    LogText "Result: ownership of home directory ${DIR} for user ${USER} looks to be correct"
+                fi
+            fi
+        done << EOF
+${USERDATA}
+EOF
+
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Ownership of home directories" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Double check the ownership of home directories as some might be incorrect."
+        else
+            Display --indent 2 --text "- Ownership of home directories" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: OK, all users own their home directories"
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : HOME-9310
     # Description : Check for suspicious shell history files
     Register --test-no HOME-9310 --weight L --network NO --category security --description "Checking for suspicious shell history files"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! -z "${HOMEDIRS}" ]; then
+        if [ -n "${HOMEDIRS}" ]; then
             if [ "${OS}" = "Solaris" ]; then
                 # Solaris doesn't support -maxdepth
                 FIND=$(${FINDBINARY} ${HOMEDIRS} -name ".*history" ! -type f -print)
@@ -70,12 +141,12 @@
                 LogText "Result: the following files seem to be of the wrong file type:"
                 LogText "Output: ${FIND}"
                 LogText "Info: above files could be redirected files to avoid logging and should be investigated"
-                ReportWarning ${TEST_NO} "Incorrect file type found for shell history file"
+                ReportWarning "${TEST_NO}" "Incorrect file type found for shell history file"
             fi
-            LogText "Remarks: History files are normally of the type 'file'. Symbolic links and other types can be riskful."
+            LogText "Remark: History files are normally of the type 'file'. Symbolic links and other types are suspicious."
         else
             Display --indent 2 --text "- Checking shell history files" --result "${STATUS_SKIPPED}" --color WHITE
-            LogText "Result: Homedirs is empty, test will be skipped"
+            LogText "Result: Homedirs is empty, therefore test will be skipped"
         fi
     fi
 #
@@ -93,7 +164,7 @@
     # Notes       : For performance reasons we combine the scanning of different files, so inode caching is used
     #               as much as possible for every find command
     # Profile opt : ignore-home-dir (multiple lines allowed), ignores home directory
-    if [ ! -z "${REPORTFILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${REPORTFILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no HOME-9350 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Collecting information from home directories"
     if [ ${SKIPTEST} -eq 0 ]; then
         IGNORE_HOME_DIRS=$(${GREPBINARY} "^ignore-home-dir=" ${REPORTFILE} | ${AWKBINARY} -F= '{ print $2 }')

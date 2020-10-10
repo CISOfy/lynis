@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -54,7 +54,7 @@
 
         # Ansible
         FOUND=0
-        LIST="~/.ansible ${ROOTDIR}etc/ansible ${ROOTDIR}root/.ansible ${ROOTDIR}tmp/.ansible"
+        LIST="${HOME}/.ansible ${ROOTDIR}etc/ansible ${ROOTDIR}root/.ansible ${ROOTDIR}tmp/.ansible"
         for ITEM in ${LIST}; do if DirectoryExists ${ITEM}; then FOUND=1; break; fi; done
         # Test for files (only if no match was found)
         if [ ${FOUND} -eq 0 ]; then
@@ -71,7 +71,7 @@
         fi
 
         # Cfengine
-        if [ ! -z "${CFAGENTBINARY}" ]; then
+        if [ -n "${CFAGENTBINARY}" ]; then
             LogText "Result: CFEngine (cfagent) is installed (${CFAGENTBINARY})"
             AUTOMATION_TOOL_FOUND=1
             CFENGINE_AGENT_FOUND=1
@@ -129,7 +129,7 @@
             fi
         fi
 
-        if [ ! -z "${PUPPETBINARY}" ]; then
+        if [ -n "${PUPPETBINARY}" ]; then
             LogText "Result: Puppet is installed (${PUPPETBINARY})"
             AUTOMATION_TOOL_FOUND=1
             Report "automation_tool_running[]=puppet-agent"
@@ -145,26 +145,36 @@
         fi
 
         # SaltStack
-        if [ ! -z "${SALTMINIONBINARY}" ]; then
+        if [ -n "${SALTMINIONBINARY}" ]; then
+            Display --indent 4 --text "- SaltStack minion" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: SaltStack (salt-minion) is installed (${SALTMINIONBINARY})"
             AUTOMATION_TOOL_FOUND=1
-            SALT_MINION_RUNNING=1
-            Report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "- SaltStack minion (salt-minion)" --result "${STATUS_FOUND}" --color GREEN
+            Report "automation_tool_installed[]=saltstack-minion"
+
+            if IsRunning "salt-minion" --user "root salt"; then
+                Display --indent 6 --text "- Minion process" --result "${STATUS_RUNNING}" --color GREEN
+                LogText "Result: found SaltStack (master)"
+                SALT_MINION_RUNNING=1
+                Report "automation_tool_running[]=saltstack-minion"
+            else
+                Display --indent 6 --text "- Minion process" --result "${STATUS_NOT_RUNNING}" --color YELLOW
+            fi
+
         fi
-        if [ ! -z "${SALTMASTERBINARY}" ]; then
+
+        if [ -n "${SALTMASTERBINARY}" ]; then
+            Display --indent 4 --text "- SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: SaltStack (salt-master) is installed (${SALTMASTERBINARY})"
             AUTOMATION_TOOL_FOUND=1
-            SALT_MASTER_RUNNING=1
-            Report "automation_tool_running[]=saltstack-minion"
-            Display --indent 4 --text "- SaltStack master (salt-master)" --result "${STATUS_FOUND}" --color GREEN
-        else
-            if IsRunning "salt-master"; then
+            Report "automation_tool_installed[]=saltstack-master"
+
+            if IsRunning "salt-master" --user "root salt"; then
+                Display --indent 6 --text "- Master process" --result "${STATUS_RUNNING}" --color GREEN
                 LogText "Result: found SaltStack (master)"
-                AUTOMATION_TOOL_FOUND=1
                 SALT_MASTER_RUNNING=1
                 Report "automation_tool_running[]=saltstack-master"
-                Display --indent 4 --text "- SaltStack (master)" --result "${STATUS_FOUND}" --color GREEN
+            else
+                Display --indent 6 --text "- Master process" --result "${STATUS_NOT_RUNNING}" --color YELLOW
             fi
         fi
 
@@ -172,7 +182,7 @@
             Display --indent 2 --text "- Automation tooling" --result "${STATUS_FOUND}" --color GREEN
         else
             Display --indent 2 --text "- Automation tooling" --result "${STATUS_NOT_FOUND}" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Determine if automation tools are present for system management"
+            ReportSuggestion "${TEST_NO}" "Determine if automation tools are present for system management"
         fi
     fi
 #
@@ -188,7 +198,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
 
         # Fail2ban presence
-        if [ ! -z "${FAIL2BANBINARY}" ]; then
+        if [ -n "${FAIL2BANBINARY}" ]; then
             FAIL2BAN_FOUND=1
             IDS_IPS_TOOL_FOUND=1
             LogText "Result: Fail2ban is installed (${FAIL2BANBINARY})"
@@ -209,10 +219,10 @@
         fi
 
         # Continue if tooling is available and configuration file found
-        if [ ${FAIL2BAN_FOUND} -eq 1 -a ! -z "${FAIL2BAN_CONFIG}" ]; then
+        if [ ${FAIL2BAN_FOUND} -eq 1 -a -n "${FAIL2BAN_CONFIG}" ]; then
             Report "fail2ban_config=${FAIL2BAN_CONFIG}"
             FAIL2BANCLIENT=$(which fail2ban-client 2> /dev/null | grep -v "no [^ ]* in ")
-            if [ ! -z "${FAIL2BANCLIENT}" ]; then PERFORM_FAIL2BAN_TESTS=1; fi
+            if [ -n "${FAIL2BANCLIENT}" ]; then PERFORM_FAIL2BAN_TESTS=1; fi
         fi
     fi
 #
@@ -224,7 +234,7 @@
     Register --test-no TOOL-5104 --weight L --network NO --preqs-met ${PREQS_MET} --category security --description "Enabled tests in Fail2ban"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${FAIL2BANCLIENT} -d | ${TRBINARY} -d '[]' | ${TRBINARY} -d "'" | ${AWKBINARY} -F, '{ if ($1=="add") { print $2 }}' | ${TRBINARY} -d ' ')
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             for F2BSERVICE in ${FIND}; do
                 LogText "Result: service '${F2BSERVICE}' enabled"
                 Report "fail2ban_enabled_service[]=${F2BSERVICE}"
@@ -252,12 +262,12 @@
     #            FIND=$(${EGREPBINARY} "^action = \%\(action_m.*\)s" ${FAIL2BAN_CONFIG})
     #            FIND2=$(${EGREPBINARY} "^action = \%\(action_\)s" ${FAIL2BAN_CONFIG})
     #
-    #            if [ ! -z "${FIND}" ]; then
+    #            if [ -n "${FIND}" ]; then
     #                FAIL2BAN_EMAIL=1
     #                LogText "Result: found at least one jail which sends an email alert"
     #            fi
     #
-    #            if [ ! -z "${FIND2}" ]; then
+    #            if [ -n "${FIND2}" ]; then
     #                FAIL2BAN_SILENT=1
     #                LogText "Result: found at least one jail which does NOT send an email alert"
     #            fi
@@ -298,9 +308,9 @@
     #
     #            LogText "Checking for fail2ban iptables chains"
     #
-    #            if [ ! -z "${IPTABLESBINARY}" ]; then
+    #            if [ -n "${IPTABLESBINARY}" ]; then
     #                CHECK_CHAINS=$(${IPTABLESBINARY} -L 2>&1 | ${GREPBINARY} fail2ban)
-    #                if [ ! -z "${CHECK_CHAINS}" ]; then
+    #                if [ -n "${CHECK_CHAINS}" ]; then
     #                    LogText "Result: found at least one iptables chain for fail2ban"
     #                    Display --indent 4 --text "- Checking for Fail2ban iptables chain" --result "${STATUS_OK}" --color GREEN
     #                else
@@ -349,7 +359,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
 
         # Continue if tooling is available and snort is running
-        if [ -n ${SNORT_FOUND} ] || [ -n ${SNORT_RUNNING} ]; then
+        if [ -n "${SNORT_FOUND}" ] || [ -n "${SNORT_RUNNING}" ]; then
             if [ ${SNORT_FOUND} -eq 1 ] && [ ${SNORT_RUNNING} -eq 1 ]; then
                 SNORT_CONFIG=$(${PSBINARY} | ${AWKBINARY} -F-.. '/snort/ {print $3}' | ${HEADBINARY} -1)
                 if HasData "${SNORT_CONFIG}"; then
@@ -365,16 +375,28 @@
 #
     # Test        : TOOL-5160
     # Description : Check for OSSEC
-    Register --test-no TOOL-5126 --weight L --network NO --category security --description "Check for active OSSEC analysis daemon"
+    Register --test-no TOOL-5126 --weight L --network NO --category security --description "Check for active OSSEC daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
-
+        # Server side
         if IsRunning "ossec-analysisd"; then
             IDS_IPS_TOOL_FOUND=1
-            LogText "Result: OSSEC analysis daemon is active"
             Report "ids_ips_tooling[]=ossec"
-            Display --indent 2 --text "- Checking presence of OSSEC" --result "${STATUS_FOUND}" --color GREEN
+            Report "ids_ips_tooling[]=ossec-analysisd"
+            LogText "Result: OSSEC analysis daemon is active"
+            Display --indent 2 --text "- Checking presence of OSSEC (analysis)" --result "${STATUS_FOUND}" --color GREEN
         else
             LogText "Result: OSSEC analysis daemon not active"
+        fi
+
+        # Client side
+        if IsRunning "ossec-agentd"; then
+            IDS_IPS_TOOL_FOUND=1
+            Report "ids_ips_tooling[]=ossec"
+            Report "ids_ips_tooling[]=ossec-agentd"
+            LogText "Result: OSSEC agent daemon is active"
+            Display --indent 2 --text "- Checking presence of OSSEC (agent)" --result "${STATUS_FOUND}" --color GREEN
+        else
+            LogText "Result: OSSEC agent daemon not active"
         fi
     fi
 #
@@ -390,7 +412,7 @@
             AddHP 2 2
         else
             Display --indent 2 --text "- Checking for IDS/IPS tooling" --result "${STATUS_NONE}" --color YELLOW
-            #ReportSuggestion ${TEST_NO} "Install and configure automated intrusion detection/prevention tools"
+            #ReportSuggestion "${TEST_NO}" "Install and configure automated intrusion detection/prevention tools"
             AddHP 0 2
         fi
     fi

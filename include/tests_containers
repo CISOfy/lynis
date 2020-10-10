@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -40,7 +40,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: query zoneadm to list all running zones"
         FIND=$(${ROOTDIR}usr/sbin/zoneadm list -p | ${AWKBINARY} -F: '{ if ($2!="global") print $0 }')
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             COUNT=0
             for ITEM in ${FIND}; do
                 COUNT=$((COUNT + 1))
@@ -81,8 +81,7 @@
     # Description : Checking Docker daemon status and basic information for later tests
     Register --test-no CONT-8102 --weight L --network NO --category security --description "Checking Docker status and information"
     if [ ${SKIPTEST} -eq 0 ]; then
-        IsRunning "dockerd"
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "dockerd"; then
             LogText "Result: found Docker daemon running"
             Report "docker_daemon_running=1"
             DOCKER_DAEMON_RUNNING=1
@@ -131,14 +130,14 @@
     # Test        : CONT-8106
     # Description : Checking Docker containers (basic stats)
     # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
-    if [ ! -z "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Gather basic stats from Docker"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 6 --text "- Containers"
 
         # Check total of containers
         LogText "Test: checking total amount of Docker containers"
-        DOCKER_CONTAINERS_TOTAL=$(${DOCKERBINARY} info 2> /dev/null | ${GREPBINARY} "^Containers: " | ${AWKBINARY} '{ print $2 }')
+        DOCKER_CONTAINERS_TOTAL=$(${DOCKERBINARY} info 2> /dev/null | ${EGREPBINARY} "^[ \t]?Containers: " | ${AWKBINARY} '{ print $2 }')
         if [ -z "${DOCKER_CONTAINERS_TOTAL}" ]; then
             DOCKER_CONTAINERS_TOTAL=0
         fi
@@ -171,7 +170,7 @@
     # Test        : CONT-8107
     # Description : Checking Docker number of unused containers
     # Notes       : Hardening points are awarded, if there aren't a lot of stopped containers
-    if [ ! -z "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8107 --preqs-met ${PREQS_MET} --weight L --network NO --category performance --description "Check number of Docker containers"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check if there aren't too many unused containers on the system
@@ -194,7 +193,7 @@
     # Test        : CONT-8108
     # Description : Checking Docker file permissions
     # Notes       : /var/run/docker.sock - Usually root as owner, docker as group - should not be world writable
-    if [ ! -z "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${DOCKERBINARY}" -a ${RUN_DOCKER_TESTS} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CONT-8108 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check file permissions for Docker files"
     if [ ${SKIPTEST} -eq 0 ]; then
         NOT_WORLD_WRITABLE="${ROOTDIR}var/run/docker.sock"
@@ -227,4 +226,4 @@ WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2019, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2020, CISOfy - https://cisofy.com

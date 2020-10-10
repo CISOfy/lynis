@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -36,6 +36,7 @@
     NTP_CONFIG_TYPE_EVENTBASED=0
     NTP_CONFIG_TYPE_STARTUP=0
     NTPD_RUNNING=0 # Specific for ntpd
+    OPENNTPD_COMMUNICATION=0 # if ntpctl can communicate
     SYSTEMD_NTP_ENABLED=0
 #
 #################################################################################
@@ -62,9 +63,8 @@
         for FILE in ${SEARCH_FILES}; do
             if [ -f ${FILE} ]; then LogText "result: found chrony configuration: ${FILE}"; CHRONY_CONF_FILE="${FILE}"; fi
         done
-        if [ ! -z "${CHRONY_CONF_FILE}" ]; then
-            IsRunning chronyd
-            if [ ${RUNNING} -eq 1 ]; then
+        if [ -n "${CHRONY_CONF_FILE}" ]; then
+            if IsRunning "chronyd"; then
                 FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="chronyd"
                 Display --indent 2 --text "- NTP daemon found: chronyd" --result "${STATUS_FOUND}" --color GREEN
             else
@@ -75,15 +75,41 @@
         fi
 
         # Check time daemon (eg DragonFly BSD)
-        IsRunning dntpd
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "dntpd"; then
             FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="dntpd"
             Display --indent 2 --text "- NTP daemon found: dntpd" --result "${STATUS_FOUND}" --color GREEN
         fi
 
-        # Check running processes
-        FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd" | ${GREPBINARY} -v "dntpd" | ${GREPBINARY} -v "grep")
-        if [ ! -z "${FIND}" ]; then
+        # Check for OpenNTPD, ntpctl comes with a "regular" install
+        if [ -n "${NTPCTLBINARY}" ]; then
+            # In contrast to timectl, "synchronised: yes" is not grepped.
+            # Reason: openntpd syncs only if large time corrections are not required or -s is passed.
+            #         This might be not intended by the administrator (-s is NOT the default!)
+            FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd: ntp engine" | ${GREPBINARY} -v "grep")
+            # Status code 0 is when communication over the socket is successfull
+            if ${NTPCTLBINARY} -s status > /dev/null 2> /dev/null; then
+                FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="openntpd"
+                LogText "result: found openntpd (method: ntpctl)"
+                OPENNTPD_COMMUNICATION=1
+            elif [ -n "${FIND}" ] ; then
+                # Reasons for ntpctl to fail might be someone spawned a new process thus overwriting the socket,
+                # then ended it, but another openntpd process is still running
+                FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="openntpd"
+                LogText "result: found openntpd (method: ps)"
+            else
+                LogText "result: running openntpd not found, but ntpctl is instaalled"
+            fi
+
+            if [ "${NTP_DAEMON}" = "openntpd" ]; then
+                Display --indent 2 --text "- NTP daemon found: OpenNTPD" --result "${STATUS_FOUND}" --color GREEN
+            fi
+        fi
+
+        # Check running processes (ntpd from ntp.org)
+        # As checking by process name is ambigiouse (openntpd has the same process name),
+        # this check will be skipped if openntpd has been found.
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd" | ${GREPBINARY} -v "dntpd" | ${GREPBINARY} -v "ntpd: " | ${GREPBINARY} -v "grep")
+        if [ "${NTP_DAEMON}" != "openntpd" ] && [  -n "${FIND}" ]; then
             FOUND=1; NTPD_RUNNING=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1
             NTP_DAEMON="ntpd"
             LogText "Result: found running NTP daemon in process list"
@@ -91,77 +117,60 @@
         fi
 
         # Check time daemon (eg NetBSD)
-        IsRunning timed
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "timed"; then
             FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="timed"
             Display --indent 2 --text "- NTP daemon found: timed" --result "${STATUS_FOUND}" --color GREEN
         fi
 
         # Check timedate daemon (systemd)
-        if [ ! -z "${TIMEDATECTL}" ]; then
-            FIND=$(${TIMEDATECTL} status | ${EGREPBINARY} "(NTP|System clock) synchronized: yes")
-            if [ ! -z "${FIND}" ]; then
-                # Check for systemd-timesyncd
-                if [ -f ${ROOTDIR}etc/systemd/timesyncd.conf ]; then
-                    LogText "Result: found ${ROOTDIR}etc/systemd/timesyncd.conf"
-                    FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="systemd-timesyncd"
-                    Display --indent 2 --text "- NTP daemon found: systemd (timesyncd)" --result "${STATUS_FOUND}" --color GREEN
-                    SYSTEMD_NTP_ENABLED=1
-                else
-                    LogText "Result: ${ROOTDIR}etc/systemd/timesyncd.conf does not exist"
-                fi
-            else
-                LogText "Result: time sychronization not performed according timedatectl command"
-            fi
-        else
-            LogText "Result: timedatectl command not available on this system"
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} "systemd-timesyncd" | ${GREPBINARY} -v "grep")
+        if [  -n "${FIND}" ]; then
+            FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="systemd-timesyncd"
+            Display --indent 2 --text "- NTP daemon found: systemd (timesyncd)" --result "${STATUS_FOUND}" --color GREEN
+            LogText "Result: Found running systemd-timesyncd in process list"
         fi
 
         # Check crontab for OpenBSD/FreeBSD
         # Check anacrontab for Linux
         CRONTAB_FILES="/etc/anacrontab /etc/crontab"
+        # Regex for matching multiple time synchronisation binaries
+        # Partial sanity check for sntp and ntpdig, but this does not consider all corner cases
+        CRONTAB_REGEX='ntpdate|rdate|sntp.+-(s|j|--adj)|ntpdig.+-(S|s)'
         for I in ${CRONTAB_FILES}; do
             if [ -f ${I} ]; then
-                LogText "Test: checking for ntpdate or rdate in crontab file ${I}"
-                FIND=$(${EGREPBINARY} "ntpdate|rdate" ${I} | ${GREPBINARY} -v '^#')
-                if [ ! -z "${FIND}" ]; then
+                LogText "Test: checking for ntpdate, rdate, sntp or ntpdig in crontab file ${I}"
+                FIND=$(${EGREPBINARY} "${CRONTAB_REGEX}" ${I} | ${GREPBINARY} -v '^#')
+                if [ -n "${FIND}" ]; then
                     FOUND=1; NTP_CONFIG_TYPE_SCHEDULED=1
                     Display --indent 2 --text "- Checking NTP client in crontab file (${I})" --result "${STATUS_FOUND}" --color GREEN
-                    LogText "Result: found ntpdate or rdate reference in crontab file ${I}"
+                    LogText "Result: found ntpdate, rdate, sntp or ntpdig reference in crontab file ${I}"
                 else
                     #Display --indent 2 --text "- Checking NTP client in crontab file (${I})" --result "${STATUS_NOT_FOUND}" --color WHITE
-                    LogText "Result: no ntpdate or rdate reference found in crontab file ${I}"
+                    LogText "Result: no ntpdate, rdate, sntp or ntpdig reference found in crontab file ${I}"
                 fi
             else
                 LogText "Result: crontab file ${I} not found"
             fi
         done
 
-        # Don't run check in cron job directory on Solaris
-        # /etc/cron.d/FIFO is a special file and test get stuck at this file
+        # Notes: only test for normal files. File /etc/cron.d/FIFO on solaris is a special file and test may hang
+        # Linux systems may have a .placeholder file
         FOUND_IN_CRON=0
 
         # Check cron jobs
         for I in ${CRON_DIRS}; do
-            if [ -d ${I} ]; then
-                if FileIsReadable ${I}; then
-                    FIND=$(${LSBINARY} ${I} | ${GREPBINARY} -v FIFO)
-                    if [ ! -z "${FIND}" ]; then
-                        for J in ${FIND}; do
-                            LogText "Test: checking for ntpdate or rdate in ${I}/${J}"
-                            FIND2=$(${EGREPBINARY} "rdate|ntpdate" ${I}/${J} | ${GREPBINARY} -v "^#")
-                            if [ ! -z "${FIND2}" ]; then
-                                LogText "Positive match found: ${FIND2}"
-                                FOUND=1; FOUND_IN_CRON=1; NTP_CONFIG_TYPE_SCHEDULED=1
-                            fi
-                        done
-                    else
-                        LogText "Result: ${I} is empty, skipping search in directory"
+            for J in "${I}"/*; do  # iterate over folders in a safe way
+                # Check: regular file, readable and not called .placeholder
+                FIND=$(echo "${J}" | ${EGREPBINARY} '/.placeholder$')
+                if [ -f "${J}" ] && [ -r "${J}" ] && [ -z "${FIND}" ]; then
+                    LogText "Test: checking for ntpdate, rdate, sntp or ntpdig in ${J}"
+                    FIND=$("${EGREPBINARY}" "${CRONTAB_REGEX}" "${J}" | "${GREPBINARY}" -v "^#")
+                    if [ -n "${FIND}" ]; then
+                        FOUND=1; FOUND_IN_CRON=1; NTP_CONFIG_TYPE_SCHEDULED=1
+                        LogText "Result: found ntpdate, rdate, sntp or ntpdig in ${J}"
                     fi
-                else
-                    LogText "Result: could not search in directory due to permissions"
                 fi
-            fi
+            done
         done
 
         if [ ${FOUND_IN_CRON} -eq 1 ]; then
@@ -186,13 +195,13 @@
         if [ -f /etc/rc.conf ]; then
             LogText "Test: Checking if ntpdate is enabled at startup in *BSD"
             FIND=$(${GREPBINARY} 'ntpdate_enable="YES"' /etc/rc.conf)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 LogText "Result: ntpdate is enabled in rc.conf"
                 FOUND=1
                 NTP_CONFIG_TYPE_STARTUP=1
                 # Only show suggestion when ntpdate is enabled, however ntpd is not running
                 if [ ${NTP_DAEMON_RUNNING} -eq 0 ]; then
-                    ReportSuggestion ${TEST_NO} "Although ntpdate is enabled in rc.conf, it is advised to run it at least daily or use a NTP daemon"
+                    ReportSuggestion "${TEST_NO}" "Although ntpdate is enabled in rc.conf, it is advised to run it at least daily or use a NTP daemon"
                 fi
             else
                 LogText "Result: ntpdate is not enabled in rc.conf"
@@ -205,7 +214,7 @@
             else
                 Display --indent 2 --text "- Checking for a running NTP daemon or client" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Could not find a NTP daemon or client"
-                ReportSuggestion ${TEST_NO} "Use NTP daemon or NTP client to prevent time issues."
+                ReportSuggestion "${TEST_NO}" "Use NTP daemon or NTP client to prevent time issues."
                 AddHP 0 2
             fi
         else
@@ -219,14 +228,14 @@
 #
     # Test        : TIME-3106
     # Description : Check status of systemd time synchronization
-    if [ ${SYSTEMD_NTP_ENABLED} -eq 1 -a ! -z "${TIMEDATECTL}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SYSTEMD_NTP_ENABLED} -eq 1 -a -n "${TIMEDATECTL}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check systemd NTP time synchronization status"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check the status of time synchronization via timedatectl"
         FIND=$(${TIMEDATECTL} status | ${EGREPBINARY} "(NTP|System clock) synchronized: yes")
         if [ -z "${FIND}" ]; then
             LogText "Result: time not synchronized via NTP"
-            ReportSuggestion "${TEST_NO}" "Check timedatectl output. Sychronization via NTP is enabled, but status reflects it is not synchronized"
+            ReportSuggestion "${TEST_NO}" "Check timedatectl output. Synchronization via NTP is enabled, but status reflects it is not synchronized"
         fi
     fi
 #
@@ -234,7 +243,7 @@
 #
     # Test        : TIME-3112
     # Description : Check for valid associations from ntpq peers list
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3112 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check active NTP associations ID's"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking for NTP association ID's from ntpq peers list"
@@ -244,7 +253,7 @@
             LogText "Result: Found one or more association ID's"
         else
             Display --indent 2 --text "- Checking valid association ID's" --result "${STATUS_WARNING}" --color RED
-            ReportSuggestion ${TEST_NO} "Check ntp.conf for properly configured NTP servers and a correctly functioning name service."
+            ReportSuggestion "${TEST_NO}" "Check ntp.conf for properly configured NTP servers and a correctly functioning name service."
         fi
     fi
 #
@@ -252,7 +261,7 @@
 #
     # Test        : TIME-3116
     # Description : Check for stratum 16 peers
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3116 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check peers with stratum value of 16"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT=0
@@ -279,7 +288,7 @@
             else
                 Display --indent 2 --text "- Checking high stratum ntp peers" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: Found ${COUNT} high stratum (16) peers)"
-                ReportSuggestion ${TEST_NO} "Check ntpq peers output for stratum 16 peers"
+                ReportSuggestion "${TEST_NO}" "Check ntpq peers output for stratum 16 peers"
             fi
         fi
     fi
@@ -290,7 +299,7 @@
     # Description : Check unreliable peers from peer list
     # Notes       : Items with # are too far away (network distance)
     #               Items with - are not chosen due clustering algorithm
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3120 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unreliable NTP peers"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking unreliable ntp peers"
@@ -305,7 +314,7 @@
                 LogText "Unreliable peer: ${I}"
                 Report "ntp_unreliable_peer[]=${I}"
             done
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for unreliable ntp peers and correct/replace them"
+            ReportSuggestion "${TEST_NO}" "Check ntpq peers output for unreliable ntp peers and correct/replace them"
         fi
     fi
 #
@@ -313,13 +322,13 @@
 #
     # Test        : TIME-3124
     # Description : Check selected time source
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3124 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check selected time source"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking selected time source"
         FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ if ($4=="l") { print $1 } }')
         FIND2=$(${NTPQBINARY} -p -n | ${GREPBINARY} '^*' | ${AWKBINARY} '{ print $1 }')
-        if [ -z "${FIND}" -a ! -z "${FIND2}" ]; then
+        if [ -z "${FIND}" -a -n "${FIND2}" ]; then
             Display --indent 2 --text "- Checking selected time source" --result "${STATUS_OK}" --color GREEN
             FIND2=$(echo ${FIND2} | ${SEDBINARY} 's/*//g')
             LogText "Result: Found selected time source (value: ${FIND2})"
@@ -327,7 +336,7 @@
             Display --indent 2 --text "- Checking selected time source" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Found local source as selected time source. This could indicate that no external sources are available to sync with."
             LogText "Local source: ${FIND}"
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for selected time source"
+            ReportSuggestion "${TEST_NO}" "Check ntpq peers output for selected time source"
         fi
     fi
 #
@@ -335,7 +344,7 @@
 #
     # Test        : TIME-3128
     # Description : Check time source candidates
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3128 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check preferred time source"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking preferred time source"
@@ -343,7 +352,7 @@
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking time source candidates" --result "${STATUS_NONE}" --color YELLOW
             LogText "Result: No other time source candidates found"
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for time source candidates"
+            ReportSuggestion "${TEST_NO}" "Check ntpq peers output for time source candidates"
         else
             Display --indent 2 --text "- Checking time source candidates" --result "${STATUS_OK}" --color GREEN
             LogText "Result: Found one or more candidates to synchronize time with."
@@ -358,7 +367,7 @@
 #
     # Test        : TIME-3132
     # Description : Check ntpq falsetickers
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3132 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP falsetickers"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking preferred time source"
@@ -374,7 +383,7 @@
                 LogText "Falseticker found: ${I}"
                 Report "ntp_falseticker[]=${I}"
             done
-            ReportSuggestion ${TEST_NO} "Check ntpq peers output for falsetickers"
+            ReportSuggestion "${TEST_NO}" "Check ntpq peers output for falsetickers"
         fi
     fi
 #
@@ -382,7 +391,7 @@
 #
     # Test        : TIME-3136
     # Description : Check ntpq reported ntp version (Linux)
-    if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3136 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP protocol version"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking NTP protocol version (ntpq -c ntpversion)"
@@ -390,7 +399,7 @@
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking NTP version" --result "${STATUS_UNKNOWN}" --color YELLOW
             LogText "Result: No NTP version found"
-            ReportSuggestion ${TEST_NO} "Check ntpq output for NTP protocol version"
+            ReportSuggestion "${TEST_NO}" "Check ntpq output for NTP protocol version"
         else
             Display --indent 2 --text "- Checking NTP version" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: Found NTP version ${FIND}"
@@ -403,7 +412,7 @@
     # Test        : TIME-3146
     # Description : Check /etc/default/ntpdate (Linux)
     # Notes       : ntpdate-debian binary
-    #if [ ${NTPD_RUNNING} -eq 1 -a ! -z "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    #if [ ${NTPD_RUNNING} -eq 1 -a -n "${NTPQBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     #Register --test-no TIME-3146 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check /etc/default/ntpdate"
     #if [ ${SKIPTEST} -eq 0 ]; then
 #
@@ -428,7 +437,7 @@
     # Description : Check empty NTP step-tickers
     # Notes       : Mostly applies to Red Hat and clones
     FILE="${ROOTDIR}etc/ntp/step-tickers"
-    if [ "${NTPD_RUNNING}" -eq 1 -a ! -z "${NTPQBINARY}" -a -f "${FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ "${NTPD_RUNNING}" -eq 1 -a -n "${NTPQBINARY}" -a -f "${FILE}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no TIME-3160 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check empty NTP step-tickers"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
@@ -441,7 +450,7 @@
             else
                 LogText "Result: ${FILE} is empty. The step-tickers contain no configured NTP servers"
                 Display --indent 2 --text "- Checking NTP step-tickers file" --result "EMPTY FILE" --color YELLOW
-                ReportSuggestion ${TEST_NO} "Use step-tickers file for quicker time synchronization"
+                ReportSuggestion "${TEST_NO}" "Use step-tickers file for quicker time synchronization"
             fi
         else
             LogText "Result: ${FILE} is not empty, which is fine"
@@ -458,7 +467,7 @@
             done
             if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "- Checking step-tickers ntp servers entries" --result "SOME MISSING" --color YELLOW
-                ReportSuggestion ${TEST_NO} "Some time servers missing in step-tickers file"
+                ReportSuggestion "${TEST_NO}" "Some time servers missing in step-tickers file"
                 AddHP 3 4
             else
                 Display --indent 4 --text "- Checking step-tickers ntp servers entries" --result "${STATUS_OK}" --color GREEN
@@ -479,7 +488,8 @@
     #               Other should preferably have no access, or read-only at max
 
     FILE_ARRAY="${ROOTDIR}etc/chrony.conf ${ROOTDIR}usr/pkg/etc/chrony.conf \
-        ${ROOTDIR}etc/inet/ntp.conf ${ROOTDIR}etc/ntp.conf ${ROOTDIR}usr/local/etc/ntp.conf"
+        ${ROOTDIR}etc/inet/ntp.conf ${ROOTDIR}etc/ntp.conf ${ROOTDIR}usr/local/etc/ntp.conf\
+        ${ROOTDIR}etc/ntpd.conf ${ROOTDIR}etc/openntpd/ntpd.conf ${ROOTDIR}usr/local/etc/ntpd.conf"
 
     Register --test-no TIME-3170 --weight L --network NO --category security --description "Check configuration files"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -490,12 +500,104 @@
                     ReportWarning "${TEST_NO}" "Found world writable configuration file" "${FILE}" ""
                 fi
                 Report "ntp_config_file[]=${FILE}"
+                NTP_CONFIG_FOUND=1
             fi
         done
     fi
 #
 #################################################################################
 #
+    # Test        : TIME-3180
+    # Description : Report if ntpctl cannot communicate with OpenNTPD
+    if [ "${NTP_DAEMON_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" = "openntpd" ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+    Register --test-no TIME-3180 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Report if ntpctl cannot communicate with OpenNTPD"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ "${OPENNTPD_COMMUNICATION}" -eq 0 ]; then
+            ReportWarning "${TEST_NO}" "OpenNTPD found, but ntpctl cannot communicate with" "${NTPCTLBINARY} -s status" "Restart OpenNTPD"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TIME-3181
+    # Description : Check status of OpenNTPD time synchronisation
+    if [ "${NTP_DAEMON_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" = "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+
+    Register --test-no TIME-3181 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Check status of OpenNTPD time synchronisation"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(${NTPCTLBINARY} -s status | ${GREPBINARY} "clock synced" )
+        if [ -z "${FIND}" ]; then
+            ReportWarning "${TEST_NO}" "OpenNTPD is not synchronising system time" "${NTPCTLBINARY} -s status" "text:Set time manually once or check network connectivity."
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TIME-3182
+    # Description : Check OpenNTPD has working peers
+
+    if [ "${NTP_DAEMON_RUNNING}" -eq 1 ] && [ -n "${NTPCTLBINARY}" ] && [ "${NTP_DAEMON}" = "openntpd" ] && [ "${OPENNTPD_COMMUNICATION}" -eq 1 ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+
+    Register --test-no TIME-3182 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Check OpenNTPD has working peers"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Format is "xx/yy peers valid, ..."
+        FIND=$(${NTPCTLBINARY} -s status | ${EGREPBINARY} -o '[0-9]+/[0-9]+' | ${CUTBINARY} -d '/' -f 1)
+        if [ -z "${FIND}" ] || [ "${FIND}" -eq 0 ]; then
+            ReportWarning "${TEST_NO}" "OpenNTPD has no peers" "${NTPCTLBINARY} -s status"
+        fi
+    fi
+
+#
+#################################################################################
+#
+
+    # Test        : TIME-3185
+    # Description : Check systemd-timesyncd synchronized time
+
+    if [ "${NTP_DAEMON}" = "systemd-timesyncd" ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+
+
+    Register --test-no TIME-3185 --preqs-met "${PREQS_MET}" --weight L --network NO --category "security" --description "Check systemd-timesyncd synchronized time"
+    SYNCHRONIZED_FILE="/run/systemd/timesync/synchronized"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -e "${SYNCHRONIZED_FILE}" ]; then
+           FIND=$(( $(date +%s) - $(${STATBINARY} -L --format %Y "${SYNCHRONIZED_FILE}") ))
+           # Check if last sync was more than 2048 seconds (= the default of systemd) ago
+           if [ "${FIND}" -ge 2048 ]; then
+               COLOR=RED
+               ReportWarning "${TEST_NO}" "systemd-timesyncd did not synchronized the time recently."
+           else
+               COLOR=GREEN
+           fi
+           Display --indent 2 --text "- Last time synchronization" --result "${FIND}s" --color "${COLOR}"
+           LogText "Result: systemd-timesyncd synchronized time ${FIND} seconds ago."
+        else
+           Display --indent 2 --text "- Last time synchronization" --result "${STATUS_NOT_FOUND}" --color RED
+           ReportWarning "${TEST_NO}" "systemd-timesyncd never successfully synchronized time"
+        fi
+    fi
+    unset SYNCHRONIZED_FILE
+
+#
+#################################################################################
+#
+
     Report "ntp_config_found=${NTP_CONFIG_FOUND}"
     Report "ntp_config_type_daemon=${NTP_CONFIG_TYPE_DAEMON}"
     Report "ntp_config_type_eventbased=${NTP_CONFIG_TYPE_EVENTBASED}"

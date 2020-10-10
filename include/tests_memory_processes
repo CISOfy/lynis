@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -30,17 +30,17 @@
     # Description : Query /proc/meminfo
     Register --test-no PROC-3602 --os Linux --weight L --network NO --category security --description "Checking /proc/meminfo for memory details"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -f /proc/meminfo ]; then
-            LogText "Result: found /proc/meminfo"
-            Display --indent 2 --text "- Checking /proc/meminfo" --result "${STATUS_FOUND}" --color GREEN
-            FIND=$(${AWKBINARY} '/^MemTotal/ { print $2, $3 }' /proc/meminfo)
+        if [ -f ${ROOTDIR}proc/meminfo ]; then
+            LogText "Result: found ${ROOTDIR}proc/meminfo"
+            Display --indent 2 --text "- Checking ${ROOTDIR}proc/meminfo" --result "${STATUS_FOUND}" --color GREEN
+            FIND=$(${AWKBINARY} '/^MemTotal/ { print $2, $3 }' ${ROOTDIR}proc/meminfo)
             MEMORY_SIZE=$(echo ${FIND} | ${AWKBINARY} '{ print $1 }')
             MEMORY_UNITS=$(echo ${FIND} | ${AWKBINARY} '{ print $2 }')
             LogText "Result: Found ${MEMORY_SIZE} ${MEMORY_UNITS} memory"
             Report "memory_size=${MEMORY_SIZE}"
             Report "memory_units=${MEMORY_UNITS}"
         else
-            LogText "Result: /proc/meminfo file not found on this system"
+            LogText "Result: ${ROOTDIR}proc/meminfo file not found on this system"
         fi
     fi
 #
@@ -80,12 +80,12 @@
         fi
         if [ -z "${FIND}" ]; then
             LogText "Result: no zombie processes found"
-            Display --indent 2 --text "- Searching for dead/zombie processes" --result "${STATUS_OK}" --color GREEN
+            Display --indent 2 --text "- Searching for dead/zombie processes" --result "${STATUS_NOT_FOUND}" --color GREEN
         else
             LogText "Result: found one or more dead or zombie processes"
             LogText "Output: PIDs ${FIND}"
             Display --indent 2 --text "- Searching for dead/zombie processes" --result "${STATUS_FOUND}" --color RED
-            ReportSuggestion ${TEST_NO} "Check the output of ps for dead or zombie processes"
+            ReportSuggestion "${TEST_NO}" "Check the output of ps for dead or zombie processes"
         fi
     fi
 #
@@ -104,18 +104,39 @@
         fi
         if [ -z "${FIND}" ]; then
             LogText "Result: No processes were waiting for IO requests to be handled first"
-            Display --indent 2 --text "- Searching for IO waiting processes" --result "${STATUS_OK}" --color GREEN
+            Display --indent 2 --text "- Searching for IO waiting processes" --result "${STATUS_NOT_FOUND}" --color GREEN
         else
             LogText "Result: found one or more processes which were waiting to get IO requests handled first"
             LogText "More info: processes which show up with the status flag 'D' are often stuck, until a disk IO event finished. This can happen for example with network storage, where the connection or protocol settings are not logtext well configured."
             LogText "Output: PIDs ${FIND}"
             Display --indent 2 --text "- Searching for IO waiting processes" --result "${STATUS_FOUND}" --color RED
-            ReportSuggestion ${TEST_NO} "Check process listing for processes waiting for IO requests"
+            ReportSuggestion "${TEST_NO}" "Check process listing for processes waiting for IO requests"
         fi
     fi
 #
 #################################################################################
 #
+    # Test        : PROC-3802
+    # Description : Check presence of prelink tooling
+    Register --test-no PROC-3802 --package-manager-required --os Linux --weight L --network NO --category security --description "Check presence of prelink tooling"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if PackageIsInstalled "prelink"; then
+            LogText "Result: prelink packages is installed"
+            # TODO
+            # - Add item to website with rationale
+            #ReportSuggestion "${TEST_NO}" "Disable and remove prelinking of binaries"
+            AddHP 1 3
+            Display --indent 2 --text "- Search prelink tooling" --result "${STATUS_FOUND}" --color YELLOW
+        else
+            Display --indent 2 --text "- Search prelink tooling" --result "${STATUS_NOT_FOUND}" --color GREEN
+            LogText "Result: prelink package is NOT installed"
+            AddHP 3 3
+        fi
+    fi
+#
+#################################################################################
+#
+
 
 WaitForKeyPress
 

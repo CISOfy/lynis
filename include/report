@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -22,57 +22,82 @@
 #
 #################################################################################
 #
+    # Add additional data fields to the report file at the end of the scan
+    Report "dhcp_client_running=${DHCP_CLIENT_RUNNING}"
+    Report "arpwatch_running=${ARPWATCH_RUNNING}"
+
+    # Report firewall installed for now, if we found one active. Next step would be determining binaries first and apply additional checks.
+    Report "firewall_active=${FIREWALL_ACTIVE}"
+    Report "firewall_empty_ruleset=${FIREWALL_EMPTY_RULESET}"
+    Report "firewall_installed=${FIREWALL_ACTIVE}"
+
+    if [ -n "${INSTALLED_PACKAGES}" ]; then Report "installed_packages_array=${INSTALLED_PACKAGES}"; fi
+
+    Report "package_audit_tool=${PACKAGE_AUDIT_TOOL}"
+    Report "package_audit_tool_found=${PACKAGE_AUDIT_TOOL_FOUND}"
+    Report "vulnerable_packages_found=${VULNERABLE_PACKAGES_FOUND}"
+#
+#################################################################################
+#
     # Hardening Index
-    # Define approximately how strong a machine has been hardened
+    #
+    # Goal:
+    # Provide a visual way to show how much the system is hardened
+    #
+    # Important:
+    # The index gives a simplified version of the measures taken on the system.
+    # It should be used to get a first impression about the state of the system or to compare similar systems.
+    # Getting the maximum score (100 or full bar) does not indicate that the system is fully secured.
 
-        # If no hardening has been found, set value to 1
-        if [ ${HPPOINTS} -eq 0 ]; then HPPOINTS=1; HPTOTAL=100; fi
-        HPINDEX=$((HPPOINTS * 100 / HPTOTAL))
-        HPAOBLOCKS=$((HPPOINTS * 20 / HPTOTAL))
-        # Set color related to rating
-        if [ ${HPINDEX} -lt 50 ]; then
-            HPCOLOR="${RED}"
-            HIDESCRIPTION="System has not or a low amount been hardened"
-        elif [ ${HPINDEX} -gt 49 -a ${HPINDEX} -lt 80 ]; then
-            HPCOLOR="${YELLOW}"
-            HIDESCRIPTION="System has been hardened, but could use additional hardening"
-        elif [ ${HPINDEX} -gt 79 -a ${HPINDEX} -lt 90 ]; then
-            HPCOLOR="${GREEN}"
-            HIDESCRIPTION="System seem to be decent hardened"
-        elif [ ${HPINDEX} -gt 89 ]; then
-            HPCOLOR="${GREEN}"
-            HIDESCRIPTION="System seem to be well hardened"
-        fi
+    # If no hardening has been found, set value to 1
+    if [ ${HPPOINTS} -eq 0 ]; then HPPOINTS=1; HPTOTAL=100; fi
+    HPINDEX=$((HPPOINTS * 100 / HPTOTAL))
+    HPAOBLOCKS=$((HPPOINTS * 20 / HPTOTAL))
+    # Set color related to rating
+    if [ ${HPINDEX} -lt 50 ]; then
+        HPCOLOR="${RED}"
+        HIDESCRIPTION="System has not or a low amount been hardened"
+    elif [ ${HPINDEX} -gt 49 -a ${HPINDEX} -lt 80 ]; then
+        HPCOLOR="${YELLOW}"
+        HIDESCRIPTION="System has been hardened, but could use additional hardening"
+    elif [ ${HPINDEX} -gt 79 -a ${HPINDEX} -lt 90 ]; then
+        HPCOLOR="${GREEN}"
+        HIDESCRIPTION="System seem to be decent hardened"
+    elif [ ${HPINDEX} -gt 89 ]; then
+        HPCOLOR="${GREEN}"
+        HIDESCRIPTION="System seem to be well hardened"
+    fi
 
-        case ${HPAOBLOCKS} in
-            0)  HPBLOCKS="#"; HPEMPTY="                   " ;;
-            1)  HPBLOCKS="#"; HPEMPTY="                   " ;;
-            2)  HPBLOCKS="##"; HPEMPTY="                  " ;;
-            3)  HPBLOCKS="###"; HPEMPTY="                 " ;;
-            4)  HPBLOCKS="####"; HPEMPTY="                " ;;
-            5)  HPBLOCKS="#####"; HPEMPTY="               " ;;
-            6)  HPBLOCKS="######"; HPEMPTY="              " ;;
-            7)  HPBLOCKS="#######"; HPEMPTY="             " ;;
-            8)  HPBLOCKS="########"; HPEMPTY="            " ;;
-            9)  HPBLOCKS="#########"; HPEMPTY="           " ;;
-            10) HPBLOCKS="##########"; HPEMPTY="          " ;;
-            11) HPBLOCKS="###########"; HPEMPTY="         " ;;
-            12) HPBLOCKS="############"; HPEMPTY="        " ;;
-            13) HPBLOCKS="#############"; HPEMPTY="       " ;;
-            14) HPBLOCKS="##############"; HPEMPTY="      " ;;
-            15) HPBLOCKS="###############"; HPEMPTY="     " ;;
-            16) HPBLOCKS="################"; HPEMPTY="    " ;;
-            17) HPBLOCKS="#################"; HPEMPTY="   " ;;
-            18) HPBLOCKS="##################"; HPEMPTY="  " ;;
-            19) HPBLOCKS="###################"; HPEMPTY=" " ;;
-            20) HPBLOCKS="####################"; HPEMPTY="" ;;
-        esac
+    case ${HPAOBLOCKS} in
+        0)  HPBLOCKS="#"; HPEMPTY="                   " ;;
+        1)  HPBLOCKS="#"; HPEMPTY="                   " ;;
+        2)  HPBLOCKS="##"; HPEMPTY="                  " ;;
+        3)  HPBLOCKS="###"; HPEMPTY="                 " ;;
+        4)  HPBLOCKS="####"; HPEMPTY="                " ;;
+        5)  HPBLOCKS="#####"; HPEMPTY="               " ;;
+        6)  HPBLOCKS="######"; HPEMPTY="              " ;;
+        7)  HPBLOCKS="#######"; HPEMPTY="             " ;;
+        8)  HPBLOCKS="########"; HPEMPTY="            " ;;
+        9)  HPBLOCKS="#########"; HPEMPTY="           " ;;
+        10) HPBLOCKS="##########"; HPEMPTY="          " ;;
+        11) HPBLOCKS="###########"; HPEMPTY="         " ;;
+        12) HPBLOCKS="############"; HPEMPTY="        " ;;
+        13) HPBLOCKS="#############"; HPEMPTY="       " ;;
+        14) HPBLOCKS="##############"; HPEMPTY="      " ;;
+        15) HPBLOCKS="###############"; HPEMPTY="     " ;;
+        16) HPBLOCKS="################"; HPEMPTY="    " ;;
+        17) HPBLOCKS="#################"; HPEMPTY="   " ;;
+        18) HPBLOCKS="##################"; HPEMPTY="  " ;;
+        19) HPBLOCKS="###################"; HPEMPTY=" " ;;
+        20) HPBLOCKS="####################"; HPEMPTY="" ;;
+    esac
 
-        HPGRAPH="[${HPCOLOR}${HPBLOCKS}${NORMAL}${HPEMPTY}]"
-        LogText "Hardening index : [${HPINDEX}] [${HPBLOCKS}${HPEMPTY}]"
-        LogText "Hardening strength: ${HIDESCRIPTION}"
-
-
+    HPGRAPH="[${HPCOLOR}${HPBLOCKS}${NORMAL}${HPEMPTY}]"
+    LogText "Hardening index : [${HPINDEX}] [${HPBLOCKS}${HPEMPTY}]"
+    LogText "Hardening strength: ${HIDESCRIPTION}"
+#
+#################################################################################
+#
     # Only show overview if not running in quiet mode
     if [ ${QUIET} -eq 0 ]; then
         echo ""; echo "================================================================================"
@@ -84,19 +109,14 @@
 
         LogTextBreak
 
-        #
-        #################################################################################
-        #
         # Show test results overview
-        #
-        #################################################################################
-        #
-            if [ "${CONTROL_URL_PROTOCOL}" = "" ]; then CONTROL_URL_PROTOCOL="https"; fi
-            if [ "${CONTROL_URL_PREPEND}" = "" ]; then CONTROL_URL_PREPEND="cisofy.com/lynis/controls/"; fi
-            if [ "${CONTROL_URL_APPEND}" = "" ]; then CONTROL_URL_APPEND="/"; fi
-            if [ "${CUSTOM_URL_PROTOCOL}" = "" ]; then CUSTOM_URL_PROTOCOL="https"; fi
-            if [ "${CUSTOM_URL_PREPEND}" = "" ]; then CUSTOM_URL_PREPEND="your-domain.example.org/controls/"; fi
-            if [ "${CUSTOM_URL_APPEND}" = "" ]; then CUSTOM_URL_APPEND="/"; fi
+
+            if [ -z "${CONTROL_URL_PROTOCOL}" ]; then CONTROL_URL_PROTOCOL="https"; fi
+            if [ -z "${CONTROL_URL_PREPEND}" ]; then CONTROL_URL_PREPEND="cisofy.com/lynis/controls/"; fi
+            if [ -z "${CONTROL_URL_APPEND}" ]; then CONTROL_URL_APPEND="/"; fi
+            if [ -z "${CUSTOM_URL_PROTOCOL}" ]; then CUSTOM_URL_PROTOCOL="https"; fi
+            if [ -z "${CUSTOM_URL_PREPEND}" ]; then CUSTOM_URL_PREPEND="your-domain.example.org/controls/"; fi
+            if [ -z "${CUSTOM_URL_APPEND}" ]; then CUSTOM_URL_APPEND="/"; fi
 
             # Show warnings from logfile
             SWARNINGS=$(${GREPBINARY} 'Warning: ' ${LOGFILE} | sed 's/ /!space!/g')
@@ -119,7 +139,7 @@
                     done
                     IS_CUSTOM=$(echo ${ADDLINK} | grep "^CUST")
                     echo "  ${RED}!${NORMAL} ${SHOWWARNING}"
-                    if [ ! "${DETAILS}" = "-" -a ! -z "${DETAILS}" ]; then echo "    - Details  : ${CYAN}${DETAILS}${NORMAL}"; fi
+                    if [ ! "${DETAILS}" = "-" -a -n "${DETAILS}" ]; then echo "    - Details  : ${CYAN}${DETAILS}${NORMAL}"; fi
                     if [ ${SHOW_REPORT_SOLUTION} -eq 1 -a ! "${SOLUTION}" = "-" ]; then echo "    - Solution : ${SOLUTION}"; fi
                     if [ -z "${IS_CUSTOM}" ]; then
                         echo "      ${CONTROL_URL_PROTOCOL}://${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}"
@@ -152,7 +172,7 @@
                     done
                     IS_CUSTOM=$(echo ${ADDLINK} | grep "^CUST")
                     echo "  ${YELLOW}*${NORMAL} ${SHOWSUGGESTION}"
-                    if [ ! "${DETAILS}" = "-" -a ! -z "${DETAILS}" ]; then echo "    - Details  : ${CYAN}${DETAILS}${NORMAL}"; fi
+                    if [ ! "${DETAILS}" = "-" -a -n "${DETAILS}" ]; then echo "    - Details  : ${CYAN}${DETAILS}${NORMAL}"; fi
                     if [ ${SHOW_REPORT_SOLUTION} -eq 1 -a ! "${SOLUTION}" = "-" ]; then echo "    - Solution : ${SOLUTION}"; fi
                     if [ -z "${IS_CUSTOM}" ]; then
                         echo "      ${GRAY}${CONTROL_URL_PROTOCOL}://${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}${NORMAL}"
@@ -178,7 +198,11 @@
             echo ""
             echo "  ${CYAN}Hardening index${NORMAL} : ${WHITE}${HPINDEX}${NORMAL} ${HPGRAPH}"
             echo "  ${CYAN}Tests performed${NORMAL} : ${WHITE}${CTESTS_PERFORMED}${NORMAL}"
-            if [ ${SKIP_PLUGINS} -eq 0 ]; then echo "  ${CYAN}Plugins enabled${NORMAL} : ${WHITE}${N_PLUGIN_ENABLED}${NORMAL}"; fi
+            if [ ${SKIP_PLUGINS} -eq 0 ]; then
+                echo "  ${CYAN}Plugins enabled${NORMAL} : ${WHITE}${N_PLUGIN_ENABLED}${NORMAL}"
+            else
+                echo "  ${CYAN}Plugins enabled${NORMAL} : ${WHITE}Skipped${NORMAL}"
+            fi
             echo ""
             echo "  ${WHITE}Components${NORMAL}:"
             if [ ${FIREWALL_ACTIVE} -eq 1 ]; then FIREWALL="${GREEN}V"; else FIREWALL="${RED}X"; fi
@@ -191,15 +215,31 @@
             echo "  - Malware scanner        [${MALWARE}${NORMAL}]"
 
             echo ""
-            echo "  ${SECTION}Lynis Modules${NORMAL}:"
+            echo "  ${SECTION}Scan mode${NORMAL}:"
+            if [ ${DEVOPS_MODE} -eq 1 ]; then
+                echo "  Normal [ ]  Forensics [ ]  Integration [V]  Pentest [ ]"
+            elif [ ${FORENSICS_MODE} -eq 1 ]; then
+                echo "  Normal [ ]  Forensics [V]  Integration [ ]  Pentest [ ]"
+            elif [ ${PENTESTINGMODE} -eq 1 ]; then
+                if [ ${PRIVILEGED} -eq 0 ]; then
+                    echo "  Normal [ ]  Forensics [ ]  Integration [ ]  Pentest [V] (running non-privileged)"
+                else
+                    echo "  Normal [ ]  Forensics [ ]  Integration [ ]  Pentest [V] (running privileged)"
+                fi
+            else
+                echo "  Normal [V]  Forensics [ ]  Integration [ ]  Pentest [ ]"
+            fi
+            echo ""
+
+            echo "  ${SECTION}Lynis modules${NORMAL}:"
             if [ ${COMPLIANCE_TESTS_PERFORMED} -eq 1 ]; then
                 if [ ${COMPLIANCE_FINDINGS_FOUND} -eq 0 ]; then COMPLIANCE="${GREEN}V"; else COMPLIANCE="${RED}X"; fi
             else
                 COMPLIANCE="${YELLOW}?"
             fi
-            echo "  - Compliance Status      [${COMPLIANCE}${NORMAL}]"
-            echo "  - Security Audit         [${GREEN}V${NORMAL}]"
-            echo "  - Vulnerability Scan     [${GREEN}V${NORMAL}]"
+            echo "  - Compliance status      [${COMPLIANCE}${NORMAL}]"
+            echo "  - Security audit         [${GREEN}V${NORMAL}]"
+            echo "  - Vulnerability scan     [${GREEN}V${NORMAL}]"
             echo ""
             echo "  ${SECTION}Files${NORMAL}:"
             echo "  - Test and debug information      : ${WHITE}${LOGFILE}${NORMAL}"
@@ -221,7 +261,7 @@
                 if [ ! "${PROGRAM_LV}" = "0" -a ! "${REPORTFILE}" = "" -a ! "${REPORTFILE}" = "/dev/null" ]; then
                     # Determine if the quality of the program can be increased by filtering out the exceptions
                     FIND=$(${GREPBINARY} "^exception" ${REPORTFILE})
-                    if [ ! "${FIND}" = "" ]; then
+                    if [ -n "${FIND}" ]; then
                         echo ""
                         echo "  ${RED}${NOTE_EXCEPTIONS_FOUND}${NORMAL}"
                         echo "  ${WHITE}${NOTE_EXCEPTIONS_FOUND_DETAILED}!${NORMAL}"

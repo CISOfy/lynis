@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -38,7 +38,6 @@
         FIND=$(${PSBINARY} aux | ${EGREPBINARY} "( cron$|/cron(d)? )")
         if IsEmpty "${FIND}"; then
             LogText "Result: no cron daemon found"
-            AddHP 3 3
         else
             LogText "Result: cron daemon running"
             CROND_RUNNING=1
@@ -61,6 +60,7 @@
 
         CRONTAB_FILE="${ROOTDIR}etc/crontab"
         if [ -f ${CRONTAB_FILE} ]; then
+            ${EGREPBINARY} -q -s 'lynis audit system' ${CRONTAB_FILE} && LYNIS_CRONJOB="file:/etc/crontab"
             if IsWorldWritable ${CRONTAB_FILE}; then LogText "Result: insecure file permissions for cronjob file ${CRONTAB_FILE}"; Report "insecure_fileperms_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
             if ! IsOwnedByRoot ${CRONTAB_FILE}; then LogText "Result: incorrect owner found for cronjob file ${CRONTAB_FILE}"; Report "bad_fileowner_cronjob[]=${CRONTAB_FILE}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
             FindCronJob ${CRONTAB_FILE}
@@ -85,6 +85,8 @@
                         for FILE in ${FIND}; do
                             if IsWorldWritable ${FILE}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
                             if ! IsOwnedByRoot ${FILE}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
+                            FILENAME=$(echo ${FILE} | ${AWKBINARY} -F/ '{print $NF}')
+                            if [ "${FILENAME}" = "lynis" ]; then ${EGREPBINARY} -q -s 'lynis audit system' ${CRONTAB_FILE} && LYNIS_CRONJOB="file:${FILE}"; fi
                             FindCronJob ${FILE}
                             if HasData "${sCRONJOBS}"; then
                                 for K in ${sCRONJOBS}; do
@@ -115,11 +117,13 @@
                         LogText "Result: no files found in ${I}"
                     else
                         LogText "Result: found one or more files in ${I}. Analyzing files.."
-                        for J in ${FIND}; do
-                            if IsWorldWritable ${J}; then LogText "Result: insecure file permissions for cronjob file ${J}"; Report "insecure_fileperms_cronjob[]=${J}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
-                            if ! IsOwnedByRoot ${J}; then LogText "Result: incorrect owner found for cronjob file ${J}"; Report "bad_fileowner_cronjob[]=${J}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
-                            LogText "Result: Found cronjob (${I}): ${J}"
-                            Report "cronjob[]=${J}"
+                        for FILE in ${FIND}; do
+                            if IsWorldWritable ${FILE}; then LogText "Result: insecure file permissions for cronjob file ${FILE}"; Report "insecure_fileperms_cronjob[]=${FILE}"; BAD_FILE_PERMISSIONS=1; AddHP 0 5; fi
+                            if ! IsOwnedByRoot ${FILE}; then LogText "Result: incorrect owner found for cronjob file ${FILE}"; Report "bad_fileowner_cronjob[]=${FILE}"; BAD_FILE_OWNERSHIP=1; AddHP 0 5; fi
+                            FILENAME=$(echo ${FILE} | ${AWKBINARY} -F/ '{print $NF}')
+                            if [ "${FILENAME}" = "lynis" ]; then ${EGREPBINARY} -q -s 'lynis audit system' ${CRONTAB_FILE} && LYNIS_CRONJOB="file:${FILE}"; fi
+                            LogText "Result: Found cronjob (${I}): ${FILE}"
+                            Report "cronjob[]=${FILE}"
                         done
                         LogText "Result: done with analyzing files in ${I}"
                     fi
@@ -137,21 +141,23 @@
             FIND=$(${FINDBINARY} /var/spool/cron/crontabs -xdev -type f -print 2> /dev/null)
             for I in ${FIND}; do
                 if FileIsReadable ${I}; then
+                    ${EGREPBINARY} -q -s 'lynis audit system' ${I} && LYNIS_CRONJOB="file:${I}"
                     FindCronJob ${I}
-                    for J in ${sCRONJOBS}; do
-                        LogText "Found cronjob (/var/spool/cron/crontabs): ${I} (${J})"
+                    for FILE in ${sCRONJOBS}; do
+                        LogText "Found cronjob (/var/spool/cron/crontabs): ${I} (${FILE})"
                         Report "cronjob[]=${I}"
                     done
                 fi
             done
         else
-            if [ -d /var/spool/cron ]; then
-                FIND=$(find /var/spool/cron -type f -print)
+            if [ -d ${ROOTDIR}var/spool/cron ]; then
+                FIND=$(find ${ROOTDIR}var/spool/cron -type f -print)
                 for I in ${FIND}; do
                     if FileIsReadable ${I}; then
+                        ${EGREPBINARY} -q -s 'lynis audit system' ${I} && LYNIS_CRONJOB="file:${I}"
                         FindCronJob ${I}
-                        for J in ${sCRONJOBS}; do
-                            LogText "Found cronjob (/var/spool/cron): ${I} (${J})"
+                        for FILE in ${sCRONJOBS}; do
+                            LogText "Found cronjob in ${ROOTDIR}var/spool/cron: ${I} (${FILE})"
                             LogText "cronjob[]=${I}"
                         done
                     fi
@@ -164,7 +170,7 @@
             if [ -f /etc/anacrontab ]; then
                 LogText "Test: checking anacrontab"
                 sANACRONJOBS=$(${EGREPBINARY} '^([0-9@])' /etc/anacrontab | ${TRBINARY} '\t' ' ' | ${TRBINARY} -s ' ' | ${TRBINARY} ' ' ',' | ${SORTBINARY})
-                if [ ! -z "${sANACRONJOBS}" ]; then
+                if [ -n "${sANACRONJOBS}" ]; then
                     Report "scheduler[]=anacron"
                     for I in ${sANACRONJOBS}; do
                         LogText "Found anacron job (/etc/anacrontab): ${I}"
@@ -177,12 +183,12 @@
         # Show warning when an issue shows up. Even if *both* the permissions and ownership are wrong, just show one (prevent overload of warnings).
         if [ ${BAD_FILE_PERMISSIONS} -eq 1 ]; then
             ReportWarning "${TEST_NO}" "Found one or more cronjob files with incorrect file permissions (see log for details)"
-            Display --indent 2 --text "- Checking crontab/cronjob" --result "${STATUS_WARNING}" --color RED
+            Display --indent 2 --text "- Checking crontab and cronjobs files" --result "${STATUS_WARNING}" --color RED
         elif [ ${BAD_FILE_OWNERSHIP} -eq 1 ]; then
             ReportWarning "${TEST_NO}" "Found one or more cronjob files with incorrect ownership (see log for details)"
-            Display --indent 2 --text "- Checking crontab/cronjob" --result "${STATUS_WARNING}" --color RED
+            Display --indent 2 --text "- Checking crontab and cronjob files" --result "${STATUS_WARNING}" --color RED
         else
-            Display --indent 2 --text "- Checking crontab/cronjob" --result "${STATUS_DONE}" --color GREEN
+            Display --indent 2 --text "- Checking crontab and cronjob files" --result "${STATUS_DONE}" --color GREEN
         fi
 
     fi
@@ -195,7 +201,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking atd status"
         FIND=$(${PSBINARY} ax | ${GREPBINARY} "/atd" | ${GREPBINARY} -v "grep")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             LogText "Result: at daemon active"
             Display --indent 2 --text "- Checking atd status" --result "${STATUS_RUNNING}" --color GREEN
             ATD_RUNNING=1
@@ -297,6 +303,12 @@
 #
 #################################################################################
 #
+
+if [ -z "${LYNIS_CRONJOB}" ]; then
+    LogText "Result: no scheduled Lynis execution found (e.g. crontab, cronjob)"
+else
+    LogText "Result: found scheduled Lynis execution (${LYNIS_CRONJOB})"
+fi
 
 WaitForKeyPress
 

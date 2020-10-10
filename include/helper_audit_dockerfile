@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -19,25 +19,14 @@
 #################################################################################
 
 if [ $# -eq 0 ]; then
-    Display --indent 2 --text "${RED}Error: ${WHITE}Provide URL or file${NORMAL}"
+    Display --indent 2 --text "${RED}Error: ${WHITE}Provide a file${NORMAL}"
     Display --text " "; Display --text " "
     ExitFatal
 else
-    FILE=$(echo $1 | egrep "^http|https")
+    FILE=$(echo $1 | grep -E "^http|https")
     if HasData "${FILE}"; then
-        CreateTempFile
-        TMP_FILE="${TEMP_FILE}"
-        Display --indent 2 --text "Downloading URL ${FILE} with wget"
-        wget -o ${TMP_FILE} ${FILE}
-        if [ $? -gt 0 ]; then
-            AUDIT_FILE="${TMP_FILE}"
-        else
-            if [ -f ${TMP_FILE} ]; then
-                rm -f ${TMP_FILE}
-            fi
-            Display --indent 2 --text "${RED}Error: ${WHITE}can not download file${NORMAL}"
-            ExitFatal
-        fi
+        echo "Provide a file (not a URL)"
+        ExitFatal
     else
         if [ -f $1 ]; then
             AUDIT_FILE="$1"
@@ -70,13 +59,12 @@ fi
         IS_ALPINE=$(echo ${IMAGE} | grep -i alpine)
         IS_LATEST=$(echo ${TAG} | grep -i latest)
 
-        if [ ! "${IS_DEBIAN}" = "" ]; then IMAGE="debian"; fi
-        if [ ! "${IS_FEDORA}" = "" ]; then IMAGE="fedora"; fi
-        if [ ! "${IS_UBUNTU}" = "" ]; then IMAGE="ubuntu"; fi
-        if [ ! "${IS_ALPINE}" = "" ]; then IMAGE="alpine"; fi
-        
-        if [ ! "${IS_LATEST}" = "" ]; then 
-            ReportWarning "dockerfile" "latest TAG used. Specifying the version is better."
+        if [ -n "${IS_DEBIAN}" ]; then IMAGE="debian"; fi
+        if [ -n "${IS_FEDORA}" ]; then IMAGE="fedora"; fi
+        if [ -n "${IS_UBUNTU}" ]; then IMAGE="ubuntu"; fi
+        if [ -n "${IS_ALPINE}" ]; then IMAGE="alpine"; fi
+        if [ -n "${IS_LATEST}" ]; then
+            ReportWarning "dockerfile" "latest TAG used. Specifying a targeted OS image and version is better for reproducible results."
         fi
 
         case ${IMAGE} in
@@ -105,29 +93,24 @@ fi
 #
 ##################################################################################################
 #
+    InsertSection "Basics"
 
-InsertSection "Basics"
-
-    #FIND=$(egrep "^MAINTAINER" ${AUDIT_FILE} | sed 's/ /:space:/g')
-    FIND=$(egrep -i "*MAINTAINER" ${AUDIT_FILE}  |  sed 's/=/ /g' | cut -d'"' -f 2)
-    if [ "${FIND}" = "" ]; then
+    MAINTAINER=$(grep -E -i "*MAINTAINER" ${AUDIT_FILE} | sed 's/=/ /g' | cut -d'"' -f 2)
+    if [ -z "${MAINTAINER}" ]; then
         ReportWarning "dockerfile" "No maintainer found. Unclear who created this file."
     else
-        #MAINTAINER=$(echo ${FIND} | sed 's/:space:/ /g' | awk '{ if($1=="MAINTAINER") { print }}')
-        MAINTAINER=$(echo ${FIND})
         Display --indent 2 --text "Maintainer" --result "${MAINTAINER}"
     fi
-    
-    FIND=$(grep "^ENTRYPOINT" ${AUDIT_FILE} | cut -d' ' -f2 )
-    if [ "${FIND}" = "" ]; then
+
+    ENTRYPOINT=$(grep "^ENTRYPOINT" ${AUDIT_FILE} | cut -d' ' -f2 )
+    if [ -z "${ENTRYPOINT}" ]; then
         ReportWarning "dockerfile" "No ENTRYPOINT defined in Dockerfile."
     else
-        ENTRYPOINT=$(echo ${FIND})
         Display --indent 2 --text "ENTRYPOINT" --result "${ENTRYPOINT}"
     fi
 
     FIND=$(grep "^CMD" ${AUDIT_FILE} | cut -d' ' -f2 )
-    if [ "${FIND}" = "" ]; then
+    if [ -z "${FIND}" ]; then
         ReportWarning "dockerfile" "No CMD defines in Dockerfile."
     else
         CMD=$(echo ${FIND})
@@ -135,23 +118,20 @@ InsertSection "Basics"
     fi
 
     FIND=$(grep "^USER" ${AUDIT_FILE} | cut -d' ' -f2 )
-    if [ "${FIND}" = "" ]; then
+    if [ -z "${FIND}" ]; then
         ReportWarning "dockerfile" "No user declared in Dockerfile. Container will execute command as root"
     else
         USER=$(echo ${FIND})
         Display --indent 2 --text "User" --result "${USER}"
     fi
-
-
 #
 ##################################################################################################
 #
-
     InsertSection "Software"
 
     case $PKGMGR in
     "apt")
-        FIND=$(egrep "apt-get(.*) install" ${AUDIT_FILE})
+        FIND=$(grep -E "apt-get(.*) install" ${AUDIT_FILE})
         if [ ! "${FIND}" = "" ]; then
             LogText "Found installation via apt-get"
         else
@@ -159,7 +139,7 @@ InsertSection "Basics"
         fi
         ;;
      "apk")
-        FIND=$(egrep "apk(.*) add" ${AUDIT_FILE})
+        FIND=$(grep -E "apk(.*) add" ${AUDIT_FILE})
         if [ ! "${FIND}" = "" ]; then
             LogText "Found installation via apk"
         else
@@ -171,7 +151,7 @@ InsertSection "Basics"
     ;;
     esac
 
-    FIND=$(egrep " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#")
+    FIND=$(grep -E " (gcc|libc6-dev|make)" ${AUDIT_FILE} | grep -v "^#")
     if [ ! "${FIND}" = "" ]; then
         ReportWarning "dockerfile" "Possible development utilities found, which is not advised for production environment"
         LogText "Details: ${FIND}"
@@ -214,7 +194,7 @@ InsertSection "Basics"
 
     if [ ${FILE_DOWNLOAD} -eq 1 ]; then
 
-        SSL_USED_FIND=$(egrep "(https)" ${AUDIT_FILE})
+        SSL_USED_FIND=$(grep -E "(https)" ${AUDIT_FILE})
 
         if HasData "${SSL_USED_FIND}"; then
             SSL_USED="YES"
@@ -225,9 +205,9 @@ InsertSection "Basics"
             ReportSuggestion "Use SSL downloads when possible to increase security (DNSSEC, HTTPS, validation of domain, avoid MitM)"
         fi
         Display --indent 2 --text "Integrity testing performed" --result "${SSL_USED}" --color ${COLOR}
-        HASHING_USED=$(egrep "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE})
+        HASHING_USED=$(grep -E "(sha1sum|sha256sum|sha512sum)" ${AUDIT_FILE})
         Display --indent 2 --text "Hashing" --result "${HASHING_USED}"
-        KEYS_USED=$(egrep "(apt-key adv)" ${AUDIT_FILE}| sed 's/RUN apt-key adv//g'| sed 's/--keyserver/Key Server:/g' | sed 's/--recv/Key Value:/g')
+        KEYS_USED=$(grep -E "(apt-key adv)" ${AUDIT_FILE}| sed 's/RUN apt-key adv//g'| sed 's/--keyserver/Key Server:/g' | sed 's/--recv/Key Value:/g')
         Display --indent 2 --text "Signing keys used" --result "${KEYS_USED}"
         Display --indent 2 --text "All downloads properly checked" --result "?"
     else

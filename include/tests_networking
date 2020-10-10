@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -35,6 +35,55 @@
 #
 #################################################################################
 #
+    # Test        : NETW-2400
+    # Description : Test hostname for valid characters and length
+    # Notes       : FQDN: max 253 characters
+    #             : component: a-z, 0-9, hyphen, not start with hyphen, max 63 characters
+    #               dots allowed as separator
+    Register --test-no NETW-2400 --weight L --network YES --category basics --description "Hostname length and value check"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Test first the fully qualified domain name
+        if [ ${#FQDN} -gt 253 ]; then
+            # Too long
+            LogText "Result: FQDN is more than 253 characters"
+            Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_WARNING}" --color RED
+            ReportWarning "${TEST_NO}" "Hostname is too long (more than 253 characters)"
+        elif [ ${#FQDN} -eq 0 ]; then
+            # FQDN not defined
+            LogText "Result: FQDN is not defined"
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_UNKNOWN}" --color YELLOW; fi
+        else
+            # Fine
+            LogText "Result: FQDN is defined and not longer than 253 characters (${#FQDN} characters)"
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_OK}" --color GREEN; fi
+        fi
+        # Now test short hostname
+        if [ ${#HOSTNAME} -eq 0 ]; then
+            if IsVerbose; then Display --indent 2 --text "- Hostname (FQDN length)" --result "${STATUS_NONE}" --color RED; fi
+            LogText "Result: hostname is not defined"
+        else
+            # Test length
+            if [ ${#HOSTNAME} -gt 63 ]; then
+                LogText "Result: hostname is more than 63 characters"
+                Display --indent 2 --text "- Hostname (length)" --result "${STATUS_WARNING}" --color RED
+            else
+                LogText "Result: hostnamed is defined and not longer than 63 characters"
+            fi
+            # Test valid characters (normally a dot should not be in the name, but we can't be 100% sure we have short name)
+            FIND=$(echo "${HOSTNAME}" | ${TRBINARY} -d '[a-zA-Z0-9\.\-]')
+            if [ -z "${FIND}" ]; then
+                LogText "Result: good, no unexpected characters discovered in hostname"
+                if IsVerbose; then Display --indent 2 --text "- Hostname (allowed characters)" --result "${STATUS_OK}" --color GREEN; fi
+            else
+                LogText "Result: unexpected characters discovered in hostname (characters: ${FIND}), which may impact network connectivity"
+                Display --indent 2 --text "- Hostname (allowed characters)" --result "${STATUS_WARNING}" --color RED
+                ReportWarning "${TEST_NO}" "Hostname contains invalid characters" "hostname" "text:See log file for invalid characters"
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : NETW-2600
     # Description : Gather IPv6 configuration
     Register --test-no NETW-2600 --os "Linux" --weight L --network YES --category security --description "Checking IPv6 configuration"
@@ -47,7 +96,7 @@
         IPV6_MISCONFIGURED=0
         IPV6_MISCONFIGURED_MTU=0
         FIND=$(sysctl -a 2> /dev/null | ${GREPBINARY} "^net.ipv6" | ${SEDBINARY} "s/ = /=/")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             IPV6_CONFIGURED=1
             for I in ${FIND}; do
                 SYSCTL_KEY=$(echo ${I} | ${AWKBINARY} -F= '{ print $1 }')
@@ -124,7 +173,7 @@
         if [ -f /etc/resolv.conf ]; then
             LogText "Result: Found /etc/resolv.conf file"
             FIND=$(${GREPBINARY} '^nameserver' /etc/resolv.conf | ${TRBINARY} -d '\t' | ${SEDBINARY} 's/nameserver*//g' | uniq | ${CUTBINARY} -d# -f1)
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 Display --indent 4 --text "- Testing nameservers"
                 LogText "Test: Querying nameservers"
                 for I in ${FIND}; do
@@ -134,7 +183,7 @@
                     if [ "${I}" = "::1" -o "${I}" = "127.0.0.1" -o "${I}" = "127.0.0.53" -o "${I}" = "127.0.1.1" -o "${I}" = "0.0.0.0" ]; then
                         LOCAL_DNSRESOLVER_FOUND=1
                     fi
-                    if [ ! -z "${DIGBINARY}" ]; then
+                    if [ -n "${DIGBINARY}" ]; then
                         # See if we can query something at the nameserver
                         # 0=good, other=bad
                         DNSRESPONSE=$(${DIGBINARY} +noall +time=3 +retry=0 @${I} ${FQDN} > /dev/null ; echo $?)
@@ -147,8 +196,8 @@
                             Display --indent 8 --text "Nameserver: ${I}" --result "NO RESPONSE" --color RED
                             LogText "Result: nameserver ${I} does NOT respond"
                             LogText "Exit-code from dig: ${DNSRESPONSE}"
-                            ReportSuggestion ${TEST_NO} "Check connection to this nameserver and make sure no outbound DNS queries are blocked (port 53 UDP and TCP)."
-                            ReportWarning ${TEST_NO} "Nameserver ${I} does not respond"
+                            ReportSuggestion "${TEST_NO}" "Check connection to this nameserver and make sure no outbound DNS queries are blocked (port 53 UDP and TCP)."
+                            ReportWarning "${TEST_NO}" "Nameserver ${I} does not respond"
                         fi
                     else
                         LogText "Result: Nameserver test for ${I} skipped, 'dig' not installed"
@@ -167,13 +216,13 @@
     Register --test-no NETW-2705 --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check availability two nameservers"
     if [ ${SKIPTEST} -eq 0 ]; then
         SKIP=0
-        if [ ! -z "${DIGBINARY}" ]; then
+        if [ -n "${DIGBINARY}" ]; then
             if [ ${NUMBERACTIVENS} -lt 2 ]; then
                 Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result "${STATUS_WARNING}" --color RED
                 LogText "Result: less than 2 responsive nameservers found"
-                ReportWarning ${TEST_NO} "Couldn't find 2 responsive nameservers"
+                ReportWarning "${TEST_NO}" "Couldn't find 2 responsive nameservers"
                 LogText "Note: Non responsive nameservers can give problems for your system(s). Like the lack of recursive lookups, bad connectivity to update servers etc."
-                ReportSuggestion ${TEST_NO} "Check your resolv.conf file and fill in a backup nameserver if possible"
+                ReportSuggestion "${TEST_NO}" "Check your resolv.conf file and fill in a backup nameserver if possible"
                 AddHP 1 2
             else
                 Display --indent 4 --text "- Minimal of 2 responsive nameservers" --result "${STATUS_OK}" --color GREEN
@@ -190,15 +239,49 @@
 #
 #################################################################################
 #
+    # Test        : NETW-2706
+    # Description : Check systemd-resolve output and upstream DNSSEC status
+    # Notes       : Ubuntu 16.04 uses systemd-resolve, newer ones most likely resolvectl
+    if [ -n "${RESOLVECTLBINARY}" ]; then
+        PREQS_MET="YES"
+        RESOLVE_CMD="${RESOLVECTLBINARY}"
+        RESOLVE_CMD_PARAM="statistics"
+    elif [ -n "$(command -v systemd-resolve 2> /dev/null)" ]; then
+        PREQS_MET="YES"
+        RESOLVE_CMD="$(command -v systemd-resolve 2> /dev/null)"
+        RESOLVE_CMD_PARAM="--statistics"
+    else
+        PREQS_MET="NO"
+    fi
+    Register --test-no NETW-2706 --preqs-met "${PREQS_MET}" --weight L --network YES --category security --description "Check systemd-resolved and upstream DNSSEC status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        SKIP=0
+        DNSSEC_STATUS=$(${RESOLVE_CMD} ${RESOLVE_CMD_PARAM} 2> /dev/null | ${AWKBINARY} -F ":" '/DNSSEC supported/ { print $2 }' | ${TRBINARY} -d ' ')
+        if [ "${DNSSEC_STATUS}" = "yes" ]; then
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_YES}" --color GREEN
+            LogText "Result: DNSSEC supported by systemd-resolved and upstream DNS servers"
+        elif [ "${DNSSEC_STATUS}" = "no" ]; then
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_NO}" --color YELLOW
+            LogText "Result: DNSSEC not supported by systemd-resolved or upstream DNS servers"
+        else
+            Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_UNKNOWN}" --color RED
+            LogText "Result: command '${RESOLVE_CMD} ${RESOLVE_CMD_PARAM}' returned an error. Please run command manually to check for details."
+        fi
+    else
+        LogText "Result: Test most likely skipped due to not having resolvectl"
+    fi
+#
+#################################################################################
+#
     # Test        : NETW-3001
     # Description : Find default gateway (route)
     # More info   : BSD: ^default   Linux: 0.0.0.0
-    if [ ! -z "${NETSTATBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${NETSTATBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no NETW-3001 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Find default gateway (route)"
     if [ $SKIPTEST -eq 0 ]; then
         LogText "Test: Searching default gateway(s)"
         FIND=$(${NETSTATBINARY} -rn | ${EGREPBINARY} "^0.0.0.0|default" | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f2)
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             for I in ${FIND}; do
                 LogText "Result: Found default gateway ${I}"
                 Report "default_gateway[]=${I}"
@@ -222,9 +305,9 @@
                 FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "flags=" | ${AWKBINARY} -F ":" '{ print  $1 }')
             ;;
             Linux)
-                if [ ! -z "${IPBINARY}" ]; then
+                if [ -n "${IPBINARY}" ]; then
                     FIND=$(${IPBINARY} link show 2> /dev/null | ${GREPBINARY} "^[0-9]" | ${AWKBINARY} '{ print $2 }' | ${SEDBINARY} 's/://g')
-                elif [ ! -z "${IFCONFIGBINARY}" ]; then
+                elif [ -n "${IFCONFIGBINARY}" ]; then
                     FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ( $2 == "Link" ) { print  $1 }}')
                 fi
             ;;
@@ -265,14 +348,14 @@
                 FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u)
                 ;;
             Linux)
-                if [ ! -z "${IFCONFIGBINARY}" ]; then
+                if [ -n "${IFCONFIGBINARY}" ]; then
                     FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${GREPBINARY} "HWaddr" | ${AWKBINARY} '{ if ($4=="HWaddr") print $5 }' | ${SORTBINARY} -u)
                     # CentOS 7.x and others may return nothing. Let's retry with 'ether' field.
                     if [ -z "${FIND}" ]; then
                         FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="ether") print $2 }' | ${SORTBINARY} -u)
                     fi
                 else
-                    if [ ! -z "${IPBINARY}" ]; then
+                    if [ -n "${IPBINARY}" ]; then
                         LogText "Test: Using ip binary to gather hardware addresses"
                         FIND=$(${IPBINARY} link 2> /dev/null | ${GREPBINARY} "link/ether" | ${AWKBINARY} '{ print $2 }')
                     else
@@ -320,12 +403,12 @@
                 FIND2=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") print $2 }')
                 ;;
             Linux)
-                if [ ! -z "${IFCONFIGBINARY}" ]; then
+                if [ -n "${IFCONFIGBINARY}" ]; then
                     FIND=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") print $2 }' | ${CUTBINARY} -d ':' -f2)
                     # Version which works for multiple types of ifconfig (e.g. Slackware)
                     FIND2=$(${IFCONFIGBINARY} -a 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6" && $2=="addr:") { print $3 } else { if ($1=="inet6" && $3=="prefixlen") { print $2 } } }')
                 else
-                    if [ ! -z "${IPBINARY}" ]; then
+                    if [ -n "${IPBINARY}" ]; then
                         LogText "Test: Using ip binary to gather IP addresses"
                         FIND=$(${IPBINARY} addr 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet") { print $2 }}' | ${SEDBINARY} 's/\/.*//')
                         FIND2=$(${IPBINARY} addr 2> /dev/null | ${AWKBINARY} '{ if ($1=="inet6") { print $2 }}' | ${SEDBINARY} 's/\/.*//')
@@ -370,58 +453,57 @@
     # Description : Check listening ports
     Register --test-no NETW-3012 --weight L --network NO --category security --description "Check listening ports"
     if [ ${SKIPTEST} -eq 0 ]; then
+        DATA=""
         FIND=""; FIND2=""
         COUNT=0
         case ${OS} in
-            DragonFly|FreeBSD)
-                if [ ! -z "${SOCKSTATBINARY}" ]; then
+            DragonFly | FreeBSD)
+                if [ -n "${SOCKSTATBINARY}" ]; then
                     FIND=$(${SOCKSTATBINARY} | ${AWKBINARY} '{ if ($7 ~ /\*:\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u)
                     # To strip off IP's: ${SEDBINARY} 's/|.*:/|/'
                 else
                     FIND=""
                 fi
                 FIND2=""
-                ;;
+            ;;
             Linux)
-                if [ ! -z "${NETSTATBINARY}" ]; then
+                if [ -n "${SSBINARY}" ]; then
+                    LogText "Test: Retrieving ss information to find listening ports"
+                    DATA=$(${SSBINARY} --query=udp,tcp -plnt | ${AWKBINARY} '{ if ($1!="Netid") { print "raw,ss,v1|"$1"|"$5"|"$7"|" }}' | ${SEDBINARY} 's/pid=[0-9]\{1,\},fd=[0-9]\{1,\}//g' | ${SEDBINARY} 's/users://' | ${SEDBINARY} 's/,)//g' | ${TRBINARY} -d '()"')
+                elif [ -n "${NETSTATBINARY}" ]; then
+                    LogText "Test: Retrieving netstat information to find listening ports"
                     # UDP
                     FIND=$(${NETSTATBINARY} -nlp 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"|"$6"|" }' | ${SEDBINARY} 's:|[0-9]*/:|:')
                     # TCP
                     FIND2=$(${NETSTATBINARY} -nlp 2> /dev/null  | ${GREPBINARY} "^tcp" | ${AWKBINARY} '{ if($6=="LISTEN") { print $4"|"$1"|"$7"|" }}' | ${SEDBINARY} 's:|[0-9]*/:|:')
                 else
-                    if [ ! "${SSBINARY}" = "" ]; then
-                        # UDP
-                        FIND=$(${SSBINARY} -u -a -n 2> /dev/null | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local)
-                        # TCP
-                        FIND2=$(${SSBINARY} -t -a -n 2> /dev/null | ${AWKBINARY} '{ print $4 }' | ${GREPBINARY} -v Local)
-                    else
-                        ReportException "${TEST_NO}:1" "netstat and ss binary missing to gather listening ports"
-                    fi
+                    ReportException "${TEST_NO}:1" "netstat and ss binary missing to gather listening ports"
                 fi
-                ;;
+            ;;
 
             macOS)
-                if [ ! "${LSOFBINARY}" = "" ]; then
+                if [ -n "${LSOFBINARY}" ]; then
+                    LogText "Test: Retrieving lsof information to find listening ports"
                     # UDP and TCP combined
-                    FIND=$(${LSOFBINARY} -i -P | ${AWKBINARY} '{ print $9"|"$8"|"$1"|" }' | ${SEDBINARY} 's/\(.*\)\-\>.*\(\|.*\)/\1\2/' | ${SEDBINARY} 's/\*/'$IP'/' | ${SORTBINARY} -u | ${GREPBINARY} -v "NAME")
+                    FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -i -P | ${AWKBINARY} '{ print $9"|"$8"|"$1"|" }' | ${SEDBINARY} 's/\(.*\)\-\>.*\(\|.*\)/\1\2/' | ${SEDBINARY} 's/\*/'$IP'/' | ${SORTBINARY} -u | ${GREPBINARY} -v "NAME")
                 else
                     FIND=""
                 fi
                 # Not needed as we have a combined test
                 FIND2=""
-                ;;
-
-
+            ;;
             NetBSD)
-                if [ ! "${SOCKSTATBINARY}" = "" ]; then
+                if [ -n "${SOCKSTATBINARY}" ]; then
+                    LogText "Test: Retrieving sockstat information to find listening ports"
                     FIND=$(${SOCKSTATBINARY} 2> /dev/null | ${AWKBINARY} '{ if ($7 ~ /\*.\*/) print $5"|"$6"|"$2"|" }' | ${SORTBINARY} -u)
                 else
                     FIND=""
                 fi
                 FIND2=""
-                ;;
+            ;;
             OpenBSD)
-                if [ ! "${NETSTATBINARY}" = "" ]; then
+                if [ -n "${NETSTATBINARY}" ]; then
+                    LogText "Test: Retrieving netstat information to find listening ports"
                     # UDP
                     FIND=$(${NETSTATBINARY} -an 2> /dev/null | ${GREPBINARY} "^udp" | ${AWKBINARY} '{ print $4"|"$1"||" }')
                     # TCP
@@ -429,16 +511,21 @@
                 else
                     ReportException "${TEST_NO}:3" "netstat missing to gather listening ports"
                 fi
-                ;;
+            ;;
             *)
                 # Got this exception? Provide your details and output of netstat or any other tool to determine this information.
                 ReportException "${TEST_NO}:2" "Unclear what method to use, to determine listening port information"
-                ;;
+            ;;
         esac
 
-        # Retrieve information from sockstat, when available
-        LogText "Test: Retrieving sockstat information to find listening ports"
-        if HasData "${FIND}"; then
+        if [ -n "${DATA}" ]; then
+            for ITEM in ${DATA}; do
+                COUNT=$((COUNT + 1))
+                Report "network_listen[]=${ITEM}"
+            done
+        fi
+
+        if [ -n "${FIND}" ]; then
             for ITEM in ${FIND}; do
                 COUNT=$((COUNT + 1))
                 LogText "Found listening info: ${ITEM}"
@@ -446,18 +533,17 @@
             done
         fi
 
-        if [ ! "${FIND2}" = "" ]; then
+        if [ -n "${FIND2}" ]; then
             for ITEM in ${FIND2}; do
                 COUNT=$((COUNT + 1))
                 LogText "Found listening info: ${ITEM}"
                 Report "network_listen_port[]=${ITEM}"
             done
         fi
-        if [ "${FIND}" = "" -a "${FIND2}" = "" ]; then
+        if [ -z "${DATA}" -a -z "${FIND}" ]; then
             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result "${STATUS_SKIPPED}" --color YELLOW
         else
             Display --indent 2 --text "- Getting listening ports (TCP/UDP)" --result "${STATUS_DONE}" --color GREEN
-            Display --indent 6 --text "* Found ${COUNT} ports"
         fi
     fi
 #
@@ -486,10 +572,10 @@
                 # Check if this interface was whitelisted
                 if [ ${WHITELISTED} -eq 0 ]; then
                     FOUNDPROMISC=1
-                    ReportWarning ${TEST_NO} "Found promiscuous interface (${I})"
+                    ReportWarning "${TEST_NO}" "Found promiscuous interface (${ITEM})"
                     LogText "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
                 else
-                    LogText "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
+                    LogText "Result: Found promiscuous interface ${ITEM} (*whitelisted via profile*)"
                 fi
             done
         fi
@@ -507,35 +593,54 @@
 #
     # Test        : NETW-3015
     # Description : Checking promiscuous interfaces (Linux)
-    # Note        : Need ifconfig binary at this moment (does not work on Arch Linux)
-    if [ ! "${IFCONFIGBINARY}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no NETW-3015 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking promiscuous interfaces (Linux)"
+    Register --test-no NETW-3015 --os Linux --weight L --network NO --category security --description "Checking promiscuous interfaces (Linux)"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking promiscuous interfaces (Linux)"
-        NETWORK=$(${IFCONFIGBINARY} 2> /dev/null | ${GREPBINARY} Link | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f1)
-        if [ ! "${NETWORK}" = "" ]; then
+        FOUNDPROMISC=99
+        NETWORK=""
+        USE_IP_INSTEAD_IFCONFIG=0
+
+        if [ -n "${IPBINARY}" ]; then
+            LogText "Test: Using ip binary to retrieve network interfaces"
+            NETWORK=$(${IPBINARY} -o link 2> /dev/null | ${GREPBINARY} "^[0-9]" | ${AWKBINARY} '{print $2 }' | ${TRBINARY} -d ':')
+            USE_IP_INSTEAD_IFCONFIG=1
+        elif [ -n "${IFCONFIGBINARY}" ]; then
+            LogText "Test: Using ifconfig binary to retrieve network interfaces"
+            NETWORK=$(${IFCONFIGBINARY} 2> /dev/null | ${GREPBINARY} Link | ${TRBINARY} -s ' ' | ${CUTBINARY} -d ' ' -f1)
+        fi
+
+        LogText "Test: Checking all interfaces to discover any with promiscuous mode enabled"
+        if [ -n "${NETWORK}" ]; then
+            FOUNDPROMISC=0
             for I in ${NETWORK}; do
-                FIND=$(${IFCONFIGBINARY} ${I} 2> /dev/null | ${GREPBINARY} PROMISC)
-                if [ ! "${FIND}" = "" ]; then
+                if [ ${USE_IP_INSTEAD_IFCONFIG} -eq 1 ]; then
+                    FIND=$(${IPBINARY} -o -d link show ${I} 2> /dev/null | ${GREPBINARY} "promiscuity [1-9]")
+                else
+                    FIND=$(${IFCONFIGBINARY} ${I} 2> /dev/null | ${GREPBINARY} PROMISC)
+                fi
+                if [ -n "${FIND}" ]; then
                     LogText "Result: Promiscuous interface: ${I}"
                     ISWHITELISTED=$(${GREPBINARY} "^if_promisc:${I}:" ${PROFILE})
-                    if [ "${ISWHITELISTED}" = "" ]; then
+                    if [ -z "${ISWHITELISTED}" ]; then
                         FOUNDPROMISC=1
-                        ReportWarning ${TEST_NO} "Found promiscuous interface (${I})"
+                        ReportWarning "${TEST_NO}" "Found promiscuous interface" "${I}" "text:Determine if this mode is required or whitelist interface in profile"
                         LogText "Note: some tools put an interface into promiscuous mode, to capture/log network traffic"
                     else
                         LogText "Result: Found promiscuous interface ${I} (*whitelisted via profile*)"
                     fi
                 fi
             done
+        else
+            LogText "Result: no network interfaces discovered, so nothing tested"
         fi
 
         # Show result
         if [ ${FOUNDPROMISC} -eq 0 ]; then
             Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_OK}" --color GREEN
             LogText "Result: No promiscuous interfaces found"
-        else
+        elif [ ${FOUNDPROMISC} -eq 1 ]; then
             Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_WARNING}" --color RED
+        else
+            Display --indent 2 --text "- Checking promiscuous interfaces" --result "${STATUS_UNKNOWN}" --color YELLOW
         fi
     fi
 #
@@ -574,8 +679,7 @@
     # Description : Checking for DHCP client
     Register --test-no NETW-3030 --weight L --network NO --category security --description "Checking DHCP client status"
     if [ ${SKIPTEST} -eq 0 ]; then
-        IsRunning dhclient || IsRunning dhcpcd || IsRunning udhcpc
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "dhclient" || IsRunning "dhcpcd" || IsRunning "udhcpc"; then
             Display --indent 2 --text "- Checking status DHCP client" --result "${STATUS_RUNNING}" --color WHITE
             DHCP_CLIENT_RUNNING=1
         else
@@ -591,32 +695,95 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
 
+        # addrwatch
+        if IsRunning "addrwatch"; then
+            FOUND=1
+        fi
+
         # arpwatch
-        IsRunning arpwatch
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "arpwatch"; then
             FOUND=1
             ARPWATCH_RUNNING=1
-            Display --indent 2 --text "- Checking for ARP monitoring software" --result "${STATUS_RUNNING}" --color GREEN
         fi
 
         # arpon
-        IsRunning arpon
-        if [ ${RUNNING} -eq 1 ]; then
+        if IsRunning "arpon"; then
             FOUND=1
             ARPON_RUNNING=1
-            Display --indent 2 --text "- Checking for ARP monitoring software" --result "${STATUS_RUNNING}" --color GREEN
         fi
-        if [ ${FOUND} -eq 0 ]; then
+
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 2 --text "- Checking for ARP monitoring software" --result "${STATUS_RUNNING}" --color GREEN
+        else
             Display --indent 2 --text "- Checking for ARP monitoring software" --result "${STATUS_NOT_FOUND}" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Consider running ARP monitoring software (arpwatch,arpon)"
+            #ReportSuggestion "${TEST_NO}" "Consider running ARP monitoring software (addrwatch,arpwatch,arpon)"
         fi
     fi
 #
 #################################################################################
 #
+    # Test        : NETW-3200
+    # Description : Determine available network protocols
+    # Notes       : See all available supported modules: ls -d /lib/modules/$(uname -r )/kernel/net
+    #               To see active/enabled protocols: ls -d /proc/sys/net
+    Register --test-no NETW-3200 --weight L --network YES --category security --description "Determine available network protocols"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        TESTED=0
+        FOUND_UNCOMMON_PROTOCOL_ENABLED=0
+        case ${OS} in
+            Linux)
+                TESTED=1
+                LogText "Test: checking the status of some network protocols that typically are not used"
+                UNCOMMON_PROTOCOLS="dccp sctp rds tipc"
+                for P in ${UNCOMMON_PROTOCOLS}; do
+                    LogText "Test: now checking module '${P}'"
+                    if ! SkipAtomicTest "${TEST_NO}:${P}"; then
+                        UNCOMMON_PROTOCOL_DISABLED=0
+                        # First check modprobe.conf
+                        if [ -f ${ROOTDIR}etc/modprobe.conf ]; then
+                            DATA=$(${GREPBINARY} "^install ${P} /bin/true" ${ROOTDIR}etc/modprobe.conf)
+                            if [ -n "${DATA}" ]; then
+                                LogText "Result: found ${P} module disabled via modprobe.conf"
+                                UNCOMMON_PROTOCOL_DISABLED=1
+                            fi
+                        fi
+                        # Then additional modprobe configuration files
+                        if [ -d ${ROOTDIR}etc/modprobe.d ]; then
+                            DATA=$(${GREPBINARY} --files-with-matches --no-messages "^install ${P} /bin/true" ${ROOTDIR}etc/modprobe.d/*)
+                            if [ -n "${DATA}" ]; then
+                                UNCOMMON_PROTOCOL_DISABLED=1
+                                for F in ${DATA}; do
+                                    LogText "Result: found ${P} module disabled via ${F}"
+                                done
+                            fi
+                        fi
 
-Report "dhcp_client_running=${DHCP_CLIENT_RUNNING}"
-Report "arpwatch_running=${ARPWATCH_RUNNING}"
+                        if [ ${UNCOMMON_PROTOCOL_DISABLED} -eq 0 ]; then
+                            ReportSuggestion "${TEST_NO}" "Determine if protocol '${P}' is really needed on this system"
+                            Report "uncommon_network_protocol_enabled=${P}"
+                            FOUND_UNCOMMON_PROTOCOL_ENABLED=1
+                        fi
+                    fi
+                done
+
+            ;;
+            *)
+                LogText "This test has no routine yet for this operating system."
+                Debug "No routine implemented yet for this operating system to check for available network protocols"
+            ;;
+        esac
+        if [ ${TESTED} -eq 1 ]; then
+            if [ ${FOUND_UNCOMMON_PROTOCOL_ENABLED} -eq 1 ]; then
+                Display --indent 2 --text "- Uncommon network protocols" --result "${FOUND}" --color YELLOW
+            else
+                Display --indent 2 --text "- Uncommon network protocols" --result "${STATUS_NOT_FOUND}" --color GREEN
+            fi
+        fi
+        unset DATA F FOUND TESTED UNCOMMON_PROTOCOLS
+    fi
+#
+#################################################################################
+#
 
 WaitForKeyPress
 

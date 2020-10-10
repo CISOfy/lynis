@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -22,67 +22,101 @@
 #
 #################################################################################
 #
+    RNG_FOUND=0
+#
+#################################################################################
+#
     InsertSection "Cryptography"
 #
 #################################################################################
 #
     # Test        : CRYP-7902
     # Description : check for expired SSL certificates
-    if [ ! -z "${OPENSSLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ -n "${OPENSSLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no CRYP-7902 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check expire date of SSL certificates"
     if [ ${SKIPTEST} -eq 0 ]; then
         COUNT_EXPIRED=0
         COUNT_TOTAL=0
         FOUNDPROBLEM=0
-        sSSL_PATHS=$(echo ${SSL_CERTIFICATE_PATHS} | ${SEDBINARY} 's/:/ /g')
-        sSSL_PATHS=$(echo ${sSSL_PATHS} | ${SEDBINARY} 's/^ //' | ${TRBINARY} " " "\n" | ${SORTBINARY} | uniq | ${TRBINARY} "\n" " ")
+        SKIP=0
+        sSSL_PATHS=$(echo ${SSL_CERTIFICATE_PATHS} | ${SEDBINARY} 's/:space:/__space__/g' | ${SEDBINARY} 's/:/ /g')
+        sSSL_PATHS=$(echo ${sSSL_PATHS} | ${SEDBINARY} 's/^ //' | ${SORTBINARY} -u)
         LogText "Paths to scan: ${sSSL_PATHS}"
+
+        IGNORE_PATHS_PRINT=$(echo ${SSL_CERTIFICATE_PATHS_TO_IGNORE} | ${SEDBINARY} 's/:/, /g' | ${SEDBINARY} 's/__space__/ /g' | ${SEDBINARY} 's/^ //' | ${SORTBINARY} -u)
+        LogText "Paths to ignore: ${IGNORE_PATHS_PRINT}"
 
         for DIR in ${sSSL_PATHS}; do
             COUNT_DIR=0
             if [ -d ${DIR} ]; then
                 FileIsReadable ${DIR}
                 if [ ${CANREAD} -eq 1 ]; then
+                    LASTSUBDIR=""
                     LogText "Result: found directory ${DIR}"
                     # Search for certificate files
-                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".crt$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /:space:/g')
+                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".cer$|.crt$|.der$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /__space__/g')
                     for FILE in ${FILES}; do
-                        FILE=$(echo ${FILE} |${SEDBINARY} 's/:space:/ /g')
-                        COUNT_DIR=$((COUNT_DIR + 1))
-                        FileIsReadable "${FILE}"
-                        if [ ${CANREAD} -eq 1 ]; then
-                            # Only check the files that are not installed by a package
-                            if ! FileInstalledByPackage "${FILE}"; then
-                                LogText "Test: test if file is a certificate"
-                                OUTPUT=$(${GREPBINARY} -q 'BEGIN CERT' "${FILE}")
-                                if [ $? -eq 0 ]; then
-                                    LogText "Result: file is a certificate"
-                                    LogText "Test: checking certificate details"
-                                    FIND=$(${OPENSSLBINARY} x509 -noout -in "${FILE}" -enddate 2> /dev/null | ${GREPBINARY} "^notAfter")
-                                    if [ $? -eq 0 ]; then
-                                        # Check certificate where 'end date' has been expired
-                                        FIND=$(${OPENSSLBINARY} x509 -noout -checkend 0 -in "${FILE}" -enddate 2> /dev/null)
-                                        EXIT_CODE=$?
-                                        CERT_CN=$(${OPENSSLBINARY} x509 -noout -subject -in "${FILE}" 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
-                                        CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout -enddate -in "${FILE}" 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
-                                        Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
-                                        if [ ${EXIT_CODE} -eq 0 ]; then 
-                                            LogText "Result: certificate ${FILE} seems to be correct and still valid"
+                        FILE=$(echo ${FILE} | ${SEDBINARY} 's/__space__/ /g')
+                        # See if we need to skip this path
+                        SUBDIR=$(echo ${FILE} | ${AWKBINARY} -F/ 'sub(FS $NF,x)' | ${SEDBINARY} 's/__space__/ /g')
+                        # If we discover a new directory, do evaluation
+                        #Debug "File   : ${FILE}"
+                        #Debug "Lastdir: ${LASTSUBDIR}"
+                        #Debug "Curdir : ${SUBDIR}"
+                        if [ ! "${SUBDIR}" = "${LASTSUBDIR}" ]; then
+                            SKIP=0
+                            # Now check if this path is on the to-be-ignored list
+                            for D in ${SSL_CERTIFICATE_PATHS_TO_IGNORE}; do
+                                if ContainsString "${D}" "${SUBDIR}"; then
+                                    SKIP=1
+                                    LogText "Result: skipping directory (${SUBDIR}) as it is on ignore list"
+                                fi
+                            done
+                        fi
+                        if [ ${SKIP} -eq 0 ]; then
+                            #Debug "Testing ${FILE} in path: $SUBDIR"
+                            COUNT_DIR=$((COUNT_DIR + 1))
+                            FileIsReadable "${FILE}"
+                            if [ ${CANREAD} -eq 1 ]; then
+                                # Only check the files that are not installed by a package, unless enabled by profile
+                                if [ ${SSL_CERTIFICATE_INCLUDE_PACKAGES} -eq 1 ] || ! FileInstalledByPackage "${FILE}"; then
+                                    echo ${FILE} | ${EGREPBINARY} --quiet ".cer$|.der$"
+                                    CER_DER=$?
+                                    OUTPUT=$(${GREPBINARY} -q 'BEGIN CERT' "${FILE}")
+                                    if [ $? -eq 0 -o ${CER_DER} -eq 0 ]; then
+                                        LogText "Result: file is a certificate file"
+                                        if [ ${CER_DER} -eq 0 ]; then
+                                            SSL_DER_OPT="-inform der"
                                         else
-                                            FOUNDPROBLEM=1
-                                            COUNT_EXPIRED=$((COUNT_EXPIRED + 1))
-                                            LogText "Result: certificate ${FILE} has been expired"
+                                            SSL_DER_OPT=
+                                        fi
+                                        FIND=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -in "${FILE}" -enddate 2> /dev/null | ${GREPBINARY} "^notAfter")
+                                        if [ $? -eq 0 ]; then
+                                            # Check certificate where 'end date' has been expired
+                                            FIND=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -checkend 0 -in "${FILE}" -enddate 2> /dev/null)
+                                            EXIT_CODE=$?
+                                            CERT_CN=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -subject -in "${FILE}" 2> /dev/null | ${SEDBINARY} -e 's/^subject.*CN=\([a-zA-Z0-9\.\-\*]*\).*$/\1/')
+                                            CERT_NOTAFTER=$(${OPENSSLBINARY} x509 -noout ${SSL_DER_OPT} -enddate -in "${FILE}" 2> /dev/null | ${AWKBINARY} -F= '{if ($1=="notAfter") { print $2 }}')
+                                            Report "certificate[]=${FILE}|${EXIT_CODE}|cn:${CERT_CN};notafter:${CERT_NOTAFTER};|"
+                                            if [ ${EXIT_CODE} -eq 0 ]; then 
+                                                LogText "Result: certificate ${FILE} seems to be correct and still valid"
+                                            else
+                                                FOUNDPROBLEM=1
+                                                COUNT_EXPIRED=$((COUNT_EXPIRED + 1))
+                                                LogText "Result: certificate ${FILE} has been expired"
+                                            fi
+                                        else
+                                            LogText "Result: skipping tests for this file (${FILE}) as it is most likely not a certificate (is it a key file?)"
                                         fi
                                     else
-                                        LogText "Result: skipping tests for this file (${FILE}) as it is most likely not a certificate (a key file?)"
+                                        LogText "Result: skipping test for this file (${FILE}) as we could not find 'BEGIN CERT'"
                                     fi
-                                else
-                                    LogText "Result: skipping test for this file (${FILE}) as we could not find 'BEGIN CERT'"
                                 fi
+                            else
+                                LogText "Result: can not read file ${FILE} (no permission)"
                             fi
-                        else
-                            LogText "Result: can not read file ${FILE} (no permission)"
                         fi
+                        LASTSUBDIR="${SUBDIR}"
                     done
                     COUNT_TOTAL=$((COUNT_TOTAL + COUNT_DIR))
                     LogText "Result: found ${COUNT_DIR} certificates in ${DIR}"
@@ -100,9 +134,166 @@
             Display --indent 2 --text "- Checking for expired SSL certificates [${COUNT_EXPIRED}/${COUNT_TOTAL}]" --result "${STATUS_NONE}" --color GREEN
         else
             Display --indent 2 --text "- Checking for expired SSL certificates [${COUNT_EXPIRED}/${COUNT_TOTAL}]" --result "${STATUS_FOUND}" --color RED
-            ReportSuggestion ${TEST_NO} "Check available certificates for expiration"
+            ReportSuggestion "${TEST_NO}" "Check available certificates for expiration"
         fi
     fi
+
+#
+#################################################################################
+#
+    # Test        : CRYP-7930
+    # Description : Determine if system uses LUKS block device encryption
+    Register --test-no CRYP-7930 --os Linux --weight L --network NO --root-only YES --category security --description "Determine if system uses LUKS block device encryption"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        CRYPTTABFILE="${ROOTDIR}etc/crypttab"
+        FOUND=0
+
+        # cryptsetup only works as root
+        if [ -n "${LSBLKBINARY}" ] && [ -n "${CRYPTSETUPBINARY}" ] && [ ${FORENSICS_MODE} -eq 0 ]; then
+            for BLOCK_DEV in $(${LSBLKBINARY} --noheadings --list -o NAME 2> /dev/null | cut -d' ' -f1); do
+                if ${CRYPTSETUPBINARY} isLuks $(${FINDBINARY} /dev/ -name "${BLOCK_DEV}" 2> /dev/null) 2> /dev/null; then
+                    LogText "Result: Found LUKS encrypted block device: ${BLOCK_DEV}"
+                    Report "encryption[]=luks,block_device,${BLOCK_DEV}"
+                    FOUND=$((FOUND +1))
+                else
+                    LogText "Result: block device ${BLOCK_DEV} is not LUKS encrypted"
+                fi
+            done
+            unset BLOCK_DEV
+
+        # This will enable us to do a test for forensics or when crypsetup/lsblk are not available
+        elif [ -f ${CRYPTTABFILE} ]; then
+            LogText "Result: crypttab (${CRYPTTABFILE}) exists"
+            DATA=$(${GREPBINARY} "^[a-z]" ${CRYPTTABFILE} | ${TRBINARY} -cd '[:alnum:]_\-=,\n\t ' | ${SEDBINARY} 's/[[:blank:]]/__space__/g')
+            for LINE in ${DATA}; do
+                LINE=$(echo ${LINE} | ${SEDBINARY} 's/__space__/ /g')
+                if ContainsString "luks," "${LINE}"; then
+                    PARTITION=$(echo ${LINE} | ${AWKBINARY} '{print $1}' | ${AWKBINARY} -F_ '{print $1}')
+                    LogText "Result: Found LUKS encryption on partition ${PARTITION}"
+                    Report "encryption[]=luks,partition,${PARTITION}"
+                    FOUND=$((FOUND +1))
+                fi
+            done
+            unset DATA LINE PARTITION
+        fi
+
+        if [ ${FOUND} -gt 0 ]; then
+            Display --indent 2 --text "- Found ${FOUND} LUKS encrypted block devices." --result OK --color WHITE
+        fi
+        unset FOUND
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-7931
+    # Description : Determine if system uses encrypted swap
+    if [ -e "${SWAPONBINARY}" -a -e "${CRYPTSETUPBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CRYP-7931 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Determine if system uses encrypted swap"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        ENCRYPTED_SWAPS=0
+        UNENCRYPTED_SWAPS=0
+        # Redirect errors, as RHEL 5/6 and others don't have the --show option
+        SWAPS=$(${SWAPONBINARY} --show=NAME --noheadings 2> /dev/null)
+        if [ $? -eq 0 ]; then
+            for BLOCK_DEV in ${SWAPS}; do
+                if ${CRYPTSETUPBINARY} isLuks "${BLOCK_DEV}" 2> /dev/null; then
+                    LogText "Result: Found LUKS encrypted swap device: ${BLOCK_DEV}"
+                    ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS + 1))
+                    Report "encrypted_swap[]=${BLOCK_DEV},LUKS"
+                elif ${CRYPTSETUPBINARY} status "${BLOCK_DEV}" 2> /dev/null | ${GREPBINARY} --quiet "cipher:"; then
+                    LogText "Result: Found non-LUKS encrypted swap device: ${BLOCK_DEV}"
+                    ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS + 1))
+                    Report "encrypted_swap[]=${BLOCK_DEV},other"
+                else
+                    LogText "Result: Found unencrypted swap device: ${BLOCK_DEV}"
+                    UNENCRYPTED_SWAPS=$((UNENCRYPTED_SWAPS +1))
+                    Report "non_encrypted_swap[]=${BLOCK_DEV}"
+                fi
+            done
+            Display --indent 2 --text "- Found ${ENCRYPTED_SWAPS} encrypted and ${UNENCRYPTED_SWAPS} unencrypted swap devices in use." --result OK --color WHITE
+        else
+            LogText "Result: skipping testing as swapon returned an error."
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-8002
+    # Description : Gather available kernel entropy
+    Register --test-no CRYP-8002 --os Linux --weight L --network NO --root-only NO --category security --description "Gather available kernel entropy"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -f ${ROOTDIR}proc/sys/kernel/random/entropy_avail ]; then
+            DATA=$(${AWKBINARY} '$1 ~ /^[0-9]+$/ {print $1}' ${ROOTDIR}proc/sys/kernel/random/entropy_avail)
+            if [ -n "${DATA}" ]; then
+                LogText "Result: found kernel entropy value of ${DATA}"
+                Report "kernel_entropy=${DATA}"
+                if [ ${DATA} -gt 200 ]; then
+                    Display --indent 2 --text "- Kernel entropy is sufficient" --result "${STATUS_YES}" --color GREEN
+                else
+                    Display --indent 2 --text "- Kernel entropy is sufficient" --result "${STATUS_NO}" --color YELLOW
+                    # TODO - enable suggestion when information on website is available
+                fi
+            fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-8004
+    # Description : Test for presence of hardware random number generators
+    Register --test-no CRYP-8004 --os Linux --weight L --network NO --root-only NO --category security --description "Presence of hardware random number generators"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: looking for ${ROOTDIR}sys/class/misc/hw_random/rng_current"
+        if [ -f "${ROOTDIR}sys/class/misc/hw_random/rng_current" ]; then
+            DATA=$(${HEADBINARY} --lines=1 ${ROOTDIR}sys/class/misc/hw_random/rng_current | ${TRBINARY} -d '[[:cntrl:]]')
+            if [ "${DATA}" != "none" ]; then
+                LogText "Result: positive match, found RNG: ${DATA}"
+                if IsRunning "rngd"; then
+                    Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_YES}" --color GREEN
+                    LogText "Result: rngd is running"
+                    RNG_FOUND=1
+                else
+                    Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color YELLOW
+                    # TODO - enable suggestion when website has listing for this control
+                    # ReportSuggestion "${TEST_NO}" "Utilize hardware random number generation by running rngd"
+                fi
+            else
+                Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color YELLOW
+                LogText "Result: no HW RNG available"
+            fi
+        else
+            Display --indent 2 --text "- HW RNG & rngd" --result "${STATUS_NO}" --color RED
+            LogText "Result: could not find ${ROOTDIR}sys/class/misc/hw_random/rng_current"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-8005
+    # Description : Test for presence of software pseudo random number generators
+    Register --test-no CRYP-8005 --os Linux --weight L --network NO --root-only NO --category security --description "Presence of software pseudo random number generators"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: looking for software pseudo random number generators"
+        FOUND=""
+        for SERVICE in audio-entropyd haveged jitterentropy-rngd; do
+            # Using --full as jitterentropy-rngd would otherwise not match
+            if IsRunning --full "${SERVICE}"; then
+                FOUND="${FOUND} ${SERVICE}"
+            fi
+        done
+        if [ -z "${FOUND}" ]; then
+            Display --indent 2 --text "- SW prng" --result "${STATUS_NO}" --color YELLOW
+            # ReportSuggestion "${TEST_NO}" "Utilize software pseudo random number generators"
+        else
+            RNG_FOUND=1
+            Display --indent 2 --text "- SW prng" --result "${STATUS_YES}" --color GREEN
+            LogText "Result: found ${FOUND} running"
+        fi
+    fi
+#
+#################################################################################
+#
+    Report "rng_found=${RNG_FOUND}"
 #
 #################################################################################
 #

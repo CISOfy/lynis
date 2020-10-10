@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -40,8 +40,11 @@
 #    DiscoverProfiles           Determine available profiles on system
 #    Display                    Output text to screen with colors and identation
 #    DisplayError               Show an error on screen
+#    DisplayException           Show an exception on screen
 #    DisplayManual              Output text to screen without any layout
 #    DisplayToolTip             Show a tip for improving usage of the tool
+#    DisplayWarning             Show a clear warning on screen
+#    Equals                     Compares two strings
 #    ExitClean                  Stop the program (cleanly), with exit code 0
 #    ExitCustom                 Stop the program (cleanly), with custom exit code
 #    ExitFatal                  Stop the program (cleanly), with exit code 1
@@ -50,6 +53,8 @@
 #    FileIsEmpty                Check if a file is empty
 #    FileIsReadable             Check if a file is readable or directory accessible
 #    GetHostID                  Retrieve an unique ID for this host
+#    GetReportData              Request data from report
+#    HasCorrectFilePermissions  Check file permissions and see if they match expected values
 #    HasData                    Checks for data in variable
 #    InsertSection              Insert a section block
 #    InsertPluginSection        Insert a section block for plugins
@@ -74,6 +79,7 @@
 #    ParseTestValues            Parse a set of values
 #    PortIsListening            Check if machine is listening on specified protocol and port
 #    Progress                   Show progress on screen
+#    Readonly                   Mark a variable as read-only data
 #    Register                   Register a test (for logging and execution)
 #    RandomString               Show a random string
 #    RemoveColors               Reset all colors
@@ -85,27 +91,19 @@
 #    ReportManual               Log manual actions to report file
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
+#    SafeFile                   Security tests to perform on a file before using it
 #    SafePerms                  Check if a file has safe permissions
+#    SafeInput                  Test provided string to see if it contains unwanted characters
 #    SearchItem                 Search a string in a file
 #    ShowComplianceFinding      Display a particular finding regarding compliance or a security standard
 #    ShowSymlinkPath            Show a path behind a symlink
 #    SkipAtomicTest             Test if a subtest needs to be skipped
+#    Status                     Show execution status, such as active test being performed
 #    StoreNginxSettings         Save parsed nginx settings to file
 #    TestValue                  Evaluate a value in a string or key
 #    ViewCategories             Show available category of tests
 #    ViewGroups                 Display test groups
 #    WaitForKeyPress            Wait for user to press a key to continue
-#
-#################################################################################
-#
-#    Under Development:
-#    ----------------------
-#    TestCase_Equal             Test case for checking if value is equal to something
-#    TestCase_NotEqual          Test case for checking if value is not equal to something
-#    TestCase_GreaterThan       Test case for checking if value is greater than something
-#    TestCase_GreaterOrEqual    Test case for checking if value is greater or equal to something
-#    TestCase_LessThan          Test case for checking if value is less than something
-#    TestCase_LessOrEqual       Test case for checking if value is less or equal to something
 #
 #################################################################################
 
@@ -114,7 +112,8 @@
     # Name        : AddHP()
     # Description : Add hardening points and count them
     #
-    # Input       : $1 = points to add, $2 = maximum points for this item
+    # Parameters  : $1 = points to add (0 or higher)
+    #               $2 = maximum points (at least value of $1 or higher)
     # Returns     : <nothing>
     # Usage       : AddHP 1 3
     ################################################################################
@@ -135,7 +134,9 @@
     # Name        : AddSetting()
     # Description : Addition of a setting for display with 'lynis show settings'
     #
-    # Input       : $1 = setting, $2 = value, $3 description
+    # Parameters  : $1 = setting
+    #               $2 = value
+    #               $3 = description
     # Returns     : <nothing>
     # Usage       : AddSetting debug 1 'Debug mode'
     ################################################################################
@@ -149,7 +150,7 @@
                 CreateTempFile
                 SETTINGS_FILE="${TEMP_FILE}"
             fi
-            FIND=$(egrep "^${SETTING};" ${SETTINGS_FILE})
+            FIND=$(grep -E "^${SETTING};" ${SETTINGS_FILE})
             if [ -z "${FIND}" ]; then
                 echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
             else
@@ -159,7 +160,7 @@
                 TEMP_SETTINGS_FILE="${TEMP_FILE}"
                 cat ${SETTINGS_FILE} > ${TEMP_SETTINGS_FILE}
                 sed -e '/^'"${SETTING}"';/d' ${TEMP_SETTINGS_FILE} > ${SETTINGS_FILE}
-                rm ${TEMP_SETTINGS_FILE}
+                rm "${TEMP_SETTINGS_FILE}"
                 echo "${SETTING};${VALUE};${DESCRIPTION};" >> ${SETTINGS_FILE}
             fi
         else
@@ -172,7 +173,7 @@
     # Name        : AddSystemGroup()
     # Description : Adds a system to a group, which can be used for categorizing
     #
-    # Input       : Group name
+    # Parameters  : $1 = group name
     # Returns     : <nothing>
     # Usage       : AddSystemGroup "test"
     ################################################################################
@@ -186,23 +187,24 @@
     # Name        : CheckFilePermissions()
     # Description : Check file permissions
     #
-    # Input       : full path to file or directory
+    # Parameters  : Full path to file or directory
     # Returns     : PERMS (FILE_NOT_FOUND | OK | BAD)
     # Notes       : This function might be replaced in future
     ################################################################################
 
     CheckFilePermissions() {
-        CHECKFILE=$1
+        CHECKFILE="$1"
         if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
             PERMS="FILE_NOT_FOUND"
+            FILEVALUE=""
         else
             # If 'file' is an directory, use -d
             if [ -d ${CHECKFILE} ]; then
                 FILEVALUE=$(ls -d -l ${CHECKFILE} | cut -c 2-10)
-                PROFILEVALUE=$(grep '^permdir' ${PROFILE} | grep ":${CHECKFILE}:" | cut -d: -f3)
+                PROFILEVALUE=$(grep '^permdir' ${PROFILE} | grep "=${CHECKFILE}:" | cut -d: -f2)
             else
                 FILEVALUE=$(ls -l ${CHECKFILE} | cut -c 2-10)
-                PROFILEVALUE=$(grep '^permfile' ${PROFILE} | grep ":${CHECKFILE}:" | cut -d: -f3)
+                PROFILEVALUE=$(grep '^permfile' ${PROFILE} | grep "=${CHECKFILE}:" | cut -d: -f2)
             fi
             if [ "${FILEVALUE}" = "${PROFILEVALUE}" ]; then PERMS="OK"; else PERMS="BAD"; fi
         fi
@@ -213,22 +215,21 @@
     # Name        : CheckItem()
     # Description : Check if a specific item exists in the report
     #
-    # Input       : $1 = key, $2 = value
-    # Returns     : ITEM_FOUND
-    # Usage       : CheckItem "key" "value"
+    # Parameters  : $1 = key
+    #               $2 = value
+    # Returns     : exit code (0 = True, 1 = False)
+    # Usage       : if CheckItem "key" "value"; then ....; fi
     ################################################################################
 
     CheckItem() {
-        ITEM_FOUND=0
         RETVAL=255
         if [ $# -eq 2 ]; then
             # Don't search in /dev/null, it's too empty there
             if [ ! "${REPORTFILE}" = "/dev/null" ]; then
                 # Check if we can find the main type (with or without brackets)
                 LogText "Test: search string $2 in earlier discovered results"
-                FIND=$(egrep "^$1(\[\])?=" ${REPORTFILE} | egrep "$2")
+                FIND=$(grep -E "^$1(\[\])?=" ${REPORTFILE} | grep -E "$2")
                 if HasData "${FIND}"; then
-                    ITEM_FOUND=1
                     RETVAL=0
                     LogText "Result: found search string (result: $FIND)"
                 else
@@ -248,6 +249,7 @@
     ################################################################################
     # Name        : CheckUpdates()
     # Description : Determine if there is an update available
+    #
     # Returns     : <nothing>
     # Usage       : CheckUpdates
     #               Use PROGRAM_LV (latest version) and compare it with actual version (PROGRAM_AC)
@@ -258,16 +260,16 @@
         if [ ${RUN_UPDATE_CHECK} -eq 1 ]; then
             LYNIS_LV_RECORD="lynis-latest-version.cisofy.com."
             FIND=$(which dig 2> /dev/null | grep -v "no [^ ]* in")
-            if [ ! -z "${FIND}" ]; then
+            if [ -n "${FIND}" ]; then
                 PROGRAM_LV=$(dig +short +time=3 -t txt lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | sed 's/[".]//g' | grep "^[1-9][0-9][0-9]$")
             else
                 FIND=$(which host 2> /dev/null | grep -v "no [^ ]* in ")
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     PROGRAM_LV=$(host -t txt -W 3 lynis-latest-version.cisofy.com 2> /dev/null | grep -v "connection timed out" | awk '{ if ($1=="lynis-latest-version.cisofy.com" && $3=="text") { print $4 }}' | sed 's/"//g' | grep "^[1-9][0-9][0-9]$")
                     if [ "${PROGRAM_LV}" = "" ]; then PROGRAM_LV=0; fi
                 else
                     FIND=$(which drill 2> /dev/null | grep -v "no [^ ]* in ")
-                    if [ ! -z "${FIND}" ]; then
+                    if [ -n "${FIND}" ]; then
                         PROGRAM_LV=$(drill txt ${LYNIS_LV_RECORD} | awk '{ if ($1=="lynis-latest-version.cisofy.com." && $4=="TXT") { print $5 }}' | tr -d '"' | grep "^[1-9][0-9][0-9]$")
                         if [ -z "${PROGRAM_LV}" ]; then PROGRAM_LV=0; fi
                     else
@@ -282,8 +284,11 @@
 
     ################################################################################
     # Name        : CleanUp()
-    # Description : Cleanup service
+    # Description : Delete PID and temporary files, stop execution (exit code 1)
+    #
+    # Parameters  : <none>
     # Returns     : <nothing>
+    # Usage       : this function is triggered by a manual break by user
     ################################################################################
 
     CleanUp() {
@@ -298,14 +303,15 @@
     ################################################################################
     # Name        : ContainsString()
     # Description : Search a specific string (or regular expression) in another
-    # Returns     : (0 - True, 1 - False)
+    #
+    # Returns     : exit code (0 = True, 1 = False)
     # Usage       : if ContainsString "needle" "there is a needle in the haystack"; echo "Found"; else "Not found"; fi
     ################################################################################
 
     ContainsString() {
         RETVAL=1
         if [ $# -ne 2 ]; then ReportException "ContainsString" "Incorrect number of arguments for ContainsStrings function"; fi
-        FIND=$(echo "$2" | egrep "$1")
+        FIND=$(echo "$2" | grep -E "$1")
         if [ ! "${FIND}" = "" ]; then RETVAL=0; fi
         return ${RETVAL}
     }
@@ -313,11 +319,11 @@
 
     ################################################################################
     # Name        : CountTests()
-    # Description : Count the number of tests performed
+    # Description : Counter for the number of tests performed
     #
-    # Input       : <nothing>
+    # Parameters  : <none>
     # Returns     : <nothing>
-    # Usage       : CountTests
+    # Usage       : Call CountTests to increase number by 1
     ################################################################################
 
     CountTests() {
@@ -329,7 +335,6 @@
     # Name        : CreateTempFile()
     # Description : Creates a temporary file
     #
-    # Input       : <nothing>
     # Returns     : TEMP_FILE (variable)
     # Usage       : CreateTempFile
     #               if [ ! "${TEMP_FILE}" = "" ]; then
@@ -341,7 +346,7 @@
     CreateTempFile() {
         TEMP_FILE=""
         if [ "${OS}" = "AIX" ]; then
-            RANDOMSTRING1=$(echo lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}'))
+            RANDOMSTRING1="lynis-$(od -N4 -tu /dev/random | awk 'NR==1 {print $2} {}')"
             TEMP_FILE="/tmp/${RANDOMSTRING1}"
             touch ${TEMP_FILE}
         else
@@ -361,7 +366,7 @@
     # Name        : DirectoryExists()
     # Description : Check if a directory exists
     #
-    # Returns     : 0 (directory exists), 1 (directory does not exist)
+    # Returns     : exit code (0 = True, 1 = False)
     # Usage       : if DirectoryExists; then echo "it exists"; else echo "It does not exist"; fi
     ################################################################################
 
@@ -386,7 +391,7 @@
     # Description : Show additional information on screen
     #
     # Input       : $1 = text
-    # Returns     : Nothing
+    # Returns     : <nothing>
     # Usage       : Debug "More details"
     ################################################################################
 
@@ -416,7 +421,7 @@
     # Name        : DiscoverProfiles()
     # Description : Determine which profiles we have available
     #
-    # Returns     : Nothing
+    # Returns     : <nothing>
     # Usage       : DiscoverProfiles
     ################################################################################
 
@@ -427,7 +432,11 @@
             DEFAULT_PROFILE=""
             PROFILEDIR=""
             tPROFILE_NAMES="default.prf custom.prf"
-            tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
+            if [ ${USE_CWD} -eq 1 ]; then
+                tPROFILE_TARGETS="."
+            else
+                tPROFILE_TARGETS="/usr/local/etc/lynis /etc/lynis /usr/local/lynis ."
+            fi
             for PNAME in ${tPROFILE_NAMES}; do
                 for PLOC in ${tPROFILE_TARGETS}; do
                     # Only use one default.prf
@@ -451,9 +460,11 @@
             done
             # Search any profiles defined with --profile
             for FILE in ${SEARCH_PROFILES}; do
-                if [ -r ${FILE} ]; then
+                if [ -r "${FILE}" ]; then
                     Debug "Found profile defined with --profile"
                     PROFILES="${PROFILES} ${FILE}"
+                else
+                    ExitFatal "Could not find or read profile (${FILE})"
                 fi
             done
         fi
@@ -522,7 +533,7 @@
             fi
         fi
 
-        if [ ! -z "${TEXT}" ]; then
+        if [ -n "${TEXT}" ]; then
             SHOW=0
             if [ ${SHOW_WARNINGS_ONLY} -eq 1 ]; then
                 if [ "${RESULT}" = "WARNING" ]; then SHOW=1; fi
@@ -563,7 +574,41 @@
         ${ECHOCMD} ""
         ${ECHOCMD} "${WARNING}Error${NORMAL}: ${BOLD}$1${NORMAL}"
         ${ECHOCMD} ""
-        if [ ! -z "${EXITCODE}" ]; then ExitCustom ${EXITCODE}; fi
+        if [ -n "${EXITCODE}" ]; then ExitCustom ${EXITCODE}; fi
+    }
+
+
+    ################################################################################
+    # Name        : DisplayException()
+    # Description : Show a discovered exception on screen
+    #
+    # Parameters  : $1 = function or test
+    #               $2 = text
+    # Returns     : <nothing>
+    # Note        : This function is usually triggered by ReportException
+    ################################################################################
+
+    DisplayException() {
+        ${ECHOCMD:-echo} ""
+        ${ECHOCMD:-echo} "================================================================="
+        ${ECHOCMD:-echo} ""
+        ${ECHOCMD:-echo} "  ${WARNING}Exception found!${NORMAL}"
+        ${ECHOCMD:-echo} ""
+        ${ECHOCMD:-echo} "  Function/test:  [$1]"
+        ${ECHOCMD:-echo} "  Message:        ${BOLD}$2${NORMAL}"
+        ${ECHOCMD:-echo} ""
+        ${ECHOCMD:-echo} "  Help improving the Lynis community with your feedback!"
+        ${ECHOCMD:-echo} ""
+        ${ECHOCMD:-echo} "  Steps:"
+        ${ECHOCMD:-echo} "  - Ensure you are running the latest version ($0 update check)"
+        ${ECHOCMD:-echo} "  - If so, create a GitHub issue at ${PROGRAM_SOURCE}"
+        ${ECHOCMD:-echo} "  - Include relevant parts of the log file or configuration file"
+        ${ECHOCMD:-echo} ""
+        ${ECHOCMD:-echo} "  Thanks!"
+        ${ECHOCMD:-echo} ""
+        ${ECHOCMD:-echo} "================================================================="
+        ${ECHOCMD:-echo} ""
+        sleep 5
     }
 
 
@@ -590,7 +635,7 @@
 
     DisplayToolTip() {
         # Display tooltip when enabled and no tip has been displayed yet
-        if [ ${SHOW_TOOL_TIPS} -eq 1 -a ${TOOLTIP_SHOWED} -eq 0 ]; then
+        if [ ${SHOW_TOOL_TIPS} -eq 1 -a ${TOOLTIP_SHOWED} -eq 0 -a ${QUIET} -eq 0 ]; then
             # Check if we already have already discovered a proper echo command tool. It not, set it default to 'echo'.
             if [ "${ECHOCMD}" = "" ]; then ECHOCMD="echo"; fi
             if [ ${CRONJOB} -eq 0 ]; then
@@ -606,10 +651,52 @@
 
 
     ################################################################################
+    # Name        : DisplayWarning
+    # Description : Show a warning on the screen
+    #
+    # Parameters  : $1 = text
+    # Returns     : <nothing>
+    ################################################################################
+
+    DisplayWarning() {
+        if [ ${CRONJOB} -eq 0 ]; then
+            printf "\n"
+            ${ECHOCMD:-echo} "  ${BG_WARNING}[WARNING]${NORMAL}: $1${NORMAL}"
+            printf "\n"
+        else
+            ${ECHOCMD} "  [WARNING]: $1"
+        fi
+    }
+
+
+    ################################################################################
+    # Name        : Equals()
+    # Description : Compare two strings after special characters were stripped
+    #
+    # Parameters  : $1 = string1
+    #               $2 = string2
+    # Returns     : exit code (0 = True, 1 = False)
+    # Usage       : if Equals "${MYDIR}" "/etc"; then echo "Found"; else "Not found"; fi
+    ################################################################################
+
+    Equals() {
+        RETVAL=1
+        if [ $# -ne 2 ]; then ReportException "Equals" "Incorrect number of arguments for $0 function"; fi
+
+        # Strip any strange control characters
+        INPUT1=$(echo $1 | tr -d '[:cntrl:]<>' | ${SEDBINARY} 's/__space__/ /g' | ${SEDBINARY} 's/:space:/ /g')
+        INPUT2=$(echo $2 | tr -d '[:cntrl:]<>' | ${SEDBINARY} 's/__space__/ /g' | ${SEDBINARY} 's/:space:/ /g')
+        if [ "${INPUT1}" = "${INPUT2}" ]; then RETVAL=0; fi
+
+        return ${RETVAL}
+    }
+
+
+    ################################################################################
     # Name        : ExitClean()
     # Description : Perform a normal exit of the program, and clean up resources
     #
-    # Input       : <nothing>
+    # Parameters  : <nothing>
     # Returns     : <nothing>
     # Usage       : ExitClean
     ################################################################################
@@ -626,8 +713,8 @@
     # Name        : ExitCustom()
     # Description : Perform a normal exit of the program, and clean up resources
     #
-    # Input       : $1 = exit code (optional)
-    # Returns     : Nothing
+    # Parameters  : $1 = exit code (optional)
+    # Returns     : <nothing>
     # Usage       : ExitCustom 35
     ################################################################################
 
@@ -649,7 +736,7 @@
     # Name        : ExitFatal()
     # Description : Perform exit of the program (with code 1), clean up resources
     #
-    # Input       : $1 = text string (optional)
+    # Parameters  : $1 = text string (optional)
     # Returns     : <nothing>
     # Usage       : ExitFatal
     ################################################################################
@@ -659,9 +746,9 @@
         RemoveTempFiles
         LogText "${PROGRAM_NAME} ended with exit code 1."
         if [ $# -eq 1 ]; then
-            ${ECHOCMD} ""
-            ${ECHOCMD} "${RED}Fatal error${NORMAL}: ${WHITE}$1${NORMAL}"
-            ${ECHOCMD} ""
+            ${ECHOCMD:-echo} ""
+            ${ECHOCMD:-echo} "${RED}Fatal error${NORMAL}: ${WHITE}$1${NORMAL}"
+            ${ECHOCMD:-echo} ""
         fi
         exit 1
     }
@@ -670,6 +757,8 @@
     ################################################################################
     # Name        : FileExists()
     # Description : Determine if a file exists
+    #
+    # Parameters  : $1 = path
     # Returns     : 0 (found), 1 (not found)
     #               FILE_FOUND (0:found, 1:not found) - deprecated usage
     ################################################################################
@@ -699,12 +788,12 @@
         exitcode=1
         file=$1
         find=""
-        if [ ! -z "${DPKGBINARY}" ]; then
+        if [ -n "${DPKGBINARY}" ]; then
             find=$(${DPKGBINARY} -S "${file}" 2> /dev/null | ${AWKBINARY} -F: '{print $1}')
-        elif [ ! -z "${RPMBINARY}" ]; then
+        elif [ -n "${RPMBINARY}" ]; then
             find=$(${RPMBINARY} -qf "${file}" 2> /dev/null | ${AWKBINARY} -F- '{print $1}')
         fi
-        if [ ! -z "${find}" ]; then
+        if [ -n "${find}" ]; then
             LogText "Result: file '${file}' belongs to package (${find})"
             exitcode=0
         else
@@ -751,13 +840,13 @@
         sFILE=$1
         CANREAD=0
         RETVAL=1
-        escaped_file=$(echo ${sFILE} | sed 's/\*/\\*/; s/\?/\\?/')
+        escaped_file=$(echo ${sFILE} | sed 's/\*/\\*/; s/?/\\?/')
         LogText "Test: check if we can access ${sFILE} (escaped: ${escaped_file})"
 
         # Check for symlink
         if [ -L "${escaped_file}" ]; then
             ShowSymlinkPath ${escaped_file}
-            if [ ! -z "${SYMLINK}" ]; then escaped_file="${SYMLINK}"; fi
+            if [ -n "${SYMLINK}" ]; then escaped_file="${SYMLINK}"; fi
         fi
 
         # Only check the file if it isn't a symlink (after previous check)
@@ -805,15 +894,26 @@
     # Name        : GetHostID()
     # Description : Create an unique id for the system
     #
-    # Returns     : optional value
+    # Returns     : 0 = fetched or created IDs, 1 = failed, 2 = skipped
     # Usage       : GetHostID
     ################################################################################
 
     GetHostID() {
 
-        if [ ! -z "${HOSTID}" -a ! -z "${HOSTID2}" ]; then
+        if [ ${SKIP_GETHOSTID} -eq 1 ]; then
+            return 2
+        fi
+
+        if [ -n "${HOSTID}" -a -n "${HOSTID2}" ]; then
             Debug "Skipping creation of host identifiers, as they are already configured (via profile)"
-            return 1
+            return 2
+        fi
+
+        if [ -f "${ROOTDIR}etc/lynis/hostids" ]; then
+            Debug "Used hostids file to fetch values"
+            HOSTID=$(grep "^hostid=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
+            HOSTID2=$(grep "^hostid2=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
+            return 0
         fi
 
         FIND=""
@@ -851,11 +951,11 @@
                     fi
                     if [ ! "${FIND}" = "" ]; then
                         # We have a MAC address, now hashing it
-                        if [ ! "${SHA1SUMBINARY}" = "" ]; then
+                        if [ -n "${SHA1SUMBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
-                        elif [ ! "${CSUMBINARY}" = "" ]; then
+                        elif [ -n "${CSUMBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${CSUMBINARY} -h SHA1 - | awk '{ print $1 }')
-                        elif [ ! "${OPENSSLBINARY}" = "" ]; then
+                        elif [ -n "${OPENSSLBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "No sha1, sha1sum, csum or openssl binary available on AIX"
@@ -877,7 +977,7 @@
                 "HP-UX")
                     FIND=$(nwmgr -q info -c lan0 2> /dev/null | awk '{ if ($1=="MAC" && $2=="Address") { print $4 }}')
                     if HasData "${FIND}"; then
-                        if [ ! -z "${OPENSSLBINARY}" ]; then
+                        if [ -n "${OPENSSLBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "No openssl binary available on this HP-UX system"
@@ -895,7 +995,7 @@
                     # ip -br link show up | sort | awk '$2=="UP" && $3 ~ /^[a-f0-9][a-f0-9]:/ {print $3}'
 
                     # Use ifconfig
-                    if [ ! -z "${IFCONFIGBINARY}" ]; then
+                    if [ -n "${IFCONFIGBINARY}" ]; then
                         # Determine if we have the eth0 interface (not all Linux distro have this, e.g. Arch)
                         HASETH0=$(${IFCONFIGBINARY} | grep "^eth0")
                         # Check if we can find it with HWaddr on the line
@@ -923,12 +1023,12 @@
                             fi
                         fi
 
-                    elif [ ! -z "${IPBINARY}" ]; then
+                    elif [ -n "${IPBINARY}" ]; then
                         # Determine if we have the common available eth0 interface
-                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                         if IsEmpty "${FIND}"; then
                             # Determine the MAC address of first interface with the ip command
-                            FIND=$(${IPBINARY} addr show 2> /dev/null | egrep "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                            FIND=$(${IPBINARY} addr show 2> /dev/null | grep -E "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                             if IsEmpty "${FIND}"; then
                                 ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
                             fi
@@ -956,10 +1056,10 @@
                         ReportException "GetHostID" "No MAC address returned on macOS"
                     fi
                     LYNIS_HOSTID2_PART1=$(hostname -s)
-                    if [ ! -z "${LYNIS_HOSTID2_PART1}" ]; then
+                    if [ -n "${LYNIS_HOSTID2_PART1}" ]; then
                         LogText "Info: using hostname ${LYNIS_HOSTID2_PART1}"
                         LYNIS_HOSTID2_PART2=$(sysctl -n kern.uuid 2> /dev/null)
-                        if [ ! -z "${LYNIS_HOSTID2_PART2}" ]; then
+                        if [ -n "${LYNIS_HOSTID2_PART2}" ]; then
                             LogText "Info: using UUID ${LYNIS_HOSTID2_PART2}"
                         else
                             LogText "Info: could not create HOSTID2 as kern.uuid sysctl key is missing"
@@ -1039,17 +1139,17 @@
             fi
         fi
 
-        if [ "${HOSTID}" = "" ]; then
+        if [ -z "${HOSTID}" ]; then
             LogText "Result: no HOSTID available, trying to use SSH key as unique source"
             # Create host ID when a MAC address was not found
             SSH_KEY_FILES="ssh_host_ed25519_key.pub ssh_host_ecdsa_key.pub ssh_host_dsa_key.pub ssh_host_rsa_key.pub"
             if [ -d /etc/ssh ]; then
                 for I in ${SSH_KEY_FILES}; do
-                    if [ "${HOSTID}" = "" ]; then
+                    if [ -z "${HOSTID}" ]; then
                         if [ -f /etc/ssh/${I} ]; then
                             LogText "Result: found ${I} in /etc/ssh"
-                            if [ ! "${SHA1SUMBINARY}" = "" ]; then
-                                HOSTID=$(cat /etc/ssh/${I} | ${SHA1SUMBINARY} | awk '{ print $1 }')
+                            if [ -n "${SHA1SUMBINARY}" ]; then
+                                HOSTID=$(${SHA1SUMBINARY} /etc/ssh/${I} | awk '{ print $1 }')
                                 LogText "result: Created HostID with SSH key ($I): ${HOSTID}"
                             else
                                 ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
@@ -1084,17 +1184,17 @@
             fi
 
             STRING_TO_HASH=""
-            if [ ${FOUND} -eq 1 -a ! -z "${DATA_SSH}" ]; then
+            if [ ${FOUND} -eq 1 -a -n "${DATA_SSH}" ]; then
                 LogText "Using SSH public key to create the second host identifier"
                 STRING_TO_HASH="${DATA_SSH}"
             else
-                if [ ! -z "${MACHINEID}" ]; then
+                if [ -n "${MACHINEID}" ]; then
                     LogText "Using the machine ID to create the second host identifier"
                     STRING_TO_HASH="${MACHINEID}"
                 fi
             fi
             # Check if we have a string to turn into a host identifier
-            if [ ! -z "${STRING_TO_HASH}" ]; then
+            if [ -n "${STRING_TO_HASH}" ]; then
                 # Create hashes
                 if [ ! "${SHA256SUMBINARY}" = "" ]; then
                     HASH2=$(echo ${STRING_TO_HASH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
@@ -1110,24 +1210,168 @@
         fi
 
         # Show an exception if no HostID could be created, to ensure each system (and scan) has one
-        if [ "${HOSTID}" = "" ]; then
+        if [ -z "${HOSTID}" ]; then
             ReportException "GetHostID" "No unique host identifier could be created."
-        elif [ ! -z "${HOSTID2}" ]; then
+            return 1
+        elif [ -n "${HOSTID2}" ]; then
             return 0
         fi
     }
+
+
+    ################################################################################
+    # Name        : GetReportData()
+    # Description : Request data from report
+    # Returns     : Data (when matches were found)
+    # Returns     : exit code (0 = True, 1 = False, meaning search was cancelled)
+    #               stdout (output of search result)
+    ################################################################################
+
+    GetReportData() {
+        KEY=""
+        VALID_CHARS="[:alnum:]/:;\-,\._\[\]\n "
+        if [ $# -eq 0 ]; then ExitFatal "No parameters provided to GetReportData() function"; fi
+
+        while [ $# -ge 1 ]; do
+            case $1 in
+                --key)
+                    shift
+                    KEY="$1"
+                ;;
+                --valid-chars)
+                    shift
+                    VALID_CHARS="$1"
+                ;;
+                *)
+                    ExitFatal "Invalid option provided to GetReportData() function"
+                ;;
+            esac
+            # Go to next parameter
+            shift
+        done
+
+        if [ "${REPORTFILE}" = "/dev/null" ]; then
+            return 1
+        else
+            ${AWKBINARY} -v pattern="^${KEY}" -F= '$1 ~ pattern {print $2}' ${REPORTFILE} | ${TRBINARY} -cd "${VALID_CHARS}" | ${TRBINARY} '[:blank:]' '__space__'
+        fi
+        return 0
+    }
+
+
+    ################################################################################
+    # Name        : HasCorrectFilePermissions()
+    # Description : Check file permissions
+    #
+    # Parameters  : $1 = Full path to file or directory
+    #               $2 = Permissions
+    # Returns     : exit code (0 = correct, 1 = not correct, 2 = file does not exist)
+    ################################################################################
+
+    HasCorrectFilePermissions() {
+        if [ $# -ne 2 ]; then Fatal "Incorrect usage of HasCorrectFilePermissions"; fi
+        CHECKFILE="$1"
+        CHECKPERMISSION_FULL="$2"
+        if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
+            return 2
+        else
+            for CHECK_PERMISSION in ${CHECKPERMISSION_FULL}; do
+                DATA=$(echo ${CHECK_PERMISSION} | ${EGREPBINARY} "[rwx]")
+                if [ $? -eq 0 ]; then
+                    # add a dummy character as first character so it looks like output is a normal file
+                    CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
+                fi
+
+                # Add leading zeros if necessary
+                CHECK_PERMISSION=$(echo "${CHECK_PERMISSION}" | ${AWKBINARY} '{printf "%03d",$1}')
+
+                # First try stat command
+                LogText "Test: checking if file ${CHECKFILE} has the permissions set to ${CHECK_PERMISSION} or more restrictive"
+                if [ -n "${STATBINARY}" ]; then
+
+                    case ${OS} in
+                        *BSD | "macOS")
+                            # BSD and macOS have no --format, only short notation
+                            DATA=$(${STATBINARY} -f "%OLp" ${CHECKFILE})
+                        ;;
+                        *)
+                            # busybox does not support format
+                            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                                DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
+                            fi
+                        ;;
+                    esac
+                fi
+
+                # See if we can use the find binary
+                if [ -z "${DATA}" ]; then
+                    case ${OS} in
+                        "AIX" | *BSD)
+                            Debug "Skipping find command, as this operating system does not support -printf parameter"
+                        ;;
+                        *)
+                            # Only use find when OS is NOT AIX and binaries are NOT busybox
+                            if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                                if [ -d ${CHECKFILE} ]; then
+                                    DATA=$(${FINDBINARY} ${CHECKFILE} -maxdepth 0 -printf "%m")
+                                else
+                                    DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
+                                fi
+                            fi
+                        ;;
+                    esac
+                fi
+
+                # Finally use ls command
+                if [ -z "${DATA}" ]; then
+                    # If 'file' is an directory, use -d
+                    if [ -d ${CHECKFILE} ]; then
+                        DATA=$(${LSBINARY} -d -l ${CHECKFILE} | cut -c 2-10)
+                    else
+                        DATA=$(${LSBINARY} -l ${CHECKFILE} | cut -c 2-10)
+                    fi
+                fi
+
+                # Convert permissions to octal when needed
+                case ${DATA} in
+                    [-r][-w][-x][-r][-w][-x][-r][-w][-x] )
+                        LogText "Converting value ${DATA} to octal"
+                        # add a dummy character as first character so it looks like output is a normal file
+                        DATA=$(echo "-${DATA}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
+                    ;;
+                esac
+
+                # Add leading zeros if necessary
+                DATA=$(echo "${DATA}" | ${AWKBINARY} '{printf "%03d",$1}')
+
+                if [ -n "${DATA}" ]; then
+                    if [ "${DATA}" -le "${CHECK_PERMISSION}" ]; then
+                        LogText "Outcome: correct permissions (${DATA})"
+                        return 0
+                    fi
+                else
+                    ReportException "HasCorrectFilePermissions:02" "No data value found, which is unexpected"
+                fi
+            done
+
+            LogText "Outcome: permissions of file ${CHECKFILE} are not matching expected value (${DATA} != ${CHECKPERMISSION_FULL})"
+            # No match, return exit code 1
+            return 1
+        fi
+    }
+
 
     ################################################################################
     # Name        : HasData()
     # Description : Check for a filled variable
     #
-    # Returns     : 0 = True, 1 = False
+    # Returns     : exit code (0 = True, 1 = False)
     # Usage       : if HasData "${FIND}"; then
     ################################################################################
 
     HasData() {
         if [ $# -eq 1 ]; then
-            if [ ! -z "$1" ]; then return 0; else return 1; fi
+            if [ -n "$1" ]; then return 0; else return 1; fi
         else
             ExitFatal "Function HasData called without parameters - look in log to determine where this happened, or use sh -x lynis to see all details."
         fi
@@ -1138,7 +1382,7 @@
     # Name        : InsertSection()
     # Description : Show a section block on screen
     #
-    # Returns     : Nothing
+    # Returns     : <nothing>
     # Usage       : InsertSection
     ################################################################################
 
@@ -1157,7 +1401,7 @@
     # Name        : InsertPlugionSection()
     # Description : Insert section block for plugins (different color)
     #
-    # Returns     : Nothing
+    # Returns     : <nothing>
     # Usage       : InsertPluginSection
     ################################################################################
 
@@ -1174,15 +1418,17 @@
     ################################################################################
     # Name        : IsContainer()
     # Description : Determine if we are running in a container
-    # Returns     : Exit code (0 = true, 1 = false)
-    #               CONTAINER_TYPE
+    #
+    # Parameters  : <none>
+    # Returns     : exit code (0 = true, 1 = false)
+    #               variable: CONTAINER_TYPE
     ################################################################################
 
     IsContainer() {
         FOUND=0
         # Early on we can't use FileIsReadable yet
         if [ -e /proc/1/cgroup ]; then
-            FIND=$(cat ${ROOTDIR}proc/1/cgroup 2> /dev/null | grep -i docker)
+            FIND=$(grep -i docker ${ROOTDIR}proc/1/cgroup 2> /dev/null)
             if [ $? -eq 0 ]; then
                 LogText "Result: found Docker in control groups (/proc/1/cgroup), so we are running in Docker container"
                 CONTAINER_TYPE="Docker"; FOUND=1
@@ -1192,7 +1438,7 @@
         if [ -e /proc/1/environ ]; then
             FIND=$(grep -qa 'container=lxc' ${ROOTDIR}proc/1/environ 2> /dev/null)
             if [ $? -eq 0 ]; then
-                LogText "Result: found LXC in environnement (/proc/1/environ), so we are running in LXC container"
+                LogText "Result: found LXC in environment (/proc/1/environ), so we are running in LXC container"
                 CONTAINER_TYPE="LXC"; FOUND=1
                 EXITCODE=0
             fi
@@ -1208,7 +1454,9 @@
     ################################################################################
     # Name        : IsDebug()
     # Description : Check if --debug option is used to show more details
-    # Returns     : 0 (True) or 1 (False)
+    #
+    # Parameters  : <none>
+    # Returns     : exit code (0 = True, 1 = False)
     ################################################################################
 
     IsDebug() {
@@ -1220,7 +1468,8 @@
     # Name        : IsDeveloperMode()
     # Description : Check if we are in development mode (--developer)
     #
-    # Returns     : 0 (True) or 1 (False)
+    # Parameters  : <none>
+    # Returns     : exit code (0 = True, 1 = False)
     # Notes       : This is set with command line option or as a profile setting
     ################################################################################
 
@@ -1233,11 +1482,12 @@
     # Name        : IsDeveloperVersion()
     # Description : Check if this version is development or stable release
     #
-    # Returns     : 0 (True) or 1 (False)
+    # Parameters  : <none>
+    # Returns     : exit code (0 = True, 1 = False)
     ################################################################################
 
     IsDeveloperVersion() {
-        if [ "${PROGRAM_RELEASE_TYPE}" = "dev" ]; then return 0; else return 1; fi
+        if [ "${PROGRAM_RELEASE_TYPE}" = "pre-release" ]; then return 0; else return 1; fi
     }
 
 
@@ -1245,7 +1495,7 @@
     # Name        : IsEmpty()
     # Description : Check for variable that has no data in it
     #
-    # Returns     : 0 = True, 1 = False
+    # Returns     : exit code (0 = True, 1 = False)
     # Usage       : if IsEmpty "${FIND}"; then
     ################################################################################
 
@@ -1261,19 +1511,32 @@
     ################################################################################
     # Name        : IsRunning()
     # Description : Check if a process is running
+    #
+    # Parameters  : $1 = search argument
+    #               $2 = optional arguments
     # Returns     : 0 (process is running), 1 (process not running)
     #               RUNNING (1 = running, 0 = not running) - will be deprecated
     # Notes       : PSOPTIONS are declared globally, to prevent testing each call
+    #               Fallback is used on binaries as IsRunning is used for 'show' command
     ################################################################################
 
     IsRunning() {
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling IsRunning function"; fi
         pgrep_options="-x"
         search=""
+        FIND=""
+        PSOPTIONS=""
+        PARTIAL_SEARCH=1
+
         while [ $# -ge 1 ]; do
             case $1 in
                 --full)
                     pgrep_options="-f" # replace -x with -f
+                    PARTIAL_SEARCH=0
+                ;;
+                --user)
+                    shift
+                    users="$1"
                 ;;
                 *)
                     search="$1"
@@ -1284,23 +1547,66 @@
 
         if [ -z "${search}" ]; then ExitFatal "Missing process to search for when using IsRunning function"; fi
         RUNNING=0
-        if [ ! -z "${PGREPBINARY}" ]; then
-            FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
+        # AIX does not fully support pgrep options, so using ps instead
+        if [ "${OS}" != "AIX" ]; then
+            # When --user is used, perform a search using the -u option
+            # Initialize users for strict mode
+            if [ -n "${users:-}" ]; then
+                for u in ${users}; do
+                    user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY:-awk} -F: '{print $3}')
+                    # Only perform search if user exists and we had no match yet
+                    if [ -n "${user_uid}" ]; then
+                        if [ -z "${FIND}" ]; then
+                            LogText "Performing pgrep scan using uid ${user_uid}"
+                            FIND=$(${PGREPBINARY:-pgrep} ${pgrep_options} -u "${user_uid}" "${search}" | ${TRBINARY:-tr} '\n' ' ')
+                        fi
+                    fi
+                done
+            else
+                LogText "Performing pgrep scan without uid"
+                FIND=$(${PGREPBINARY:-pgrep} ${pgrep_options} "${search}" | ${TRBINARY:-tr} '\n' ' ')
+            fi
         else
-            if [ -z "${PSOPTIONS}" ]; then
+            if [ "${SHELL_IS_BUSYBOX}" -eq 1 ]; then
+                # This search is not foolproof
+                LogText "Performing simple ps scan (busybox)"
                 PSOPTIONS=" -o args="
-                if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
+                FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${EGREPBINARY:-egrep} "( |/)${search}" | ${GREPBINARY:-grep} -v "grep")
+            else
+                if [ -n "${users}" ]; then
+                    for u in ${users}; do
+                        user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY:-awk} -F: '{print $3}')
+                        # Only perform search if user exists and we had no match yet
+                        if [ -n "${user_uid}" ]; then
+                            if [ -z "${FIND}" ]; then
+                                if [ ${PARTIAL_SEARCH} -eq 1 ]; then
+                                    LogText "Performing ps scan using partial match and for uid ${user_uid}"
+                                    FIND=$(${PSBINARY:-ps} -u "${user_uid}" -o comm= "${search}" | ${AWKBINARY:-awk} -v pattern="${search}" '$0 ~ pattern {print}')
+                                else
+                                    LogText "Performing ps scan using exact match and for uid ${user_uid}"
+                                    FIND=$(${PSBINARY:-ps} -u "${user_uid}" -o comm= "${search}" | ${AWKBINARY:-awk} -v pattern="^${search}$" '$0 ~ pattern {print}')
+                                fi
+                            fi
+                        fi
+                    done
+                else
                     case "${OS}" in
                         "Linux")
                             PSOPTIONS=" -o args= -C ${search}"
                         ;;
                     esac
+                    if [ ${PARTIAL_SEARCH} -eq 1 ]; then
+                        LogText "Performing ps scan using partial match and without uid"
+                        FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${AWKBINARY:-awk} -v pattern="${search}" '$0 ~ pattern {print}')
+                    else
+                        LogText "Performing ps scan using exact match and without uid"
+                        FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${AWKBINARY:-awk} -v pattern="^${search}$" '$0 ~ pattern {print}')
+                    fi
                 fi
             fi
-            FIND=$(${PSBINARY} ${PSOPTIONS} | egrep "( |/)${search}" | grep -v "grep")
         fi
 
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             RUNNING=1
             LogText "IsRunning: process '${search}' found (${FIND})"
             return 0
@@ -1314,12 +1620,12 @@
     ################################################################################
     # Name        : IsNotebook
     # Description : Check if file or directory is owned by root
-    # Returns     : 0 (true), 1 (false), or 255 (unknown)
+    # Returns     : exit code (0 = True, 1 = False, 255 = Unknown)
     ################################################################################
 
     IsNotebook() {
         FIND=$(which laptop-detect 2> /dev/null | grep -v "no [^ ]* in ")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             Debug "Testing if we are a notebook"
             laptop-detect
             if [ $? -eq 0 ]; then SYSTEM_IS_NOTEBOOK=1; Debug "System is a notebook according to laptop-detect"
@@ -1370,7 +1676,9 @@
     ################################################################################
     # Name        : IsVerbose()
     # Description : Check if --verbose option is used to show more details on screen
-    # Returns     : 0 (true) or 1 (false)
+    #
+    # Parameters  : <none>
+    # Returns     : exit code (0 =true, 1 =false)
     ################################################################################
 
     IsVerbose() {
@@ -1381,9 +1689,11 @@
     ################################################################################
     # Name        : IsVirtualMachine()
     # Description : Determine whether it is a virtual machine
-    # Returns     : ISVIRTUALMACHINE (0-2)
-    #               VMTYPE
-    #               VMFULLTYPE
+    # Parameters  : <none>
+    # Returns     : exit code (0 = True, 1 = False, 2 = Unknown)
+    #               variable: ISVIRTUALMACHINE (0-2)
+    #               variable: VMTYPE
+    #               variable: VMFULLTYPE
     ################################################################################
 
     IsVirtualMachine() {
@@ -1391,6 +1701,10 @@
         # 0 = no, 1 = yes, 2 = unknown
         ISVIRTUALMACHINE=2; VMTYPE="unknown"; VMFULLTYPE="Unknown"
         SHORT=""
+
+        if [ ${SKIP_VM_DETECTION} -eq 1 ]; then
+            return 2
+        fi
 
         # lxc environ detection
         if [ -z "${SHORT}" ]; then
@@ -1429,7 +1743,7 @@
             if [ -x /usr/bin/systemd-detect-virt ]; then
                 LogText "Test: trying to guess virtualization technology with systemd-detect-virt"
                 FIND=$(/usr/bin/systemd-detect-virt)
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 fi
@@ -1446,7 +1760,7 @@
             if [ -x /usr/bin/lscpu ]; then
                 LogText "Test: trying to guess virtualization with lscpu"
                 FIND=$(lscpu | grep -i "^Hypervisor Vendor" | awk -F: '{ print $2 }' | sed 's/ //g')
-                if [ ! -z "${FIND}" ]; then
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 else
@@ -1462,15 +1776,12 @@
         # dmidecode
         # Values: VMware Virtual Platform / VirtualBox
         if [ -z "${SHORT}" ]; then
-            if [ -x /usr/bin/dmidecode ]; then DMIDECODE_BINARY="/usr/bin/dmidecode"
-            elif [ -x /usr/sbin/dmidecode ]; then DMIDECODE_BINARY="/usr/sbin/dmidecode"
-            else
-                DMIDECODE_BINARY=""
-            fi
-            if [ ! "${DMIDECODE_BINARY}" = "" -a ${PRIVILEGED} -eq 1 ]; then
+            # Try to find dmidecode in case we did not check binaries (e.g. lynis show environment)
+            if [ ${CHECK_BINARIES} -eq 0 ]; then DMIDECODEBINARY=$(command -v dmidecode 2> /dev/null); fi
+            if [ -n "${DMIDECODEBINARY}" -a -x "${DMIDECODEBINARY}" -a ${PRIVILEGED} -eq 1 ]; then
                 LogText "Test: trying to guess virtualization with dmidecode"
-                FIND=$(/usr/sbin/dmidecode -s system-product-name | awk '{ print $1 }')
-                if [ ! -z "${FIND}" ]; then
+                FIND=$(${DMIDECODEBINARY} -s system-product-name | awk '{ print $1 }')
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
                 else
@@ -1482,6 +1793,7 @@
         else
             LogText "Result: skipped dmidecode test, as we already found machine type"
         fi
+
         # Other options
         # SaltStack: salt-call grains.get virtual
         # < needs snippet >
@@ -1523,7 +1835,7 @@
             # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
             # NetBSD: machdep.dmi.system-product
             # OpenBSD: hw.product
-            FIND=$(sysctl -a 2> /dev/null | egrep "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }')
+            FIND=$(sysctl -a 2> /dev/null | grep -E "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }')
             if [ ! "${FIND}" = "" ]; then
                 SHORT="${FIND}"
             fi
@@ -1552,7 +1864,7 @@
         fi
 
         # Check if we caught some string along all tests
-        if [ ! "${SHORT}" = "" ]; then
+        if [ -n "${SHORT}" ]; then
             # Lowercase and see if we found a match
             SHORT=$(echo ${SHORT} | awk '{ print $1 }' | tr '[:upper:]' '[:lower:]')
 
@@ -1595,7 +1907,7 @@
     # Name        : IsWorldReadable()
     # Description : Determines if a file is readable for all users (world)
     #
-    # Input       : path (string)
+    # Input       : $1 = path (string)
     # Returns     : exit code (0 = readable, 1 = not readable, 255 = error)
     # Usage       : if IsWorldReadable /etc/motd; then echo "File is readable"; fi
     ################################################################################
@@ -1621,7 +1933,7 @@
     # Name        : IsWorldExecutable()
     # Description : Determines if a file is executable for all users (world)
     #
-    # Input       : path (string)
+    # Input       : $1 = path (string)
     # Returns     : exit code (0 = executable, 1 = not executable, 255 = error)
     # Usage       : if IsWorldExecutable /bin/ps; then echo "File is executable"; fi
     ################################################################################
@@ -1648,7 +1960,7 @@
     # Name        : IsWorldWritable()
     # Description : Determines if a file is writable for all users
     #
-    # Input       : path
+    # Parameters  : $1 = path
     # Returns     : exit code (0 = writable, 1 = not writable, 255 = error)
     # Usage       : if IsWorldWritable /etc/motd; then echo "File is writable"; fi
     ################################################################################
@@ -1673,8 +1985,8 @@
     # Name        : LogText()
     # Description : Function logtext (redirect data ($1) to log file)
     #
-    # Input       : $1 = text (string)
-    # Returns     : Nothing
+    # Parameters  : $1 = text (string)
+    # Returns     : <nothing>
     # Usage       : LogText "This line goes into the log file"
     ################################################################################
 
@@ -1692,14 +2004,14 @@
     LogTextBreak() {
         if [ ! "${LOGFILE}" = "" -a ${LOGTEXT} -eq 1 ]; then
             CDATE=$(date "+%Y-%m-%d %H:%M:%S")
-            echo "${CDATE} ===---------------------------------------------------------------===" >> ${LOGFILE}
+            echo "${CDATE} ====" >> ${LOGFILE}
         fi
     }
 
 
     ################################################################################
     # Name        : PackageIsInstalled()
-    # Description : Add a separator to log file between sections, tests etc
+    # Description : Determines if a package is installed
     # Returns     : exit code
     # Notes       : this function is not used yet, but created in advance to allow
     #               the addition of support for all operating systems
@@ -1708,23 +2020,59 @@
     PackageIsInstalled() {
         exit_code=255
 
+        # First parameter is package name (or __dummy__ for initial test to see if package manager is available and works as expected)
         if [ $# -eq 1 ]; then
             package="$1"
         else
             Fatal "Incorrect usage of PackageIsInstalled function"
         fi
 
-        if [ ! -z "${RPMBINARY}" ]; then
-            output=$(${RPMBINARY} --quiet -q ${package} 2> /dev/null)
+        if [ -n "${DNFBINARY}" ]; then
+            output=$(${DNFBINARY} --quiet --cacheonly --noplugins --assumeno info --installed ${package} > /dev/null 2>&1)
             exit_code=$?
-        elif ! -z "${DPKGBINARY}" ]; then
-            output=$(${DPKGBINARY} -l ${package} 2> /dev/null)
+        elif [ -n "${DPKGBINARY}" ]; then
+            output=$(${DPKGBINARY} -l ${package} 2> /dev/null | ${GREPBINARY} "^ii")
             exit_code=$?
-        elif [ ! -z "${ZYPPERBINARY}" ]; then
-            output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${PACKAGE} 2> /dev/null | grep "^i")
-            if [ ! -z "${output}" ]; then exit_code=0; else exit_code=1; fi
+        elif [ -n "${EQUERYBINARY}" ]; then
+            output=$(${EQUERYBINARY} --quiet ${package} > /dev/null 2>&1)
+            exit_code=$?  # 0=package installed, 3=package not installed
+        elif [ -n "${PACMANBINARY}" ]; then
+            output=$(${PACMANBINARY} -Qs ${PKG} | grep "local/${PKG} " >/dev/null 2>&1)
+            exit_code=$?  # 0=package installed, 1=package not installed
+        elif [ -n "${PKG_BINARY}" ]; then
+            output=$(${PKG_BINARY} -N info ${package} >/dev/null 2>&1)
+            exit_code=$?  # 0=package installed, 70=invalid package
+        elif [ -n "${PKGINFOBINARY}" ]; then
+            output=$(${PKGINFOBINARY} -q -e ${package} >/dev/null 2>&1)
+            exit_code=$?  # 0=package installed, 1=package not installed
+        elif [ -n "${RPMBINARY}" ]; then
+            output=$(${RPMBINARY} --quiet -q ${package} > /dev/null 2>&1)
+            exit_code=$?
+        elif [ -n "${SWUPDBINARY}" ]; then
+            output=$(${SWUPDBINARY} bundle-list > /dev/null 2>&1 | ${GREPBINARY} "^${package}$")
+            exit_code=$?
+        elif [ -n "${ZYPPERBINARY}" ]; then
+            output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${package} 2> /dev/null | grep "^i")
+            if [ -n "${output}" ]; then exit_code=0; else exit_code=1; fi
+        elif [ -n "${XBPSBINARY}" ]; then
+            output=$(${XBPSBINARY} ${package} 2> /dev/null | ${GREPBINARY} "^ii")
+            exit_code=$?
         else
-            ReportException "PackageIsInstalled:01"
+            if [ "${package}" != "__dummy__" ]; then
+                ReportException "PackageIsInstalled:01 (test=${TEST_NO:-unknown})"
+            fi
+        fi
+
+        # Give thumbs up if dummy package is used during initial test for package manager availability
+        if [ "${package}" = "__dummy__" ]; then
+            # There should be no positive match on this dummy package
+            if [ ${exit_code} -eq 0 ]; then
+                exit_code=1
+            elif [ ${exit_code} -eq 255 ]; then
+                exit_code=1
+            else
+                exit_code=0
+            fi
         fi
 
         return ${exit_code}
@@ -1734,6 +2082,7 @@
     ################################################################################
     # Name        : ParseProfiles()
     # Description : Check file permissions and parse data from profiles
+    # Parameters  : <none>
     # Returns     : <nothing>
     ################################################################################
 
@@ -1746,8 +2095,9 @@
     ################################################################################
     # Name        : ParseTestValues()
     # Description : Parse values from a specific test
-    # Inputs      : service (e.g. ssh)
-    # Returns     : CHECK_VALUES_ARRAY
+    #
+    # Parameters  : $1 = service (e.g. ssh)
+    # Returns     : CHECK_VALUES_ARRAY variable
     ################################################################################
 
     ParseTestValues() {
@@ -1801,7 +2151,8 @@
     ################################################################################
     # Name        : ParseNginx()
     # Description : Parse nginx configuration lines
-    # Input       : $1 = file (should be readable and tested upfront)
+    #
+    # Parameters  : $1 = file (should be readable and tested upfront)
     # Returns     : <nothing>
     ################################################################################
 
@@ -1820,11 +2171,11 @@
         # Strip out spaces, tabs and line breaks
         awk '{$1=$1;print $0}' ${CONFIG_FILE} > ${TMP_NGINX_FILE_RAW}
         # Now clean up the file further (combine lines, remove commented lines and empty lines)
-        cat ${TMP_NGINX_FILE_RAW} | sed 's#\\$##g' | grep -v "^#" | grep -v "^$" > ${TMP_NGINX_FILE}
+        sed 's#\\$##g' ${TMP_NGINX_FILE_RAW} | grep -v "^#" | grep -v "^$" > ${TMP_NGINX_FILE}
 
         LogText "Action: parsing configuration file ${CONFIG_FILE}"
         COUNT=$(( COUNT + 1))
-        FIND=$(cat ${TMP_NGINX_FILE} | sed 's/ /:space:/g')
+        FIND=$(sed 's/ /:space:/g' ${TMP_NGINX_FILE})
         DEPTH=0
         for I in ${FIND}; do
             I=$(echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//')
@@ -1870,8 +2221,9 @@
                         if [ ! "${VALUE}" = "" ]; then
                             # If multiple values follow, select first one
                             VALUE=$(echo ${VALUE} | awk '{ print $1 }')
-                            if [ ! -f ${VALUE} ]; then
-                                LogText "Result: could not find referenced log file ${VALUE} in nginx configuration"
+                            # Find both, log files provided with full or relative path
+                            if [ ! -f ${VALUE} -a ! -f "${CONFIG_FILE%nginx.conf}${VALUE}" ]; then
+                                LogText "Result: could not find log file ${VALUE} referenced in nginx configuration"
                                 NGINX_ACCESS_LOG_MISSING=1
                             fi
                         fi
@@ -1907,7 +2259,8 @@
                     # Check if log file exists
                     FILE=$(echo ${VALUE} | awk '{ print $1 }')
                     if [ ! "${FILE}" = "" ]; then
-                        if [ ! -f ${FILE} ]; then
+                        # Find both, log files provided with full or relative path
+                        if [ ! -f ${FILE} -a ! -f "${CONFIG_FILE%nginx.conf}${FILE}" ]; then
                             NGINX_ERROR_LOG_MISSING=1
                         fi
                     else
@@ -1938,6 +2291,30 @@
                             if [ "${CONF}" = "${VALUE}" ]; then FOUND=1; LogText "Found this file already in our configuration files array (additions), not adding to queue"; fi
                         done
                         if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${VALUE}"; fi
+                    # Check if include value is a relative path only
+                    elif [ -f "${CONFIG_FILE%nginx.conf}${VALUE%;*}" ]; then
+                        VALUE="${CONFIG_FILE%nginx.conf}${VALUE}"
+                        FOUND=0
+                        for CONF in ${NGINX_CONF_FILES}; do
+                            if [ "${CONF}" = "${VALUE}" ]; then FOUND=1; LogText "Found this file already in our configuration files array, not adding to queue"; fi
+                        done
+                        for CONF in ${NGINX_CONF_FILES_ADDITIONS}; do
+                            if [ "${CONF}" = "${VALUE}" ]; then FOUND=1; LogText "Found this file already in our configuration files array (additions), not adding to queue"; fi
+                        done
+                        if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${VALUE}"; fi
+                    # Check for additional config files included as follows
+                    # "include sites-enabled/*.conf"
+                    elif [ $(echo ${VALUE} | grep -F -c "*.conf") -gt 0 ]; then
+                        for FOUND_CONF in $(ls ${CONFIG_FILE%nginx.conf}${VALUE%;*}); do
+                            FOUND=0
+                            for CONF in ${NGINX_CONF_FILES}; do
+                                if [ "${CONF}" = "${FOUND_CONF}" ]; then FOUND=1; LogText "Found this file already in our configuration files array, not adding to queue"; fi
+                            done
+                            for CONF in ${NGINX_CONF_FILES_ADDITIONS}; do
+                                if [ "${CONF}" = "${FOUND_CONF}" ]; then FOUND=1; LogText "Found this file already in our configuration files array (additions), not adding to queue"; fi
+                            done
+                            if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${FOUND_CONF}"; fi
+                        done
                     else
                         LogText "Result: this include does not point to a file"
                     fi
@@ -1983,7 +2360,7 @@
                     for ITEM in ${VALUE}; do
                         LogText "Result: found protocol ${ITEM}"
                         case ${ITEM} in
-                            "sslv2" | "sslv3")
+                            "sslv2" | "sslv3" | "tlsv1")
                                 NGINX_WEAK_SSL_PROTOCOL_FOUND=1
                             ;;
                         esac
@@ -2015,17 +2392,20 @@
     ################################################################################
     # Name        : PortIsListening()
     # Description : Check if machine is listening on specified protocol and port
-    # Returns     : exit code 0 (listening) or 1 (not listening)
+    #
+    # Parameters  : $1 = protocol
+    #               $2 = port
+    # Returns     : exit code (0 = listening, 1 = not listening, 255 = can't perform test)
     # Usage       : if PortIsListening "TCP" 22; then echo "Port is listening"; fi
     ################################################################################
 
     PortIsListening() {
-        if [ "${LSOFBINARY}" = "" ]; then
+        if [ -z "${LSOFBINARY}" ]; then
             return 255
         else
             if [ $# -eq 2 ] && [ $1 = "TCP" -o $1 = "UDP" ]; then
                 LogText "Test: find service listening on $1:$2"
-                if [ $1 = "TCP" ]; then FIND=$(${LSOFBINARY} -i${1} -s${1}:LISTEN -P -n | grep ":${2} "); else FIND=$(${LSOFBINARY} -i${1} -P -n | grep ":${2} "); fi
+                if [ $1 = "TCP" ]; then FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -i${1} -s${1}:LISTEN -P -n | grep ":${2} "); else FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -i${1} -P -n | grep ":${2} "); fi
                 if [ ! "${FIND}" = "" ]; then
                     LogText "Result: found service listening on port $2 ($1)"
                     return 0
@@ -2045,7 +2425,7 @@
     # Name        : Progress()
     # Description : Displays progress on screen with dots
     #
-    # Input       : --finish or text (string)
+    # Parameters  : $1 = --finish or text (string)
     # Returns     : <nothing>
     # Tip         : Use this function from Register with the --progress parameter
     ################################################################################
@@ -2071,8 +2451,9 @@
     ################################################################################
     # Name        : RandomString()
     # Description : Displays progress on screen with dots
-    # Input       : Amount of characters (optional)
-    # Returns     : RANDOMSTRING
+    #
+    # Parameters  : $1 = number (amount of characters, optional)
+    # Returns     : RANDOMSTRING variable
     # Usage       : RandomString 32
     ################################################################################
 
@@ -2089,18 +2470,53 @@
     }
 
 
+    ################################################################################
+    # Name        : Readonly()
+    # Description : Mark a variable as read-only data
+    #
+    # Returns     : <nothing>
+    # Notes       : new function, not in use yet
+    ################################################################################
+
+    Readonly() {
+        if [ $# -eq 1 ]; then
+            if type -t typeset; then
+                typeset -r $1
+            else
+                Debug "No typeset available to mark variable '$1' as read-only variable"
+            fi
+        else
+            ExitFatal "Expected 1 parameter, received none or multiple"
+        fi
+    }
+
 
     ################################################################################
     # Name        : Register()
     # Description : Register a test and see if it has to be run
+    #
+    # Parameters  : multiple, see test
     # Returns     : SKIPTEST (0 or 1)
     ################################################################################
+
+    GetTimestamp() {
+        ts=0
+        case "${OS}" in
+            "Linux")
+                ts=$(date "+%s%N")
+            ;;
+            *)
+                ts=$(date "+%s")
+            ;;
+        esac
+        echo $ts
+    }
 
     Register() {
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
-        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; SKIPREASON=""; TEST_NEED_OS=""; PREQS_MET=""
-        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
+        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; SKIPREASON=""; PREQS_MET=""
+        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_OS=""; TEST_NEED_PKG_MGR=0; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         while [ $# -ge 1 ]; do
             case $1 in
@@ -2123,6 +2539,9 @@
                 --os)
                     shift
                     TEST_NEED_OS=$1
+                ;;
+                --package-manager-required)
+                    TEST_NEED_PKG_MGR=1
                 ;;
                 --preqs-met)
                     shift
@@ -2163,6 +2582,35 @@
             shift
         done
 
+        # Measure timing
+        CURRENT_TS=$(GetTimestamp)
+        if [ ${PREVIOUS_TS} -gt 0 ]; then
+            SLOW_TEST=0
+            TIME_THRESHOLD=$SLOW_TEST_THRESHOLD  # seconds
+
+            # Calculate timing and determine if we use seconds or nanoseconds (more precise)
+            TIME_DIFF=$((CURRENT_TS - PREVIOUS_TS))
+            if [ ${CURRENT_TS} -gt 1000000000000000000 ]; then
+                TIME_DIFF_FORMAT="nanoseconds"
+                TIME_THRESHOLD=$((TIME_THRESHOLD * 1000000000))
+                if [ ${TIME_DIFF} -gt ${TIME_THRESHOLD} ]; then
+                    SLOW_TEST=1
+                    # Convert back to seconds for readability
+                    TIME_DIFF_FORMAT="seconds"
+                    TIME_DIFF=$(echo ${TIME_DIFF} | ${AWKBINARY} '{printf "%f",$1/1000000000}')
+                fi
+            else
+                TIME_DIFF_FORMAT="seconds"
+                if [ ${TIME_DIFF} -gt ${TIME_THRESHOLD} ]; then
+                    SLOW_TEST=1
+                fi
+            fi
+            if [ ${SLOW_TEST} -eq 1 ]; then
+                DisplayWarning "Test ${PREVIOUS_TEST} had a long execution: ${TIME_DIFF} ${TIME_DIFF_FORMAT}"
+                Report "slow_test[]=${PREVIOUS_TEST},${TIME_DIFF}"
+            fi
+        fi
+
         # Skip test if it's configured in profile (old style)
         if [ ${SKIPTEST} -eq 0 ]; then
             FIND=$(echo "${TEST_SKIP_ALWAYS}" | grep "${TEST_NO}" | tr '[:lower:]' '[:upper:]')
@@ -2188,7 +2636,7 @@
         if [ ${SKIPTEST} -eq 0 -a "${TEST_WEIGHT}" = "M" -a "${SCAN_TEST_MEDIUM}" = "NO" ]; then SKIPTEST=1; SKIPREASON="Test to system intensive for scan mode (M)"; fi
 
         # Test if our OS is the same as the requested OS (can be multiple values)
-        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_OS}" ]; then
+        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_OS}" ]; then
             HASMATCH=0
             for I in ${TEST_NEED_OS}; do
                 if [ "${I}" = "${OS}" ]; then HASMATCH=1; fi
@@ -2200,12 +2648,15 @@
         fi
 
         # Skip test when it belongs to another category (default is 'all')
-        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_CATEGORY_TO_CHECK}" -a ! "${TEST_CATEGORY_TO_CHECK}" = "all" -a ! "${TEST_CATEGORY}" = "${TEST_CATEGORY_TO_CHECK}" ]; then
+        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_CATEGORY_TO_CHECK}" -a ! "${TEST_CATEGORY_TO_CHECK}" = "all" -a ! "${TEST_CATEGORY}" = "${TEST_CATEGORY_TO_CHECK}" ]; then
             SKIPTEST=1; SKIPREASON="Incorrect category (${TEST_CATEGORY_TO_CHECK} only)"
         fi
 
         # Check for correct hardware platform
-        if [ ${SKIPTEST} -eq 0 -a ! -z "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
+        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
+
+        # Check for required (and discovered) package manager
+        if [ ${SKIPTEST} -eq 0 -a ${TEST_NEED_PKG_MGR} -eq 1 -a ${HAS_PACKAGE_MANAGER} -eq 0 ]; then SKIPTEST=1; SKIPREASON="Requires a known package manager to test presence of a particular package"; fi
 
         # Not all prerequisites met, like missing tool
         if [ ${SKIPTEST} -eq 0 -a "${PREQS_MET}" = "NO" ]; then SKIPTEST=1; if [ -z "${SKIPREASON}" ]; then SKIPREASON="Prerequisites not met (ie missing tool, other type of Linux distribution)"; fi; fi
@@ -2235,12 +2686,18 @@
             TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
         fi
         unset SKIPREASON
+
+        # Save timestamp for next time the Register function is called
+        PREVIOUS_TEST="${TEST_NO}"
+        PREVIOUS_TS="${CURRENT_TS}"
     }
 
 
     ################################################################################
     # Name        : RemoveColors()
-    #    RemoveColors    Clear color settings for --no-colors (see include/consts)
+    # Description : Disabled colors by overriding them (defined in include/consts)
+    #
+    # Notes       : Can be activated using --no-colors
     ################################################################################
 
     RemoveColors() {
@@ -2262,6 +2719,7 @@
 
         # Colors with background
         BG_BLUE=""
+        BG_WARNING=""
 
         # Semantic names
         BAD=""
@@ -2276,14 +2734,18 @@
 
     ################################################################################
     # Name        : RemovePIDFile()
+    # Description : When defined, remove the file storing the process ID
+    #
+    # Parameters  : <none>
+    # Returns     : <nothing>
     ################################################################################
 
     # Remove PID file
     RemovePIDFile() {
         # Test if PIDFILE is defined, before checking file presence
-        if [ ! "${PIDFILE}" = "" ]; then
-            if [ -f ${PIDFILE} ]; then
-                rm -f $PIDFILE;
+        if [ -n "${PIDFILE}" ]; then
+            if [ -f "${PIDFILE}" ]; then
+                rm -f "${PIDFILE}"
                 LogText "PID file removed (${PIDFILE})"
             else
                 LogText "PID file not found (${PIDFILE})"
@@ -2294,6 +2756,7 @@
 
     ################################################################################
     # Name        : RemoveTempFiles()
+    # Description : When created, delete any temporary file
     ################################################################################
 
     # Remove any temporary files
@@ -2303,11 +2766,11 @@
             # Clean up temp files
             for FILE in ${TEMP_FILES}; do
                 # Temporary files should be in /tmp
-                TMPFILE=$(echo ${FILE} | egrep "^/tmp/lynis" | grep -v "\.\.")
-                if [ ! "${TMPFILE}" = "" ]; then
-                    if [ -f ${TMPFILE} ]; then
+                TMPFILE=$(echo ${FILE} | grep -E "^/tmp/lynis" | grep -v "\.\.")
+                if [ -n "${TMPFILE}" ]; then
+                    if [ -f "${TMPFILE}" ]; then
                         LogText "Action: removing temporary file ${TMPFILE}"
-                        rm -f ${TMPFILE}
+                        rm -f "${TMPFILE}"
                     else
                         LogText "Info: temporary file ${TMPFILE} was already removed"
                     fi
@@ -2323,6 +2786,10 @@
 
     ################################################################################
     # Name        : Report()
+    # Description : Store data in the report file
+    #
+    # Parameters  : $1 = data (format: key=value)
+    # Returns     : <nothing>
     ################################################################################
 
     Report() {
@@ -2336,7 +2803,7 @@
     #               smaller atomic tests are performed. For example sysctl keys,
     #               and SSH settings.
     #
-    # Input       : <multiple fields, see test>
+    # Parameters  : <multiple fields, see test>
     # Returns     : <nothing>
     # Notes       : Need to check for values (strip out semicolons from values)
     #               Only add fields which are filled in
@@ -2397,24 +2864,30 @@
 
     ################################################################################
     # Name        : ReportException()
+    # Description : Store an exceptional event in the report
+    #
+    # Parameters  : $1 = test ID + colon + 2 numeric characters (TEST-1234:01)
+    #               $2 = string (text)
+    # Notes       : Allow this function with only 1 parameter in strict mode with ${2-Text}
     ################################################################################
 
-    # Log exceptions
     ReportException() {
-        # 1 parameters
-        # <ID>:<2 char numeric>|text|
-        Report "exception_event[]=$1|$2|"
-        LogText "Exception: test has an exceptional event ($1) with text $2"
+        Report "exception_event[]=$1|${2-NoInfo}|"
+        LogText "Exception: test has an exceptional event ($1) with text ${2-NoText}"
+        if [ ${QUIET} -eq 0 ]; then
+            DisplayException "$1" "$2"
+        fi
     }
 
 
     ################################################################################
     # Name        : ReportManual()
+    # Description : Add an item to the report that requires manual intervention
+    #
+    # Parameters  : $1 = string (text)
     ################################################################################
 
-    # Log manual actions to report file
     ReportManual() {
-        # 1 parameter: Text
         Report "manual_event[]=$1"
         LogText "Manual: one or more manual actions are required for further testing of this control/plugin"
     }
@@ -2422,20 +2895,21 @@
 
     ################################################################################
     # Name        : ReportSuggestion()
+    # Description : Log a suggestion to the report file
+    #
+    # Parameters  : <ID> <Suggestion> <Details> <Solution>
+    #               $1 = Test ID - Lynis ID (use CUST-.... for your own tests)
+    #               $2 = Suggestion - Suggestion text to be displayed
+    #               $3 = Details - Specific item or details
+    #               $4 = Solution - Optional link for additional information:
+    #                    * url:https://example.org/how-to-solve-link
+    #                    * text:Additional explanation
+    #                    * - (dash) for none
+    # Returns     : <nothing>
     ################################################################################
 
-    # Log suggestions to report file
     ReportSuggestion() {
         TOTAL_SUGGESTIONS=$((TOTAL_SUGGESTIONS + 1))
-        # 4 parameters
-        # <ID> <Suggestion> <Details> <Solution>
-        # <ID>         Lynis ID (use CUST-.... for your own tests)
-        # <Suggestion> Suggestion text to be displayed
-        # <Details>    Specific item or details
-        # <Solution>   Optional link for additional information:
-        #              * url:http://site/link
-        #              * text:Additional explanation
-        #              * - for none
         if [ $# -eq 0 ]; then echo "Not enough arguments provided for function ReportSuggestion"; ExitFatal; fi
         if [ $# -ge 1 ]; then TEST="$1"; else TEST="UNKNOWN"; fi
         if [ $# -ge 2 ]; then MESSAGE="$2"; else MESSAGE="UNKNOWN"; fi
@@ -2449,18 +2923,20 @@
 
     ################################################################################
     # Name        : ReportWarning()
+    # Description : Log a warning to the report file
+    #
+    # Parameters  : $1 = test ID
+    #               $2 = message (optional)
+    #               $3 = details (optional)
+    #               $4 = possible solution (optional)
+    # Returns     : <nothing>
     ################################################################################
 
-    # Log warning to report file
     ReportWarning() {
         TOTAL_WARNINGS=$((TOTAL_WARNINGS + 1))
-        # Old style
-        # <ID> <priority/impact> <warning text>
+        # Old style used L/M/H level as second parameter. This is deprecated as of 3.x
         if [ "$2" = "L" -o "$2" = "M" -o "$2" = "H" ]; then
-            if [ $# -ge 1 ]; then TEST="$1"; fi
-            if [ $# -ge 2 ]; then DETAILS="$2"; fi
-            if [ $# -ge 3 ]; then MESSAGE="$3"; fi
-            SOLUTION="-"
+            ExitFatal "Deprecated usage of ReportWarning() function"
         else
             # New style warning format:
             # <ID> <Warning> <Details> <Solution>
@@ -2485,75 +2961,183 @@
 
 
     ################################################################################
+    # Name        : SafeInput()
+    # Description : Test provided string to see if it contains unwanted characters
+    #
+    # Input       : string + optional class (parameter 2)
+    # Returns     : exit code (0 = input considered to be safe, 1 = validation failed)
+    ################################################################################
+
+    SafeInput() {
+        exitcode=1
+        # By default remove only control characters
+        if [ $# -eq 1 ]; then
+            input="$1"
+            cleaned=$(echo ${input} | tr -d '[:cntrl:]')
+        # If know what to test against, then see if input matches the specified class
+        elif [ $# -eq 2 ]; then
+            input="$1"
+            testchars="$2"
+            cleaned=$(echo $1 | tr -cd "${testchars}")
+        else
+            ExitFatal "No argument or too many arguments provided to SafeInput()"
+        fi
+
+        if [ "${cleaned}" = "${input}" ]; then
+            exitcode=0
+        fi
+        return ${exitcode}
+    }
+
+
+    ################################################################################
+    # Name        : SafeFile()
+    # Description : Check if a file is safe to use
+    #
+    # Parameters  : $1 = file name
+    # Returns     : exit code (0 = OK, 1 = issue)
+    ################################################################################
+
+    SafeFile() {
+        unsafe=0
+        if [ $# -ne 1 ]; then
+            ExitFatal "No argument or too many arguments provided to SafeFile()"
+        else
+            FILE="$1"
+
+            # Generic checks
+            if [ -g "${FILE}" ]; then
+                LogText "Security alert: file has setgid attribute"
+                unsafe=1
+            # sticky bit
+            elif [ -k "${FILE}" ]; then
+                LogText "Security alert: file has sticky bit"
+                unsafe=1
+            # symbolic link
+            elif [ -L "${FILE}" ]; then
+                LogText "Security alert: file is a symbolic link"
+                unsafe=1
+            elif [ -f "${FILE}" ]; then
+                LogText "Security check: file is normal"
+            else
+                unsafe=1
+            fi
+
+            # Perform additional checks based on privilege level
+            if [ ${PRIVILEGED} -eq 0 ]; then
+                # File is not owned by active user, but still able to write
+                if [ ! -O "${FILE}" -a -w "${FILE}" ]; then
+                    unsafe=1
+                    LogText "Security alert: file is not owned by active user, but can write to it"
+                fi
+            fi
+
+            # Check file permissions
+            if ! SafePerms "${FILE}"; then
+                unsafe=1
+            fi
+
+        fi
+
+        return ${unsafe}
+    }
+
+
+    ################################################################################
     # Name        : SafePerms()
-    # Return      : 0 (file OK) or break
+    # Description : Check if a file has safe permissions to be used
+    #
+    # Parameters  : $1 = file name
+    #               $2 = type of file (optional)
+    # Returns     : 0 (file permissions OK) or break
     ################################################################################
 
     SafePerms() {
-        if [ ${WARN_ON_FILE_ISSUES} -eq 1 ]; then
+        exitcode=1
+        IS_PARAMETERS=0
+        IS_PROFILE=0
+
+        if [ ${IGNORE_FILE_PERMISSION_ISSUES} -eq 0 ]; then
             PERMS_OK=0
             LogText "Checking permissions of $1"
-            if [ $# -eq 1 ]; then
-                IS_PARAMETERS_FILE=$(echo $1 | grep "/parameters")
+
+            if [ $# -gt 0 ]; then
+
+                if [ $# -eq 2 ]; then
+                    case "$2" in
+                        "parameters")
+                            IS_PARAMETERS=1
+                        ;;
+                        "profile")
+                            IS_PROFILE=1
+                        ;;
+                    esac
+                else
+                    FIND=$(echo $1 | grep "/parameters")
+                    if [ $? -eq 0 ]; then IS_PARAMETERS=1; fi
+                fi
                 # Check file permissions
-                  if [ ! -f "$1" ]; then
-                      LogText "Fatal error: file $1 does not exist. Quitting."
-                      echo "Fatal error: file $1 does not exist"
-                      ExitFatal
-                    else
-                      PERMS=$(ls -l $1)
-                      # Owner permissions
-                      OWNER=$(echo ${PERMS} | awk -F" " '{ print $3 }')
-                      OWNERID=$(ls -n $1 | awk -F" " '{ print $3 }')
-                      if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
-                          if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
-                              echo "Fatal error: file $1 should be owned by user 'root' when running it as root (found: ${OWNER})."
-                              ExitFatal
-                          fi
-                      fi
-                      # Group permissions
-                      GROUP=$(echo ${PERMS} | awk -F" " '{ print $4 }')
-                      GROUPID=$(ls -n $1 | awk -F" " '{ print $4 }')
+                if [ ! -f "$1" ]; then
+                    LogText "Fatal error: file $1 does not exist."
+                    ExitFatal "Fatal error: file $1 does not exist"
+                else
+                    PERMS=$(ls -l $1)
 
-                      if [ ${PENTESTINGMODE} -eq 0 -a "${IS_PARAMETERS_FILE}" = "" ]; then
-                          if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
-                              echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
-                              ExitFatal
-                          fi
-                      fi
+                    # Owner permissions
+                    OWNER=$(echo ${PERMS} | awk -F" " '{ print $3 }')
+                    OWNERID=$(ls -n $1 | awk -F" " '{ print $3 }')
+                    if [ ${PENTESTINGMODE} -eq 0 -a ${IS_PARAMETERS} -eq 0 ]; then
+                        if [ ! "${OWNER}" = "root" -a ! "${OWNERID}" = "0" ]; then
+                            echo "Fatal error: file $1 should be owned by user 'root' when running it as root (found: ${OWNER})."
+                            ExitFatal
+                        fi
+                    fi
+                    # Group permissions
+                    GROUP=$(echo ${PERMS} | awk -F" " '{ print $4 }')
+                    GROUPID=$(ls -n $1 | awk -F" " '{ print $4 }')
 
-                      # Owner permissions
-                      OWNER_PERMS=$(echo ${PERMS} | cut -c2-4)
-                      if [ ! "${OWNER_PERMS}" = "rw-" -a ! "${OWNER_PERMS}" = "r--" ]; then
-                          echo "Fatal error: permissions of file $1 are not strict enough. Access to 'owner' should be read-write, or read. Change with: chmod 600 $1"
-                          ExitFatal
-                      fi
+                    if [ ${PENTESTINGMODE} -eq 0 -a ${IS_PARAMETERS} -eq 0 ]; then
+                        if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
+                            echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
+                            ExitFatal
+                        fi
+                    fi
 
-                      # Owner permissions
-                      GROUP_PERMS=$(echo ${PERMS} | cut -c5-7)
-                      if [ ! "${GROUP_PERMS}" = "rw-" -a ! "${GROUP_PERMS}" = "r--" -a ! "${GROUP_PERMS}" = "---" ]; then
-                          echo "Fatal error: permissions of file $1 are not strict enough. Access to 'group' should be read-write, read, or none. Change with: chmod 600 $1"
-                          ExitFatal
-                      fi
+                    # Owner permissions
+                    OWNER_PERMS=$(echo ${PERMS} | cut -c2-4)
+                    if [ ! "${OWNER_PERMS}" = "rw-" -a ! "${OWNER_PERMS}" = "r--" ]; then
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'owner' should be read-write, or read. Change with: chmod u=rw $1"
+                        ExitFatal
+                    fi
 
-                      # Other permissions
-                      OTHER_PERMS=$(echo ${PERMS} | cut -c8-10)
-                      if [ ! "${OTHER_PERMS}" = "---" -a ! "${OTHER_PERMS}" = "r--" ]; then
-                          echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied or read-only. Change with: chmod 600 $1"
-                          ExitFatal
-                      fi
-                      # Set PERMS_OK to 1 if no fatal errors occurred
-                      PERMS_OK=1
-                      LogText "File permissions are OK"
-                      return 0
-                  fi
+                    # Group permissions
+                    # TODO - harden this even more by setting default to read-only for group (like 'other')
+                    GROUP_PERMS=$(echo ${PERMS} | cut -c5-7)
+                    if [ ! "${GROUP_PERMS}" = "rw-" -a ! "${GROUP_PERMS}" = "r--" -a ! "${GROUP_PERMS}" = "---" ]; then
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'group' should be read-write, read, or none. Change with: chmod g=r $1"
+                        ExitFatal
+                    fi
+
+                    # Other permissions
+                    OTHER_PERMS=$(echo ${PERMS} | cut -c8-10)
+                    if [ ! "${OTHER_PERMS}" = "---" -a ! "${OTHER_PERMS}" = "r--" ]; then
+                        echo "Fatal error: permissions of file $1 are not strict enough. Access to 'other' should be denied or read-only. Change with: chmod o=r $1"
+                        ExitFatal
+                    fi
+                    # Set PERMS_OK to 1 if no fatal errors occurred
+                    PERMS_OK=1
+                    LogText "File permissions are OK"
+                    exitcode=0
+                fi
             else
                 ReportException "SafePerms()" "Invalid number of arguments for function"
             fi
         else
             PERMS_OK=1
-            return 0
+            exitcode=0
         fi
+        return ${exitcode}
+
     }
 
 
@@ -2561,14 +3145,15 @@
     # Name        : SearchItem()
     # Description : Search if a specific string exists in in a file
     #
-    # Input       : $1 = search key (string), $2 = file (string), $3 and later
-    #               are optional arguments
+    # Parameters  : $1 = search key (string)
+    #               $2 = file (string)
+    #               $3 = optional arguments:
+    #                    --sensitive - don't store results in log
     # Returns     : True (0) or False (1)
     ################################################################################
 
     SearchItem()  {
         PERFORM_SCAN=0
-        ITEM_FOUND=0
         MASK_LOG=0
         RETVAL=1
         if [ $# -lt 2 ]; then
@@ -2595,9 +3180,8 @@
             if [ -f ${FILE} ]; then
                 # Check if we can find the main type (with or without brackets)
                 LogText "Test: search string ${STRING} in file ${FILE}"
-                FIND=$(egrep "${STRING}" ${FILE})
-                if [ ! "${FIND}" = "" ]; then
-                    ITEM_FOUND=1
+                FIND=$(grep -E "${STRING}" ${FILE})
+                if [ -n "${FIND}" ]; then
                     LogText "Result: found search string '${STRING}'"
                     if [ ${MASK_LOG} -eq 0 ]; then LogText "Full string returned: ${FIND}"; fi
                     RETVAL=0
@@ -2616,28 +3200,13 @@
     }
 
 
-    # Show result code (to be removed)
-    ShowResult() {
-        case $1 in
-        OK)
-            echo "[ ${OK}OK${NORMAL} ]"
-        ;;
-        WARNING)
-            echo "[ ${WARNING}WARNING${NORMAL} ]"
-            # log the warning to our log file
-            #LogText "Warning: $2"
-            # add the warning to our report file
-            #Report "warning=$2"
-        ;;
-        esac
-    }
 
 
     ################################################################################
     # Name        : ShowComplianceFinding()
     # Description : Display a section of a compliance standard which is not fulfilled
     #
-    # Input       : <several parameters, see test>
+    # Parameters  : <several parameters, see test>
     # Returns     : <nothing>
     ################################################################################
 
@@ -2723,7 +3292,7 @@
     # Name        : ShowSymlinkPath()
     # Description : Check if we can find the path behind a symlink
     #
-    # Input       : $1 = file (string)
+    # Parameters  : $1 = file (string)
     # Returns     : FOUNDPATH (0 not found, 1 found path), SYMLINK (new path)
     ################################################################################
 
@@ -2861,6 +3430,22 @@
 
 
     ################################################################################
+    # Name        : Status()
+    # Description : Reports back the status of tool
+    #
+    # Returns     : text to screen
+    # Notes       : kill --signal USR1 <PID> or pkill --signal USR1 lynis
+    ################################################################################
+
+    Status() {
+        echo ""
+        echo "Date / time : $(date "+%Y-%m-%d %H:%M:%S")"
+        echo "Active test : ${TEST_NO:-NONE}"
+        echo ""
+    }
+
+
+    ################################################################################
     # Name        : StoreNginxSettings()
     # Description : Store parsed settings from nginx (by ParseNginx)
     # Input       : multiple options
@@ -2962,7 +3547,7 @@
         # Apply the related function
         case ${FUNCTION} in
               "contains")
-                  FIND=$(echo ${VALUE} | egrep "${SEARCH}")
+                  FIND=$(echo ${VALUE} | grep -E "${SEARCH}")
                   if [ "${FIND}" = "" ]; then RETVAL=1; else RETVAL=0; fi
               ;;
               #"gt" | "greater-than")   COLOR=$GREEN   ;;
@@ -3010,7 +3595,7 @@
     ################################################################################
 
     ViewGroups() {
-        if [ ! -z "${INCLUDEDIR}" ]; then
+        if [ -n "${INCLUDEDIR}" ]; then
             for I in $(ls ${INCLUDEDIR}/tests_* | xargs -n 1 basename | sed 's/tests_//' | grep -v "custom.template"); do
               echo "${I}"
             done
@@ -3031,157 +3616,8 @@
     WaitForKeyPress() {
         if [ ${QUICKMODE} -eq 0 ]; then
             echo ""; echo "[ Press [ENTER] to continue, or [CTRL]+C to stop ]"
-            read void
+            read -r void
         fi
-    }
-
-
-    ################################################################################
-    # Name        : TestCase_Equal()
-    # Description : Test case for checking if value whether value is equal to value
-    # Returns     : (0 - SUCCESS; 1 - MEDIUM-VALUED; 2 - FAIL)
-    ################################################################################
-
-    TestCase_Equal() {
-        RETVAL=2
-
-        if [ "$#" -lt "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-            LogText "${FUNCNAME}: check if ${1} is equal to ${2}"
-
-            if [ "$1" = "$2" ]; then
-                LogText "${FUNCNAME}: ${1} is equal to ${2}"
-                RETVAL=0
-            fi
-
-            if ! [ -z ${3+x} ]; then
-                LogText "${FUNCNAME}: ${1} is equal to ${3}"
-                if [ "$2" = "$3" ]; then
-                    LogText "${FUNCNAME}: ${OPTION} is equal to ${3}"
-                    RETVAL=1
-                fi
-            fi
-        fi
-        return ${RETVAL}
-    }
-
-    ################################################################################
-    # Name        : TestCase_ValueNotEqual()
-    # Description : Test case for checking if value is not equal to something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-    TestCase_NotEqual() {
-        RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-            if [ "$1" != "$2" ]; then
-                LogText "${FUNCNAME}: ${1} is not equal to ${2}"
-                RETVAL=0
-            else
-                LogText "${FUNCNAME}: ${1} is equal to ${2}"
-            fi
-        fi
-        return ${RETVAL}
-    }
-
-
-    ################################################################################
-    # Name        : TestCase_GreaterThan()
-    # Description : Test case for checking if value is greater than something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-    TestCase_GreaterThan() {
-        RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-            LogText "${FUNCNAME}: checking if ${1} is greater than ${2}"
-            if [ "$1" > "$2" ]; then
-                LogText "${FUNCNAME}: ${1} is greater than ${2}"
-                RETVAL=0
-            else
-                LogText "${FUNCNAME}: ${1} is not greater than ${2}"
-            fi
-        fi
-        return ${RETVAL}
-    }
-
-
-    ################################################################################
-    # Name        : TestCase_GreaterOrEqual()
-    # Description : Test case for checking if value is greater than something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-
-    TestCase_GreaterOrEqual() {
-        RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-            LogText "${FUNCNAME}: checking if ${1} is greater or equal ${2}"
-            if [ TestCase_Equal "${1}" "${2}" ] || [ TestCase_GreaterThan "${1}" "${2}" ]; then
-                RETVAL=0
-            fi
-        fi
-        return ${RETVAL}
-    }
-
-
-    ################################################################################
-    # Name        : TestCase_LessThan()
-    # Description : Test case for checking if value is greater than something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-
-    TestCase_LessThan() {
-        RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to TestCase_GreaterOrEqual"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-
-            LogText "${FUNCNAME}: checking if ${1} is less than ${2}"
-            if ! [ TestCase_GreaterOrEqual "${1}" "${2}"  ]; then
-                LogText "${FUNCNAME}:  ${1} is less than ${2}"
-                RETVAL=0
-            fi
-        fi
-        return ${RETVAL}
-    }
-
-
-    ################################################################################
-    # Name        : TestCase_LessOrEqual()
-    # Description : Test case for checking if value is less or equal something
-    # Returns     : (0 - SUCCESS;  1 - FAIL)
-    ################################################################################
-
-    TestCase_LessOrEqual() {
-        RETVAL=1
-        if [ "$#" -ne "2" ]; then
-            ReportException "${TEST_NO}" "Error in function call to ${FUNCNAME}"
-        else
-            LogText "${FUNCNAME}: checking value for application ${APP}"
-            LogText "${FUNCNAME}: ${OPTION} is set to ${1}"
-            LogText "${FUNCNAME}: checking if ${1} is less or equal ${2}"
-            if [ TestCase_Equal "${1}" "${2}" ] || [ TestCase_LessThan "${1}" "${2}" ]; then
-                LogText "${FUNCNAME}:  ${1} is less than ${2}"
-                RETVAL=0
-            fi
-        fi
-        return ${RETVAL}
     }
 
 
@@ -3191,37 +3627,45 @@
     #
     ################################################################################
     # For compatibility reasons they are listed here, but will be phased out in
-    # steps. If they still get used, they will trigger an alert when using the
-    # developer mode. In a later phase they will trigger errors on screen.
+    # steps. If they still get used, they will trigger errors on screen.
     ################################################################################
 
     counttests() {
+        DisplayWarning "Deprecated function used (counttests)"
         if IsDeveloperMode; then Debug "Warning: old counttests function is used. Please replace any reference with CountTests."; fi
         CountTests
     }
 
-    logtext() {
+     logtext() {
+        DisplayWarning "Deprecated function used (logtext)"
         if IsDeveloperMode; then Debug "Warning: old logtext function is used. Please replace any reference with LogText."; fi
         LogText "$1"
     }
 
-    logtextbreak() {
+     logtextbreak() {
+        DisplayWarning "Deprecated function used (logtextbreak)"
         if IsDeveloperMode; then Debug "Warning: old logtextbreak function is used. Please replace any reference with LogTextBreak."; fi
         LogTextBreak "$1"
     }
 
-    report() {
+     report() {
+        DisplayWarning "Deprecated function used (report)"
         if IsDeveloperMode; then Debug "Warning: old report function is used. Please replace any reference with Report."; fi
         Report "$1"
     }
 
-    wait_for_keypress() {
+     wait_for_keypress() {
+        DisplayWarning "Deprecated function used (wait_for_keypress)"
         if IsDeveloperMode; then Debug "Warning: old wait_for_keypress function is used. Please replace any reference with WaitForKeyPress."; fi
         WaitForKeyPress
     }
 
+     ShowResult() {
+        DisplayWarning "Deprecated function used (ShowResult)"
+        if IsDeveloperMode; then Debug "Warning: old ShowResult() function is used. Please replace any reference with WaitForKeyPress."; fi
+    }
 
 
 #================================================================================
 # Lynis is part of Lynis Enterprise and released under GPLv3 license
-# Copyright 2007-2019 - Michael Boelen, CISOfy - https://cisofy.com
+# Copyright 2007-2020 - Michael Boelen, CISOfy - https://cisofy.com

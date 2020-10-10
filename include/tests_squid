@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -43,7 +43,7 @@
         FOUND=0
         # Check running processes
         FIND=$(${PSBINARY} ax | ${EGREPBINARY} "(squid|squid3) " | ${GREPBINARY} -v "grep")
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             SQUID_DAEMON_RUNNING=1
             LogText "Result: Squid daemon is running"
             Display --indent 2 --text "- Checking running Squid daemon" --result "${STATUS_FOUND}" --color GREEN
@@ -86,10 +86,10 @@
 #
     # Test        : SQD-3606
     # Description : Check Squid version
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3606 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid version"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ! -z "${SQUIDBINARY}" ]; then
+        if [ -n "${SQUIDBINARY}" ]; then
             LogText "Result: Squid binary found (${SQUIDBINARY})"
             # Skip check if a setuid/setgid bit is found
             FIND=$(${FINDBINARY} ${SQUIDBINARY} \( -perm 4000 -o -perm 2000 \) -print)
@@ -110,8 +110,8 @@
 #
     # Test        : SQD-3610
     # Description : Check Squid configuration options
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no SQD-3610 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid version"
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no SQD-3610 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Gather Squid settings"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking all specific defined options in ${SQUID_DAEMON_CONFIG}"
         FIND=$(${GREPBINARY} -v "^#" ${SQUID_DAEMON_CONFIG} | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{gsub("\t"," ");print}' | ${SEDBINARY} 's/ /!space!/g')
@@ -126,17 +126,17 @@
 #################################################################################
 #
     # Test        : SQD-3613
-    # Description : Check Squid configuration options
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    # Description : Check Squid configuration file permissions
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3613 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid file permissions"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking file permissions of ${SQUID_DAEMON_CONFIG}"
         FIND=$(find ${SQUID_DAEMON_CONFIG} -type f -a \( -perm -004 -o -perm -002 -o -perm -001 \))
-        if [ ! -z "${FIND}" ]; then
+        if [ -n "${FIND}" ]; then
             LogText "Result: file ${SQUID_DAEMON_CONFIG} is world readable, writable or executable and could leak information or passwords"
             Display --indent 4 --text "- Checking Squid configuration file permissions" --result "${STATUS_WARNING}" --color RED
-            ReportSuggestion ${TEST_NO} "Check file permissions of ${SQUID_DAEMON_CONFIG} to limit access"
-            ReportWarning ${TEST_NO} "File permissions of ${SQUID_DAEMON_CONFIG} are not restrictive"
+            ReportSuggestion "${TEST_NO}" "Check file permissions of ${SQUID_DAEMON_CONFIG} to limit access"
+            ReportWarning "${TEST_NO}" "File permissions of ${SQUID_DAEMON_CONFIG} are not restrictive"
             AddHP 0 2
         else
             LogText "Result: file ${SQUID_DAEMON_CONFIG} has proper file permissions"
@@ -147,7 +147,7 @@
 #
 #################################################################################
 #
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then
         Display --indent 4 --text "- Checking Squid access control"
     fi
 #
@@ -155,7 +155,7 @@
 #
     # Test        : SQD-3614
     # Description : Check Squid authentication
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3614 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid authentication methods"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check auth_param option for authentication methods"
@@ -176,7 +176,7 @@
 #
     # Test        : SQD-3616
     # Description : Check external Squid authentication
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3616 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check external Squid authentication"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check external_acl_type option for external authentication helpers"
@@ -222,7 +222,7 @@
 #################################################################################
 #
     # Test        : SQD-3624
-    # Description : Check unsecure ports in Safe_ports list
+    # Description : Check insecure ports in Safe_ports list
     if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! "${SQUID_DAEMON_CONFIG}" = "" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3624 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid safe ports"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -231,13 +231,13 @@
         if IsEmpty "${FIND}"; then
             LogText "Result: no Safe_ports found"
             Display --indent 6 --text "- Checking ACL 'Safe_ports' http_access option" --result "${STATUS_NOT_FOUND}" --color YELLOW
-            ReportSuggestion ${TEST_NO} "Check if Squid has been configured to restrict access to all safe ports"
+            ReportSuggestion "${TEST_NO}" "Check if Squid has been configured to restrict access to all safe ports"
         else
             LogText "Result: checking ACL safe ports"
             FIND2=$(${GREPBINARY} "^acl Safe_ports port" ${SQUID_DAEMON_CONFIG} | ${AWKBINARY} '{ print $4 }')
             if IsEmpty "${FIND2}"; then
                 Display --indent 6 --text "- Checking ACL 'Safe_ports' ports" --result "NONE FOUND" --color YELLOW
-                ReportSuggestion ${TEST_NO} "Check if Squid has been configured for which ports it can allow outgoing traffic (Safe_ports)"
+                ReportSuggestion "${TEST_NO}" "Check if Squid has been configured for which ports it can allow outgoing traffic (Safe_ports)"
                 AddHP 0 1
             else
                 LogText "Result: Safe_ports found"
@@ -256,7 +256,7 @@
                     AddHP 1 1
                 else
                     Display --indent 6 --text "- Checking ACL 'Safe_ports' (port ${ITEM})" --result "${STATUS_FOUND}" --color RED
-                    ReportWarning ${TEST_NO} "Squid configuration possibly allows relaying traffic via configured Safe_port ${ITEM}"
+                    ReportWarning "${TEST_NO}" "Squid configuration possibly allows relaying traffic via configured Safe_port ${ITEM}"
                     AddHP 0 1
                 fi
             done
@@ -265,7 +265,7 @@
 #
 #################################################################################
 #
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then
         Display --indent 4 --text "- Checking Squid Denial of Service tuning options"
     fi
 #
@@ -273,7 +273,7 @@
 #
     # Test        : SQD-3630 [T]
     # Description : Check reply_body_max_size value
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3630 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid reply_body_max_size option"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking option reply_body_max_size"
@@ -282,7 +282,7 @@
             LogText "Result: option reply_body_max_size not configured"
             Display --indent 6 --text "- Checking option: reply_body_max_size" --result "${STATUS_NONE}" --color RED
             AddHP 1 2
-            ReportSuggestion ${TEST_NO} "Configure Squid option reply_body_max_size to limit the upper size of requests."
+            ReportSuggestion "${TEST_NO}" "Configure Squid option reply_body_max_size to limit the upper size of requests."
         else
             LogText "Result: option reply_body_max_size configured"
             LogText "Output: ${FIND}"
@@ -293,7 +293,7 @@
 #
 #################################################################################
 #
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then
         Display --indent 4 --text "- Checking Squid general options"
     fi
 #
@@ -301,7 +301,7 @@
 #
     # Test        : SQD-3680
     # Description : Check httpd_suppress_version_string
-    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a ! -z "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    if [ ${SQUID_DAEMON_RUNNING} -eq 1 -a -n "${SQUID_DAEMON_CONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no SQD-3680 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check Squid version suppression"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(${GREPBINARY} "^httpd_suppress_version_string " ${SQUID_DAEMON_CONFIG} | ${GREPBINARY} " on")
@@ -309,7 +309,7 @@
             LogText "Result: option httpd_suppress_version_string not configured"
             Display --indent 6 --text "- Checking option: httpd_suppress_version_string" --result "${STATUS_NOT_FOUND}" --color YELLOW
             AddHP 1 2
-            ReportSuggestion ${TEST_NO} "Configure Squid option httpd_suppress_version_string (on) to suppress the version."
+            ReportSuggestion "${TEST_NO}" "Configure Squid option httpd_suppress_version_string (on) to suppress the version."
         else
             LogText "Result: option httpd_suppress_version_string configured"
             LogText "Output: ${FIND}"
@@ -325,4 +325,4 @@ WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2019 Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2020 Michael Boelen, CISOfy - https://cisofy.com

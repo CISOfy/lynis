@@ -1,9 +1,10 @@
 # Lynis Changelog
 
-## Lynis 3.0.1 (not released yet)
+## Lynis 3.0.1 (2020-10-05)
 
 ### Added
 - Detection of Alpine Linux
+- Detection of CloudLinux
 - Detection of Kali Linux
 - Detection of Linux Mint
 - Detection of macOS Big Sur (11.0)
@@ -18,6 +19,7 @@
 - AUTH-9229 - Added option for LOCKED accounts and bugfix for older bash versions
 - BOOT-5122 - Presence check for grub.d added
 - CRYP-7902 - Added support for certificates in DER format
+- CRYP-7931 - Added data to report
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
 - FILE-6430 - Don't grep nonexistant modprobe.d files
 - FIRE-4535 - Set initial firewall state

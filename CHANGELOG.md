@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.0.2 (not released yet)
+
+### Added
+- New test: TOOL-5130 - Check for active Suricata daemon
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.1 (2020-10-05)
 
 ### Added

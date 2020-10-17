@@ -8,7 +8,9 @@
 
 ### Changed
 - KRNL-5830 - Improved reboot test by ignoring known bad values
+- PKGS-7410 - Don't show exception if no kernels were found on the disk
 - Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
+- Small code enhancements
 
 ---------------------------------------------------------------------------------
 

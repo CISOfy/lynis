@@ -1,5 +1,20 @@
 # Lynis Changelog
 
+## Lynis 3.0.2 (not released yet)
+
+### Added
+- Detection of ROSA Linux
+- Detection of Zorin OS
+
+### Changed
+- KRNL-5830 - Improved reboot test by ignoring known bad values
+- PKGS-7410 - Don't show exception if no kernels were found on the disk
+- Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
+- French translation improved
+- Small code enhancements
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.1 (2020-10-05)
 
 ### Added

@@ -3,10 +3,12 @@
 ## Lynis 3.0.2 (not released yet)
 
 ### Added
+- Detection of ROSA Linux
 - Detection of Zorin OS
 
 ### Changed
 - KRNL-5830 - Improved reboot test by ignoring known bad values
+- Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
 
 ---------------------------------------------------------------------------------
 

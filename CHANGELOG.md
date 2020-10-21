@@ -14,6 +14,7 @@
 - ParseNginx function: Support include on absolute paths
 - ParseNginx function: Ignore empty included wildcards
 - Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
+- Test if pgrep exists before using it
 - French translation improved
 - Small code enhancements
 

@@ -3,12 +3,15 @@
 ## Lynis 3.0.2 (not released yet)
 
 ### Added
-- Detection of ROSA Linux
-- Detection of Zorin OS
+- Detection of Flatcar, Mageia, ROSA Linux, SLES (extended), Void Linux, Zorin OS
+- macOS and Mageia EOL dates
 
 ### Changed
 - KRNL-5830 - Improved reboot test by ignoring known bad values
+- KRNL-5830 - Ignore rescue kernel such as on CentOS systems
 - PKGS-7410 - Don't show exception if no kernels were found on the disk
+- ParseNginx function: Support include on absolute paths
+- ParseNginx function: Ignore empty included wildcards
 - Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
 - French translation improved
 - Small code enhancements

@@ -10,6 +10,7 @@
 - KRNL-5830 - Improved reboot test by ignoring known bad values
 - KRNL-5830 - Ignore rescue kernel such as on CentOS systems
 - PKGS-7410 - Don't show exception if no kernels were found on the disk
+- TIME-3185 - Supports now checking files at multiple locations (systemd)
 - ParseNginx function: Support include on absolute paths
 - ParseNginx function: Ignore empty included wildcards
 - Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux

@@ -3,6 +3,7 @@
 ## Lynis 3.0.2 (not released yet)
 
 ### Added
+- AUTH-9284 - Scan for locked user accounts in /etc/passwd
 - Detection of Flatcar, Mageia, ROSA Linux, SLES (extended), Void Linux, Zorin OS
 - Alpine, macOS and Mageia EOL dates
 

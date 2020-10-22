@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    InsertSection "Ports and packages"
+    InsertSection "${SECTION_PORTS_AND_PACKAGES}"
     PACKAGE_MGR_PKG=0
     PACKAGE_AUDIT_TOOL=""
     PACKAGE_AUDIT_TOOL_FOUND=0
@@ -1289,7 +1289,7 @@
             KERNELS=$(${ZYPPERBINARY} --non-interactive -n se --type package --match-exact --installed-only "kernel-default" 2> /dev/null | ${GREPBINARY} "kernel-default" | ${WCBINARY} -l)
             if [ ${KERNELS} -eq 0 ]; then
                 LogText "Result: found no kernels from zypper output, which is unexpected."
-                ReportException "KRNL-5840:3" "Could not find any kernel packages via package manager. Maybe using a different kernel package?"
+                ReportException "${TEST_NO}" "Could not find any kernel packages via package manager. Maybe using a different kernel package?"
             elif [ ${KERNELS} -gt 3 ]; then
                 LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
                 ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages"
@@ -1299,7 +1299,19 @@
         fi
 
         if [ ${KERNELS} -eq 0 -a ${TESTED} -eq 1 ]; then
-            ReportException "KRNL-5840:1" "Could not find any kernel packages via package manager"
+            # Only report exception if there are kernels actually there. For example, LXC use the kernel of host system
+            case "${OS}" in
+                "Linux")
+                    if [ -d "${ROOTDIR}boot" ]; then
+                        if [ -z "$(${FINDBINARY} /boot -maxdepth 1 -type f -name 'vmlinuz*' -print -quit)" ]; then
+                            ReportException "${TEST_NO}" "Could not find any kernel packages via package manager"
+                        fi
+                    fi
+                ;;
+                *)
+                    ReportException "${TEST_NO}" "Could not find any kernel packages via package manager"
+                ;;
+            esac
         fi
 
         Report "installed_kernel_packages=${KERNELS}"

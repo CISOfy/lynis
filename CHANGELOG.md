@@ -1,9 +1,30 @@
 # Lynis Changelog
 
-## Lynis 3.0.1 (not released yet)
+## Lynis 3.0.2 (not released yet)
+
+### Added
+- Detection of Flatcar, Mageia, ROSA Linux, SLES (extended), Void Linux, Zorin OS
+- macOS and Mageia EOL dates
+
+### Changed
+- KRNL-5830 - Improved reboot test by ignoring known bad values
+- KRNL-5830 - Ignore rescue kernel such as on CentOS systems
+- PKGS-7410 - Don't show exception if no kernels were found on the disk
+- TIME-3185 - Supports now checking files at multiple locations (systemd)
+- ParseNginx function: Support include on absolute paths
+- ParseNginx function: Ignore empty included wildcards
+- Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
+- Test if pgrep exists before using it
+- French translation improved
+- Small code enhancements
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.1 (2020-10-05)
 
 ### Added
 - Detection of Alpine Linux
+- Detection of CloudLinux
 - Detection of Kali Linux
 - Detection of Linux Mint
 - Detection of macOS Big Sur (11.0)
@@ -18,6 +39,7 @@
 - AUTH-9229 - Added option for LOCKED accounts and bugfix for older bash versions
 - BOOT-5122 - Presence check for grub.d added
 - CRYP-7902 - Added support for certificates in DER format
+- CRYP-7931 - Added data to report
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
 - FILE-6430 - Don't grep nonexistant modprobe.d files
 - FIRE-4535 - Set initial firewall state

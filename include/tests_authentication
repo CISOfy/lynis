@@ -849,7 +849,7 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9282 and AUTH-9283
+    # Test        : AUTH-9282, AUTH-9283, and AUTH-9284
     # Note        : Every Linux based operating system seem to have different passwd
     #               options, so we have to check the version first.
     if [ "${OS}" = "Linux" ]; then
@@ -881,7 +881,7 @@
             FIND2=""
             FIND3=""
         fi
-     else
+    else
         PREQS_MET="NO"
     fi
 
@@ -902,11 +902,10 @@
             ReportSuggestion "${TEST_NO}" "When possible set expire dates for all password protected accounts"
         fi
     fi
-#
-#################################################################################
-#
+
     # Test        : AUTH-9283
     # Description : Search passwordless accounts
+    # Notes       : requires FIND2 variable
     Register --test-no AUTH-9283 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking accounts without password"
     if [ "${SKIPTEST}" -eq 0 ]; then
         LogText "Test: Checking passwordless accounts"
@@ -923,36 +922,38 @@
             ReportWarning "${TEST_NO}" "Found accounts without password"
         fi
     fi
-#
-#################################################################################
-#
+
     # Test        : AUTH-9284
     # Description : Check locked user accounts in /etc/passwd
+    # Notes       : requires FIND3 variable
     Register --test-no AUTH-9284 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check locked user accounts in /etc/passwd"
     if [ "${SKIPTEST}" -eq 0 ]; then
         LogText "Test: Checking locked accounts"
-        NON_SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 > 999 && $3 != 65534 {print $1}' /etc/passwd | sort | uniq)
+        NON_SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 > 999 && $3 != 65534 {print $1}' ${ROOTDIR}etc/passwd | ${SORTBINARY} | ${UNIQBINARY})
         LOCKED_NON_SYSTEM_ACCOUNTS=0
-        for account in ${FIND3};do
-            if echo "${NON_SYSTEM_ACCOUNTS}" | grep -w "${account}" > /dev/null ; then
-                LOCKED_NON_SYSTEM_ACCOUNTS=$((LOCKED_NON_SYSTEM_ACCOUNTS+1))
+        for account in ${FIND3}; do
+            if echo "${NON_SYSTEM_ACCOUNTS}" | ${GREPBINARY} -w "${account}" > /dev/null ; then
+                LOCKED_NON_SYSTEM_ACCOUNTS=$((LOCKED_NON_SYSTEM_ACCOUNTS + 1))
             fi
         done
-        if [ $LOCKED_NON_SYSTEM_ACCOUNTS -eq 0 ]; then
+        if [ ${LOCKED_NON_SYSTEM_ACCOUNTS} -eq 0 ]; then
             LogText "Result: all accounts seem to be unlocked"
             Display --indent 2 --text "- Locked accounts" --result "${STATUS_OK}" --color GREEN
         else
             LogText "Result: found one or more locked accounts"
             for account in ${FIND3}; do
-                if echo "${NON_SYSTEM_ACCOUNTS}" | grep -w "${account}" > /dev/null ; then
+                if echo "${NON_SYSTEM_ACCOUNTS}" | ${GREPBINARY} -w "${account}" > /dev/null ; then
                     LogText "Locked account: ${account}"
                     Report "locked_account[]=${account}"
                 fi
             done
-            Display --indent 2 --text "- Locked accounts" --result "${STATUS_WARNING}" --color RED
+            Display --indent 2 --text "- Locked accounts" --result "${STATUS_FOUND}" --color RED
             ReportSuggestion "${TEST_NO}" "Look at the locked accounts and consider removing them"
         fi
+        unset account LOCKED_NON_SYSTEM_ACCOUNTS NON_SYSTEM_ACCOUNTS
     fi
+
+    unset FIND1 FIND2 FIND3
 #
 #################################################################################
 #

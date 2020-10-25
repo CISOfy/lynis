@@ -9,6 +9,7 @@
 - Alpine, macOS and Mageia EOL dates
 
 ### Changed
+- ACCT-9626 - Detect sysstat systemd unit
 - KRNL-5830 - Improved reboot test by ignoring known bad values
 - KRNL-5830 - Ignore rescue kernel such as on CentOS systems
 - KRNL-5830 - Detection of Alpine Linux kernel

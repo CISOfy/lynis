@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    InsertSection "Kernel"
+    InsertSection "${SECTION_KERNEL}"
 #
 #################################################################################
 #
@@ -664,9 +664,13 @@
                     elif [ -f ${ROOTDIR}boot/vmlinuz-linux-lts ]; then
                         LogText "Result: found ${ROOTDIR}boot/vmlinuz-linux-lts"
                         FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-linux-lts
+                    elif [ -f ${ROOTDIR}boot/vmlinuz-lts ]; then
+                        LogText "Result: found ${ROOTDIR}boot/vmlinuz-lts"
+                        FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-lts
                     else
-                        # Match on /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default
-                        FOUND_VMLINUZ=$(${LSBINARY} -t ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${HEADBINARY} -1)
+                        # Match on items like /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default. Get newest file (ls -t and pipe into head)
+                        # Note: ignore a rescue kernel (e.g. CentOS)
+                        FOUND_VMLINUZ=$(${LSBINARY} -t ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue\-' | ${HEADBINARY} -1)
                         LogText "Result: found ${FOUND_VMLINUZ}"
                     fi
 
@@ -678,10 +682,21 @@
                         VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's#^/boot/##' | ${SEDBINARY} 's/^vmlinuz-//')
                         LogText "Result: version derived from file name is '${VERSION_ON_DISK}'"
                     elif [ -f "${FOUND_VMLINUZ}" ]; then
-                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's#^/boot/##' | ${SEDBINARY} 's/^vmlinuz-//')
+                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's#^/boot/##' | ${SEDBINARY} 's/^vmlinuz-//' | ${SEDBINARY} '$s/-\?\(linux\)\?-\?\(lts\)\?//')
                         LogText "Result: version derived from file name is '${VERSION_ON_DISK}'"
+
                     fi
 
+                    # Data check: perform reset if we found a version but looks incomplete
+                    # Example: Arch Linux will return only 'linux' as its version after it discovered /boot/vmlinuz-linux
+                    case ${VERSION_ON_DISK} in
+                        "linux" | "linux-lts")
+                            LogText "Result: reset of version (${VERSION_ON_DISK}) as it looks incomplete"
+                            VERSION_ON_DISK=""
+                        ;;
+                    esac
+
+                    # If we did not find the version yet, see if we can extract it from the magic data that 'file' returns
                     if [ -z "${VERSION_ON_DISK}" ]; then
                         LogText "Test: checking kernel version on disk"
                         NEXTLINE=0
@@ -697,6 +712,7 @@
                         done
                     fi
 
+                    # Last check if we finally got a version or not
                     if [ -z "${VERSION_ON_DISK}" ]; then
                         LogText "Result: could not find the version on disk"
                         ReportException "${TEST_NO}:4" "Could not find the kernel version"

@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    InsertSection "Time and Synchronization"
+    InsertSection "${SECTION_TIME_AND_SYNCHRONIZATION}"
 #
 #################################################################################
 #
@@ -575,7 +575,16 @@
 
     Register --test-no TIME-3185 --preqs-met "${PREQS_MET}" --weight L --network NO --category "security" --description "Check systemd-timesyncd synchronized time"
     SYNCHRONIZED_FILE="/run/systemd/timesync/synchronized"
+       
     if [ ${SKIPTEST} -eq 0 ]; then
+        # On earlier systemd versions (237), '/run/systemd/timesync/synchronized' does not exist, so use '/var/lib/systemd/timesync/clock'
+        if [ ! -e "${SYNCHRONIZED_FILE}" ]; then
+            SYNCHRONIZED_FILE="/var/lib/systemd/timesync/clock"
+        fi
+        # DynamicUser=yes moves the clock file to '/var/lib/private/systemd/timesync/clock'
+        if [ ! -e "${SYNCHRONIZED_FILE}" ]; then
+            SYNCHRONIZED_FILE="/var/lib/private/systemd/timesync/clock"
+        fi
         if [ -e "${SYNCHRONIZED_FILE}" ]; then
            FIND=$(( $(date +%s) - $(${STATBINARY} -L --format %Y "${SYNCHRONIZED_FILE}") ))
            # Check if last sync was more than 2048 seconds (= the default of systemd) ago

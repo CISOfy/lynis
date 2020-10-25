@@ -3,7 +3,24 @@
 ## Lynis 3.0.2 (not released yet)
 
 ### Added
-- New test: TOOL-5130 - Check for active Suricata daemon
+- AUTH-9284 - Scan for locked user accounts in /etc/passwd
+- TOOL-5130 - Check for active Suricata daemon
+- Detection of Flatcar, Mageia, ROSA Linux, SLES (extended), Void Linux, Zorin OS
+- Alpine, macOS and Mageia EOL dates
+
+### Changed
+- KRNL-5830 - Improved reboot test by ignoring known bad values
+- KRNL-5830 - Ignore rescue kernel such as on CentOS systems
+- KRNL-5830 - Detection of Alpine Linux kernel
+- PKGS-7410 - Don't show exception if no kernels were found on the disk
+- TIME-3185 - Supports now checking files at multiple locations (systemd)
+- ParseNginx function: Support include on absolute paths
+- ParseNginx function: Ignore empty included wildcards
+- Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
+- French translation file improved and translations extended
+- Test if pgrep exists before using it
+- Better support for busybox shell
+- Small code enhancements
 
 ---------------------------------------------------------------------------------
 

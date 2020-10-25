@@ -1547,8 +1547,7 @@
 
         if [ -z "${search}" ]; then ExitFatal "Missing process to search for when using IsRunning function"; fi
         RUNNING=0
-        # AIX does not fully support pgrep options, so using ps instead
-        if [ "${OS}" != "AIX" ]; then
+        if [ -x "${PGREPBINARY}" ] && [ "${OS}" != "AIX" ]; then
             # When --user is used, perform a search using the -u option
             # Initialize users for strict mode
             if [ -n "${users:-}" ]; then
@@ -2180,7 +2179,8 @@
         for I in ${FIND}; do
             I=$(echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//')
             OPTION=$(echo ${I} | awk '{ print $1 }')
-            VALUE=$(echo ${I}| cut -d' ' -f2-)
+            # Use quotes here to prevent wildcard expansion
+            VALUE=$(echo "${I}"| cut -d' ' -f2-)
             LogText "Result: found option ${OPTION} in ${CONFIG_FILE} with value '${VALUE}'"
             STORE_SETTING=1
             case ${OPTION} in
@@ -2303,9 +2303,25 @@
                         done
                         if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${VALUE}"; fi
                     # Check for additional config files included as follows
-                    # "include sites-enabled/*.conf"
-                    elif [ $(echo ${VALUE} | grep -F -c "*.conf") -gt 0 ]; then
-                        for FOUND_CONF in $(ls ${CONFIG_FILE%nginx.conf}${VALUE%;*}); do
+                    # "include sites-enabled/*.conf" (relative path)
+                    # "include /etc/nginx/sites-enabled/*.conf" (absolute path)
+                    elif [ $(echo "${VALUE}" | grep -F -c "*.conf") -gt 0 ]; then
+                        # Check if path is absolute or relative
+                        case $VALUE in
+                            /*)
+                                # Absolute path, so wildcard pattern is already correct
+                                CONF_WILDCARD=${VALUE%;*}
+                            ;;
+                            *)
+                                # Relative path, so construct absolute path for wildcard pattern
+                                CONF_WILDCARD=${CONFIG_FILE%nginx.conf}${VALUE%;*}
+                            ;;
+                        esac
+                        for FOUND_CONF in ${CONF_WILDCARD}; do
+                            if [ "${FOUND_CONF}" = "${CONF_WILDCARD}" ]; then
+                                LogText "Found no match for wildcard pattern: ${CONF_WILDCARD}"
+                                break
+                            fi
                             FOUND=0
                             for CONF in ${NGINX_CONF_FILES}; do
                                 if [ "${CONF}" = "${FOUND_CONF}" ]; then FOUND=1; LogText "Found this file already in our configuration files array, not adding to queue"; fi

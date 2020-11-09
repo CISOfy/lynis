@@ -2510,7 +2510,7 @@ Lynis 1.3.3 (2013-10-24)
 Lynis 1.3.2 (2013-10-09)
 
  New:
- - Test for PowerDNS authoritive servers (master/slave status) [NAME-4238]
+ - Test for PowerDNS authoritative servers (master/slave status) [NAME-4238]
 
  Changes:
  - CUPS test extended with hardening rules [PRNT-2308]

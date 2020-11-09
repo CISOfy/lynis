@@ -27,7 +27,7 @@ To ensure all pull requests can be easily checked and merged, here are some tips
 ## Code Guidelines
 
 ### General
-Identation should be 4 spaces (no tab character).
+Indentation should be 4 spaces (no tab character).
 
 ### Comments
 Comments: use # sign followed by a space. When needed, create a comment block.

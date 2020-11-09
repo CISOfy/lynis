@@ -697,7 +697,7 @@ Changes:
 * Renamed some variables to better indicate their purpose (counting, data type)
 * Removal of unused code and comments
 * Deleted unused tests from database file
-* Correct levels of identation
+* Correct levels of indentation
 * Support for older mac OS X versions (Lion and Mountain Lion)
 * Initialized variables for more binaries
 * Additional sysctls are tested
@@ -1358,7 +1358,7 @@ Functions
 * AddSetting            - New function to store settings (lynis show settings)
 * ContainsString        - New function to search for a string in another one
 * Display               - Added --debug, showing details on screen in debug mode
-                        - Reset identation for lines which are too long
+                        - Reset indentation for lines which are too long
 * DisplayToolTip        - New function to display tooltips
 * IsDebug               - Check for usage of --debug
 * IsDeveloperMode       - Status for development and debugging (--developer)

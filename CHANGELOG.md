@@ -2291,7 +2291,7 @@ Lynis 1.4.2 (2014-02-19)
  Changes:
  - Ignore interfaces aliases for HostID
  - Extended umask tests with pam_umask entries [AUTH-9328]
- - Check for supressed version on Squid [SQD-3680]
+ - Check for suppressed version on Squid [SQD-3680]
 
 ---------------------------------------------------------------------------------
 
@@ -2431,7 +2431,7 @@ Lynis 1.3.6 (2013-12-03)
  - Adjusted PHP check to find ini files [PHP-2211]
  - Skip Apache test for NetBSD [HTTP-6622]
  - Skip test http version check for NetBSD [HTTP-6624]
- - Additional check to supress sort error [HTTP-6626]
+ - Additional check to suppress sort error [HTTP-6626]
  - Improved the way binaries are checked (less disk reads)
  - Adjusted ReportWarning() function to skip impact rating
  - Improved report on screen by leaving out date/time and type

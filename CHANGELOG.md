@@ -450,7 +450,7 @@ Tests:
 * [AUTH-9308] - Made 'sulogin' more generic for systemd rescue shell
 * [DNS-1600]  - Initial work on DNSSEC validation testing
 * [NETW-2704] - Added support for local resolver 127.0.0.53
-* [PHP-2379]  - Suhosin test disbled
+* [PHP-2379]  - Suhosin test disabled
 * [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
 * [TIME-3160] - Improvements to detect step-tickers file and entries
 

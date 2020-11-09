@@ -3193,7 +3193,7 @@ Lynis 1.1.2 (2008-05-11)
  - Added several php.ini file locations (MacOS X, OpenBSD, OpenSuSE)
 
  ** Special release notes [package/ports]: **
- - Added several default paths to check for usuable an INCLUDE directory. This
+ - Added several default paths to check for usable an INCLUDE directory. This
    should make packaging Lynis easier for downstream package providers.
  - When no profile is set, Lynis will check first /etc/lynis/default.prf,
    before setting default.prf (in current work directory) as profile to use.

@@ -46,7 +46,7 @@
 - CRYP-7902 - Added support for certificates in DER format
 - CRYP-7931 - Added data to report
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
-- FILE-6430 - Don't grep nonexistant modprobe.d files
+- FILE-6430 - Don't grep nonexistent modprobe.d files
 - FIRE-4535 - Set initial firewall state
 - INSE-8312 - Corrected text on screen
 - KRNL-5728 - Handle zipped kernel configuration correctly

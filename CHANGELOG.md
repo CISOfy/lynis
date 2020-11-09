@@ -3252,7 +3252,7 @@ Lynis 1.0.9 (2008-03-24)
  - Added available shells from /etc/shells to report file
  - Updated man page
  - Fixed option in main help window for --man option
- - Code improvement, splitting up sections to seperated files
+ - Code improvement, splitting up sections to separated files
 
 ---------------------------------------------------------------------------------
 
@@ -3268,7 +3268,7 @@ Lynis 1.0.8 (2008-02-10)
  - Changed old temporary files check
  - Changed test to include ubuntu security repository
  - Moved UID check to avoid PID creation as non root user
- - Moved most functions to seperated files and several code cleanups
+ - Moved most functions to separated files and several code cleanups
  - Improved logging output
  - Extended FreeBSD (Copyright file) test
  - Changed indentation for many tests
@@ -3312,7 +3312,7 @@ Lynis 1.0.7 (2008-01-28)
  - Updated year number in program and support files
  - Added new function Display, to use indentation within lines
  - Added function RemovePIDFile before some exit routines, to clean up PID file
- - Extracted profile support, parameter support to seperated files
+ - Extracted profile support, parameter support to separated files
  - Created file tests_ports_packages for Ports and Packages
  - Deleted lynis.spec file, since it was not working and will be rewritten later
 

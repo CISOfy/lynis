@@ -3120,7 +3120,7 @@ Lynis 1.1.5 (2008-06-10)
  - Improved FreeBSD pkg_info output, logging output and report data [PKG-7302]
  - Changed shell history file test, searching files with maxdepth 1 [HOME-9310]
  - Extended iptables test, to check Linux kernel configuration file [FIRE-4511]
- - Added report warning to promicuous test [NETW-3014]
+ - Added report warning to promiscuous test [NETW-3014]
  - Fixed yellow color when being used at text display
  - Several logging improvements and cleanups
 

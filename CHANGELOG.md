@@ -3189,7 +3189,7 @@ Lynis 1.1.2 (2008-05-11)
  - Improved LILO test and removed double message
  - Fixed incorrect message when using --help parameter
  - Improved portaudit test (FreeBSD) to show unique packages only
- - Updated man page, FAQ, extended documention with plugin information
+ - Updated man page, FAQ, extended documentation with plugin information
  - Added several php.ini file locations (MacOS X, OpenBSD, OpenSuSE)
 
  ** Special release notes [package/ports]: **

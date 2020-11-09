@@ -2557,7 +2557,7 @@ Lynis 1.3.0 (2011-12-25)
  - Fixed incorrect warning for single user mode [AUTH-9308]
  - Improved output for stratum 16 time servers [TIME-3116]
  - Added suggestion and screen output for kernel hardening [KRNL-6000]
- - Screen layout optimalizations and log file improvements
+ - Screen layout optimizations and log file improvements
  - Improved list/layout of scan options
  - Improved binary check for compilers
  - Added configuration option in scan profile (show_tool_tips, default true)

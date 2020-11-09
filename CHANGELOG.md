@@ -2467,7 +2467,7 @@ Lynis 1.3.5 (2013-11-19)
  - Added suggestion about BIND version [NAME-4210]
  - Merged test NTP daemon test TIME-3108 into TIME-3104
  - Improved support for Arch Linux (output, detection)
- - Extended common list of directories with SSL certifcates in profile
+ - Extended common list of directories with SSL certificates in profile
  - New function GetHostID() to determine an unique identifier of the machine
  - Added a tests_custom file template
  - Perform file permissions test on tests_custom file

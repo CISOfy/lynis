@@ -68,6 +68,6 @@ software or computer software documentation in whole or in part, in any manner
 and for any purpose whatsoever, and to have or authorize others to do so.
 
 If you want to be named in as a contributor in the CONTRIBUTOR file, then include
-this notition in your pull request. Preferred format: Full Name, and your e-mail
+this notation in your pull request. Preferred format: Full Name, and your e-mail
 address).
 

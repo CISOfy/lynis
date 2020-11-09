@@ -3465,7 +3465,7 @@ Lynis 1.0.0 (2007-11-08)
  - Test: query nameservers and test connectivity
  - Test: check promiscuous interfaces (FreeBSD)
  - Test: check sticky bit on /tmp directory
- - Test: check debian.org security brance in /etc/apt/sources.list
+ - Test: check debian.org security branch in /etc/apt/sources.list
  - Test: check kernel update on Debian
  - Test: query default Linux run level
  - Test: query chkconfig to see which services start at boot

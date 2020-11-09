@@ -2304,7 +2304,7 @@ Lynis 1.4.1 (2014-02-15)
  - Added 64 bits locations for Apache modules
  - Add start of new category to logfile
  - Extended sysstat test with /etc/cron.d/sysstat [ACCT-9626]
- - Extended cron job tests with entries start with asterix (*) [SCHD-7704]
+ - Extended cron job tests with entries start with asterisk (*) [SCHD-7704]
  - Additional check for multiple umask entries (like RHEL 6.x) [AUTH-9328]
  - Adjusted PHP test for register_globals (explicit test) [PHP-2368]
  - Small adjustments for upcoming plugin support

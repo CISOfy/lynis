@@ -1709,7 +1709,7 @@ Added tests for CSF's lfd utility for integrity monitoring on directories and
 files. Related tests are FINT-4334 and FINT-4336.
 
 Added support for Chrony time daemon and timesync daemon. Additionally NTP
-sychronization status is checked when it is enabled.
+synchronization status is checked when it is enabled.
 
 Improved single user mode protection on the rescue.service file.
 

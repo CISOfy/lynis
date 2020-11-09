@@ -1431,7 +1431,7 @@ release.
 ------------
 The biggest change in this release is the optimization of several functions. It
 allows for better detection, and dealing with the quirks, of every single
-operating system. Some functions were fortified to handle unexcepted results
+operating system. Some functions were fortified to handle unexpected results
 better, like missing a particular binary, or not returning the hostname.
 
 This release also enables tests to be shorter, by adding new functions. Some

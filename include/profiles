@@ -36,7 +36,7 @@
 
         # Show deprecation message for old config entries such as 'config:' and 'apache:'
         FOUND=0
-        DATA=$("${GREPBINARY}" -E "^[a-z-]{1,}:" ${PROFILE} | od -An -ta | sed 's/ /!space!/g')  # od -An (no file offset), -ta (named character, to be on safe side)
+        DATA=$("${GREPBINARY}" -E "^[a-z-]{1,}:" ${PROFILE})
         if ! IsEmpty "${DATA}"; then FOUND=1; fi
 
         if [ ${FOUND} -eq 1 ]; then
@@ -51,18 +51,17 @@
             Display --text " "
             Display --text "=================================================================================================="
             Display --text " "
-            LogText "Insight: Profile '${PROFILE}' contians one or more old-style configuration entries"
+            LogText "Insight: Profile '${PROFILE}' contains one or more old-style configuration entries"
             ReportWarning "GEN-0020" "Your profile contains one or more old-style configuration entries"
             sleep 10
         fi
 
         # Security check for unexpected and possibly harmful escape characters (hyphen should be listed as first or last character)
-        DATA=$("${GREPBINARY}" -Ev '^$|^ |^#|^config:' "${PROFILE}" | tr -d '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-' | od -An -ta | sed 's/ /!space!/g')
+        DATA=$("${GREPBINARY}" -Ev '^$|^ |^#|^config:' "${PROFILE}" | tr -d '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-')
         if ! IsEmpty "${DATA}"; then
             DisplayWarning "Your profile '${PROFILE}' contains unexpected characters. See the log file for more information."
             LogText "Found unexpected or possibly harmful characters in profile '${PROFILE}'. See which characters matched in the output below and compare them with your profile."
-            for I in ${DATA}; do
-                I=$(echo ${I} | sed 's/!space!/ /g')
+            for I in $(printf ${DATA} | od -An -ta); do
                 LogText "Output: ${I}"
             done
             LogText "Suggestion: comment incorrect lines with a '#' and try again. Open a GitHub issue if valid characters are blocked"

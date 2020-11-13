@@ -5,7 +5,7 @@
 ### Added
 - AUTH-9284 - Scan for locked user accounts in /etc/passwd
 - TOOL-5130 - Check for active Suricata daemon
-- Detection of Flatcar, Mageia, ROSA Linux, SLES (extended), Void Linux, Zorin OS
+- Detection of Flatcar, IPFire, Mageia, NixOS, ROSA Linux, SLES (extended), Void Linux, Zorin OS
 - Alpine, macOS and Mageia EOL dates
 
 ### Changed

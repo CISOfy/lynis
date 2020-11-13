@@ -5,8 +5,9 @@
 ### Added
 - AUTH-9284 - Scan for locked user accounts in /etc/passwd
 - TOOL-5130 - Check for active Suricata daemon
-- Detection of Flatcar, IPFire, Mageia, NixOS, ROSA Linux, SLES (extended), Void Linux, Zorin OS
-- Alpine, macOS and Mageia EOL dates
+- OS detection of Flatcar, IPFire, Mageia, NixOS, ROSA Linux, SLES (extended), Void Linux, Zorin OS
+- OS detection of OpenIndiana (Hipster and Legacy), Shillix, SmartOS, Tribblix, and others
+- EOL dates for Alpine, macOS, Mageia, OmniosCE, and Solaris 11
 
 ### Changed
 - ACCT-9626 - Detect sysstat systemd unit

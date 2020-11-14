@@ -445,15 +445,18 @@
 
     # This test is set at this position to have all ips tests directly after each other
     # Future evaluation: Check if PKGS-7326 should be skipped on modern Solaris
+    IPS_TESTS_INDENT=4
+
     if [ -n "${PKG_BINARY}" ] && [ "$(uname -r)" = "5.11" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PKGS-7338 --os Solaris --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Query Solaris IPS"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 4 --text "- Searching Image Packaging System (IPS = pkg(5))" --result "${STATUS_FOUND}" --color GREEN
         LogText "Result: Found Solaris Image Packaging System (IPS)"
         Report "package_manager[]=ips"
-        PACKAGE_MGR_PKS=1
+        PACKAGE_MGR_PKS=1i
+        IPS_TESTS_INDENT=6
         LogText "Test: Querying IPS to get package list"
-        Display --indent 4 --text "- Querying Image Packaging System (IPS) for installed packages"
+        Display --indent 6 --text "- Querying for installed packages"
         LogText "Output:"; LogText "-----"
         SPACKAGES=$(${PKG_BINARY} list | ${AWKBINARY} '{ print $1","$2 }')
         for ITEM in ${SPACKAGES}; do
@@ -482,11 +485,11 @@
         done
 
         if [ $COUNT -eq 0 ]; then
-            Display --indent 6 --text "- Checking for updates" --result "${STATUS_NONE}" --color GREEN
+            Display --indent ${IPS_TESTS_INDENT} --text "- Checking for updates with IPS" --result "${STATUS_NONE}" --color GREEN
             LogText "No updates available"
             AddHP 2 2
         else
-            Display --indent 6 --text "- Checking for updates" --result "${STATUS_FOUND}" --color YELLOW
+            Display --indent ${IPS_TESTS_INDENT} --text "- Checking for updates with IPS" --result "${STATUS_FOUND}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Update your system with pkg(5)" "pkg update" "-"
             AddHP 0 2
         fi
@@ -504,11 +507,11 @@
         LogText "Checking for Solaris support repository"
         FIND=$(${PKG_BINARY} publisher | ${GREPBINARY} https://pkg.oracle.com/solaris/support)
         if [ -n "${FIND}" ]; then
-            Display --indent 6 --text "- Checking for support repository" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent ${IPS_TESTS_INDENT} --text "- Checking for support repository" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: Found solaris support repository"
             AddHP 3 3
         else
-            Display --indent 6 --text "- Checking for support repository " --result "${STATUS_NOT_FOUND}" --color RED
+            Display --indent ${IPS_TESTS_INDENT} --text "- Checking for support repository " --result "${STATUS_NOT_FOUND}" --color RED
             ReportWarning "${TEST_NO}" "Solaris support repository not installed" "The support repository contains important updates" "url:https://docs.oracle.com/cd/E36784_01/html/E39134/repose-1.html"
             AddHP 0 3
         fi
@@ -527,13 +530,13 @@
         FIND=$("${PKG_BINARY}" info solaris-11-cpu 2> /dev/null > /dev/null; echo $?)
 
         if [ "${FIND}" -eq 0 ]; then
-            Display --indent 6 --text "- Checking for patch metadata" --result "${STATUS_FOUND}" --color GREEN
+            Display --indent ${IPS_TESTS_INDENT} --text "- Checking for patch metadata" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: Found solaris-11-cpu"
             PACKAGE_AUDIT_TOOL_FOUND="1"
             PACKAGE_AUDIT_TOOL="IPS"
             AddHP 3 3
         else
-            Display --indent 6 --text "- Checking for patch metadata" --result "${STATUS_NOT_FOUND}" --color YELLOW
+            Display --indent ${IPS_TESTS_INDENT} --text "- Checking for patch metadata" --result "${STATUS_NOT_FOUND}" --color YELLOW
             FIND=$(pkg info -r solaris-11-cpu 2> /dev/null /dev/null; echo $?)
             LogText "Result: Not installed"
 
@@ -548,6 +551,7 @@
             AddHP 0 3
         fi
     fi
+    unset IPS_TESTS_INDENT
 #
 #################################################################################
 #

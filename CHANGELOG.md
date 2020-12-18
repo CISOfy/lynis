@@ -8,19 +8,25 @@
 - OS detection of Flatcar, IPFire, Mageia, NixOS, ROSA Linux, SLES (extended), Void Linux, Zorin OS
 - OS detection of OpenIndiana (Hipster and Legacy), Shillix, SmartOS, Tribblix, and others
 - EOL dates for Alpine, macOS, Mageia, OmniosCE, and Solaris 11
+- Support for Solaris svcs (service manager)
+- Enumeration of Solaris services
+- LOGG-2153 - Loghost configuration
 
 ### Changed
 - ACCT-9626 - Detect sysstat systemd unit
+- BOOT-5184 - extended test with support for Solaris
 - KRNL-5830 - Improved reboot test by ignoring known bad values
 - KRNL-5830 - Ignore rescue kernel such as on CentOS systems
 - KRNL-5830 - Detection of Alpine Linux kernel
 - NETW-2400 - Compatibility change for hostname check
+- NETW-3012 - Support for Solaris
 - PKGS-7410 - Don't show exception if no kernels were found on the disk
 - TIME-3185 - Supports now checking files at multiple locations (systemd)
 - ParseNginx function: Support include on absolute paths
 - ParseNginx function: Ignore empty included wildcards
 - Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
-- French translation file improved and translations extended
+- HostID: Use first e1000 interface and break after match
+- Translations extended and updated
 - Test if pgrep exists before using it
 - Better support for busybox shell
 - Small code enhancements

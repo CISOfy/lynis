@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -28,7 +28,7 @@
 #
 #################################################################################
 #
-    InsertSection "File systems"
+    InsertSection "${SECTION_FILE_SYSTEMS}"
 #
 #################################################################################
 #
@@ -50,6 +50,7 @@
                 LogText "Result: directory ${I} exists"
                 case "${OS}" in
                     "AIX") FIND=$(${MOUNTBINARY} | ${AWKBINARY} -v MP=${I} '{ if ($2==MP) { print $2 }}') ;;
+                    "HP-UX") FIND=$(${MOUNTBINARY} | ${AWKBINARY} -v MP=${I} '{ if ($1==MP) { print $1 }}') ;;
                     *) FIND=$(${MOUNTBINARY} | ${AWKBINARY} -v MP=${I} '{ if ($3==MP) { print $3 }}') ;;
                 esac
 
@@ -211,10 +212,11 @@
 #################################################################################
 #
     # Test        : FILE-6330
-    # Description : Query all ZFS mounts from /etc/fstab
+    # Description : Query ZFS mounts
+    # Note        : mount -p does not work under Linux
     Register --test-no FILE-6330 --os FreeBSD --weight L --network NO --category security --description "Checking ZFS file systems"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Query /etc/fstab for available ZFS mount points"
+        LogText "Test: Discover for available ZFS mount points"
         FIND=$(${MOUNTBINARY} -p | ${AWKBINARY} '{ if ($3 == "zfs") { print $1":"$2":"$3":"$4":" }}')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Querying ZFS mount points (mount -p)" --result "${STATUS_NONE}" --color WHITE
@@ -235,7 +237,7 @@
     # Description : Query all HAMMER PFS mounts from /etc/fstab
     Register --test-no FILE-6439 --os DragonFly --weight L --network NO --category security --description "Checking HAMMER PFS mounts"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Query /etc/fstab for available HAMMER PFS  mount points"
+        LogText "Test: Query /etc/fstab for available HAMMER PFS mount points"
         FIND=$(${MOUNTBINARY} -p | ${AWKBINARY} '{ if ($3 == "null") { print $1":"$2":"$3":"$4":" }}')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Querying HAMMER PFS mount points (mount -p)" --result "${STATUS_NONE}" --color WHITE
@@ -554,16 +556,18 @@
     #            ---------------------------------------------------------
     #               Mount point              nodev  noexec  nosuid
     #               /boot                      v      v       v
+    #               /dev                              v       v
     #               /dev/shm                   v      v       v
     #               /home                      v              v
+    #               /run                       v              v
     #               /tmp                       v      v       v
-    #               /var                                      v
+    #               /var                       v              v
     #               /var/log                   v      v       v
     #               /var/log/audit             v      v       v
     #               /var/tmp                   v      v       v
     #            ---------------------------------------------------------
 
-    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /dev/shm:nosuid,nodev,noexec /home:nodev,nosuid /tmp:nodev,noexec,nosuid /var:nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /var/tmp:nodev,noexec,nosuid"
+    FILESYSTEMS_TO_CHECK="/boot:nodev,noexec,nosuid /dev:noexec,nosuid /dev/shm:nosuid,nodev,noexec /home:nodev,nosuid /run:nodev,nosuid /tmp:nodev,noexec,nosuid /var:nodev,nosuid /var/log:nodev,noexec,nosuid /var/log/audit:nodev,noexec,nosuid /var/tmp:nodev,noexec,nosuid"
     Register --test-no FILE-6374 --os Linux --weight L --network NO --category security --description "Linux mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f ${ROOTDIR}etc/fstab ]; then
@@ -577,9 +581,14 @@
                         FS_FSTAB=""
                     fi
                 fi
+                if [ -z "${FS_FSTAB}" ]; then # not found in fstab, check if mounted otherwise
+                    FS_FSTAB=$(mount | ${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($3==fs) { print $6 } }')
+                    FOUND_FLAGS=$(mount | ${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $3==fs) { print $6 } }' | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
+                else
+                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $2==fs) { print $4 } }' ${ROOTDIR}etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
+                fi
                 if [ -n "${FS_FSTAB}" ]; then
                     # In awk using caret/circumflex as first character between brackets, means 'not' (instead of beginning of line)
-                    FOUND_FLAGS=$(${AWKBINARY} -v fs=${FILESYSTEM} '{ if ($1~"[^#]" && $2==fs) { print $4 } }' ${ROOTDIR}etc/fstab | ${SEDBINARY} 's/,/ /g' | ${TRBINARY} '\n' ' ')
                     LogText "File system:    ${FILESYSTEM}"
                     LogText "Expected flags: ${EXPECTED_FLAGS}"
                     LogText "Found flags:    ${FOUND_FLAGS}"
@@ -620,6 +629,13 @@
                 fi
             done
         fi
+        NMOUNTS=$(mount | ${WCBINARY} -l)
+        NDEVMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v nodev | ${WCBINARY} -l)
+        NEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${WCBINARY} -l)
+        NSUIDMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v nosuid | ${WCBINARY} -l)
+        NWRITEANDEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${EGREPBINARY} -v '^\(ro[,)]' | ${WCBINARY} -l)
+        LogText "Result: Total without nodev:${NDEVMOUNTS} noexec:${NEXECMOUNTS} nosuid:${NSUIDMOUNTS} ro or noexec (W^X): ${NWRITEANDEXECMOUNTS}, of total ${NMOUNTS}"
+        Display --indent 2 --text "- Total without nodev:${NDEVMOUNTS} noexec:${NEXECMOUNTS} nosuid:${NSUIDMOUNTS} ro or noexec (W^X): ${NWRITEANDEXECMOUNTS} of total ${NMOUNTS}"
     fi
 #
 #################################################################################
@@ -653,7 +669,6 @@
     # Description : Check for nodirtime option
 
     # Want to contribute to Lynis? Create this test
-
 #
 #################################################################################
 #
@@ -661,7 +676,6 @@
     # Description : Check for relatime
 
     # Want to contribute to Lynis? Create this test
-
 #
 #################################################################################
 #
@@ -674,11 +688,36 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6394 TODO
+    # Test        : FILE-6394
     # Description : Check vm.swappiness (Linux)
-
-    # Want to contribute to Lynis? Create this test
-
+    Register --test-no FILE-6394 --os Linux --weight L --network NO --category security --description "Determine level of swappiness."
+    if [ ${SKIPTEST} -eq 0 ]; then
+        SWAPLEVEL=$(${CAT_BINARY} /proc/sys/vm/swappiness)
+        LogText "Test: checking level of vm.swappiness: ${SWAPLEVEL}"
+        PHYSDISK=$(${LSBLKBINARY} | ${GREPBINARY} -E 'disk|SWAP' | ${GREPBINARY} -B1 SWAP | ${HEADBINARY} -n1 | ${AWKBINARY} '{print $1}')
+        if [ ${SWAPLEVEL} -gt 60 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning that swapping is more frequent than default."
+            # Check if swap is on a HDD or SDD for frequent swapping
+            if [ -d "/sys/block/${PHYSDISK}" ]; then
+                HDDORSDD=$(${CAT_BINARY} "/sys/block/${PHYSDISK}/queue/rotational")
+                if [ ${HDDORSDD} -eq 1 ]; then
+                    ReportSuggestion "${TEST_NO}" "vm.swappiness set to: ${SWAPLEVEL} > 60 (default) - consider installing an SSD for swap partition for better performance."
+                fi
+            fi
+        elif [ ${SWAPLEVEL} -eq 0 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning swapping is disabled."
+            ReportSuggestion "${TEST_NO}" "vm.swappiness set to: ${SWAPLEVEL}. Consider setting value to minimum of 1 for minimizing swappiness, but not quite disabling it. Will prevent OOM killer from killing processes when running out of physical memory."
+        elif [ ${SWAPLEVEL} -eq 1 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning that swapping can still occur but at very minimum."
+        elif [ ${SWAPLEVEL} -eq 10 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} which is the preferred setting for database servers."
+        elif [ ${SWAPLEVEL} -lt 60 ]; then
+            LogText "Result: vm.swappiness=${SWAPLEVEL} meaning that swapping is less frequent than default. This is only recommended for servers."
+        else
+            LogText "Result: vm.swappiness=${SWAPLEVEL} which is the standard level of swappiness and works well for desktop systems."
+        fi
+        if IsVerbose; then Display --indent 2 --text "- Swappiness: ${SWAPLEVEL}" --result "INFO" --color WHITE; fi
+    fi
 #
 #################################################################################
 #
@@ -791,6 +830,15 @@
                     AddHP 3 3
                     if IsDebug; then Display --indent 6 --text "- Module ${FS} not present in the kernel" --result OK --color GREEN; fi
                 fi
+                FIND=$(${LSBINARY} ${ROOTDIR}etc/modprobe.d/* 2> /dev/null)
+                if [ -n "${FIND}" ]; then
+		                FIND1=$(${EGREPBINARY} "blacklist ${FS}" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+		                FIND2=$(${EGREPBINARY} "install ${FS} /bin/true" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+                    if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
+                        Display --indent 4 --text "- Module $FS is blacklisted" --result "OK" --color GREEN
+                        LogText "Result: module ${FS} is blacklisted"
+                    fi
+		            fi
             done
             if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "- Discovered kernel modules: ${AVAILABLE_MODPROBE_FS}"

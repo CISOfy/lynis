@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -77,6 +77,10 @@
         ExitFatal
     else
         Output "License key = ${LICENSE_KEY}"
+        # Create a temporary file to use during upload (prevent license key being displayed in process table)
+        CreateTempFile || ExitFatal
+        LICENSE_KEY_FILE="${TEMP_FILE}"
+        echo "${LICENSE_KEY}" | ${TRBINARY} -cd '[a-f0-9-]' > ${LICENSE_KEY_FILE}
     fi
 
 
@@ -129,8 +133,9 @@
 
         # License check
 
-        LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null"
-        UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null)
+        LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey@${LICENSE_KEY_FILE}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null"
+        UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "licensekey@${LICENSE_KEY_FILE}" --data-urlencode "collector_version=${PROGRAM_VERSION}" ${LICENSE_SERVER_URL} 2> /dev/null)
+
         EXITCODE=$?
         LogText "Exit code: ${EXITCODE}"
         if [ ${EXITCODE} -gt 0 ]; then
@@ -225,10 +230,10 @@
             Output "${WHITE}Found hostid: ${HOSTID}${NORMAL}"
             # Try to connect
             Output "Uploading data.."
-            LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
-            LogText "Tip: try running ${CURLBINARY}${CURL_OPTIONS} --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey=${LICENSE_KEY}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
+            LogText "Command used: ${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey@${LICENSE_KEY_FILE}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
+            LogText "Tip: try running ${CURLBINARY}${CURL_OPTIONS} --data-urlencode \"data@${REPORTFILE}\" --data-urlencode \"licensekey@${LICENSE_KEY_FILE}\" --data-urlencode \"hostid=${HOSTID}\" ${UPLOAD_URL}"
             LogText "Tip: to just retry an upload, use: lynis upload-only"
-            UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey=${LICENSE_KEY}" --data-urlencode "hostid=${HOSTID}" --data-urlencode "hostid2=${HOSTID2}" ${UPLOAD_URL} 2> /dev/null)
+            UPLOAD=$(${CURLBINARY}${CURL_OPTIONS} -s -S --data-urlencode "data@${REPORTFILE}" --data-urlencode "licensekey@${LICENSE_KEY_FILE}" --data-urlencode "hostid=${HOSTID}" --data-urlencode "hostid2=${HOSTID2}" ${UPLOAD_URL} 2> /dev/null)
             EXITCODE=$?
             LogText "Exit code: ${EXITCODE}"
             if [ ${EXITCODE} -gt 0 ]; then

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -18,7 +18,7 @@
 #
 #################################################################################
 #
-    InsertSection "Accounting"
+    InsertSection "${SECTION_ACCOUNTING}"
 #
 #################################################################################
 #
@@ -123,8 +123,19 @@
                 Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_DISABLED}" --color WHITE
                 ReportSuggestion "${TEST_NO}" "Enable sysstat to collect accounting (cron disabled)"
             fi
+        elif [ -f "${ROOTDIR}lib/systemd/system/sysstat.service" ] || [ -f "${ROOTDIR}etc/systemd/system/sysstat.service" ]; then
+            LogText "Result: sysstat systemd unit found"
+            if [ -L "${ROOTDIR}etc/systemd/system/multi-user.target.wants/sysstat.service" ]; then
+                # Assuming -collect.timer and -summary.timer are enabled as well,
+                # as they are usually in the install section.
+                LogText "Result: sysstat enabled via systemd"
+                Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_ENABLED}" --color GREEN
+            else
+                LogText "Result: sysstat disabled via systemd"
+                Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_DISABLED}" --color WHITE
+            fi
         else
-            LogText "Result: sysstat not found via ${ROOTDIR}etc/default/sysstat or ${ROOTDIR}etc/cron.d/sysstat"
+            LogText "Result: sysstat not found via ${ROOTDIR}etc/default/sysstat or ${ROOTDIR}etc/cron.d/sysstat or as a systemd unit"
             Display --indent 2 --text "- Checking sysstat accounting data" --result "${STATUS_NOT_FOUND}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Enable sysstat to collect accounting (no results)"
         fi
@@ -413,4 +424,4 @@ WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2019, Michael Boelen / CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2020, Michael Boelen / CISOfy - https://cisofy.com

@@ -1,4 +1,5 @@
 
+
 [![Linux Security Expert badge](https://badges.linuxsecurity.expert/tools/ranking/lynis.svg)](https://linuxsecurity.expert/tools/lynis/)
 [![Build Status](https://travis-ci.org/CISOfy/lynis.svg?branch=master)](https://travis-ci.org/CISOfy/lynis)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/96/badge)](https://bestpractices.coreinfrastructure.org/projects/96)
@@ -14,7 +15,7 @@ Do you like this software? **Star the project** and become a [stargazer](https:/
 
 > Lynis - Security auditing and hardening tool, for UNIX-based systems.
 
-Lynis is a security auditing for system based on UNIX like Linux, macOS, BSD, and others. It performs an **in-depth security scan** and runs on the system itself. The primary goal is to test security defenses and **provide tips for further system hardening**. It will also scan for general system information, vulnerable software packages, and possible configuration issues. Lynis was commonly used by system administrators and auditors to assess the security defenses of their systems. Besides the "blue team", nowadays penetration testers also have Lynis in their toolkit.
+Lynis is a security auditing tool for systems based on UNIX like Linux, macOS, BSD, and others. It performs an **in-depth security scan** and runs on the system itself. The primary goal is to test security defenses and **provide tips for further system hardening**. It will also scan for general system information, vulnerable software packages, and possible configuration issues. Lynis was commonly used by system administrators and auditors to assess the security defenses of their systems. Besides the "blue team," nowadays penetration testers also have Lynis in their toolkit.
 
 We believe software should be **simple**, **updated on a regular basis**, and **open**. You should be able to trust, understand, and have the option to change the software. Many agree with us, as the software is being used by thousands every day to protect their systems.
 
@@ -55,10 +56,13 @@ Typical users of the software:
 
 If you want to run the software as `root`, we suggest changing the ownership of the files. Use `chown -R 0:0` to recursively alter the owner and group and set it to user ID `0` (`root`).
 
-### Package
+### Software Package
 
-Stable releases of Lynis are packaged and made available as RPM or DEB package. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running:
+For Linux, BSD, and macOS, there is typically a package available. The Lynis project also provides packages in RPM or DEB format. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running:
 `CentOS`, `Debian`, `Fedora`, `OEL`, `openSUSE`, `RHEL`, `Ubuntu`, and others.
+
+Some distributions may also have Lynis in their software repository: [![Repology](https://repology.org/badge/tiny-repos/lynis.svg)](https://repology.org/project/lynis/versions)
+If they don't provide an up-to-date version, consider the CISOfy repository, tarball (website), or GitHub release.
 
 ### Enterprise Version
 
@@ -100,7 +104,7 @@ Lynis is collecting some awards and we are proud of that.
 
 > We love contributors.
 
-Do you have something to share? Or help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
+Do you have something to share? Want to help out with translating Lynis into your own language? Create an issue or pull request on GitHub, or send us an e-mail: lynis-dev@cisofy.com.
 
 More details can be found in the [Contributors Guide](https://github.com/CISOfy/lynis/blob/master/CONTRIBUTING.md).
 

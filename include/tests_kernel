@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    InsertSection "Kernel"
+    InsertSection "${SECTION_KERNEL}"
 #
 #################################################################################
 #
@@ -31,6 +31,7 @@
     LINUXCONFIGFILE=""
     LINUXCONFIGFILE_ZIPPED=0
     LIMITS_DIRECTORY="${ROOTDIR}etc/security/limits.d"
+    APT_ARCHIVE_DIRECTORY="${ROOTDIR}var/cache/apt/archives"
 #
 #################################################################################
 #
@@ -102,8 +103,7 @@
     # Description : Check CPU options and support (PAE, No eXecute, eXecute Disable)
     # More info   : pae and nx bit are both visible on AMD and Intel CPU's if supported
 
-    if [ "${HARDWARE}" = "x86_64" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no KRNL-5677 --preqs-met "${PREQS_MET}" --os Linux --weight L --network NO --category security --description "Check CPU options and support"
+    Register --test-no KRNL-5677 --platform x86_64 --os Linux --weight L --network NO --category security --description "Check CPU options and support"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking CPU support (NX/PAE)"
         LogText "Test: Checking /proc/cpuinfo"
@@ -235,12 +235,13 @@
     Register --test-no KRNL-5728 --os Linux --weight L --network NO --category security --description "Checking Linux kernel config"
     if [ ${SKIPTEST} -eq 0 ]; then
         CHECKFILE="${ROOTDIR}boot/config-$(uname -r)"
+        CHECKFILE_ZIPPED="${ROOTDIR}proc/config.gz"
         if [ -f ${CHECKFILE} ]; then
             LINUXCONFIGFILE="${CHECKFILE}"
             LogText "Result: found config (${LINUXCONFIGFILE})"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
-        elif [ -f ${ROOTDIR}proc/config.gz ]; then
-            LINUXCONFIGFILE="${CHECKFILE}"
+        elif [ -f ${CHECKFILE_ZIPPED} ]; then
+            LINUXCONFIGFILE="${CHECKFILE_ZIPPED}"
             LINUXCONFIGFILE_ZIPPED=1
             LogText "Result: found config: ${ROOTDIR}proc/config.gz (compressed)"
             Display --indent 2 --text "- Checking Linux kernel configuration file" --result "${STATUS_FOUND}" --color GREEN
@@ -392,6 +393,12 @@
             elif [ -e ${ROOTDIR}dev/grsec ]; then
                 FINDKERNEL=linux-image-$(uname -r)
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
+            elif [ -e ${ROOTDIR}etc/rpi-issue ]; then
+                FINDKERNEL=raspberrypi-kernel
+                LogText "Result: ${ROOTDIR}vmlinuz missing due to Raspbian"
+            elif `${EGREPBINARY} -q 'do_symlinks.*=.*No' ${ROOTDIR}etc/kernel-img.conf`; then
+                FINDKERNEL=linux-image-$(uname -r)
+                LogText "Result: ${ROOTDIR}vmlinuz missing due to /etc/kernel-img.conf item do_symlinks = No"
             else
                 LogText "This system is missing ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz.  Unable to check whether kernel is up-to-date."
                 ReportSuggestion "${TEST_NO}" "Determine why ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz or /boot/vmlinuz"
@@ -478,13 +485,13 @@
                  ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ) || \
                  ( [ ${SYSD_CORED_BASE_STORAGE_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] ) || \
                  ( [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ); then
-                LogText "Result: core dumps are explicitely enabled in systemd configuration files"
+                LogText "Result: core dumps are explicitly enabled in systemd configuration files"
                 ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in ${ROOTDIR}etc/systemd/coredump.conf ('ProcessSizeMax=0', 'Storage=none')"
                 Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_ENABLED}" --color RED
                 AddHP 0 1
             else
                 LogText "Result: core dumps are not disabled in systemd configuration. Didn't find settings 'ProcessSizeMax=0' and 'Storage=none'"
-                Display --indent 4 --text "- configuration in systemd conf files" --result "DEFAULT" --color WHITE
+                Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_DEFAULT}" --color WHITE
                 AddHP 0 1
             fi
         fi
@@ -501,7 +508,7 @@
                 AddHP 1 1
             elif [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ -z "${ULIMIT_C_VALUE}" ]; then
                 LogText "Result: core dumps are not disabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. Didn't find setting 'ulimit -c 0'"
-                Display --indent 4 --text "- configuration in etc/profile" --result "DEFAULT" --color WHITE
+                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_DEFAULT}" --color WHITE
                 AddHP 0 1
             elif ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE_SUB}" = "unlimited" ] || [ "${ULIMIT_C_VALUE_SUB}" != "0" ] ) ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE}" = "unlimited" ] || [ "${ULIMIT_C_VALUE}" != "0" ] ) ); then
                 LogText "Result: core dumps are enabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. A value higher than 0 is configured for 'ulimit -c'"
@@ -509,7 +516,7 @@
                 AddHP 0 1
             else
                 LogText "Result: ERROR - something went wrong. Unexpected result during check of ${ROOTDIR}etc/profile and ${ROOTDIR}etc/profile.d/*.sh config files. Please report on Github!"
-                Display --indent 4 --text "- configuration in etc/profile" --result "ERROR" --color YELLOW
+                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_ERROR}" --color YELLOW
             fi
         fi
         # Limits option
@@ -531,8 +538,8 @@
                 FIND2="hard core enabled"
             fi
 
-            IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
-            IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
+            IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
+            IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
 
             if [ "${FIND2}" = "hard core disabled" ]; then
                 LogText "Result: core dumps are hard disabled"
@@ -580,18 +587,18 @@
         fi
         if [ "${FIND}" = "2" ]; then
             LogText "Result: programs can dump core dump, but only readable by root (value 2, for debugging with file protection)"
-            Display --indent 4 --text "- Checking setuid core dumps configuration" --result PROTECTED --color WHITE
+            Display --indent 4 --text "- Checking setuid core dumps configuration" --result "${STATUS_PROTECTED}" --color WHITE
             AddHP 1 1
         elif [ "${FIND}" = "1" ]; then
             LogText "Result: all programs can perform core dumps (value 1, for debugging)"
-            Display --indent 2 --text "- Checking setuid core dumps configuration" --result DEBUG --color YELLOW
+            Display --indent 2 --text "- Checking setuid core dumps configuration" --result "${STATUS_DEBUG}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Determine if all binaries need to be able to core dump"
             AddHP 0 1
         else
             # 0 - (default) - traditional behaviour. Any process which has changed privilege levels or is execute only will not be dumped
             # https://www.kernel.org/doc/Documentation/sysctl/fs.txt
             LogText "Result: found default option (0), no execute only program or program with changed privilege levels can dump"
-            Display --indent 4 --text "- Checking setuid core dumps configuration" --result DISABLED --color GREEN
+            Display --indent 4 --text "- Checking setuid core dumps configuration" --result "${STATUS_DISABLED}" --color GREEN
             AddHP 1 1
         fi
     fi
@@ -624,7 +631,7 @@
         fi
 
         # Check if /boot exists
-        if [ ${PRIVILEGED} -eq 1 -a -d "${ROOTDIR}boot" ]; then
+        if [ -d "${ROOTDIR}boot" ]; then
             LogText "Result: /boot exists, performing more tests from here"
             FIND=$(${LSBINARY} ${ROOTDIR}boot/* 2> /dev/null)
             if [ -n "${FIND}" ]; then
@@ -650,30 +657,47 @@
                     else
                         ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
                     fi
-                elif [ -f ${ROOTDIR}boot/vmlinuz-linux -o -f ${ROOTDIR}boot/vmlinuz-linux-lts -o -f $(ls -t ${ROOTDIR}boot/vm[l-]* 2> /dev/null | head -1) ]; then
-                    if [ -L ${ROOTDIR}boot/vmlinuz-linux ]; then
-                        LogText "Result: found symlink ${ROOTDIR}boot/vmlinuz-linux"
-                        FOUND_VMLINUZ=$(readlink ${ROOTDIR}boot/vmlinuz-linux)
-                        LogText "Result: symlinked target is ${FOUND_VMLINUZ}"
-                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's/^vmlinuz-//')
+                elif [ -f ${ROOTDIR}boot/vmlinuz-linux ] || [ -f ${ROOTDIR}boot/vmlinuz-linux-lts ] || [ -f "$(${LSBINARY} -t ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${HEADBINARY} -1)" ]; then
+                    if [ -f ${ROOTDIR}boot/vmlinuz-linux ]; then
+                        LogText "Result: found ${ROOTDIR}boot/vmlinuz-linux"
+                        FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-linux
                     elif [ -f ${ROOTDIR}boot/vmlinuz-linux-lts ]; then
-                        LogText "Result: found boot/vmlinuz-linux-lts"
+                        LogText "Result: found ${ROOTDIR}boot/vmlinuz-linux-lts"
                         FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-linux-lts
+                    elif [ -f ${ROOTDIR}boot/vmlinuz-lts ]; then
+                        LogText "Result: found ${ROOTDIR}boot/vmlinuz-lts"
+                        FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-lts
                     else
-                        # Match on /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default
-                        FOUND_VMLINUZ=$(ls -t ${ROOTDIR}boot/vm[l-]* 2> /dev/null | head -1)
+                        # Match on items like /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default. Get newest file (ls -t and pipe into head)
+                        # Note: ignore a rescue kernel (e.g. CentOS)
+                        FOUND_VMLINUZ=$(${LSBINARY} -t ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue\-' | ${HEADBINARY} -1)
+                        LogText "Result: found ${FOUND_VMLINUZ}"
                     fi
 
+                    VERSION_ON_DISK=""
                     if [ -L "${FOUND_VMLINUZ}" ]; then
                         LogText "Result: found a symlink, retrieving destination"
                         FOUND_VMLINUZ=$(readlink "${FOUND_VMLINUZ}")
                         LogText "Result: destination file is ${FOUND_VMLINUZ}"
-                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's/^vmlinuz-//')
+                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's#^/boot/##' | ${SEDBINARY} 's/^vmlinuz-//')
                         LogText "Result: version derived from file name is '${VERSION_ON_DISK}'"
+                    elif [ -f "${FOUND_VMLINUZ}" ]; then
+                        VERSION_ON_DISK=$(echo ${FOUND_VMLINUZ} | ${SEDBINARY} 's#^/boot/##' | ${SEDBINARY} 's/^vmlinuz-//' | ${SEDBINARY} '$s/-\?\(linux\)\?-\?\(lts\)\?//')
+                        LogText "Result: version derived from file name is '${VERSION_ON_DISK}'"
+
                     fi
 
+                    # Data check: perform reset if we found a version but looks incomplete
+                    # Example: Arch Linux will return only 'linux' as its version after it discovered /boot/vmlinuz-linux
+                    case ${VERSION_ON_DISK} in
+                        "linux" | "linux-lts")
+                            LogText "Result: reset of version (${VERSION_ON_DISK}) as it looks incomplete"
+                            VERSION_ON_DISK=""
+                        ;;
+                    esac
+
+                    # If we did not find the version yet, see if we can extract it from the magic data that 'file' returns
                     if [ -z "${VERSION_ON_DISK}" ]; then
-                        LogText "Result: found ${FOUND_VMLINUZ}"
                         LogText "Test: checking kernel version on disk"
                         NEXTLINE=0
                         VERSION_ON_DISK=""
@@ -686,6 +710,12 @@
                                 if [ "${I}" = "version" ]; then NEXTLINE=1; fi
                             fi
                         done
+                    fi
+
+                    # Last check if we finally got a version or not
+                    if [ -z "${VERSION_ON_DISK}" ]; then
+                        LogText "Result: could not find the version on disk"
+                        ReportException "${TEST_NO}:4" "Could not find the kernel version"
                     else
                         LogText "Result: found version ${VERSION_ON_DISK}"
                         ACTIVE_KERNEL=$(uname -r)
@@ -697,10 +727,6 @@
                             REBOOT_NEEDED=1
                             LogText "Result: reboot needed, as there is a difference between active kernel and the one on disk"
                         fi
-                    fi
-                    if [ -z "${VERSION_ON_DISK}" ]; then
-                        LogText "Result: could not find the version on disk"
-                        ReportException "${TEST_NO}:4" "Could not find the kernel version"
                     fi
                 else
                     if [ -L ${ROOTDIR}boot/vmlinuz ]; then
@@ -767,6 +793,107 @@
             LogText "Result: /boot does not exist or not privileged to read files"
         fi
 
+        # Attempt to check for Raspbian if reboot is needed
+        # This check searches for apt package "raspberrypi-kernel-[package-date]", trys to extract the date of packaging from the filename
+        # and compares that date with the currently running kernel's build date (uname -v).
+        # Of course there can be a time difference between kernel build and kernel packaging, therefore a time difference of
+        # 3 days is accepted and it is assumed with only 3 days apart, this must be the same kernel version.
+        if [ ${REBOOT_NEEDED} -eq 2 ] && [ -d "${APT_ARCHIVE_DIRECTORY}" ]; then
+            LogText "Result: found folder ${APT_ARCHIVE_DIRECTORY}; assuming this is a debian based distribution"
+            LogText "Check: try to find raspberrypi-kernel file in ${APT_ARCHIVE_DIRECTORY} and extract package date from file name"
+
+            FOUND_KERNEL_DATE=$(${FINDBINARY} ${APT_ARCHIVE_DIRECTORY} -name "raspberrypi-kernel*" -printf "%T@ %Tc %p\n" 2> /dev/null \
+            | ${SORTBINARY} -nr | ${HEADBINARY} -1 | ${GREPBINARY} -o "raspberrypi-kernel.*deb" | ${EGREPBINARY} -o "\.[0-9]+" | ${SEDBINARY} 's/\.//g')
+
+            if [ -n "${FOUND_KERNEL_DATE}" ]; then
+                FOUND_KERNEL_IN_SECONDS=$(date -d "${FOUND_KERNEL_DATE}" "+%s" 2> /dev/null)
+            else
+                LogText "Result: Skipping this test, as there was no package date to extract"
+            fi
+
+            if [ -n "${FOUND_KERNEL_IN_SECONDS}" ] && [ ${FOUND_KERNEL_IN_SECONDS} -gt 1 ]; then
+                LogText "Result: Got package date: ${FOUND_KERNEL_DATE} (= ${FOUND_KERNEL_IN_SECONDS} seconds)"
+                UNAME_OUTPUT="$(${UNAMEBINARY} -v 2> /dev/null)"
+            else
+                LogText "Result: Skipping this test, as extracting the seconds of package date failed"
+            fi
+            
+            if [ -n "${UNAME_OUTPUT}" ]; then
+                LogText "Result: Got an output from 'uname -v'"
+                LogText "Check: Trying to extract kernel build date from 'uname -v' output"
+                next=""
+                for part in ${UNAME_OUTPUT}; do
+                    if [ -z "$next" ]; then
+                        if [ "${part}" = "Mon" ] || [ "${part}" = "Tue" ] || [ "${part}" = "Wed" ] || [ "${part}" = "Thu" ] || [ "${part}" = "Fri" ] || [ "${part}" = "Sat" ] || [ "${part}" = "Sun" ]; then
+                            next="month"
+                        fi
+                    elif [ "$next" = "month" ]; then
+                        if [ $(${ECHOCMD} "${part}" | ${EGREPBINARY} -c "[A-Z][a-z]") -ge 1 ]; then
+                            UNAME_DATE_MONTH="${part}"
+                            next="day"
+                        fi
+                    elif [ "${next}" = "day" ]; then
+                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                            UNAME_DATE_DAY="${part}"
+                            next="time"
+                        fi
+                    elif [ "${next}" = "time" ]; then
+                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c ":[0-9][0-9]:") -ge 1 ]; then
+                            next="year"
+                        fi
+                    elif [ "${next}" = "year" ]; then
+                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                            UNAME_DATE_YEAR="${part}"
+                            break
+                        fi
+                    fi
+                done
+                if [ -n "${UNAME_DATE_MONTH}" ] && [ -n "${UNAME_DATE_DAY}" ] && [ -n "${UNAME_DATE_YEAR}" ]; then
+                    LogText "Result: Extracted kernel build date is: ${UNAME_DATE_DAY} ${UNAME_DATE_MONTH} ${UNAME_DATE_YEAR}"
+                    UNAME_DATE_IN_SECONDS=$(date -d "${UNAME_DATE_DAY} ${UNAME_DATE_MONTH} ${UNAME_DATE_YEAR}" "+%s" 2> /dev/null)
+                    LogText "Check: Comparing kernel build date in seconds (${UNAME_DATE_IN_SECONDS}s) with package date in seconds (${FOUND_KERNEL_IN_SECONDS}s)"
+                    if [ -n "${UNAME_DATE_IN_SECONDS}" ] && [ ${FOUND_KERNEL_IN_SECONDS} -ge ${UNAME_DATE_IN_SECONDS} ]; then
+                        LogText "Result: package creation date is older than running kernel. Hence, this check should be valid."
+                        LogText "Check if package create date and kernel build date are not more than 3 days apart."
+
+                        SECONDS_APART=$(( ${FOUND_KERNEL_IN_SECONDS} - ${UNAME_DATE_IN_SECONDS} ))
+                        if [ ${SECONDS_APART} -ge 60 ]; then
+                            MINUTES_APART=$(( ${SECONDS_APART} / 60 ))
+                            if [ ${MINUTES_APART} -ge 60 ]; then
+                                DAYS_APART=$(( ${MINUTES_APART} / 60 ))
+                                if [ ${DAYS_APART} -ge 24 ]; then DAYS_APART=$(( ${DAYS_APART} / 24 )); else DAYS_APART=0; fi
+                            else
+                                DAYS_APART=0
+                            fi
+                        else
+                            DAYS_APART=0
+                        fi
+                        # assuming kernels are packaged definitely within 3 days. ACCEPTED_TIME_DIFF needs a value in seconds
+                        ACCEPTED_TIME_DIFF=$((3 * 24 * 60 * 60))
+                        if [ ${FOUND_KERNEL_IN_SECONDS} -le $((${UNAME_DATE_IN_SECONDS} + ${ACCEPTED_TIME_DIFF})) ]; then
+                            LogText "Result: package create date and kernel build date are only ${DAYS_APART} day(s) apart."
+                            LogText "Result: Assuming no reboot needed."
+                            REBOOT_NEEDED=0
+                        else
+                            LogText "Result: package create date and kernel build date are ${DAYS_APART} day(s) apart."
+                            LogText "Result: Assuming reboot is needed."
+                            REBOOT_NEEDED=1
+                        fi
+                    else
+                        LogText "Result: Package's create date is older than running kernel, which is unexpected. Might not be a valid test. Skipping..."
+                    fi
+                else
+                    LogText "Result: Could not extract Day, Month and Year from 'uname -v' output"
+                fi
+            else
+                LogText "Result: Did not get output from 'uname -v'. Skipping test."
+            fi
+                
+            
+        else
+            LogText "Result: /var/cache/apt/archives/ does not exist"
+        fi
+
         # Display discovered status
         if [ ${REBOOT_NEEDED} -eq 0 ]; then
             Display --indent 2 --text "- Check if reboot is needed" --result "${STATUS_NO}" --color GREEN
@@ -787,4 +914,4 @@ WaitForKeyPress
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2019, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2020, CISOfy - https://cisofy.com

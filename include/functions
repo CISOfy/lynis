@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -38,7 +38,7 @@
 #    DigitsOnly                 Return only the digits from a string
 #    DirectoryExists            Check if a directory exists on the disk
 #    DiscoverProfiles           Determine available profiles on system
-#    Display                    Output text to screen with colors and identation
+#    Display                    Output text to screen with colors and indentation
 #    DisplayError               Show an error on screen
 #    DisplayException           Show an exception on screen
 #    DisplayManual              Output text to screen without any layout
@@ -1089,12 +1089,13 @@
                 ;;
 
                 "Solaris")
-                    INTERFACES_TO_TEST="e1000g1 net0"
+                    INTERFACES_TO_TEST="net0 e1000g1 e1000g0"
                     FOUND=0
                     for I in ${INTERFACES_TO_TEST}; do
                          FIND=$(${IFCONFIGBINARY} -a | grep "^${I}")
                          if [ ! "${FIND}" = "" ]; then
                              FOUND=1; LogText "Found interface ${I} on Solaris"
+                             break
                          fi
                     done
                     if [ ${FOUND} -eq 1 ]; then
@@ -1107,7 +1108,7 @@
                             ReportException "GetHostID" "Can not find sha1/sha1sum or openssl"
                         fi
                     else
-                        ReportException "GetHostID" "No interface found op Solaris to create HostID"
+                        ReportException "GetHostID" "No interface found on Solaris to create HostID"
                     fi
                 ;;
 
@@ -1286,11 +1287,12 @@
                 CHECK_PERMISSION=$(echo "${CHECK_PERMISSION}" | ${AWKBINARY} '{printf "%03d",$1}')
 
                 # First try stat command
-                LogText "Test: checking if file ${CHECKFILE} is ${CHECK_PERMISSION}"
+                LogText "Test: checking if file ${CHECKFILE} has the permissions set to ${CHECK_PERMISSION} or more restrictive"
                 if [ -n "${STATBINARY}" ]; then
 
                     case ${OS} in
-                        *BSD)
+                        *BSD | "macOS")
+                            # BSD and macOS have no --format, only short notation
                             DATA=$(${STATBINARY} -f "%OLp" ${CHECKFILE})
                         ;;
                         *)
@@ -1344,7 +1346,7 @@
                 DATA=$(echo "${DATA}" | ${AWKBINARY} '{printf "%03d",$1}')
 
                 if [ -n "${DATA}" ]; then
-                    if [ "${DATA}" = "${CHECK_PERMISSION}" ]; then
+                    if [ "${DATA}" -le "${CHECK_PERMISSION}" ]; then
                         LogText "Outcome: correct permissions (${DATA})"
                         return 0
                     fi
@@ -1516,6 +1518,7 @@
     # Returns     : 0 (process is running), 1 (process not running)
     #               RUNNING (1 = running, 0 = not running) - will be deprecated
     # Notes       : PSOPTIONS are declared globally, to prevent testing each call
+    #               Fallback is used on binaries as IsRunning is used for 'show' command
     ################################################################################
 
     IsRunning() {
@@ -1545,44 +1548,43 @@
 
         if [ -z "${search}" ]; then ExitFatal "Missing process to search for when using IsRunning function"; fi
         RUNNING=0
-        # AIX does not fully support pgrep options, so using ps instead
-        if [ -n "${PGREPBINARY}" ] && [ "${OS}" != "AIX" ]; then
+        if [ -x "${PGREPBINARY}" ] && [ "${OS}" != "AIX" ]; then
             # When --user is used, perform a search using the -u option
-                            # Initialize users for strict mode
+            # Initialize users for strict mode
             if [ -n "${users:-}" ]; then
                 for u in ${users}; do
-                    user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY} -F: '{print $3}')
+                    user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY:-awk} -F: '{print $3}')
                     # Only perform search if user exists and we had no match yet
                     if [ -n "${user_uid}" ]; then
                         if [ -z "${FIND}" ]; then
                             LogText "Performing pgrep scan using uid ${user_uid}"
-                            FIND=$(${PGREPBINARY} ${pgrep_options} -u "${user_uid}" "${search}" | ${TRBINARY} '\n' ' ')
+                            FIND=$(${PGREPBINARY:-pgrep} ${pgrep_options} -u "${user_uid}" "${search}" | ${TRBINARY:-tr} '\n' ' ')
                         fi
                     fi
                 done
             else
                 LogText "Performing pgrep scan without uid"
-                FIND=$(${PGREPBINARY} ${pgrep_options} "${search}" | ${TRBINARY} '\n' ' ')
+                FIND=$(${PGREPBINARY:-pgrep} ${pgrep_options} "${search}" | ${TRBINARY:-tr} '\n' ' ')
             fi
         else
             if [ "${SHELL_IS_BUSYBOX}" -eq 1 ]; then
                 # This search is not foolproof
                 LogText "Performing simple ps scan (busybox)"
                 PSOPTIONS=" -o args="
-                FIND=$(${PSBINARY} ${PSOPTIONS} | ${EGREPBINARY} "( |/)${search}" | ${GREPBINARY} -v "grep")
+                FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${EGREPBINARY:-egrep} "( |/)${search}" | ${GREPBINARY:-grep} -v "grep")
             else
                 if [ -n "${users}" ]; then
                     for u in ${users}; do
-                        user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY} -F: '{print $3}')
+                        user_uid=$(getent passwd "${u}" 2> /dev/null | ${AWKBINARY:-awk} -F: '{print $3}')
                         # Only perform search if user exists and we had no match yet
                         if [ -n "${user_uid}" ]; then
                             if [ -z "${FIND}" ]; then
                                 if [ ${PARTIAL_SEARCH} -eq 1 ]; then
                                     LogText "Performing ps scan using partial match and for uid ${user_uid}"
-                                    FIND=$(${PSBINARY} -u "${user_uid}" -o comm= "${search}" | ${AWKBINARY} -v pattern="${search}" '$0 ~ pattern {print}')
+                                    FIND=$(${PSBINARY:-ps} -u "${user_uid}" -o comm= "${search}" | ${AWKBINARY:-awk} -v pattern="${search}" '$0 ~ pattern {print}')
                                 else
                                     LogText "Performing ps scan using exact match and for uid ${user_uid}"
-                                    FIND=$(${PSBINARY} -u "${user_uid}" -o comm= "${search}" | ${AWKBINARY} -v pattern="^${search}$" '$0 ~ pattern {print}')
+                                    FIND=$(${PSBINARY:-ps} -u "${user_uid}" -o comm= "${search}" | ${AWKBINARY:-awk} -v pattern="^${search}$" '$0 ~ pattern {print}')
                                 fi
                             fi
                         fi
@@ -1595,10 +1597,10 @@
                     esac
                     if [ ${PARTIAL_SEARCH} -eq 1 ]; then
                         LogText "Performing ps scan using partial match and without uid"
-                        FIND=$(${PSBINARY} ${PSOPTIONS} | ${AWKBINARY} -v pattern="${search}" '$0 ~ pattern {print}')
+                        FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${AWKBINARY:-awk} -v pattern="${search}" '$0 ~ pattern {print}')
                     else
                         LogText "Performing ps scan using exact match and without uid"
-                        FIND=$(${PSBINARY} ${PSOPTIONS} | ${AWKBINARY} -v pattern="^${search}$" '$0 ~ pattern {print}')
+                        FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${AWKBINARY:-awk} -v pattern="^${search}$" '$0 ~ pattern {print}')
                     fi
                 fi
             fi
@@ -1774,14 +1776,11 @@
         # dmidecode
         # Values: VMware Virtual Platform / VirtualBox
         if [ -z "${SHORT}" ]; then
-            if [ -x /usr/bin/dmidecode ]; then DMIDECODE_BINARY="/usr/bin/dmidecode"
-            elif [ -x /usr/sbin/dmidecode ]; then DMIDECODE_BINARY="/usr/sbin/dmidecode"
-            else
-                DMIDECODE_BINARY=""
-            fi
-            if [ ! "${DMIDECODE_BINARY}" = "" -a ${PRIVILEGED} -eq 1 ]; then
+            # Try to find dmidecode in case we did not check binaries (e.g. lynis show environment)
+            if [ ${CHECK_BINARIES} -eq 0 ]; then DMIDECODEBINARY=$(command -v dmidecode 2> /dev/null); fi
+            if [ -n "${DMIDECODEBINARY}" -a -x "${DMIDECODEBINARY}" -a ${PRIVILEGED} -eq 1 ]; then
                 LogText "Test: trying to guess virtualization with dmidecode"
-                FIND=$(/usr/sbin/dmidecode -s system-product-name | awk '{ print $1 }')
+                FIND=$(${DMIDECODEBINARY} -s system-product-name | awk '{ print $1 }')
                 if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FIND}"
                     SHORT="${FIND}"
@@ -1794,6 +1793,7 @@
         else
             LogText "Result: skipped dmidecode test, as we already found machine type"
         fi
+
         # Other options
         # SaltStack: salt-call grains.get virtual
         # < needs snippet >
@@ -1864,7 +1864,7 @@
         fi
 
         # Check if we caught some string along all tests
-        if [ ! "${SHORT}" = "" ]; then
+        if [ -n "${SHORT}" ]; then
             # Lowercase and see if we found a match
             SHORT=$(echo ${SHORT} | awk '{ print $1 }' | tr '[:upper:]' '[:lower:]')
 
@@ -2020,6 +2020,7 @@
     PackageIsInstalled() {
         exit_code=255
 
+        # First parameter is package name (or __dummy__ for initial test to see if package manager is available and works as expected)
         if [ $# -eq 1 ]; then
             package="$1"
         else
@@ -2041,6 +2042,9 @@
         elif [ -n "${PKG_BINARY}" ]; then
             output=$(${PKG_BINARY} -N info ${package} >/dev/null 2>&1)
             exit_code=$?  # 0=package installed, 70=invalid package
+        elif [ -n "${PKGINFOBINARY}" ]; then
+            output=$(${PKGINFOBINARY} -q -e ${package} >/dev/null 2>&1)
+            exit_code=$?  # 0=package installed, 1=package not installed
         elif [ -n "${RPMBINARY}" ]; then
             output=$(${RPMBINARY} --quiet -q ${package} > /dev/null 2>&1)
             exit_code=$?
@@ -2050,8 +2054,25 @@
         elif [ -n "${ZYPPERBINARY}" ]; then
             output=$(${ZYPPERBINARY} --quiet --non-interactive search --installed -i ${package} 2> /dev/null | grep "^i")
             if [ -n "${output}" ]; then exit_code=0; else exit_code=1; fi
+        elif [ -n "${XBPSBINARY}" ]; then
+            output=$(${XBPSBINARY} ${package} 2> /dev/null | ${GREPBINARY} "^ii")
+            exit_code=$?
         else
-            ReportException "PackageIsInstalled:01"
+            if [ "${package}" != "__dummy__" ]; then
+                ReportException "PackageIsInstalled:01 (test=${TEST_NO:-unknown})"
+            fi
+        fi
+
+        # Give thumbs up if dummy package is used during initial test for package manager availability
+        if [ "${package}" = "__dummy__" ]; then
+            # There should be no positive match on this dummy package
+            if [ ${exit_code} -eq 0 ]; then
+                exit_code=1
+            elif [ ${exit_code} -eq 255 ]; then
+                exit_code=1
+            else
+                exit_code=0
+            fi
         fi
 
         return ${exit_code}
@@ -2159,7 +2180,8 @@
         for I in ${FIND}; do
             I=$(echo ${I} | sed 's/:space:/ /g' | sed 's/;$//' | sed 's/ #.*$//')
             OPTION=$(echo ${I} | awk '{ print $1 }')
-            VALUE=$(echo ${I}| cut -d' ' -f2-)
+            # Use quotes here to prevent wildcard expansion
+            VALUE=$(echo "${I}"| cut -d' ' -f2-)
             LogText "Result: found option ${OPTION} in ${CONFIG_FILE} with value '${VALUE}'"
             STORE_SETTING=1
             case ${OPTION} in
@@ -2282,9 +2304,25 @@
                         done
                         if [ ${FOUND} -eq 0 ]; then NGINX_CONF_FILES_ADDITIONS="${NGINX_CONF_FILES_ADDITIONS} ${VALUE}"; fi
                     # Check for additional config files included as follows
-                    # "include sites-enabled/*.conf"
-                    elif [ $(echo ${VALUE} | grep -F -c "*.conf") -gt 0 ]; then
-                        for FOUND_CONF in $(ls ${CONFIG_FILE%nginx.conf}${VALUE%;*}); do
+                    # "include sites-enabled/*.conf" (relative path)
+                    # "include /etc/nginx/sites-enabled/*.conf" (absolute path)
+                    elif [ $(echo "${VALUE}" | grep -F -c "*.conf") -gt 0 ]; then
+                        # Check if path is absolute or relative
+                        case $VALUE in
+                            /*)
+                                # Absolute path, so wildcard pattern is already correct
+                                CONF_WILDCARD=${VALUE%;*}
+                            ;;
+                            *)
+                                # Relative path, so construct absolute path for wildcard pattern
+                                CONF_WILDCARD=${CONFIG_FILE%nginx.conf}${VALUE%;*}
+                            ;;
+                        esac
+                        for FOUND_CONF in ${CONF_WILDCARD}; do
+                            if [ "${FOUND_CONF}" = "${CONF_WILDCARD}" ]; then
+                                LogText "Found no match for wildcard pattern: ${CONF_WILDCARD}"
+                                break
+                            fi
                             FOUND=0
                             for CONF in ${NGINX_CONF_FILES}; do
                                 if [ "${CONF}" = "${FOUND_CONF}" ]; then FOUND=1; LogText "Found this file already in our configuration files array, not adding to queue"; fi
@@ -2494,8 +2532,8 @@
     Register() {
         # Do not insert a log break, if previous test was not logged
         if [ ${SKIPLOGTEST} -eq 0 ]; then LogTextBreak; fi
-        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; SKIPREASON=""; TEST_NEED_OS=""; PREQS_MET=""
-        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_PLATFORM=""
+        ROOT_ONLY=0; SKIPTEST=0; SKIPLOGTEST=0; SKIPREASON=""; PREQS_MET=""
+        TEST_CATEGORY=""; TEST_NEED_NETWORK=""; TEST_NEED_OS=""; TEST_NEED_PKG_MGR=0; TEST_NEED_PLATFORM=""
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         while [ $# -ge 1 ]; do
             case $1 in
@@ -2518,6 +2556,9 @@
                 --os)
                     shift
                     TEST_NEED_OS=$1
+                ;;
+                --package-manager-required)
+                    TEST_NEED_PKG_MGR=1
                 ;;
                 --preqs-met)
                     shift
@@ -2562,7 +2603,7 @@
         CURRENT_TS=$(GetTimestamp)
         if [ ${PREVIOUS_TS} -gt 0 ]; then
             SLOW_TEST=0
-            TIME_THRESHOLD=10  # seconds
+            TIME_THRESHOLD=$SLOW_TEST_THRESHOLD  # seconds
 
             # Calculate timing and determine if we use seconds or nanoseconds (more precise)
             TIME_DIFF=$((CURRENT_TS - PREVIOUS_TS))
@@ -2630,6 +2671,9 @@
 
         # Check for correct hardware platform
         if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
+
+        # Check for required (and discovered) package manager
+        if [ ${SKIPTEST} -eq 0 -a ${TEST_NEED_PKG_MGR} -eq 1 -a ${HAS_PACKAGE_MANAGER} -eq 0 ]; then SKIPTEST=1; SKIPREASON="Requires a known package manager to test presence of a particular package"; fi
 
         # Not all prerequisites met, like missing tool
         if [ ${SKIPTEST} -eq 0 -a "${PREQS_MET}" = "NO" ]; then SKIPTEST=1; if [ -z "${SKIPREASON}" ]; then SKIPREASON="Prerequisites not met (ie missing tool, other type of Linux distribution)"; fi; fi
@@ -3641,4 +3685,4 @@
 
 #================================================================================
 # Lynis is part of Lynis Enterprise and released under GPLv3 license
-# Copyright 2007-2019 - Michael Boelen, CISOfy - https://cisofy.com
+# Copyright 2007-2020 - Michael Boelen, CISOfy - https://cisofy.com

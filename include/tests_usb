@@ -19,7 +19,7 @@
 #
 #################################################################################
 #
-    InsertSection "USB Devices"
+    InsertSection "${SECTION_USB_DEVICES}"
 #
 #################################################################################
 #
@@ -73,7 +73,7 @@
         fi
         if [ ${FOUND} -eq 0 ]; then
             LogText "Result: usb-storage driver is not explicitly disabled"
-            Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "NOT DISABLED" --color WHITE
+            Display --indent 2 --text "- Checking usb-storage driver (modprobe config)" --result "${STATUS_NOT_DISABLED}" --color WHITE
             if [ "${USBGUARD_FOUND}" -eq "0" ]; then
                 ReportSuggestion "${TEST_NO}" "Disable drivers like USB storage when not used, to prevent unauthorized storage or data theft"
             fi
@@ -91,39 +91,46 @@
     # Description : Check USB authorizations
     Register --test-no USB-2000 --os Linux --weight L --network NO --category security --description "Check USB authorizations"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking USB devices authorization to connect to the system"
         FOUND=0
-        USBDEVICESPATH="${ROOTDIR}sys/bus/usb/devices/usb"
-        for device in "${USBDEVICESPATH}"*; do
-            if [ -e "${device}/authorized" -o -e "${device}/authorized_default" ]; then
-                if [ "$(cat "${device}/authorized_default")" = "1" ]; then
-                    FOUND=1
-                    LogText "Test: ${device} is authorized by default"
-                    Report "usb_authorized_default_device[]=${device}"
-                elif [ "$(cat "${device}/authorized")" = "1" ]; then
-                    FOUND=1
-                    LogText "Test: ${device} is authorized currently"
-                    Report "usb_authorized_device[]=${device}"
-                fi
-            else
-                LogText "Test: ${device} is authorized by default"
-                Report "usb_authorized_default_device[]=${device}"
-                FOUND=1
-            fi
-        done
+        USBDEVICESPATH="${ROOTDIR}sys/bus/usb/devices"
+        LogText "Test: checking presence of USB devices path (${USBDEVICESPATH})"
+        if [ -d "${USBDEVICESPATH}" ]; then
 
-        if [ ${FOUND} -eq 1 ]; then
-            LogText "Result: Some USB devices are authorized by default (or temporary) to connect to the system"
-            Display --indent 2 --text "- Checking USB devices authorization" --result "${STATUS_ENABLED}" --color YELLOW
-            # To-Be-Added: create documentation and enable the suggestion
-            #if [ ${USBGUARD_FOUND} -eq 0 ]; then
-            #   ReportSuggestion "${TEST_NO}" "Disable USB devices authorization, to prevent unauthorized storage or data theft"
-            #fi
-            AddHP 0 3
+            LogText "Test: Checking USB devices authorization to connect to the system"
+            for device in $(find ${USBDEVICESPATH} -name "usb*" -type l -print); do
+                if [ -e "${device}/authorized" -o -e "${device}/authorized_default" ]; then
+                    if [ "$(cat "${device}/authorized_default")" = "1" ]; then
+                        FOUND=1
+                        LogText "Test: ${device} is authorized by default (authorized_default=1)"
+                        Report "usb_authorized_default_device[]=${device}"
+                    fi
+                    if [ "$(cat "${device}/authorized")" = "1" ]; then
+                        FOUND=1
+                        LogText "Test: ${device} is authorized currently (authorized=1)"
+                        Report "usb_authorized_device[]=${device}"
+                    fi
+                else
+                    LogText "Test: no authorized or authorized_default file, assuming ${device} is authorized by default"
+                    Report "usb_authorized_default_device[]=${device}"
+                    FOUND=1
+                fi
+            done
+
+            if [ ${FOUND} -eq 1 ]; then
+                LogText "Result: Some USB devices are authorized by default (or temporary) to connect to the system"
+                Display --indent 2 --text "- Checking USB devices authorization" --result "${STATUS_ENABLED}" --color YELLOW
+                # TODO: create documentation and enable the suggestion
+                #if [ ${USBGUARD_FOUND} -eq 0 ]; then
+                #   ReportSuggestion "${TEST_NO}" "Disable USB devices authorization, to prevent unauthorized storage or data theft"
+                #fi
+                AddHP 0 3
+            else
+                LogText "Result: None USB devices are authorized by default (or temporary) to connect to the system"
+                Display --indent 2 --text "- Checking USB devices authorization" --result "${STATUS_DISABLED}" --color GREEN
+                AddHP 3 3
+            fi
         else
-            LogText "Result: None USB devices are authorized by default (or temporary) to connect to the system"
-            Display --indent 2 --text "- Checking USB devices authorization" --result "${STATUS_DISABLED}" --color GREEN
-            AddHP 3 3
+            LogText "Result: devices path does not exist"
         fi
     fi
 

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -34,7 +34,7 @@
 #
 #################################################################################
 #
-    InsertSection "Printers and Spools"
+    InsertSection "${SECTION_PRINTERS_AND_SPOOLS}"
 #
 #################################################################################
 #
@@ -134,23 +134,31 @@
 #
     # Test        : PRNT-2308
     # Description : Check CUPS daemon network configuration
+    # Notes       : Listen and SSLListen can be used
     if [ ${CUPSD_FOUND} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PRNT-2308 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check CUPSd network configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # Checking network addresses
         LogText "Test: Checking CUPS daemon listening network addresses"
-        FIND=$(${GREPBINARY} "^Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} -v "/" | ${AWKBINARY} '{ print $2 }')
+        FIND=$(${EGREPBINARY} "^(SSL)?Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} -v "/" | ${AWKBINARY} '{ print $2 }')
         COUNT=0
         for ITEM in ${FIND}; do
-            LogText "Found network address: ${ITEM}"
+            LogText "Result: found network address: ${ITEM}"
             COUNT=$((COUNT + 1))
             FOUND=1
         done
 
-        # Check if daemon is only running on localhost
+        # Search for Port statement
+        FIND=$(${EGREPBINARY} "^Port 631" ${CUPSD_CONFIG_FILE})
+        if [ -n "${FIND}" ]; then
+            LogText "Result: found CUPS listening on port 631 (most likely all interfaces)"
+            FOUND=1
+        fi
+
+        # Check if daemon might be running on localhost
         if [ ${FOUND} -eq 0 ]; then
-            LogText "Result: no listen statement found in CUPS configuration file"
+            LogText "Result: CUPS does not look to be listening on a network port"
         elif [ ${COUNT} -eq 1 ]; then
             if [ "${FIND}" = "localhost:631" -o "${FIND}" = "127.0.0.1:631" ]; then
                 LogText "Result: CUPS daemon only running on localhost"

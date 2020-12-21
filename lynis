@@ -43,16 +43,16 @@
     PROGRAM_WEBSITE="https://cisofy.com/lynis/"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2019-11-18"
-    PROGRAM_RELEASE_TIMESTAMP=1574071362
+    PROGRAM_RELEASE_DATE="2020-10-05"
+    PROGRAM_RELEASE_TIMESTAMP=1601896929
     PROGRAM_RELEASE_TYPE="pre-release" # pre-release or release
-    PROGRAM_VERSION="3.0.0"
+    PROGRAM_VERSION="3.0.2"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
     PROGRAM_PACKAGE="https://packages.cisofy.com/"
     PROGRAM_DOCUMENTATION="https://cisofy.com/docs/"
-    PROGRAM_COPYRIGHT="2007-2019, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
+    PROGRAM_COPYRIGHT="2007-2020, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
     PROGRAM_LICENSE="${PROGRAM_NAME} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
   welcome to redistribute it under the terms of the GNU General Public License.
   See the LICENSE file for details about using this software."
@@ -216,7 +216,7 @@
 
     # Extract the short notation of the language (first two characters).
     if [ -x "$(command -v locale 2> /dev/null)" ]; then
-        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | egrep "^[a-z]{2}$")
+        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | egrep "^[a-z]{2}$")
         # Try locale command if shell variable had no value
         if [ -z "${DISPLAY_LANG}" ]; then
             DISPLAY_LANG=$(locale | egrep "^LANG=" | cut -d= -f2)
@@ -241,6 +241,11 @@
         echo "Could not find languages directory (file: ${DBDIR}/languages/en)"
         exit 1
     fi
+
+    # Now that we have determined the language, we unset it from shell
+    # Some tools with translated strings are very hard to parse
+    unset LANG
+
 #
 #################################################################################
 #
@@ -267,21 +272,21 @@
     # Disable logging if no alternative was provided
     if [ ${PRIVILEGED} -eq 0 ]; then
         if [ -z "${LOGFILE}" ]; then
-            # Try creating a log file in temporary directory
-            if [ ! -f /tmp/lynis.log ]; then
-                if [ -L /tmp/lynis.log ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
-                touch /tmp/lynis.log
-                if [ $? -eq 0 ]; then LOGFILE="/tmp/lynis.log"; else LOGFILE="/dev/null"; fi
+            # Try creating a log file in home directory
+            if [ ! -f "$HOME/lynis.log" ]; then
+                if [ -L "$HOME/lynis.log" ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
+                touch "$HOME/lynis.log"
+                if [ $? -eq 0 ]; then LOGFILE="$HOME/lynis.log"; else LOGFILE="/dev/null"; fi
             else
-                LOGFILE="/tmp/lynis.log"
+                LOGFILE="$HOME/lynis.log"
             fi
         else
             if [ -L "${LOGFILE}" ]; then echo "Log file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi
         if [ -z "${REPORTFILE}" ]; then
-            touch /tmp/lynis-report.dat
-            if [ -L /tmp/lynis-report.dat ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
-            if [ $? -eq 0 ]; then REPORTFILE="/tmp/lynis-report.dat"; else REPORTFILE="/dev/null"; fi
+            touch "$HOME/lynis-report.dat"
+            if [ -L "$HOME/lynis-report.dat" ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
+            if [ $? -eq 0 ]; then REPORTFILE="$HOME/lynis-report.dat"; else REPORTFILE="/dev/null"; fi
         else
             if [ -L "${REPORTFILE}" ]; then echo "Report file is symlinked, which can introduce the risk of a symlink attack."; exit 1; fi
         fi
@@ -436,7 +441,6 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
 
     ${WHITE}Layout options${NORMAL}
     ${GRAY}--no-colors${NORMAL}                       : Don't use colors in output
-    ${GRAY}--no-colours${NORMAL}                      : Don't use colours in output
     ${GRAY}--quiet (-q)${NORMAL}                      : No output
     ${GRAY}--reverse-colors${NORMAL}                  : Optimize color display for light backgrounds
     ${GRAY}--reverse-colours${NORMAL}                 : Optimize colour display for light backgrounds
@@ -449,6 +453,7 @@ ${YELLOW}Note: ${WHITE}Cancelling the program can leave temporary files behind${
     ${GRAY}--verbose${NORMAL}                         : Show more details on screen
     ${GRAY}--version (-V)${NORMAL}                    : Display version number and quit
     ${GRAY}--wait${NORMAL}                            : Wait between a set of tests
+    ${GRAY}--slow-warning ${BROWN}<seconds>${NORMAL}  : Threshold for slow test warning in seconds (default 10)
 
     ${WHITE}Enterprise options${NORMAL}
     ${GRAY}--plugindir ${BROWN}<path>${NORMAL}                : Define path of available plugins
@@ -506,7 +511,7 @@ ${NORMAL}
 #
     SafePerms ${INCLUDEDIR}/osdetection
     . ${INCLUDEDIR}/osdetection
-    Display --indent 2 --text "- Detecting OS... " --result DONE --color GREEN
+    Display --indent 2 --text "- Detecting OS... " --result "${STATUS_DONE}" --color GREEN
 
     # Check hostname
     case ${OS} in
@@ -525,6 +530,7 @@ ${NORMAL}
     if [ "${OS}" = "Linux" -a "${HOSTNAME}" = "${FQDN}" ]; then
         FQDN=$(hostname -f 2> /dev/null)
     fi
+
 #
 #################################################################################
 #
@@ -536,7 +542,7 @@ ${NORMAL}
     CDATE=$(date "+%Y-%m-%d %H:%M:%S")
     if [ ${LOGTEXT} -eq 1 ]; then echo "${CDATE} Starting ${PROGRAM_NAME} ${PROGRAM_VERSION} with PID ${OURPID}, build date ${PROGRAM_RELEASE_DATE}" > ${LOGFILE}; fi
     if [ $? -gt 0 ]; then
-        Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result WARNING --color RED
+        Display --indent 2 --text "- Clearing log file (${LOGFILE})... " --result "${STATUS_WARNING}" --color RED
         echo "${WARNING}Fatal error${NORMAL}: problem while writing to log file. Check location and permissions."
         RemovePIDFile
         exit 1
@@ -569,6 +575,7 @@ ${NORMAL}
     fi
     Report "test_category=${TEST_CATEGORY_TO_CHECK}"
     Report "test_group=${TEST_GROUP_TO_CHECK}"
+
 #
 #################################################################################
 #
@@ -582,7 +589,7 @@ ${NORMAL}
     if [ ${SET_STRICT} -eq 0 ]; then
         set +u  # Allow uninitialized variables
     else
-        set -u  # Do not allow unitialized variables
+        set -u  # Do not allow uninitialized variables
     fi
 
     # Import a different language when configured
@@ -631,6 +638,7 @@ ${NORMAL}
         echo "Make sure to execute ${PROGRAM_NAME} from untarred directory or check your installation."
         exit 1
     fi
+
 #
 #################################################################################
 #
@@ -720,7 +728,7 @@ ${NORMAL}
     fi
 
     if [ -z "${PROGRAM_AC}" -o -z "${PROGRAM_LV}" ]; then
-        Display --indent 2 --text "- Program update status... " --result UNKNOWN --color YELLOW
+        Display --indent 2 --text "- Program update status... " --result "${STATUS_UNKNOWN}" --color YELLOW
         LogText "Result: Update check failed. No network connection?"
         LogText "Info: to perform an automatic update check, outbound DNS connections should be allowed (TXT record)."
         # Set both to safe values
@@ -733,13 +741,13 @@ ${NORMAL}
             PROGRAM_MINVERSION=$((PROGRAM_LV - 10))
             LogText "Minimum required version   : ${PROGRAM_MINVERSION}"
             if [ ${PROGRAM_MINVERSION} -gt ${PROGRAM_AC} ]; then
-                Display --indent 2 --text "- Program update status... " --result "WARNING" --color RED
+                Display --indent 2 --text "- Program update status... " --result "${STATUS_WARNING}" --color RED
                 LogText "Result: This version is VERY outdated. Newer ${PROGRAM_NAME} release available!"
                 ReportWarning "LYNIS" "Version of Lynis is very old and should be updated"
                 Report "lynis_update_available=1"
                 UPDATE_AVAILABLE=1
             else
-                Display --indent 2 --text "- Program update status... " --result "UPDATE AVAILABLE" --color YELLOW
+                Display --indent 2 --text "- Program update status... " --result "${STATUS_UPDATE_AVAILABLE}" --color YELLOW
                 LogText "Result: newer ${PROGRAM_NAME} release available!"
                 ReportSuggestion "LYNIS" "Version of Lynis outdated, consider upgrading to the latest version"
                 Report "lynis_update_available=1"
@@ -747,11 +755,11 @@ ${NORMAL}
             fi
         else
             if [ ${UPDATE_CHECK_SKIPPED} -eq 0 ]; then
-                Display --indent 2 --text "- Program update status... " --result "NO UPDATE" --color GREEN
+                Display --indent 2 --text "- Program update status... " --result "${STATUS_NO_UPDATE}" --color GREEN
                 LogText "No ${PROGRAM_NAME} update available."
                 Report "lynis_update_available=0"
             else
-                Display --indent 2 --text "- Program update status... " --result "SKIPPED" --color YELLOW
+                Display --indent 2 --text "- Program update status... " --result "${STATUS_SKIPPED}" --color YELLOW
                 LogText "Update check skipped due to constraints (e.g. missing dig binary)"
                 Report "lynis_update_available=-1"
             fi
@@ -771,7 +779,7 @@ ${NORMAL}
     if [ ${NOW} -gt ${RELEASE_PLUS_TIMEDIFF} ]; then
         # Show if release is old, only if we didn't show it with normal update check
         if [ ${UPDATE_AVAILABLE} -eq 0 ]; then
-            ReportSuggestion "LYNIS" "This release is more than 4 months old. Consider upgrading"
+            ReportSuggestion "LYNIS" "This release is more than 4 months old. Check the website or GitHub to see if there is an update available."
         fi
         OLD_RELEASE=1
     fi
@@ -818,6 +826,14 @@ ${NORMAL}
 #
 #################################################################################
 #
+    # Test if we have a package manager available by testing for a dummy package (should not exist)
+    if PackageIsInstalled "__dummy__"; then
+        HAS_PACKAGE_MANAGER=1
+        LogText "Informational: package manager is used"
+    else
+        LogText "Informational: no known package manager for this system"
+    fi
+
     # Use hardware detection capabilities
     IsVirtualMachine
     if IsContainer; then
@@ -846,12 +862,12 @@ ${NORMAL}
 #################################################################################
 #
     if IsVerbose; then
-        InsertSection "Program Details"
-        Display --indent 2 --text "- ${GEN_VERBOSE_MODE}" --result "YES" --color GREEN
+        InsertSection "${SECTION_PROGRAM_DETAILS}"
+        Display --indent 2 --text "- ${GEN_VERBOSE_MODE}" --result "${STATUS_YES}" --color GREEN
         if IsDebug; then
-            Display --indent 2 --text "- ${GEN_DEBUG_MODE}" --result "YES" --color GREEN
+            Display --indent 2 --text "- ${GEN_DEBUG_MODE}" --result "${STATUS_YES}" --color GREEN
         else
-            Display --indent 2 --text "- ${GEN_DEBUG_MODE}" --result "NO" --color RED
+            Display --indent 2 --text "- ${GEN_DEBUG_MODE}" --result "${STATUS_NO}" --color RED
         fi
     fi
 #
@@ -941,7 +957,7 @@ ${NORMAL}
         RunPlugins 1
 
         if [ ${N_PLUGIN_ENABLED} -eq 0 ]; then
-            Display --indent 2 --text "- ${GEN_PLUGINS_ENABLED}" --result "NONE" --color WHITE
+            Display --indent 2 --text "- ${GEN_PLUGINS_ENABLED}" --result "${STATUS_NONE}" --color WHITE
             Report "plugins_enabled=0"
         else
             Report "plugins_enabled=1"
@@ -981,7 +997,7 @@ ${NORMAL}
             LogText "Info: perform tests from all categories"
 
             INCLUDE_TESTS="boot_services kernel memory_processes authentication shells \
-                           filesystems usb storage storage_nfs nameservices dns ports_packages networking printers_spools \
+                           filesystems usb storage storage_nfs nameservices dns ports_packages networking printers_spoolers \
                            mail_messaging firewalls webservers ssh snmp databases ldap php squid logging \
                            insecure_services banners scheduling accounting time crypto virtualization containers \
                            mac_frameworks file_integrity tooling malware file_permissions homedirs \
@@ -1001,8 +1017,8 @@ ${NORMAL}
                     LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 640, 600 or 400)"
                     ReportWarning "NONE" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
                     # Insert a section and warn user also on screen
-                    InsertSection "General"
-                    Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "SKIPPED" --color RED
+                    InsertSection "${SECTION_GENERAL}"
+                    Display --indent 2 --text "- Running test category ${INCLUDE_TEST}... " --result "${STATUS_SKIPPED}" --color RED
                 fi
             else
                 echo "Error: Can't find file (category: ${INCLUDE_TEST})"
@@ -1027,10 +1043,10 @@ ${NORMAL}
             else
                 LogText "Exception: skipping custom tests, file has bad permissions (should be 640, 600 or 400)"
                 ReportWarning "NONE" "Invalid permissions on custom tests file"
-                Display --indent 2 --text "- Running custom tests... " --result "WARNING" --color RED
+                Display --indent 2 --text "- Running custom tests... " --result "${STATUS_WARNING}" --color RED
             fi
         else
-            Display --indent 2 --text "- Running custom tests... " --result "NONE" --color WHITE
+            Display --indent 2 --text "- Running custom tests... " --result "${STATUS_NONE}" --color WHITE
         fi
     fi
 #
@@ -1063,7 +1079,7 @@ ${NORMAL}
     if [ ${SKIP_PLUGINS} -eq 0 ]; then
         RunPlugins 2
         if [ ${N_PLUGIN_ENABLED} -gt 1 ]; then
-            Display --indent 2 --text "- Plugins (phase 2)" --result "DONE" --color GREEN
+            Display --indent 2 --text "- Plugins (phase 2)" --result "${STATUS_DONE}" --color GREEN
         fi
     fi
 #
@@ -1133,4 +1149,4 @@ ${NORMAL}
 
 #
 #================================================================================
-# Lynis - Copyright 2007-2019, Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2020, Michael Boelen, CISOfy - https://cisofy.com

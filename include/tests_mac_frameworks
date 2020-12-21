@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -24,7 +24,7 @@
     SELINUXFOUND=0
     TOMOYOFOUND=0
 
-    InsertSection "Security frameworks"
+    InsertSection "${SECTION_SECURITY_FRAMEWORKS}"
 #
 #################################################################################
 #
@@ -75,6 +75,12 @@
                     Report "apparmor_enabled=1"
                     Report "apparmor_policy_loaded=1"
                     AddHP 3 3
+                    # ignore kernel threads (Parent PID = 2 [kthreadd])
+                    NUNCONFINED=$(${PSBINARY} -N --ppid 2 -o label | ${GREPBINARY} '^unconfined' | ${WCBINARY} -l)
+                    Display --indent 8 --text "Found ${NUNCONFINED} unconfined processes"
+                    for PROCESS in $(${PSBINARY} -N --ppid 2 -o label:1,pid,comm | ${GREPBINARY} '^unconfined' | ${TRBINARY} ' ' ':'); do
+                        LogText "Result: Unconfined process: ${PROCESS}"
+                    done
                 elif [ $? -eq 4 ]; then
                     LogText "Result: Can not determine status, most likely due to lacking permissions"
                     Display --indent 4 --text "- Checking AppArmor status" --result "${STATUS_UNKNOWN}" --color RED
@@ -152,6 +158,17 @@
                 Display --indent 6 --text "- Checking current mode and config file" --result "${STATUS_WARNING}" --color RED
             fi
             Display --indent 8 --text "Current SELinux mode: ${FIND}"
+            PERMISSIVE=$(${SEMANAGEBINARY} permissive --list --noheading | ${TRBINARY} '\n' ' ')
+            NPERMISSIVE=$(${SEMANAGEBINARY} permissive --list --noheading | ${WCBINARY} -l)
+            Display --indent 8 --text "Found ${NPERMISSIVE} permissive SELinux object types"
+            LogText "Permissive SELinux object types: ${PERMISSIVE}"
+            UNCONFINED=$(${PSBINARY} -eo label,pid,command | ${GREPBINARY} '[u]nconfined_t' | ${TRBINARY} '\n' ' ')
+            INITRC=$(${PSBINARY} -eo label,pid,command | ${GREPBINARY} '[i]nitrc_t' | ${TRBINARY} '\n' ' ')
+            NUNCONFINED=$(${PSBINARY} -eo label | ${GREPBINARY} '[u]nconfined_t' | ${WCBINARY} -l)
+            NINITRC=$(${PSBINARY} -eo label | ${GREPBINARY} '[i]nitrc_t' | ${WCBINARY} -l)
+            Display --indent 8 --text "Found ${NUNCONFINED} unconfined and ${NINITRC} initrc_t processes"
+            LogText "Unconfined processes: ${UNCONFINED}"
+            LogText "Processes with initrc_t type: ${INITRC}"
         else
             LogText "Result: SELinux framework is disabled"
             Display --indent 4 --text "- Checking SELinux status" --result "${STATUS_DISABLED}" --color YELLOW
@@ -189,6 +206,13 @@
             LogText "Result: TOMOYO Linux is enabled"
             Display --indent 4 --text "- Checking TOMOYO Linux status" --result "${STATUS_ENABLED}" --color GREEN
             Report "tomoyo_enabled=1"
+            if [ ! -z ${TOMOYOPSTREEBINARY} ]; then
+                NUNCONFINED=$(${TOMOYOPSTREEBINARY} | ${GREPBINARY} -v '^  3 ' | ${WCBINARY} -l)
+                Display --indent 8 --text "Found ${NUNCONFINED} unconfined (not profile 3) processes"
+                for PROCESS in $(${TOMOYOPSTREEBINARY} | ${GREPBINARY} -v '^  3 ' | ${SEDBINARY} -e 's/+-//g' -e 's/^ *//g' -e 's/ \+/:/g' | ${SORTBINARY}); do
+                    LogText "Result: Unconfined process: ${PROCESS}"
+                done
+            fi
             AddHP 3 3
         else
             LogText "Result: TOMOYO Linux is disabled"

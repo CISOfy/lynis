@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -31,7 +31,7 @@
 #
 #################################################################################
 #
-    InsertSection "Users, Groups and Authentication"
+    InsertSection "${SECTION_USERS_GROUPS_AND_AUTHENTICATION}"
 
     # Test        : AUTH-9204
     # Description : Check users with UID zero (0)
@@ -157,51 +157,7 @@
     # Test        : AUTH-9218
     # Description : Check login shells for passwordless accounts
     # Notes       : Results should be checked
-    Register --test-no AUTH-9218 --os FreeBSD --weight L --network NO --category security --description "Check login shells for passwordless accounts"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        FOUND=0
-        LogText "Test: Checking login shells"
-        if [ -f ${ROOTDIR}etc/master.passwd ]; then
-            # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
-            FIND=$(${GREPBINARY} "[a-z]:\*:" /etc/master.passwd | ${EGREPBINARY} -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g')
-            if [ "${FIND}" = "" ]; then
-                Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
-            else
-                Display --indent 2 --text "- Login shells" --result "${STATUS_WARNING}" --color RED
-                for LINE in ${FIND}; do
-                    LINE=$(echo ${LINE} | ${SEDBINARY} 's/!space!/ /g')
-                    SHELL=$(echo ${LINE} | ${AWKBINARY} -F: '{ print $10 }')
-                    LogText "Output: ${LINE}"
-                    if [ -z "${SHELL}" ]; then
-                        LogText "Result: found no shell on line"
-                    else
-                        LogText "Result: found possible harmful shell ${SHELL}"
-                        if [ -f ${SHELL} ]; then
-                            LogText "Result: shell ${SHELL} does exist"
-                            FOUND=1
-                        else
-                            LogText "Result: shell ${SHELL} does not exist"
-                            ReportSuggestion "${TEST_NO}" "Determine if account is needed, as shell ${SHELL} does not exist"
-                        fi
-                    fi
-                done
-                if [ ${FOUND} -eq 1 ]; then
-                    ReportWarning "${TEST_NO}" "Possible harmful shell found (for passwordless account!)"
-                fi
-            fi
-          else
-            Display --indent 2 --text "- Login shells" --result "${STATUS_SKIPPED}" --color WHITE
-            LogText "Result: No /etc/master.passwd file found"
-        fi
-        unset LINE SHELL
-    fi
-#
-#################################################################################
-#
-    # Test        : AUTH-9489
-    # Description : Check login shells for passwordless accounts
-    # Notes       : Results should be checked
-    Register --test-no AUTH-9489 --os DragonFly --weight L --network NO --category security --description "Check login shells for passwordless accounts"
+    Register --test-no AUTH-9218 --os "DragonFly FreeBSD NetBSD OpenBSD" --root-only YES --weight L --network NO --category security --description "Check login shells for passwordless accounts"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: Checking login shells"
@@ -302,7 +258,7 @@
                 FIND=$(${ROOTDIR}usr/sbin/pwck -q -r 2> /dev/null; echo $?)
                 TESTED=1
             ;;
-            "Solaris")
+            "Solaris" | "HP-UX")
                 FIND=$(${ROOTDIR}usr/sbin/pwck 2> /dev/null; echo $?)
                 TESTED=1
             ;;
@@ -326,12 +282,131 @@
 #
 #################################################################################
 #
+    # Test        : AUTH-9229
+    # Description : Check password hashing methods vs. recommendations in crypt(5)
+    # Notes       : Applicable to all Unix-like OS
+    #               Requires read access to /etc/shadow (if it exists)
+
+    ParsePasswordEntry() {
+        METHOD=$1
+        case ${METHOD} in
+            1:\* | 1:x | 0: | *:!* | *LOCK*)
+                # disabled | shadowed | no password | locked account (can be literal *LOCK* or something like LOCKED)
+                ;;
+            *:\$5\$*| *:\$6\$*)
+                # sha256crypt | sha512crypt: check number of rounds, should be >5000
+                ROUNDS=$(echo "${METHOD}" | sed -n 's/.*rounds=\([0-9]*\)\$.*/\1/gp')
+                if [ -z "${ROUNDS}" ]; then
+                    echo 'sha256crypt/sha512crypt(default<=5000rounds)'
+                elif [ "${ROUNDS}" -le 5000 ]; then
+                    echo 'sha256crypt/sha512crypt(<=5000rounds)'
+                fi
+                ;;
+            *:\$y\$* | *:\$gy\$* | *:\$2b\$* | *:\$7\$*)
+                # yescrypt | gost-yescrypt | bcrypt | scrypt
+                ;;
+            *:_*)
+                echo bsdicrypt
+                ;;
+            *:\$1\$*)
+                echo md5crypt
+                ;;
+            *:\$3\$*)
+                echo NT
+                ;;
+            *:\$md5*)
+                echo SunMD5
+                ;;
+            *:\$sha1*)
+                echo sha1crypt
+                ;;
+            13:* | 178:*)
+                echo bigcrypt/descrypt
+                ;;
+            *)
+                echo "Unknown password hashing method ${METHOD}. Please report to lynis-dev@cisofy.com"
+                ;;
+        esac
+    }
+
+    Register --test-no AUTH-9229 --root-only YES --weight L --network NO --category security --description "Check password hashing methods"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking password hashing methods"
+        SHADOW="";
+        if [ -e ${ROOTDIR}etc/shadow ]; then SHADOW="${ROOTDIR}etc/shadow"; fi
+        FIND=$(${CAT_BINARY} ${ROOTDIR}etc/passwd ${SHADOW} | ${AWKBINARY} -F : '{print length($2) ":" $2 }' | while read METHOD; do
+            ParsePasswordEntry ${METHOD}
+        done | ${SORTBINARY} -u | ${TRBINARY} '\n' ' ')
+        if [ -z "${FIND}" ]; then
+            Display --indent 2 --text "- Password hashing methods" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: no poor password hashing methods found"
+            AddHP 2 2
+        else
+            Display --indent 2 --text "- Password hashing methods" --result "${STATUS_SUGGESTION}" --color YELLOW
+            LogText "Result: poor password hashing methods found: ${FIND}"
+            ReportSuggestion "${TEST_NO}" "Check PAM configuration, add rounds if applicable and expire passwords to encrypt with new values"
+            AddHP 0 2
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : AUTH-9230
+    # Description : Check group password hashing rounds in login.defs
+    # Notes       : Applicable to all Unix-like OS
+    PREQS_MET="NO"
+    if [ -f ${ROOTDIR}etc/login.defs ]; then
+        PREQS_MET="YES"
+    fi
+    Register --test-no AUTH-9230 --preqs-met ${PREQS_MET} --root-only NO --weight L --network NO --category security --description "Check group password hashing rounds"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking SHA_CRYPT_MIN_ROUNDS option in ${ROOTDIR}etc/login.defs"
+        FIND=$(${GREPBINARY} "^SHA_CRYPT_MIN_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MIN_ROUNDS") { print $2 } }')
+        if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
+            LogText "Result: number of minimum rounds used by the encryption algorithm is not configured"
+            Display --indent 2 --text "- Checking minimum group password hashing rounds" --result "${STATUS_DISABLED}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Configure minimum encryption algorithm rounds in /etc/login.defs"
+            AddHP 0 2
+        elif [ "${FIND}" -lt 5000 ]; then
+            LogText "Result: low number of minimum encryption algorithm rounds found: ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (minimum)"  --result "${STATUS_SUGGESTION}" --color YELLOW
+            AddHP 1 2
+        else
+            LogText "Result: number of encryption algorithm rounds is ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (minimum)" --result CONFIGURED --color GREEN
+            AddHP 2 2
+        fi
+
+        LogText "Test: Checking SHA_CRYPT_MAX_ROUNDS option in ${ROOTDIR}etc/login.defs"
+        FIND=$(${GREPBINARY} "^SHA_CRYPT_MAX_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MAX_ROUNDS") { print $2 } }')
+        if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
+            LogText "Result: number of maximum rounds used by the encryption algorithm is not configured"
+            Display --indent 2 --text "- Checking maximum group password hashing rounds" --result "${STATUS_DISABLED}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Configure maximum encryption algorithm rounds in /etc/login.defs"
+            AddHP 0 2
+        elif [ "${FIND}" -lt 10000 ]; then
+            LogText "Result: low number of maximum encryption algorithm rounds found: ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (maximum)"  --result "${STATUS_SUGGESTION}" --color YELLOW
+            AddHP 1 2
+        else
+            LogText "Result: number of encryption algorithm rounds is ${FIND}"
+            PASSWORD_MINIMUM_ROUNDS=${FIND}
+            Display --indent 2 --text "- Group password hashing rounds (maximum)" --result CONFIGURED --color GREEN
+            AddHP 2 2
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : AUTH-9234
     # Description : Query user accounts
     # Notes       : AIX: 100+
     #               HPUX: 100+
     #               macOS doesn't have any user info in /etc/passwd, users are managed with opendirectoryd)
-    #               OpenBSD/NetBSD: unknown
+    #               OpenBSD/NetBSD: 1000-60000, excluding 32767 (default)
     #               Arch Linux / CentOS / Ubuntu: 1000+
     Register --test-no AUTH-9234 --weight L --network NO --category security --description "Query user accounts"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -373,9 +448,21 @@
                 fi
             ;;
 
-            "OpenBSD")
-                LogText "OpenBSD real users output (ID = 0, or 1000-60000, but not 32767):"
-                FIND=$(${AWKBINARY} -F: '($3 >= 1000 && $3 <= 60000 && $3 != 32767) || ($3 == 0) { print $1","$3 }' /etc/passwd)
+            "NetBSD"|"OpenBSD")
+                if [ -f ${ROOTDIR}etc/usermgmt.conf ]; then
+                    UID_RANGE=$(${GREPBINARY} "^range" ${ROOTDIR}etc/usermgmt.conf | ${AWKBINARY} '{ sub(/\.\./, "-", $2); print $2 }')
+                fi
+                if [ -n "${UID_RANGE}" ]; then
+                    LogText "Result: found configured user id range specified: ${UID_RANGE}"
+                    UID_MIN=$(echo $UID_RANGE | ${AWKBINARY} -F- '{ print $1 }')
+                    UID_MAX=$(echo $UID_RANGE | ${AWKBINARY} -F- '{ print $2 }')
+                else
+                    UID_MIN=1000
+                    UID_MAX=60000
+                    LogText "Result: no configured user id range specified; using default ${UID_MIN}-${UID_MAX}"
+                fi
+                LogText "${OS} real users output (ID = 0, or ${UID_MIN}-${UID_MAX}, but not 32767):"
+                FIND=$(${AWKBINARY} -v UID_MIN="${UID_MIN}" -v UID_MAX="${UID_MAX}" -F: '($3 >= UID_MIN && $3 <= UID_MAX && $3 != 32767) || ($3 == 0) { print $1","$3 }' /etc/passwd)
             ;;
 
             "Solaris")
@@ -415,7 +502,7 @@
             FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS+ authentication not enabled"
-                Display --indent 2 --text "- NIS+ authentication support" --result "NOT ENABLED" --color WHITE
+                Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
                 FIND2=$(${EGREPBINARY} "^passwd_compat" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
                 FIND3=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
@@ -424,7 +511,7 @@
                     Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_ENABLED}" --color GREEN
                 else
                     LogText "Result: NIS+ authentication not enabled"
-                    Display --indent 2 --text "- NIS+ authentication support" --result "NOT ENABLED" --color WHITE
+                    Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
                 fi
             fi
           else
@@ -442,7 +529,7 @@
             FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nis" | ${GREPBINARY} -v "nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS authentication not enabled"
-                Display --indent 2 --text "- NIS authentication support" --result "NOT ENABLED" --color WHITE
+                Display --indent 2 --text "- NIS authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
                 FIND2=$(${EGREPBINARY} "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
                 FIND3=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
@@ -451,7 +538,7 @@
                     Display --indent 2 --text "- NIS authentication support" --result "${STATUS_ENABLED}" --color GREEN
                 else
                     LogText "Result: NIS authentication not enabled"
-                    Display --indent 2 --text "- NIS authentication support" --result "NOT ENABLED" --color WHITE
+                    Display --indent 2 --text "- NIS authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
                 fi
             fi
         else
@@ -497,7 +584,7 @@
         if [ -d "${SUDOERS_D}" ]; then
             LogText "Test: checking drop-in directory (${SUDOERS_D})"
             FIND=$(${LSBINARY} -ld ${SUDOERS_D} | ${CUTBINARY} -c 2-10)
-            FIND2=$(${LSBINARY} -nd ${SUDOERS_D} | ${AWKBINARY} '{print $3$4}')
+            FIND2=$(${LSBINARY} -lnd ${SUDOERS_D} | ${AWKBINARY} '{print $3$4}')
             LogText "Result: Found directory permissions: ${FIND} and owner UID GID: ${FIND2}"
             case "${FIND}" in
                 rwx[r-][w-][x-]--- )
@@ -525,7 +612,7 @@
         for f in ${SUDO_CONFIG_FILES}; do
             LogText "Test: checking file (${f})"
             FIND=$(${LSBINARY} -l ${f} | ${CUTBINARY} -c 2-10)
-            FIND2=$(${LSBINARY} -n ${f} | ${AWKBINARY} '{print $3$4}')
+            FIND2=$(${LSBINARY} -ln ${f} | ${AWKBINARY} '{print $3$4}')
             LogText "Result: Found file permissions: ${FIND} and owner UID GID: ${FIND2}"
             case "${FIND}" in
                 r[w-]-[r-][w-]---- )
@@ -677,7 +764,7 @@
             LogText "Result: directory /etc/pam.d exists"
             Display --indent 2 --text "- PAM configuration files (pam.d)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Test: searching PAM configuration files"
-            FIND=$(${FINDBINARY} ${ROOTDIR}etc/pam.d -not -name "*.pam-old" -type f -print | sort)
+            FIND=$(${FINDBINARY} ${ROOTDIR}etc/pam.d \! -name "*.pam-old" -type f -print | sort)
             for FILE in ${FIND}; do
                 LogText "Found file: ${FILE}"
             done
@@ -691,9 +778,9 @@
 #
     # Test        : AUTH-9268
     # Description : Searching available PAM files
-    # Notes       : PAM is used on AIX, FreeBSD, Linux, HPUX, Solaris
-    if [ ${OS} = "AIX" -o ${OS} = "Linux" -o ${OS} = "HPUX" -o ${OS} = "Solaris" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no AUTH-9268 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking presence pam.d files"
+    # Notes       : PAM is used on AIX, FreeBSD, Linux, HPUX, NetBSD, Solaris
+    OS_USES_PAM="AIX DragonFly FreeBSD Linux HPUX NetBSD Solaris"
+    Register --test-no AUTH-9268 --os "${OS_USES_PAM}" --weight L --network NO --category security --description "Checking presence pam.d files"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         LogText "Test: Searching pam modules"
@@ -762,7 +849,7 @@
 #
 #################################################################################
 #
-    # Test        : AUTH-9282 and AUTH-9283
+    # Test        : AUTH-9282, AUTH-9283, and AUTH-9284
     # Note        : Every Linux based operating system seem to have different passwd
     #               options, so we have to check the version first.
     if [ "${OS}" = "Linux" ]; then
@@ -772,25 +859,29 @@
                     PREQS_MET="YES"
                     FIND_P=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
                     FIND2=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
+                    FIND3=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="L") print $1 }' | sort | uniq)
                     ;;
                 *)
                     PREQS_MET="YES"
                     FIND_P=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
                     FIND2=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
+                    FIND3=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="L") print $1 }' | sort | uniq)
                     ;;
             esac
         elif [ "${OS_REDHAT_OR_CLONE}" -eq 1 ]; then
             PREQS_MET="YES"
             FIND_P=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="PS" && $5=="99999") print $1 }' ; done)
             FIND2=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="NP") print $1 }' ; done)
+            FIND3=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="L" || $2=="LK") print $1 }' | sort | uniq ; done)
         else
             LogText "Result: skipping test for this Linux version"
             ReportManual "AUTH-9282:01"
             PREQS_MET="NO"
             FIND_P=""
             FIND2=""
+            FIND3=""
         fi
-     else
+    else
         PREQS_MET="NO"
     fi
 
@@ -811,11 +902,10 @@
             ReportSuggestion "${TEST_NO}" "When possible set expire dates for all password protected accounts"
         fi
     fi
-#
-#################################################################################
-#
+
     # Test        : AUTH-9283
     # Description : Search passwordless accounts
+    # Notes       : requires FIND2 variable
     Register --test-no AUTH-9283 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking accounts without password"
     if [ "${SKIPTEST}" -eq 0 ]; then
         LogText "Test: Checking passwordless accounts"
@@ -832,6 +922,38 @@
             ReportWarning "${TEST_NO}" "Found accounts without password"
         fi
     fi
+
+    # Test        : AUTH-9284
+    # Description : Check locked user accounts in /etc/passwd
+    # Notes       : requires FIND3 variable
+    Register --test-no AUTH-9284 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check locked user accounts in /etc/passwd"
+    if [ "${SKIPTEST}" -eq 0 ]; then
+        LogText "Test: Checking locked accounts"
+        NON_SYSTEM_ACCOUNTS=$(${AWKBINARY} -F : '$3 > 999 && $3 != 65534 {print $1}' ${ROOTDIR}etc/passwd | ${SORTBINARY} | ${UNIQBINARY})
+        LOCKED_NON_SYSTEM_ACCOUNTS=0
+        for account in ${FIND3}; do
+            if echo "${NON_SYSTEM_ACCOUNTS}" | ${GREPBINARY} -w "${account}" > /dev/null ; then
+                LOCKED_NON_SYSTEM_ACCOUNTS=$((LOCKED_NON_SYSTEM_ACCOUNTS + 1))
+            fi
+        done
+        if [ ${LOCKED_NON_SYSTEM_ACCOUNTS} -eq 0 ]; then
+            LogText "Result: all accounts seem to be unlocked"
+            Display --indent 2 --text "- Locked accounts" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: found one or more locked accounts"
+            for account in ${FIND3}; do
+                if echo "${NON_SYSTEM_ACCOUNTS}" | ${GREPBINARY} -w "${account}" > /dev/null ; then
+                    LogText "Locked account: ${account}"
+                    Report "locked_account[]=${account}"
+                fi
+            done
+            Display --indent 2 --text "- Locked accounts" --result "${STATUS_FOUND}" --color RED
+            ReportSuggestion "${TEST_NO}" "Look at the locked accounts and consider removing them"
+        fi
+        unset account LOCKED_NON_SYSTEM_ACCOUNTS NON_SYSTEM_ACCOUNTS
+    fi
+
+    unset FIND1 FIND2 FIND3
 #
 #################################################################################
 #
@@ -946,7 +1068,7 @@
     # Test        : AUTH-9306
     # Description : Check if authentication is needed to boot the system
     # Notes       : :d_boot_authenticate: is a good option for production machines to
-    #               avoid unauthorized booting of systems. Option :d_boot_autentication@:
+    #               avoid unauthorized booting of systems. Option :d_boot_authentication@:
     #               disabled a required login.
     Register --test-no AUTH-9306 --os HP-UX --weight L --network NO --category security --description "Check single boot authentication"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -1353,7 +1475,7 @@
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking account locking" --result "${STATUS_ENABLED}" --color GREEN
         else
-            Display --indent 2 --text "- Checking account locking" --result "NOT ENABLED" --color YELLOW
+            Display --indent 2 --text "- Checking account locking" --result "${STATUS_NOT_ENABLED}" --color YELLOW
         fi
     fi
 #
@@ -1367,7 +1489,7 @@
             FIND=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "ldap")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: LDAP authentication not enabled"
-                Display --indent 2 --text "- LDAP authentication support" --result "NOT ENABLED" --color WHITE
+                Display --indent 2 --text "- LDAP authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
                 LogText "Result: LDAP authentication enabled"
                 Display --indent 2 --text "- LDAP authentication support" --result "${STATUS_ENABLED}" --color GREEN

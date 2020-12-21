@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    InsertSection "Boot and services"
+    InsertSection "${SECTION_BOOT_AND_SERVICES}"
 #
 #################################################################################
 #
@@ -139,6 +139,13 @@
                     SERVICE_MANAGER="launchd"
                 fi
             ;;
+            "Solaris")
+                if [ -n "${ROOTDIR}usr/bin/svcs" ]; then
+                    SERVICE_MANAGER="SMF (svcs)"
+                elif [ -d "${ROOTDIR}etc/init.d" ]; then
+                    SERVICE_MANAGER="SysV Init"
+                fi
+            ;;
             *)
                 LogText "Result: unknown service manager"
             ;;
@@ -177,6 +184,21 @@
         if [ ${FILE_FOUND} -eq 1 ]; then
             LogText "Result: found Syslinux"
             BOOT_LOADER="Syslinux"
+            BOOT_LOADER_FOUND=1
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : BOOT-5109
+    # Description : Check for rEFInd
+    Register --test-no BOOT-5109 --os "Linux" --weight L --network NO --root-only YES --category security --description "Check rEFInd as bootloader"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
+        FileExists ${ROOTDIR}boot/refind_linux.conf
+        if [ ${FILE_FOUND} -eq 1 ]; then
+            LogText "Result: found rEFInd"
+            BOOT_LOADER="rEFInd"
             BOOT_LOADER_FOUND=1
         fi
     fi
@@ -316,34 +338,50 @@
     Register --test-no BOOT-5122 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for GRUB boot password"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        LogText "Found file ${GRUBCONFFILE}, proceeding with tests."
-        FileIsReadable ${GRUBCONFFILE}
-        if [ ${CANREAD} -eq 1 ]; then
-            FIND=$(${GREPBINARY} 'password --md5' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND2=$(${GREPBINARY} 'password --encrypted' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND3=$(${GREPBINARY} 'set superusers' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND4=$(${GREPBINARY} 'password_pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            FIND5=$(${GREPBINARY} 'grub.pbkdf2' ${GRUBCONFFILE} | ${GREPBINARY} -v '^#')
-            # GRUB1: Password should be set (MD5 or SHA1)
-            if [ -n "${FIND}" -o -n "${FIND2}" ]; then
-                FOUND=1
-            # GRUB2: Superusers AND password should be defined
-            elif [ -n "${FIND3}" ]; then
-                if [ -n "${FIND4}" -o -n "${FIND5}" ]; then FOUND=1; fi
+
+        if [ -d "${ROOTDIR}etc/grub.d" ]; then
+            CONF_FILES=$(${FINDBINARY} "${ROOTDIR}etc/grub.d" -type f -name "[0-9][0-9]*" -print0 | ${TRBINARY} '\0' ' ' | ${TRBINARY} -d '[:cntrl:]')
+            CONF_FILES="${GRUBCONFFILE} ${ROOTDIR}boot/grub/custom.cfg ${CONF_FILES}"
+        else
+            CONF_FILES="${GRUBCONFFILE} ${ROOTDIR}boot/grub/custom.cfg"
+        fi
+
+        for FILE in ${CONF_FILES}; do
+            if [ -f "${FILE}" ]; then
+                LogText "Found file ${FILE}, proceeding with tests."
+                if FileIsReadable "${FILE}"; then
+                    FIND=$(${GREPBINARY} 'password --md5' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND2=$(${GREPBINARY} 'password --encrypted' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND3=$(${GREPBINARY} 'set superusers' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND4=$(${GREPBINARY} 'password_pbkdf2' ${FILE} | ${GREPBINARY} -v '^#')
+                    FIND5=$(${GREPBINARY} 'grub.pbkdf2' ${FILE} | ${GREPBINARY} -v '^#')
+                    # GRUB1: Password should be set (MD5 or SHA1)
+                    if [ -n "${FIND}" -o -n "${FIND2}" ]; then
+                        FOUND=1
+                    # GRUB2: Superusers AND password should be defined
+                    elif [ -n "${FIND3}" ]; then
+                        if [ -n "${FIND4}" -o -n "${FIND5}" ]; then FOUND=1; fi
+                    else
+                        LogText "Result: did not find hashed password line in this file"
+                    fi
+                else
+                    LogText "Result: Can not read '${FILE}' (no permission?)"
+                fi
+            else
+                LogText "Result: File '${FILE}' does not exist"
             fi
-            if [ ${FOUND} -eq 1 ]; then
+        done
+        if [ ${FOUND} -eq 1 ]; then
                 Display --indent 4 --text "- Checking for password protection" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: GRUB has password protection."
                 AddHP 4 4
-            else
-                Display --indent 4 --text "- Checking for password protection" --result "${STATUS_NONE}" --color RED
-                LogText "Result: Didn't find hashed password line in GRUB boot file!"
-                ReportSuggestion "${TEST_NO}" "Set a password on GRUB bootloader to prevent altering boot configuration (e.g. boot in single user mode without password)"
-                AddHP 0 2
-            fi
         else
-            LogText "Result: Can not read ${GRUBCONFFILE} (no permission)"
+                Display --indent 4 --text "- Checking for password protection" --result "${STATUS_NONE}" --color RED
+                LogText "Result: Didn't find hashed password line in GRUB configuration"
+                ReportSuggestion "${TEST_NO}" "Set a password on GRUB boot loader to prevent altering boot configuration (e.g. boot in single user mode without password)"
+                AddHP 0 2
         fi
+        unset CONF_FILES FILE FIND FIND2 FIND3 FIND4 FIND5 FOUND
     fi
 #
 #################################################################################
@@ -556,6 +594,55 @@
 #
 #################################################################################
 #
+    # Test        : BOOT-5170
+    # Description : Check for Solaris boot daemons
+    Register --test-no BOOT-5170 --os Solaris --weight L --network NO --category security --description "Check for Solaris boot daemons"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ -n "${SVCSBINARY}" ]; then
+            LogText "Result: Using svcs binary to check for daemons"
+            LogText "SysV style services may be incorrectly counted as running."
+
+            Report "running_service_tool=svcs"
+
+            # For the documentation of the states (field $1) see
+            # "Managing System Services in Oracle Solaris 11.4" pp. 24, available
+            # at https://docs.oracle.com/cd/E37838_01/pdf/E60998.pdf
+
+            FIND=$("${SVCSBINARY}" -Ha | ${AWKBINARY} '{ if ($1 == "online" || $1 == "legacy_run") print $3 }')
+            COUNT=0
+            for ITEM in ${FIND}; do
+                LogText "Found running daemon: ${ITEM}"
+                Report "running_service[]=${ITEM}"
+                COUNT=$((COUNT + 1 ))
+            done
+            Display --indent 2 --text "- Check running daemons (svcs)" --result "${STATUS_DONE}" --color GREEN
+            Display --indent 8 --text "Result: found ${COUNT} running daemons"
+            LogText "Result: Found ${COUNT} running daemons"
+
+            LogText "Searching for enabled daemons (svcs)"
+            Report "boot_service_tool=svcs"
+
+            FIND=$("${SVCSBINARY}" -Ha | ${AWKBINARY} '{ if ($1 != "disabled" && $1 != "uninitialized") print $3 }')
+            COUNT=0
+            for ITEM in ${FIND}; do
+                LogText "Found enabled daemon at boot: ${ITEM}"
+                Report "boot_service[]=${ITEM}"
+                COUNT=$((COUNT + 1 ))
+            done
+            LogText "Note: Run svcs -a see all services"
+            Display --indent 2 --text "- Check enabled daemons at boot (svcs)" --result "${STATUS_DONE}" --color GREEN
+            Display --indent 8 --text "Result: found ${COUNT} enabled daemons at boot"
+            LogText "Result: Found ${COUNT} enabled daemons at boot"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : BOOT-5171
+    # Description : Check for services with errors on solaris
+#
+#################################################################################
+#
     # Test        : BOOT-5177
     # Description : Check for Linux boot services (systemd and chkconfig)
     # Notes       : We skip using chkconfig if systemd is being used.
@@ -579,7 +666,7 @@
             LogText "Hint: Run systemctl --full --type=service to see all services"
             Display --indent 2 --text "- Check running services (systemctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} running services"
-            LogText "Result: Found ${COUNT} enabled services"
+            LogText "Result: Found ${COUNT} running services"
 
             # Services at boot
             LogText "Searching for enabled services (systemctl services only)"
@@ -594,7 +681,7 @@
             LogText "Hint: Run systemctl list-unit-files --type=service to see all services"
             Display --indent 2 --text "- Check enabled services at boot (systemctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} enabled services"
-            LogText "Result: Found ${COUNT} running services"
+            LogText "Result: Found ${COUNT} enabled services"
 
         else
 
@@ -655,7 +742,7 @@
 #
     # Test        : BOOT-5184
     # Description : Check world writable startup scripts
-    Register --test-no BOOT-5184 --os Linux --weight L --network NO --category security --description "Check permissions for boot files/scripts"
+    Register --test-no BOOT-5184 --os "Linux Solaris" --weight L --network NO --category security --description "Check permissions for boot files/scripts"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         CHECKDIRS="${ROOTDIR}etc/init.d ${ROOTDIR}etc/rc.d ${ROOTDIR}etc/rcS.d"
@@ -822,7 +909,7 @@
 #
     # Test        : BOOT-5260
     # Description : Check single user mode for systemd
-    Register --test-no BOOT-5260 --weight L --network NO --category security --description "Check single user mode for systemd"
+    Register --test-no BOOT-5260 --os Linux --weight L --network NO --category security --description "Check single user mode for systemd"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching /usr/lib/systemd/system/rescue.service"
         if [ -f ${ROOTDIR}usr/lib/systemd/system/rescue.service ]; then
@@ -956,6 +1043,44 @@
             Display --indent 2 --text "- Check startup files (permissions)" --result "${STATUS_OK}" --color GREEN
             AddHP 3 3
         fi
+    fi
+#
+#################################################################################
+#
+    # Test        : BOOT-5264
+    # Description : Run systemd-analyze security
+    if [ -z "${SYSTEMDANALYZEBINARY}" ]; then SKIPREASON="systemd-analyze not available"; PREQS_MET="NO";
+    else
+        SYSTEMD_VERSION=$("${SYSTEMDANALYZEBINARY}" --version | ${AWKBINARY} '/^systemd / {print $2}')
+        if [ "${SYSTEMD_VERSION}" -ge 240 ]; then PREQS_MET="YES"; else SKIPREASON="systemd-analyze too old (v${SYSTEMD_VERSION}), need at least v240"; PREQS_MET="NO"; fi
+    fi
+    Register --test-no BOOT-5264 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --os Linux --weight L --network NO --category security --description "Run systemd-analyze security"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Run systemd-analyze security"
+        Display --indent 2 --text "- Running 'systemd-analyze security'"
+        ${SYSTEMDANALYZEBINARY} security | while read UNIT EXPOSURE PREDICATE HAPPY; do
+            if [ "${UNIT}" = "UNIT" ]; then
+                continue
+            fi
+            COLOR="BLACK"
+            case ${PREDICATE} in
+                PERFECT | SAFE | OK)
+                    COLOR=GREEN
+                ;;
+                MEDIUM)
+                    COLOR=WHITE
+                ;;
+                EXPOSED)
+                    COLOR=YELLOW
+                ;;
+                UNSAFE | DANGEROUS)
+                    COLOR=RED
+                ;;
+            esac
+            Display --indent 8 --text "- ${UNIT}:" --result "${PREDICATE}" --color "${COLOR}"
+            LogText "Result: ${UNIT}: ${EXPOSURE} ${PREDICATE}"
+        done
+        ReportSuggestion "${TEST_NO}" "Consider hardening system services" "Run '${SYSTEMDANALYZEBINARY} security SERVICE' for each service"
     fi
 #
 #################################################################################

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -22,7 +22,7 @@
 #
 #################################################################################
 #
-    InsertSection "Ports and packages"
+    InsertSection "${SECTION_PORTS_AND_PACKAGES}"
     PACKAGE_MGR_PKG=0
     PACKAGE_AUDIT_TOOL=""
     PACKAGE_AUDIT_TOOL_FOUND=0
@@ -38,7 +38,7 @@
     # Test        : PKGS-7301
     # Description : Query FreeBSD pkg
     if [ -x ${ROOTDIR}usr/sbin/pkg ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7301 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Query NetBSD pkg"
+    Register --test-no PKGS-7301 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Query FreeBSD pkg"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND=$(pkg -N 2>&1; echo $?)
         if [ "${FIND}" = "0" ]; then
@@ -982,9 +982,19 @@
 #################################################################################
 #
     # Test        : PKGS-7388
-    # Description : Check security repository in Debian/ubuntu apt sources.list file
-    if [ -f ${ROOTDIR}etc/apt/sources.list -a -d ${ROOTDIR}etc/apt/sources.list.d ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7388 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check security repository in Debian/ubuntu apt sources.list file"
+    # Description : Check security repository in Debian/Ubuntu apt sources.list file
+    PREQS_MET="NO"
+    if [ -f ${ROOTDIR}etc/apt/sources.list -a -d ${ROOTDIR}etc/apt/sources.list.d ]; then
+        case "${LINUX_VERSION}" in
+            "Debian" | "Linux Mint" | "Ubuntu")
+                PREQS_MET="YES"
+            ;;
+            *)
+                LogText "Skipping test, although sources.list or sources.list.d exists. This specific OS version most likely has no security repository"
+            ;;
+        esac
+    fi
+    Register --test-no PKGS-7388 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check security repository in apt sources.list file"
     if [ $SKIPTEST -eq 0 ]; then
         FOUND=0
         if [ ${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY} -eq 0 ]; then
@@ -1222,7 +1232,7 @@
             ReportSuggestion "${TEST_NO}" "Install a package audit tool to determine vulnerable packages"
             LogText "Result: no package audit tool found"
         else
-            Display --indent 2 --text "- Checking package audit tool" --result INSTALLED --color GREEN
+            Display --indent 2 --text "- Checking package audit tool" --result "${STATUS_INSTALLED}" --color GREEN
             Display --indent 4 --text "Found: ${PACKAGE_AUDIT_TOOL}"
             LogText "Result: found package audit tool: ${PACKAGE_AUDIT_TOOL}"
         fi
@@ -1279,7 +1289,7 @@
             KERNELS=$(${ZYPPERBINARY} --non-interactive -n se --type package --match-exact --installed-only "kernel-default" 2> /dev/null | ${GREPBINARY} "kernel-default" | ${WCBINARY} -l)
             if [ ${KERNELS} -eq 0 ]; then
                 LogText "Result: found no kernels from zypper output, which is unexpected."
-                ReportException "KRNL-5840:3" "Could not find any kernel packages via package manager. Maybe using a different kernel package?"
+                ReportException "${TEST_NO}" "Could not find any kernel packages via package manager. Maybe using a different kernel package?"
             elif [ ${KERNELS} -gt 3 ]; then
                 LogText "Result: found more than 5 kernel packages on the system, which might indicate lack of regular cleanups"
                 ReportSuggestion "${TEST_NO}" "Remove any unneeded kernel packages"
@@ -1289,7 +1299,19 @@
         fi
 
         if [ ${KERNELS} -eq 0 -a ${TESTED} -eq 1 ]; then
-            ReportException "KRNL-5840:1" "Could not find any kernel packages via package manager"
+            # Only report exception if there are kernels actually there. For example, LXC use the kernel of host system
+            case "${OS}" in
+                "Linux")
+                    if [ -d "${ROOTDIR}boot" ]; then
+                        if [ -z "$(${FINDBINARY} /boot -maxdepth 1 -type f -name 'vmlinuz*' -print -quit)" ]; then
+                            ReportException "${TEST_NO}" "Could not find any kernel packages via package manager"
+                        fi
+                    fi
+                ;;
+                *)
+                    ReportException "${TEST_NO}" "Could not find any kernel packages via package manager"
+                ;;
+            esac
         fi
 
         Report "installed_kernel_packages=${KERNELS}"
@@ -1347,7 +1369,7 @@
                 Display --indent 2 --text "- Toolkit for automatic upgrades (${UNATTENDED_UPGRADES_TOOL})" --result "${STATUS_FOUND}" --color GREEN
             else
                 AddHP 1 5
-                Display --indent 2 --text "- Toolkit for automatic upgrades" --result "${STATUS_NOTFOUND}" --color YELLOW
+                Display --indent 2 --text "- Toolkit for automatic upgrades" --result "${STATUS_NOT_FOUND}" --color YELLOW
                 LogText "Result: no toolkit for automatic updates discovered"
                 ReportSuggestion "${TEST_NO}" "Consider using a tool to automatically apply upgrades"
             fi

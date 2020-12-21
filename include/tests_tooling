@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -37,7 +37,7 @@
 #
 #################################################################################
 #
-    InsertSection "Software: System tooling"
+    InsertSection "${SECTION_SYSTEM_TOOLING}"
 #
 #################################################################################
 #
@@ -368,6 +368,33 @@
                 fi
                 SNORT=$(which snort 2> /dev/null)
             fi
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : TOOL-5130
+    # Description : Check for Suricata
+    Register --test-no TOOL-5130 --weight L --network NO --category security --description "Check for active Suricata daemon"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        # Suricata presence
+        if [ -n "${SURICATABINARY}" ]; then
+            Report "ids_ips_tooling[]=suricata"
+            LogText "Result: Suricata is installed (${SURICATABINARY})"
+            # Suricata status
+            # Suricata sets its process name to Suricata-Main on Linux, but this might differ on other platforms,
+            # so fall back to checking the full commandline instead if the first test fails
+            if IsRunning "Suricata-Main" || IsRunning --full "${SURICATABINARY} "; then
+                # Only satisfy test TOOL-5190 if Suricata is actually running
+                IDS_IPS_TOOL_FOUND=1
+                LogText "Result: Suricata daemon is active"
+                Display --indent 2 --text "- Checking Suricata status" --result "${STATUS_RUNNING}" --color GREEN
+            else
+                LogText "Result: Suricata daemon not active"
+                Display --indent 2 --text "- Checking Suricata status" --result "${STATUS_NOT_RUNNING}" --color YELLOW
+            fi
+        else
+            LogText "Result: Suricata not installed (suricata not found)"
         fi
     fi
 #

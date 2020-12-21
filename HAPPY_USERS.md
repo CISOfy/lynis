@@ -2,7 +2,7 @@
 
 ## Community
 
-Since 2007 the Lynis project helped many system administrators and security
+Since 2007, the Lynis project helped many system administrators and security
 professionals to scan their systems and perform system hardening. Happy users
 and contributors are the foundation of a healthy project.
 
@@ -32,4 +32,7 @@ The development of Lynis learned me a lot about Linux and Unix security. It is
 installed on all my systems to uncover unexpected configuration issues. The
 valuable feedback and contributions give me the energy to continue to work on
 its development, even after 12+ years!
+
+* Catalyst.net IT - January 2020
+Lynis gave us great insight in to the security state of our systems, as well as where we can improve.
 

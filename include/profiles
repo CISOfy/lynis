@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -35,23 +35,32 @@
 
         # Show deprecation message for old config entries such as 'config:' and 'apache:'
         FOUND=0
-        DATA=$(grep -E "^[a-z-]{1,}:" ${PROFILE} | od -An -ta | sed 's/ /!space!/g')  # od -An (no file offset), -ta (named character, to be on safe side)
+        DATA=$(grep -E "^[a-z-]{1,}:" ${PROFILE})
         if ! IsEmpty "${DATA}"; then FOUND=1; fi
 
         if [ ${FOUND} -eq 1 ]; then
+            Display --text " "
+            Display --text "=================================================================================================="
             DisplayWarning "Your profile contains old-style configuration entries. See log file for more details and how to convert these entries"
-            LogText "Your profile has one or more configuration items that are in an old format (lines starting with key:value). They need to be converted into the new format (key=value)."
-            LogText "Tip: Use grep to see the relevant matches (grep -E \"^[a-z-]{1,}:\" custom.prf)"
-            sleep 30
+            Display --indent 2 --text "* ${RED}ISSUE${NORMAL}"
+            Display --indent 2 --text "Your profile has one or more lines that are in an old format (key:value). They need to be converted into the new format (key=value) or disabled."
+            Display --text " "
+            Display --indent 2 --text "* ${GREEN}HOW TO RESOLVE${NORMAL}"
+            Display --indent 2 --text "Use grep to see the relevant matches (grep -E \"^[a-z-]{1,}:\" custom.prf)"
+            Display --text " "
+            Display --text "=================================================================================================="
+            Display --text " "
+            LogText "Insight: Profile '${PROFILE}' contains one or more old-style configuration entries"
+            ReportWarning "GEN-0020" "Your profile contains one or more old-style configuration entries"
+            sleep 10
         fi
 
         # Security check for unexpected and possibly harmful escape characters (hyphen should be listed as first or last character)
-        DATA=$(grep -Ev '^$|^ |^#|^config:' "${PROFILE}" | tr -d '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-' | od -An -ta | sed 's/ /!space!/g')
+        DATA=$(grep -Ev '^$|^ |^#|^config:' "${PROFILE}" | tr -d '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-')
         if ! IsEmpty "${DATA}"; then
             DisplayWarning "Your profile '${PROFILE}' contains unexpected characters. See the log file for more information."
             LogText "Found unexpected or possibly harmful characters in profile '${PROFILE}'. See which characters matched in the output below and compare them with your profile."
-            for I in ${DATA}; do
-                I=$(echo ${I} | sed 's/!space!/ /g')
+            for I in $(printf ${DATA} | od -An -ta); do
                 LogText "Output: ${I}"
             done
             LogText "Suggestion: comment incorrect lines with a '#' and try again. Open a GitHub issue if valid characters are blocked"
@@ -367,6 +376,13 @@
                     AddSetting "ssl-certificate-paths-to-ignore" "${SSL_CERTIFICATE_PATHS_TO_IGNORE}" "Paths that should be ignored for SSL certificates"
                 ;;
 
+                # Check also certificates provided by packages?
+                ssl-certificate-include-packages)
+                    FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && SSL_CERTIFICATE_INCLUDE_PACKAGES=1
+                    Debug "Check also certificates provided by packages set to ${SSL_CERTIFICATE_INCLUDE_PACKAGES}"
+                ;;
+
+
                 # Set strict mode for development and quality purposes
                 strict)
                     FIND=$(echo "${VALUE}" | grep -E "^(1|true|yes)") && SET_STRICT=1
@@ -532,7 +548,7 @@
 #################################################################################
 #
     if [ -n "${DEPRECATED_OPTION}" ]; then
-        ReportWarning "LYNIS" "One or more deprecated options used" "${DEPRECATED_OPTION}" "Update your profile"
+        ReportWarning "GEN-0030" "One or more deprecated options used in profile" "${DEPRECATED_OPTION}" "Update your profile"
     fi
 #
 #################################################################################
@@ -540,7 +556,6 @@
 
     Display --indent 2 --text "- Checking profiles..." --result "DONE" --color GREEN
 
-LogTextBreak
 
 #================================================================================
 # Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com

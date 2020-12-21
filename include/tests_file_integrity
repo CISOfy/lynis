@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -25,7 +25,7 @@
 #
 #################################################################################
 #
-    InsertSection "Software: file integrity"
+    InsertSection "${SECTION_FILE_INTEGRITY}"
     Display --indent 2 --text "- Checking file integrity tools"
 #
 #################################################################################
@@ -298,6 +298,107 @@
 #
 #################################################################################
 #
+    # Test        : FINT-4339
+    # Description : Check IMA/EVM status
+    if [ ! -z "${EVMCTLBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; SKIPREASON="No evmctl binary found"; fi
+    Register --test-no FINT-4339 --os Linux --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check IMA/EVM status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        if [ -e /sys/kernel/security/ima ]; then
+            FOUND=$(${CAT_BINARY} /sys/kernel/security/ima/runtime_measurements_count)
+        fi
+        if [ "${FOUND}" -ne 1 ]; then
+            LogText "Result: EVM tools found but IMA/EVM disabled"
+            Display --indent 2 --text "- IMA/EVM (status)" --result "${STATUS_DISABLED}" --color YELLOW
+        else
+            LogText "Result: EVM tools found, IMA/EVM enabled"
+            FILE_INT_TOOL="evmctl"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 2 --text "- IMA/EVM (status)" --result "${STATUS_ENABLED}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4340
+    # Description : Check dm-integrity status
+    if [ ! -z "${INTEGRITYSETUPBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; SKIPREASON="No integritysetup binary found"; fi
+    Register --test-no FINT-4340 --os Linux --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check dm-integrity status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        ROOTPROTECTED=0
+	ROOTDEVICE=$(${MOUNTBINARY} | ${AWKBINARY} '/ on \/ type / { print $1 }')
+	for DEVICE in /dev/mapper/*; do
+	    if [ -e "${DEVICE}" ]; then
+		FIND=$(${INTEGRITYSETUPBINARY} status "${DEVICE}" | ${EGREPBINARY} 'type:.*INTEGRITY')
+		if [ ! -z "${FIND}" ]; then
+		    FOUND=1
+		    LogText "Result: found dm-integrity device ${DEVICE}"
+		    if [ "${DEVICE}" = "${ROOTDEVICE}" ]; then
+			ROOTPROTECTED=1
+		    fi
+		fi
+	    fi
+	done
+        if [ "${FOUND}" -ne 1 ]; then
+            LogText "Result: dm-integrity tools found but no active devices"
+            Display --indent 2 --text "- dm-integrity (status)" --result "${STATUS_DISABLED}" --color WHITE
+        else
+            LogText "Result: dm-integrity tools found, active devices"
+	    if [ ${ROOTPROTECTED} -eq 1 ]; then
+		LogText "Result: root filesystem is protected by dm-integrity"
+		Display --indent 2 --text "- dm-integrity (status)" --result "${STATUS_ENABLED}" --color GREEN
+	    else
+		LogText "Result: root filesystem is not protected by dm-integrity but active devices found"
+		Display --indent 2 --text "- dm-integrity (status)" --result "${STATUS_FOUND}" --color YELLOW
+	    fi
+            FILE_INT_TOOL="dm-integrity"
+            FILE_INT_TOOL_FOUND=1
+            Display --indent 2 --text "- dm-integrity (status)" --result "${STATUS_ENABLED}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : FINT-4341
+    # Description : Check dm-verity status
+    if [ ! -z "${VERITYSETUPBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; SKIPREASON="No veritysetup binary found"; fi
+    Register --test-no FINT-4341 --os Linux --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check dm-verity status"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        ROOTPROTECTED=0
+	ROOTDEVICE=$(${MOUNTBINARY} | ${AWKBINARY} '/ on \/ type / { print $1 }')
+	for DEVICE in /dev/mapper/*; do
+	    if [ -e "${DEVICE}" ]; then
+		FIND=$(${VERITYSETUPBINARY} status "${DEVICE}" | ${EGREPBINARY} 'type:.*VERITY')
+		if [ ! -z "${FIND}" ]; then
+		    FOUND=1
+		    LogText "Result: found dm-verity device ${DEVICE}"
+		    if [ "${DEVICE}" = "${ROOTDEVICE}" ]; then
+			ROOTPROTECTED=1
+		    fi
+		fi
+	    fi
+	done
+        if [ "${FOUND}" -ne 1 ]; then
+            LogText "Result: dm-verity tools found but no active devices"
+            Display --indent 2 --text "- dm-verity (status)" --result "${STATUS_DISABLED}" --color WHITE
+        else
+            LogText "Result: dm-verity tools found, active devices"
+	    if [ ${ROOTPROTECTED} -eq 1 ]; then
+		LogText "Result: root filesystem is protected by dm-verity"
+		Display --indent 2 --text "- dm-verity (status)" --result "${STATUS_ENABLED}" --color GREEN
+	    else
+		LogText "Result: root filesystem is not protected by dm-verity but active devices found"
+		Display --indent 2 --text "- dm-verity (status)" --result "${STATUS_FOUND}" --color YELLOW
+	    fi
+            FILE_INT_TOOL="dm-verity"
+            FILE_INT_TOOL_FOUND=1
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : FINT-4402 (was FINT-4316)
     # Description : Check if AIDE is configured to use SHA256 or SHA512 checksums
     if [ ! "${AIDEBINARY}" = "" -a -n "${AIDECONFIG}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -340,4 +441,4 @@
     WaitForKeyPress
 #
 #================================================================================
-# Lynis - Copyright 2007-2019 Michael Boelen, CISOfy - https://cisofy.com
+# Lynis - Copyright 2007-2020 Michael Boelen, CISOfy - https://cisofy.com

@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -28,7 +28,9 @@
     METALOG_RUNNING=0
     RFC3195D_RUNNING=0
     RSYSLOG_RUNNING=0
+    SOLARIS_LOGHOST=""
     SOLARIS_LOGHOST_FOUND=0
+    SOLARIS_LOGHOST_LOCALHOST=0
     SYSLOG_DAEMON_PRESENT=0
     SYSLOG_DAEMON_RUNNING=0
     SYSLOG_NG_RUNNING=0
@@ -36,7 +38,7 @@
 #
 #################################################################################
 #
-    InsertSection "Logging and files"
+    InsertSection "${SECTION_LOGGING_AND_FILES}"
 
     # Test        : LOGG-2130
     # Description : Check for a running syslog daemon
@@ -305,6 +307,7 @@
         LogText "Result: Checking for loghost in /etc/inet/hosts"
         FIND=$(${GREPBINARY} loghost /etc/inet/hosts | ${GREPBINARY} -v "^#")
         if [ -n "${FIND}" ]; then
+            SOLARIS_LOGHOST="${FIND}"
             SOLARIS_LOGHOST_FOUND=1
             LogText "Result: Found loghost entry in /etc/inet/hosts"
         else
@@ -314,6 +317,7 @@
             LogText "Result: Checking for loghost via name resolving"
             FIND=$(getent hosts loghost | ${GREPBINARY} loghost)
             if [ -n "${FIND}" ]; then
+                SOLARIS_LOGHOST="${FIND}"
                 SOLARIS_LOGHOST_FOUND=1
                 LogText "Result: name resolving was successful"
                 LogText "Output: ${FIND}"
@@ -332,6 +336,26 @@
             ReportSuggestion "${TEST_NO}" "Add a loghost entry to /etc/inet/hosts or other name services"
         fi
     fi
+#
+#################################################################################
+#
+    # Test        : LOGG-2153
+    # Description : Check Solaris 'loghost' entry is not localhost, meaning
+    #               remote logging is not configured.
+    if [ ${SOLARIS_LOGHOST_FOUND} -eq 1 ] && [ -n "${SOLARIS_LOGHOST}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no LOGG-2153 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking loghost is localhost"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(echo "${SOLARIS_LOGHOST}" | ${AWKBINARY} '{ print $1 }' | ${EGREPBINARY} "::1|127.0.0.1|127.1")
+        if [ -n "${FIND}" ]; then
+            SOLARIS_LOGHOST_LOCALHOST=1
+            LogText "Result: loghost entry is localhost (default)"
+            Display --indent 4 --text "- Checking loghost entry is localhost" --result "${STATUS_YES}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Set loghost entry to a remote location to enable remote logging."
+        else
+            Display --indent 4 --text "- Checking loghost entry is localhost" --result "${STATUS_NO}" --color GREEN
+        fi
+    fi
+
 #
 #################################################################################
 #
@@ -402,8 +426,13 @@
             LogText "Test: check if logs are also logged to a remote logging host"
             FIND=$(${EGREPBINARY} "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
             if [ -n "${FIND}" ]; then
-                LogText "Result: remote logging enabled"
-                REMOTE_LOGGING_ENABLED=1
+                FIND2=$(echo "${FIND}" | ${GREPBINARY} -v "@loghost")
+                if [ SOLARIS_LOGHOST_LOCALHOST -eq 1 ] && [ -z "${FIND2}" ]; then
+                    LogText "Result: remote logging enabled to loghost, but loghost is localhost"
+                else
+                    LogText "Result: remote logging enabled"
+                    REMOTE_LOGGING_ENABLED=1
+                fi
             else
                 # Search for configured destinations with an IP address or hostname, then determine which ones are used as a log destination
                 DESTINATIONS=$(${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${EGREPBINARY} "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}')
@@ -423,7 +452,7 @@
             LogText "Result: no remote logging found"
             ReportSuggestion "${TEST_NO}" "Enable logging to an external logging host for archiving purposes and additional protection"
             AddHP 1 3
-            Display --indent 2 --text "- Checking remote logging" --result "NOT ENABLED" --color YELLOW
+            Display --indent 2 --text "- Checking remote logging" --result "${STATUS_NOT_ENABLED}" --color YELLOW
         else
             Report "remote_syslog_configured=1"
             AddHP 5 5
@@ -534,12 +563,7 @@
         LSOF_GREP="WARNING|Output information"
 
         # MySQL versions prior to 5.6 leave lots of deleted in-use files in /tmp, ignoring those
-        if [ -n "${DPKGBINARY}" ]; then
-            EARLY_MYSQL=$(${DPKGBINARY} -l | ${EGREPBINARY} mysql-server-5.[0-5])
-        elif [ -n "${RPMBINARY}" ]; then
-            EARLY_MYSQL=$(${RPMBINARY} -qa mariadb | ${EGREPBINARY} mariadb-5.[0-5])
-        fi
-        if [ -n "${EARLY_MYSQL}" ]; then LSOF_GREP="${LSOF_GREP}|mysqld"; fi
+        LSOF_GREP="${LSOF_GREP}|mysqld"
 
         # grsecurity causes Fail2Ban to hold onto deleted in-use files in /var/tmp
         if [ ${GRSEC_FOUND} -eq 1 ]; then LSOF_GREP="${LSOF_GREP}|fail2ban"; fi
@@ -555,7 +579,7 @@
                 LogText "Found deleted file: ${I}"
                 Report "deleted_file[]=${I}"
             done
-            Display --indent 2 --text "- Checking deleted files in use" --result "FILES FOUND" --color YELLOW
+            Display --indent 2 --text "- Checking deleted files in use" --result "${STATUS_FILES_FOUND}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Check what deleted files are still in use and why."
         else
             LogText "Result: no deleted files found"

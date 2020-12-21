@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2019, CISOfy
+# Copyright 2007-2020, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -30,7 +30,7 @@
 #################################################################################
 #
     if [ ${CHECK_BINARIES} -eq 1 ]; then
-        InsertSection "System Tools"
+        InsertSection "${SECTION_SYSTEM_TOOLS}"
         Display --indent 2 --text "- Scanning available tools..."
         LogText "Start scanning for available audit binaries and tools..."
 
@@ -74,6 +74,10 @@
             fi
         done
 
+        NSUID_BINARIES=0
+        NSGID_BINARIES=0
+        SUID_BINARIES=
+        SGID_BINARIES=
         # Now perform binary detection
         for SCANDIR in ${BIN_PATHS}; do
             SCANDIR=$(echo "${SCANDIR}" | sed 's/!!space!!/ /g')
@@ -115,6 +119,14 @@
                         COUNT=$((COUNT + 1))
                         BINARY="${SCANDIR}/${FILENAME}"
                         DISCOVERED_BINARIES="${DISCOVERED_BINARIES}${BINARY} "
+                        if [ -u "${BINARY}" ]; then
+                            NSUID_BINARIES=$((NSUID_BINARIES + 1))
+                            SUID_BINARIES="${SUID_BINARIES}${BINARY} "
+                        fi
+                        if [ -g "${BINARY}" ]; then
+                            NSGID_BINARIES=$((NSGID_BINARIES + 1))
+                            SGID_BINARIES="${SGID_BINARIES}${BINARY} "
+                        fi
                         # Optimized, much quicker (limited file access needed)
                         case ${FILENAME} in
                             aa-status)              AASTATUSBINARY=${BINARY};          LogText "  Found known binary: aa-status (apparmor component) - ${BINARY}" ;;
@@ -154,8 +166,10 @@
                             docker)                 DOCKERBINARY="${BINARY}";          LogText "  Found known binary: docker (container technology) - ${BINARY}" ;;
                             domainname)             DOMAINNAMEBINARY="${BINARY}";      LogText "  Found known binary: domainname (NIS domain) - ${BINARY}" ;;
                             dpkg)                   DPKGBINARY="${BINARY}";            LogText "  Found known binary: dpkg (package management) - ${BINARY}" ;;
+                            xbps-query)             XBPSBINARY="${BINARY}";            LogText "  Found known binary: xbps (package management) - ${BINARY}" ;;
                             egrep)                  EGREPBINARY=${BINARY};             LogText "  Found known binary: egrep (text search) - ${BINARY}" ;;
                             equery)                 EQUERYBINARY="${BINARY}";          LogText "  Found known binary: query (package manager) - ${BINARY}" ;;
+                            evmctl)                 EVMCTLBINARY=${BINARY};            LogText "  Found known binary: evmctl (IMA/EVM tool) - ${BINARY}" ;;
                             exim)                   EXIMBINARY="${BINARY}";            EXIMVERSION=$(${BINARY} -bV | grep 'Exim version' | awk '{ print $3 }' | xargs); LogText "  Found known binary ${BINARY} (version ${EXIMVERSION})" ;;
                             fail2ban-server)        FAIL2BANBINARY="${BINARY}";        LogText "  Found known binary: fail2ban (IPS tool) - ${BINARY}" ;;
                             file)                   FILEBINARY="${BINARY}";            LogText "  Found known binary: file (file type detection) - ${BINARY}" ;;
@@ -174,6 +188,7 @@
                             httpd2-prefork)         HTTPDBINARY=${BINARY};             LogText "  Found known binary: apache2 (web server) - ${BINARY}" ;;
                             initctl)                INITCTLBINARY=${BINARY};           SERVICE_MANAGER="upstart";  LogText "  Found known binary: initctl (client to upstart init) - ${BINARY}" ;;
                             ifconfig)               IFCONFIGBINARY="${BINARY}";        LogText "  Found known binary: ipconfig (IP configuration) - ${BINARY}" ;;
+                            integritysetup)         INTEGRITYSETUPBINARY="${BINARY}";  LogText "  Found known binary: integritysetup (dm-integrity setup tool) - ${BINARY}" ;;
                             ip)                     IPBINARY="${BINARY}";              LogText "  Found known binary: ip (IP configuration) - ${BINARY}" ;;
                             ipf)                    IPFBINARY="${BINARY}";             LogText "  Found known binary: ipf (firewall) - ${BINARY}" ;;
                             iptables)               IPTABLESBINARY="${BINARY}";        LogText "  Found known binary: iptables (firewall) - ${BINARY}" ;;
@@ -204,6 +219,7 @@
                             maldet)                 LMDBINARY="${BINARY}";             MALWARE_SCANNER_INSTALLED=1;           LogText "  Found known binary: maldet (Linux Malware Detect, malware scanner) - ${BINARY}" ;;
                             md5)                    MD5BINARY="${BINARY}";             LogText "  Found known binary: md5 (hash tool) - ${BINARY}" ;;
                             md5sum)                 MD5BINARY="${BINARY}";             LogText "  Found known binary: md5sum (hash tool) - ${BINARY}" ;;
+                            mdatp)                  MDATPBINARY="${BINARY}";           MALWARE_SCANNER_INSTALLED=1;           LogText "  Found known binary: mdatp (Microsoft Defender ATP, malware scanner) - ${BINARY}" ;;
                             modprobe)               MODPROBEBINARY="${BINARY}";        LogText "  Found known binary: modprobe (kernel modules) - ${BINARY}" ;;
                             mount)                  MOUNTBINARY="${BINARY}";           LogText "  Found known binary: mount (disk utility) - ${BINARY}" ;;
                             mtree)                  MTREEBINARY="${BINARY}";           LogText "  Found known binary: mtree (mapping directory tree) - ${BINARY}" ;;
@@ -212,15 +228,22 @@
                             netstat)                NETSTATBINARY="${BINARY}";         LogText "  Found known binary: netstat (network statistics) - ${BINARY}" ;;
                             nft)                    NFTBINARY="${BINARY}";             LogText "  Found known binary: nft (nftables client) - ${BINARY}" ;;
                             nmap)                   NMAPBINARY="${BINARY}";            NMAPVERSION=$(${BINARY} -V | grep "^Nmap version" | awk '{ print $3 }'); LogText "Found ${BINARY} (version ${NMAPVERSION})" ;;
+                            ntpctl)                 NTPCTLBINARY="${BINARY}";                LogText "  Found known binary: ntpctl (openntpd client) - ${BINARY}" ;;
                             ntpq)                   NTPQBINARY="${BINARY}";            LogText "  Found known binary ntpq (time daemon client) - ${BINARY}" ;;
                             osiris)                 OSIRISBINARY="${BINARY}";          LogText "  Found known binary: osiris - ${BINARY}" ;;
                             openssl)                OPENSSLBINARY="${BINARY}";         OPENSSLVERSION=$(${BINARY} version 2> /dev/null | head -n 1 | awk '{ print $2 }' | xargs); LogText "Found ${BINARY} (version ${OPENSSLVERSION})" ;;
-                            pacman)                 PACMANBINARY="${BINARY}";          LogText "  Found known binary: pacman (package manager) - ${BINARY}" ;;
+                            pacman)
+                                if [ -z "$(echo "${BINARY}" | grep -E "/usr(/local)?/games")" ]; then
+                                    PACMANBINARY="${BINARY}"
+                                    LogText "  Found known binary: pacman (package manager) - ${BINARY}"
+                                fi
+                            ;;
                             perl)                   PERLBINARY="${BINARY}";            PERLVERSION=$(${BINARY} -V:version | sed 's/^version=//' | sed 's/;//' | xargs); LogText "Found ${BINARY} (version ${PERLVERSION})" ;;
                             pgrep)                  PGREPBINARY="${BINARY}";           LogText "  Found known binary: pgrep (search in process list) - ${BINARY}" ;;
                             php)                    PHPBINARY="${BINARY}";             PHPVERSION=$(${BINARY} -v | awk '{ if ($1=="PHP") { print $2 }}' | head -1); LogText "Found known binary: php (programming language interpreter) - ${BINARY} (version ${PHPVERSION})" ;;
                             pkg)                    PKG_BINARY="${BINARY}";            LogText "  Found known binary: pkg (software package administration) - ${BINARY}" ;;
                             pkg_admin)              PKGADMINBINARY="${BINARY}";        LogText "  Found known binary: pkg_admin (software package administration) - ${BINARY}" ;;
+                            pkg_info)               PKGINFOBINARY="${BINARY}";         LogText "  Found known binary: pkg_info (software package information) - ${BINARY}" ;;
                             postconf)               POSTCONFBINARY="${BINARY}";        LogText "  Found known binary: postconf (postfix configuration) - ${BINARY}" ;;
                             postfix)                POSTFIXBINARY="${BINARY}";         LogText "  Found known binary: postfix (postfix binary) - ${BINARY}" ;;
                             prelink)                PRELINKBINARY="${BINARY}";         LogText "  Found known binary: prelink (system optimizer) - ${BINARY}" ;;
@@ -233,6 +256,7 @@
                             python3)                PYTHON3BINARY="${BINARY}";         PYTHON3VERSION=$(${BINARY}  --version 2>&1 | sed 's/^Python //'); LogText "Found known binary: ${FILENAME} (programming language interpreter) - ${BINARY} (version ${PYTHON3VERSION})" ;;
                             rcctl)                  RCCTLBINARY="${BINARY}";           LogText "  Found known binary: rcctl (services and daemons configuration and control) - ${BINARY}" ;;
                             readlink)               READLINKBINARY="${BINARY}";        LogText "  Found known binary: readlink (follows symlinks) - ${BINARY}" ;;
+                            resolvectl)             RESOLVECTLBINARY="${BINARY}";      LogText "  Found known binary: resolvectl (systemd-resolved DNS resolver manager) - ${BINARY}" ;;
                             rkhunter)               RKHUNTERBINARY="${BINARY}";        MALWARE_SCANNER_INSTALLED=1;           LogText "  Found known binary: rkhunter (malware scanner) - ${BINARY}" ;;
                             rootsh)                 ROOTSHBINARY="${BINARY}";          LogText "  Found known binary: rootsh (wrapper for shells) - ${BINARY}" ;;
                             rpcinfo)                RPCINFOBINARY="${BINARY}";         LogText "  Found known binary: rpcinfo (RPC information) - ${BINARY}" ;;
@@ -243,7 +267,8 @@
                             samhain)                SAMHAINBINARY="${BINARY}";         LogText "  Found known binary: samhain (integrity tool) - ${BINARY}" ;;
                             service)                SERVICEBINARY="${BINARY}";         LogText "  Found known binary: service (system services) - ${BINARY}" ;;
                             sed)                    SEDBINARY="${BINARY}";             LogText "  Found known binary: sed (text stream editor) - ${BINARY}" ;;
-                            sestatus)               SESTATUSBINARY="${BINARY}";        LogText "  Found known binary: sestatus (SELinux client) - ${BINARY}" ;;
+                            semanage)               SEMANAGEBINARY="${BINARY}";        LogText "  Found known binary: semanage (SELinux policy management tool) - ${BINARY}" ;;
+                            sestatus)               SESTATUSBINARY="${BINARY}";        LogText "  Found known binary: sestatus (SELinux status tool) - ${BINARY}" ;;
                             slocate)                LOCATEBINARY="${BINARY}";          LogText "  Found known binary: slocate (file database) - ${BINARY}" ;;
                             smbd)                   SMBDBINARY="${BINARY}";            if [ "${OS}" = "macOS" ]; then SMBDVERSION="unknown"; else SMBDVERSION=$(${BINARY} -V | grep "^Version" | awk '{ print $2 }'); fi; LogText "Found ${BINARY} (version ${SMBDVERSION})" ;;
                             smtpctl)                SMTPCTLBINARY="${BINARY}";         LogText "  Found known binary: smtpctl (OpenSMTPD client) - ${BINARY}" ;;
@@ -260,19 +285,25 @@
                             sha256|sha256sum)       SHA256SUMBINARY="${BINARY}";       LogText "  Found known binary: sha256/sha256sum (crypto hashing) - ${BINARY}" ;;
                             ssh-keyscan)            SSHKEYSCANBINARY="${BINARY}";      LogText "  Found known binary: ssh-keyscan (scanner for SSH keys) - ${BINARY}" ;;
                             suricata)               SURICATABINARY="${BINARY}";        LogText "  Found known binary: suricata (IDS) - ${BINARY}" ;;
+                            swapon)                 SWAPONBINARY="${BINARY}";          LogText "  Found known binary: swapon (swap device tool) - ${BINARY}" ;;
+                            svcs)                   SVCSBINARY="${BINARY}" ;           LogText "  Found known binary: svcs (service manager) - ${BINARY}" ;;
                             swupd)                  SWUPDBINARY="${BINARY}";           LogText "  Found known binary: swupd (package manager) - ${BINARY}" ;;
+                            synoavd)                SYNOAVDBINARY=${BINARY};           LogText "  Found known binary: synoavd (Synology AV scanner) - ${BINARY}" ;;
                             sysctl)                 SYSCTLBINARY="${BINARY}";          LogText "  Found known binary: sysctl (kernel parameters) - ${BINARY}" ;;
                             syslog-ng)              SYSLOGNGBINARY="${BINARY}";        SYSLOGNGVERSION=$(${BINARY} -V 2>&1 | grep "^syslog-ng" | awk '{ print $2 }'); LogText "Found ${BINARY} (version ${SYSLOGNGVERSION})" ;;
                             systemctl)              SYSTEMCTLBINARY="${BINARY}";       LogText "  Found known binary: systemctl (client to systemd) - ${BINARY}" ;;
+                            systemd-analyze)        SYSTEMDANALYZEBINARY="${BINARY}";  LogText "  Found known binary: systemd-analyze (systemd service analysis tool) - ${BINARY}" ;;
                             tail)                   TAILBINARY="${BINARY}";            LogText "  Found known binary: tail (text filter) - ${BINARY}" ;;
                             timedatectl)            TIMEDATECTL="${BINARY}";           LogText "  Found known binary: timedatectl (timedate client) - ${BINARY}" ;;
                             tomoyo-init)            TOMOYOINITBINARY=${BINARY};        LogText "  Found known binary: tomoyo-init (tomoyo component) - ${BINARY}" ;;
+                            tomoyo-pstree)          TOMOYOPSTREEBINARY=${BINARY};      LogText "  Found known binary: tomoyo-pstree (tomoyo process tree) - ${BINARY}" ;;
                             tr)                     TRBINARY="${BINARY}";              LogText "  Found known binary: tr (text transformation) - ${BINARY}" ;;
                             tripwire)               TRIPWIREBINARY="${BINARY}";        LogText "  Found known binary: tripwire (file integrity) - ${BINARY}" ;;
                             tune2fs)                TUNE2FSBINARY="${BINARY}";         LogText "  Found known binary: tune2fs (file system tool) - ${BINARY}" ;;
                             uname)                  UNAMEBINARY="${BINARY}";           LogText "  Found known binary: uname (operating system details) - ${BINARY}" ;;
                             uniq)                   UNIQBINARY="${BINARY}";            LogText "  Found known binary: uniq (text manipulation utility) - ${BINARY}";;
                             usbguard)               USBGUARDBINARY="${BINARY}";        LogText "  Found known binary: usbguard (USB security tool) - ${BINARY}" ;;
+                            veritysetup)            VERITYSETUPBINARY="${BINARY}";     LogText "  Found known binary: veritysetup (dm-verity setup tool) - ${BINARY}" ;;
                             vgdisplay)              VGDISPLAYBINARY="${BINARY}";       LogText "  Found known binary: vgdisplay (LVM tool) - ${BINARY}" ;;
                             vmtoolsd)               VMWARETOOLSDBINARY="${BINARY}";    LogText "  Found known binary: vmtoolsd (VMWare tools) - ${BINARY}" ;;
                             wc)                     WCBINARY="${BINARY}";              LogText "  Found known binary: wc (word count) - ${BINARY}" ;;
@@ -296,12 +327,17 @@
         BINARY_SCAN_FINISHED=1
         BINARY_PATHS_FOUND=$(echo ${BINARY_PATHS_FOUND} | sed 's/^, //g' | sed 's/, /,/g')
         LogText "Discovered directories: ${BINARY_PATHS_FOUND}"
-        LogText "Result: found ${COUNT} binaries"
+        LogText "Result: found ${COUNT} binaries including ${NSUID_BINARIES} set-uid and ${NSGID_BINARIES} set-gid"
+        LogText "Result: set-uid binaries: ${SUID_BINARIES}"
+        LogText "Result: set-gid binaries: ${SGID_BINARIES}"
         Report "binaries_count=${COUNT}"
+        Report "binaries_suid_count=${SUID_BINARIES}"
+        Report "binaries_sgid_count=${SGID_BINARIES}"
         Report "binary_paths=${BINARY_PATHS_FOUND}"
 
         # Test if the basic system tools are defined. These will be used during the audit.
         [ "${AWKBINARY:-}" ] || ExitFatal "awk binary not found"
+        [ "${CAT_BINARY:-}" ] || ExitFatal "cat binary not found"
         [ "${CUTBINARY:-}" ] || ExitFatal "cut binary not found"
         [ "${EGREPBINARY:-}" ] || ExitFatal "grep binary not found"
         [ "${FINDBINARY:-}" ] || ExitFatal "find binary not found"

@@ -1,5 +1,16 @@
 # Lynis Changelog
 
+## Lynis 3.0.3 (not released yet)
+
+### Added
+
+- OS detection of Parrot GNU/Linux
+
+### Changed
+
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.2 (2020-12-24)
 
 ### Added

@@ -352,50 +352,50 @@
 #################################################################################
 #
     # Test        : AUTH-9230
-    # Description : Check group password hashing rounds in login.defs
+    # Description : Check password hashing rounds in login.defs
     # Notes       : Applicable to all Unix-like OS
     PREQS_MET="NO"
     if [ -f ${ROOTDIR}etc/login.defs ]; then
         PREQS_MET="YES"
     fi
-    Register --test-no AUTH-9230 --preqs-met ${PREQS_MET} --root-only NO --weight L --network NO --category security --description "Check group password hashing rounds"
+    Register --test-no AUTH-9230 --preqs-met ${PREQS_MET} --root-only NO --weight L --network NO --category security --description "Check password hashing rounds"
     if [ ${SKIPTEST} -eq 0 ]; then
-        LogText "Test: Checking SHA_CRYPT_MIN_ROUNDS option in ${ROOTDIR}etc/login.defs"
-        FIND=$(${GREPBINARY} "^SHA_CRYPT_MIN_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MIN_ROUNDS") { print $2 } }')
-        if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
-            LogText "Result: number of minimum rounds used by the encryption algorithm is not configured"
-            Display --indent 2 --text "- Checking minimum group password hashing rounds" --result "${STATUS_DISABLED}" --color YELLOW
-            ReportSuggestion "${TEST_NO}" "Configure minimum encryption algorithm rounds in /etc/login.defs"
-            AddHP 0 2
-        elif [ "${FIND}" -lt 5000 ]; then
-            LogText "Result: low number of minimum encryption algorithm rounds found: ${FIND}"
-            PASSWORD_MINIMUM_ROUNDS=${FIND}
-            Display --indent 2 --text "- Group password hashing rounds (minimum)"  --result "${STATUS_SUGGESTION}" --color YELLOW
-            AddHP 1 2
+        SHA_CRYPT_MIN_ROUNDS_FIND=$(${GREPBINARY} "^SHA_CRYPT_MIN_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MIN_ROUNDS") { print $2 } }')
+        SHA_CRYPT_MAX_ROUNDS_FIND=$(${GREPBINARY} "^SHA_CRYPT_MAX_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MAX_ROUNDS") { print $2 } }')
+        SHA_CRYPT_ROUNDS=0
+
+        if [ -n "${SHA_CRYPT_MIN_ROUNDS_FIND}" -a -n "${SHA_CRYPT_MAX_ROUNDS_FIND}" ]; then
+            if [ ${SHA_CRYPT_MIN_ROUNDS_FIND} -lt ${SHA_CRYPT_MAX_ROUNDS_FIND} ]; then
+                SHA_CRYPT_ROUNDS=${SHA_CRYPT_MIN_ROUNDS_FIND}
+            else
+                SHA_CRYPT_ROUNDS=${SHA_CRYPT_MAX_ROUNDS_FIND}
+            fi
+        elif [ -z "${SHA_CRYPT_MIN_ROUNDS_FIND}" -a -n "${SHA_CRYPT_MAX_ROUNDS_FIND}" ]; then
+            SHA_CRYPT_ROUNDS=${SHA_CRYPT_MAX_ROUNDS_FIND}
+        elif [ -n "${SHA_CRYPT_MIN_ROUNDS_FIND}" -a -z "${SHA_CRYPT_MAX_ROUNDS_FIND}" ]; then
+            SHA_CRYPT_ROUNDS=${SHA_CRYPT_MIN_ROUNDS_FIND}
         else
-            LogText "Result: number of encryption algorithm rounds is ${FIND}"
-            PASSWORD_MINIMUM_ROUNDS=${FIND}
-            Display --indent 2 --text "- Group password hashing rounds (minimum)" --result CONFIGURED --color GREEN
-            AddHP 2 2
+            SHA_CRYPT_ROUNDS=0
         fi
 
-        LogText "Test: Checking SHA_CRYPT_MAX_ROUNDS option in ${ROOTDIR}etc/login.defs"
-        FIND=$(${GREPBINARY} "^SHA_CRYPT_MAX_ROUNDS" ${ROOTDIR}etc/login.defs | ${AWKBINARY} '{ if ($1=="SHA_CRYPT_MAX_ROUNDS") { print $2 } }')
-        if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
-            LogText "Result: number of maximum rounds used by the encryption algorithm is not configured"
-            Display --indent 2 --text "- Checking maximum group password hashing rounds" --result "${STATUS_DISABLED}" --color YELLOW
-            ReportSuggestion "${TEST_NO}" "Configure maximum encryption algorithm rounds in /etc/login.defs"
+        LogText "Test: Checking SHA_CRYPT_{MIN,MAX}_ROUNDS option in ${ROOTDIR}etc/login.defs"
+        if [ ${SHA_CRYPT_ROUNDS} -eq 0 ]; then
+            LogText "Result: number of password hashing rounds is not configured"
+            Display --indent 2 --text "- Checking password hashing rounds" --result "${STATUS_DISABLED}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Configure password hashing rounds in /etc/login.defs"
             AddHP 0 2
-        elif [ "${FIND}" -lt 10000 ]; then
-            LogText "Result: low number of maximum encryption algorithm rounds found: ${FIND}"
-            PASSWORD_MINIMUM_ROUNDS=${FIND}
-            Display --indent 2 --text "- Group password hashing rounds (maximum)"  --result "${STATUS_SUGGESTION}" --color YELLOW
-            AddHP 1 2
-        else
-            LogText "Result: number of encryption algorithm rounds is ${FIND}"
-            PASSWORD_MINIMUM_ROUNDS=${FIND}
-            Display --indent 2 --text "- Group password hashing rounds (maximum)" --result CONFIGURED --color GREEN
-            AddHP 2 2
+        fi
+
+        if [ -n "${SHA_CRYPT_ROUNDS}" ] && [ ${SHA_CRYPT_ROUNDS} -gt 0 ]; then
+            if [ ${SHA_CRYPT_ROUNDS} -lt 5000 ]; then
+                LogText "Result: low number of password hashing rounds found: ${SHA_CRYPT_ROUNDS}"
+                Display --indent 2 --text "- Password hashing rounds (minimum)"  --result "${STATUS_SUGGESTION}" --color YELLOW
+                AddHP 1 2
+            else
+                LogText "Result: number of password hashing rounds is ${SHA_CRYPT_ROUNDS}"
+                Display --indent 2 --text "- Password hashing rounds (minimum)" --result CONFIGURED --color GREEN
+                AddHP 2 2
+            fi
         fi
     fi
 #
@@ -502,7 +502,7 @@
             FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS+ authentication not enabled"
-                Display --indent 2 --text "- NIS+ authentication support" --result "NOT ENABLED" --color WHITE
+                Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
                 FIND2=$(${EGREPBINARY} "^passwd_compat" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
                 FIND3=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
@@ -511,7 +511,7 @@
                     Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_ENABLED}" --color GREEN
                 else
                     LogText "Result: NIS+ authentication not enabled"
-                    Display --indent 2 --text "- NIS+ authentication support" --result "NOT ENABLED" --color WHITE
+                    Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
                 fi
             fi
           else
@@ -529,7 +529,7 @@
             FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nis" | ${GREPBINARY} -v "nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS authentication not enabled"
-                Display --indent 2 --text "- NIS authentication support" --result "NOT ENABLED" --color WHITE
+                Display --indent 2 --text "- NIS authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
                 FIND2=$(${EGREPBINARY} "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
                 FIND3=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
@@ -538,7 +538,7 @@
                     Display --indent 2 --text "- NIS authentication support" --result "${STATUS_ENABLED}" --color GREEN
                 else
                     LogText "Result: NIS authentication not enabled"
-                    Display --indent 2 --text "- NIS authentication support" --result "NOT ENABLED" --color WHITE
+                    Display --indent 2 --text "- NIS authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
                 fi
             fi
         else
@@ -1068,7 +1068,7 @@
     # Test        : AUTH-9306
     # Description : Check if authentication is needed to boot the system
     # Notes       : :d_boot_authenticate: is a good option for production machines to
-    #               avoid unauthorized booting of systems. Option :d_boot_autentication@:
+    #               avoid unauthorized booting of systems. Option :d_boot_authentication@:
     #               disabled a required login.
     Register --test-no AUTH-9306 --os HP-UX --weight L --network NO --category security --description "Check single boot authentication"
     if [ ${SKIPTEST} -eq 0 ]; then
@@ -1475,7 +1475,7 @@
         if [ ${FOUND} -eq 1 ]; then
             Display --indent 2 --text "- Checking account locking" --result "${STATUS_ENABLED}" --color GREEN
         else
-            Display --indent 2 --text "- Checking account locking" --result "NOT ENABLED" --color YELLOW
+            Display --indent 2 --text "- Checking account locking" --result "${STATUS_NOT_ENABLED}" --color YELLOW
         fi
     fi
 #
@@ -1489,7 +1489,7 @@
             FIND=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "ldap")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: LDAP authentication not enabled"
-                Display --indent 2 --text "- LDAP authentication support" --result "NOT ENABLED" --color WHITE
+                Display --indent 2 --text "- LDAP authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
                 LogText "Result: LDAP authentication enabled"
                 Display --indent 2 --text "- LDAP authentication support" --result "${STATUS_ENABLED}" --color GREEN

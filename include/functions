@@ -38,7 +38,7 @@
 #    DigitsOnly                 Return only the digits from a string
 #    DirectoryExists            Check if a directory exists on the disk
 #    DiscoverProfiles           Determine available profiles on system
-#    Display                    Output text to screen with colors and identation
+#    Display                    Output text to screen with colors and indentation
 #    DisplayError               Show an error on screen
 #    DisplayException           Show an exception on screen
 #    DisplayManual              Output text to screen without any layout
@@ -1089,12 +1089,13 @@
                 ;;
 
                 "Solaris")
-                    INTERFACES_TO_TEST="e1000g1 net0"
+                    INTERFACES_TO_TEST="net0 e1000g1 e1000g0"
                     FOUND=0
                     for I in ${INTERFACES_TO_TEST}; do
                          FIND=$(${IFCONFIGBINARY} -a | grep "^${I}")
                          if [ ! "${FIND}" = "" ]; then
                              FOUND=1; LogText "Found interface ${I} on Solaris"
+                             break
                          fi
                     done
                     if [ ${FOUND} -eq 1 ]; then
@@ -1107,7 +1108,7 @@
                             ReportException "GetHostID" "Can not find sha1/sha1sum or openssl"
                         fi
                     else
-                        ReportException "GetHostID" "No interface found op Solaris to create HostID"
+                        ReportException "GetHostID" "No interface found on Solaris to create HostID"
                     fi
                 ;;
 
@@ -2669,7 +2670,15 @@
         fi
 
         # Check for correct hardware platform
-        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_PLATFORM}" -a ! "${HARDWARE}" = "${TEST_NEED_PLATFORM}" ]; then SKIPTEST=1; SKIPREASON="Incorrect hardware platform"; fi
+        if [ ${SKIPTEST} -eq 0 -a -n "${TEST_NEED_PLATFORM}" ]; then
+            HASMATCH=0
+            for I in ${TEST_NEED_PLATFORM}; do
+                if [ "${I}" = "${HARDWARE}" ]; then HASMATCH=1; fi
+            done
+            if [ ${HASMATCH} -eq 0 ]; then
+                SKIPTEST=1; SKIPREASON="Incorrect hardware platform (${TEST_NEED_PLATFORM} only)"
+            fi
+        fi
 
         # Check for required (and discovered) package manager
         if [ ${SKIPTEST} -eq 0 -a ${TEST_NEED_PKG_MGR} -eq 1 -a ${HAS_PACKAGE_MANAGER} -eq 0 ]; then SKIPTEST=1; SKIPREASON="Requires a known package manager to test presence of a particular package"; fi

@@ -70,7 +70,7 @@
                 LogText "Result: hostnamed is defined and not longer than 63 characters"
             fi
             # Test valid characters (normally a dot should not be in the name, but we can't be 100% sure we have short name)
-            FIND=$(echo "${HOSTNAME}" | ${TRBINARY} -d '[a-zA-Z0-9\.\-]')
+            FIND=$(echo "${HOSTNAME}" | ${TRBINARY} -d '[:alnum:]\.\-')
             if [ -z "${FIND}" ]; then
                 LogText "Result: good, no unexpected characters discovered in hostname"
                 if IsVerbose; then Display --indent 2 --text "- Hostname (allowed characters)" --result "${STATUS_OK}" --color GREEN; fi
@@ -140,7 +140,7 @@
             Display --indent 2 --text "- Checking IPv6 configuration" --result "${STATUS_ENABLED}" --color WHITE
             STATUS=$(echo ${IPV6_MODE} | ${TRBINARY} '[:lower:]' '[:upper:]')
             Display --indent 6 --text "Configuration method" --result "${STATUS}" --color WHITE
-            if [ ${IPV6_ONLY} -eq 1 ]; then STATUS="YES"; else STATUS="NO"; fi
+            if [ ${IPV6_ONLY} -eq 1 ]; then STATUS="${STATUS_YES}"; else STATUS="${STATUS_NO}"; fi
             LogText "Result: IPv6 only configuration: ${STATUS}"
             Display --indent 6 --text "IPv6 only" --result "${STATUS}" --color WHITE
         else
@@ -512,6 +512,15 @@
                     ReportException "${TEST_NO}:3" "netstat missing to gather listening ports"
                 fi
             ;;
+            Solaris)
+                if [ -n "${NETSTATBINARY}" ]; then
+                    LogText "Test: Retrieving netstat information to find listening ports"
+                    FIND=$(${NETSTATBINARY} -an -P udp | ${AWKBINARY} '{ if($7=="LISTEN") { print $1"|udp|LISTEN|" }}')
+                    FIND2=$(${NETSTATBINARY} -an -P tcp | ${AWKBINARY} '{ if($7=="LISTEN") { print $1"|tcp|LISTEN|" }}')
+                else
+                    ReportException "${TEST_NO}:4" "netstat missing to gather listening ports"
+                fi
+            ;;
             *)
                 # Got this exception? Provide your details and output of netstat or any other tool to determine this information.
                 ReportException "${TEST_NO}:2" "Unclear what method to use, to determine listening port information"
@@ -683,7 +692,7 @@
             Display --indent 2 --text "- Checking status DHCP client" --result "${STATUS_RUNNING}" --color WHITE
             DHCP_CLIENT_RUNNING=1
         else
-            Display --indent 2 --text "- Checking status DHCP client" --result "NOT ACTIVE" --color WHITE
+            Display --indent 2 --text "- Checking status DHCP client" --result "${STATUS_NOT_ACTIVE}" --color WHITE
         fi
     fi
 #

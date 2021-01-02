@@ -103,7 +103,7 @@
     # Description : Check CPU options and support (PAE, No eXecute, eXecute Disable)
     # More info   : pae and nx bit are both visible on AMD and Intel CPU's if supported
 
-    Register --test-no KRNL-5677 --platform x86_64 --os Linux --weight L --network NO --category security --description "Check CPU options and support"
+    Register --test-no KRNL-5677 --platform "x86_64 amd64" --os "Linux NetBSD" --weight L --network NO --category security --description "Check CPU options and support"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 2 --text "- Checking CPU support (NX/PAE)"
         LogText "Test: Checking /proc/cpuinfo"
@@ -485,13 +485,13 @@
                  ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ) || \
                  ( [ ${SYSD_CORED_BASE_STORAGE_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] ) || \
                  ( [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -ge 1 ] ); then
-                LogText "Result: core dumps are explicitely enabled in systemd configuration files"
+                LogText "Result: core dumps are explicitly enabled in systemd configuration files"
                 ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in ${ROOTDIR}etc/systemd/coredump.conf ('ProcessSizeMax=0', 'Storage=none')"
                 Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_ENABLED}" --color RED
                 AddHP 0 1
             else
                 LogText "Result: core dumps are not disabled in systemd configuration. Didn't find settings 'ProcessSizeMax=0' and 'Storage=none'"
-                Display --indent 4 --text "- configuration in systemd conf files" --result "DEFAULT" --color WHITE
+                Display --indent 4 --text "- configuration in systemd conf files" --result "${STATUS_DEFAULT}" --color WHITE
                 AddHP 0 1
             fi
         fi
@@ -508,7 +508,7 @@
                 AddHP 1 1
             elif [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ -z "${ULIMIT_C_VALUE}" ]; then
                 LogText "Result: core dumps are not disabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. Didn't find setting 'ulimit -c 0'"
-                Display --indent 4 --text "- configuration in etc/profile" --result "DEFAULT" --color WHITE
+                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_DEFAULT}" --color WHITE
                 AddHP 0 1
             elif ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE_SUB}" = "unlimited" ] || [ "${ULIMIT_C_VALUE_SUB}" != "0" ] ) ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE}" = "unlimited" ] || [ "${ULIMIT_C_VALUE}" != "0" ] ) ); then
                 LogText "Result: core dumps are enabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. A value higher than 0 is configured for 'ulimit -c'"
@@ -516,7 +516,7 @@
                 AddHP 0 1
             else
                 LogText "Result: ERROR - something went wrong. Unexpected result during check of ${ROOTDIR}etc/profile and ${ROOTDIR}etc/profile.d/*.sh config files. Please report on Github!"
-                Display --indent 4 --text "- configuration in etc/profile" --result "ERROR" --color YELLOW
+                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_ERROR}" --color YELLOW
             fi
         fi
         # Limits option
@@ -538,8 +538,8 @@
                 FIND2="hard core enabled"
             fi
 
-            IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
-            IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} DEFAULT; fi)"
+            IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
+            IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
 
             if [ "${FIND2}" = "hard core disabled" ]; then
                 LogText "Result: core dumps are hard disabled"
@@ -587,18 +587,18 @@
         fi
         if [ "${FIND}" = "2" ]; then
             LogText "Result: programs can dump core dump, but only readable by root (value 2, for debugging with file protection)"
-            Display --indent 4 --text "- Checking setuid core dumps configuration" --result PROTECTED --color WHITE
+            Display --indent 4 --text "- Checking setuid core dumps configuration" --result "${STATUS_PROTECTED}" --color WHITE
             AddHP 1 1
         elif [ "${FIND}" = "1" ]; then
             LogText "Result: all programs can perform core dumps (value 1, for debugging)"
-            Display --indent 2 --text "- Checking setuid core dumps configuration" --result DEBUG --color YELLOW
+            Display --indent 2 --text "- Checking setuid core dumps configuration" --result "${STATUS_DEBUG}" --color YELLOW
             ReportSuggestion "${TEST_NO}" "Determine if all binaries need to be able to core dump"
             AddHP 0 1
         else
             # 0 - (default) - traditional behaviour. Any process which has changed privilege levels or is execute only will not be dumped
             # https://www.kernel.org/doc/Documentation/sysctl/fs.txt
             LogText "Result: found default option (0), no execute only program or program with changed privilege levels can dump"
-            Display --indent 4 --text "- Checking setuid core dumps configuration" --result DISABLED --color GREEN
+            Display --indent 4 --text "- Checking setuid core dumps configuration" --result "${STATUS_DISABLED}" --color GREEN
             AddHP 1 1
         fi
     fi
@@ -796,7 +796,7 @@
         # Attempt to check for Raspbian if reboot is needed
         # This check searches for apt package "raspberrypi-kernel-[package-date]", trys to extract the date of packaging from the filename
         # and compares that date with the currently running kernel's build date (uname -v).
-        # Of course there can be a time difference between kernel build and kernel packaging, therefor a time difference of
+        # Of course there can be a time difference between kernel build and kernel packaging, therefore a time difference of
         # 3 days is accepted and it is assumed with only 3 days apart, this must be the same kernel version.
         if [ ${REBOOT_NEEDED} -eq 2 ] && [ -d "${APT_ARCHIVE_DIRECTORY}" ]; then
             LogText "Result: found folder ${APT_ARCHIVE_DIRECTORY}; assuming this is a debian based distribution"

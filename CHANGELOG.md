@@ -1,24 +1,44 @@
 # Lynis Changelog
 
-## Lynis 3.0.2 (not released yet)
+## Lynis 3.0.3 (not released yet)
+
+### Added
+
+- OS detection of Parrot GNU/Linux
+
+### Changed
+
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.2 (2020-12-24)
 
 ### Added
 - AUTH-9284 - Scan for locked user accounts in /etc/passwd
+- LOGG-2153 - Loghost configuration
 - TOOL-5130 - Check for active Suricata daemon
-- Detection of Flatcar, Mageia, ROSA Linux, SLES (extended), Void Linux, Zorin OS
-- Alpine, macOS and Mageia EOL dates
+- OS detection of Flatcar, IPFire, Mageia, NixOS, ROSA Linux, SLES (extended), Void Linux, Zorin OS
+- OS detection of OpenIndiana (Hipster and Legacy), Shillix, SmartOS, Tribblix, and others
+- EOL dates for Alpine, macOS, Mageia, OmniosCE, and Solaris 11
+- Support for Solaris svcs (service manager)
+- Enumeration of Solaris services
 
 ### Changed
 - ACCT-9626 - Detect sysstat systemd unit
+- AUTH-9230 - Only fail if both SHA_CRYPT_MIN_ROUNDS and SHA_CRYPT_MAX_ROUNDS are undefined
+- BOOT-5184 - Support for Solaris
 - KRNL-5830 - Improved reboot test by ignoring known bad values
 - KRNL-5830 - Ignore rescue kernel such as on CentOS systems
 - KRNL-5830 - Detection of Alpine Linux kernel
+- NETW-2400 - Compatibility change for hostname check
+- NETW-3012 - Support for Solaris
 - PKGS-7410 - Don't show exception if no kernels were found on the disk
 - TIME-3185 - Supports now checking files at multiple locations (systemd)
 - ParseNginx function: Support include on absolute paths
 - ParseNginx function: Ignore empty included wildcards
 - Set 'RHEL' as OS_NAME for Red Hat Enterprise Linux
-- French translation file improved and translations extended
+- HostID: Use first e1000 interface and break after match
+- Translations extended and updated
 - Test if pgrep exists before using it
 - Better support for busybox shell
 - Small code enhancements
@@ -46,7 +66,7 @@
 - CRYP-7902 - Added support for certificates in DER format
 - CRYP-7931 - Added data to report
 - CRYP-7931 - Redirect errors (e.g. when swap is not encrypted)
-- FILE-6430 - Don't grep nonexistant modprobe.d files
+- FILE-6430 - Don't grep nonexistent modprobe.d files
 - FIRE-4535 - Set initial firewall state
 - INSE-8312 - Corrected text on screen
 - KRNL-5728 - Handle zipped kernel configuration correctly
@@ -164,7 +184,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - AUTH-9268 - Perform test also on DragonFly, FreeBSD, and NetBSD
 - AUTH-9282 - fix: temporary variable was overwritten
 - AUTH-9408 - added support for pam_tally2 to log failed logins
-- AUTH-9489 - test removedd as it is merged with AUTH-9218
+- AUTH-9489 - test removed as it is merged with AUTH-9218
 - BANN-7126 - additional words for login banner are accepted
 - BOOT-5122 - check for defined password in all GRUB configuration files
 - CONT-8106 - support newer 'docker info' output
@@ -191,6 +211,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - KRNL-5820 - extended check to include limits.d directory
 - KRNL-5830 - skip test partially when running non-privileged
 - KRNL-5830 - detect required reboots on Raspbian
+- KRNL-6000 - check more sysctls
 - LOGG-2154 - added support for rsyslog configurations
 - LOGG-2190 - skip mysqld related entries
 - MACF-6234 - SELinux tests extended
@@ -450,7 +471,7 @@ Tests:
 * [AUTH-9308] - Made 'sulogin' more generic for systemd rescue shell
 * [DNS-1600]  - Initial work on DNSSEC validation testing
 * [NETW-2704] - Added support for local resolver 127.0.0.53
-* [PHP-2379]  - Suhosin test disbled
+* [PHP-2379]  - Suhosin test disabled
 * [SSH-7408]  - Removed 'DELAYED' from OpenSSH Compression setting
 * [TIME-3160] - Improvements to detect step-tickers file and entries
 
@@ -697,7 +718,7 @@ Changes:
 * Renamed some variables to better indicate their purpose (counting, data type)
 * Removal of unused code and comments
 * Deleted unused tests from database file
-* Correct levels of identation
+* Correct levels of indentation
 * Support for older mac OS X versions (Lion and Mountain Lion)
 * Initialized variables for more binaries
 * Additional sysctls are tested
@@ -1358,7 +1379,7 @@ Functions
 * AddSetting            - New function to store settings (lynis show settings)
 * ContainsString        - New function to search for a string in another one
 * Display               - Added --debug, showing details on screen in debug mode
-                        - Reset identation for lines which are too long
+                        - Reset indentation for lines which are too long
 * DisplayToolTip        - New function to display tooltips
 * IsDebug               - Check for usage of --debug
 * IsDeveloperMode       - Status for development and debugging (--developer)
@@ -1431,7 +1452,7 @@ release.
 ------------
 The biggest change in this release is the optimization of several functions. It
 allows for better detection, and dealing with the quirks, of every single
-operating system. Some functions were fortified to handle unexcepted results
+operating system. Some functions were fortified to handle unexpected results
 better, like missing a particular binary, or not returning the hostname.
 
 This release also enables tests to be shorter, by adding new functions. Some
@@ -1709,7 +1730,7 @@ Added tests for CSF's lfd utility for integrity monitoring on directories and
 files. Related tests are FINT-4334 and FINT-4336.
 
 Added support for Chrony time daemon and timesync daemon. Additionally NTP
-sychronization status is checked when it is enabled.
+synchronization status is checked when it is enabled.
 
 Improved single user mode protection on the rescue.service file.
 
@@ -2291,7 +2312,7 @@ Lynis 1.4.2 (2014-02-19)
  Changes:
  - Ignore interfaces aliases for HostID
  - Extended umask tests with pam_umask entries [AUTH-9328]
- - Check for supressed version on Squid [SQD-3680]
+ - Check for suppressed version on Squid [SQD-3680]
 
 ---------------------------------------------------------------------------------
 
@@ -2304,7 +2325,7 @@ Lynis 1.4.1 (2014-02-15)
  - Added 64 bits locations for Apache modules
  - Add start of new category to logfile
  - Extended sysstat test with /etc/cron.d/sysstat [ACCT-9626]
- - Extended cron job tests with entries start with asterix (*) [SCHD-7704]
+ - Extended cron job tests with entries start with asterisk (*) [SCHD-7704]
  - Additional check for multiple umask entries (like RHEL 6.x) [AUTH-9328]
  - Adjusted PHP test for register_globals (explicit test) [PHP-2368]
  - Small adjustments for upcoming plugin support
@@ -2431,7 +2452,7 @@ Lynis 1.3.6 (2013-12-03)
  - Adjusted PHP check to find ini files [PHP-2211]
  - Skip Apache test for NetBSD [HTTP-6622]
  - Skip test http version check for NetBSD [HTTP-6624]
- - Additional check to supress sort error [HTTP-6626]
+ - Additional check to suppress sort error [HTTP-6626]
  - Improved the way binaries are checked (less disk reads)
  - Adjusted ReportWarning() function to skip impact rating
  - Improved report on screen by leaving out date/time and type
@@ -2467,7 +2488,7 @@ Lynis 1.3.5 (2013-11-19)
  - Added suggestion about BIND version [NAME-4210]
  - Merged test NTP daemon test TIME-3108 into TIME-3104
  - Improved support for Arch Linux (output, detection)
- - Extended common list of directories with SSL certifcates in profile
+ - Extended common list of directories with SSL certificates in profile
  - New function GetHostID() to determine an unique identifier of the machine
  - Added a tests_custom file template
  - Perform file permissions test on tests_custom file
@@ -2510,7 +2531,7 @@ Lynis 1.3.3 (2013-10-24)
 Lynis 1.3.2 (2013-10-09)
 
  New:
- - Test for PowerDNS authoritive servers (master/slave status) [NAME-4238]
+ - Test for PowerDNS authoritative servers (master/slave status) [NAME-4238]
 
  Changes:
  - CUPS test extended with hardening rules [PRNT-2308]
@@ -2557,7 +2578,7 @@ Lynis 1.3.0 (2011-12-25)
  - Fixed incorrect warning for single user mode [AUTH-9308]
  - Improved output for stratum 16 time servers [TIME-3116]
  - Added suggestion and screen output for kernel hardening [KRNL-6000]
- - Screen layout optimalizations and log file improvements
+ - Screen layout optimizations and log file improvements
  - Improved list/layout of scan options
  - Improved binary check for compilers
  - Added configuration option in scan profile (show_tool_tips, default true)
@@ -3120,7 +3141,7 @@ Lynis 1.1.5 (2008-06-10)
  - Improved FreeBSD pkg_info output, logging output and report data [PKG-7302]
  - Changed shell history file test, searching files with maxdepth 1 [HOME-9310]
  - Extended iptables test, to check Linux kernel configuration file [FIRE-4511]
- - Added report warning to promicuous test [NETW-3014]
+ - Added report warning to promiscuous test [NETW-3014]
  - Fixed yellow color when being used at text display
  - Several logging improvements and cleanups
 
@@ -3189,11 +3210,11 @@ Lynis 1.1.2 (2008-05-11)
  - Improved LILO test and removed double message
  - Fixed incorrect message when using --help parameter
  - Improved portaudit test (FreeBSD) to show unique packages only
- - Updated man page, FAQ, extended documention with plugin information
+ - Updated man page, FAQ, extended documentation with plugin information
  - Added several php.ini file locations (MacOS X, OpenBSD, OpenSuSE)
 
  ** Special release notes [package/ports]: **
- - Added several default paths to check for usuable an INCLUDE directory. This
+ - Added several default paths to check for usable INCLUDE directory. This
    should make packaging Lynis easier for downstream package providers.
  - When no profile is set, Lynis will check first /etc/lynis/default.prf,
    before setting default.prf (in current work directory) as profile to use.
@@ -3252,7 +3273,7 @@ Lynis 1.0.9 (2008-03-24)
  - Added available shells from /etc/shells to report file
  - Updated man page
  - Fixed option in main help window for --man option
- - Code improvement, splitting up sections to seperated files
+ - Code improvement, splitting up sections to separated files
 
 ---------------------------------------------------------------------------------
 
@@ -3268,7 +3289,7 @@ Lynis 1.0.8 (2008-02-10)
  - Changed old temporary files check
  - Changed test to include ubuntu security repository
  - Moved UID check to avoid PID creation as non root user
- - Moved most functions to seperated files and several code cleanups
+ - Moved most functions to separated files and several code cleanups
  - Improved logging output
  - Extended FreeBSD (Copyright file) test
  - Changed indentation for many tests
@@ -3312,7 +3333,7 @@ Lynis 1.0.7 (2008-01-28)
  - Updated year number in program and support files
  - Added new function Display, to use indentation within lines
  - Added function RemovePIDFile before some exit routines, to clean up PID file
- - Extracted profile support, parameter support to seperated files
+ - Extracted profile support, parameter support to separated files
  - Created file tests_ports_packages for Ports and Packages
  - Deleted lynis.spec file, since it was not working and will be rewritten later
 
@@ -3465,7 +3486,7 @@ Lynis 1.0.0 (2007-11-08)
  - Test: query nameservers and test connectivity
  - Test: check promiscuous interfaces (FreeBSD)
  - Test: check sticky bit on /tmp directory
- - Test: check debian.org security brance in /etc/apt/sources.list
+ - Test: check debian.org security branch in /etc/apt/sources.list
  - Test: check kernel update on Debian
  - Test: query default Linux run level
  - Test: query chkconfig to see which services start at boot

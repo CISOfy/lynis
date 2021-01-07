@@ -1,6 +1,6 @@
 # Maintainer: manjaro <manjaro-dev@garetech.com.au>
 pkgname=lynis
-pkgver=3.0.3
+pkgver=3.0.2
 pkgrel="$( uname -r | cut -d\. -f1-2 )"
 epoch=""
 pkgdesc="Security and system auditing tool to harden Unix/Linux systems"
@@ -25,41 +25,43 @@ md5sums=("SKIP")
 validpgpkeys=()
 
 pkgver() {
-    pkgver="$( cd "${srcdir}/${pkgname}" && git describe  | cut -d\- -f1)"
+    #pkgver="$( cd "${srcdir}/${pkgname}" && git describe  | cut -d\- -f1)"
+    pkgver="$( cd "${srcdir}/${pkgname}" && lynis --version )"
     [ "${pkgver:0:1}" = "v" ]  && pkgver="${pkgver:1}"
     echo "${pkgver}"
 }
 
-subpackages="$pkgname-doc
-    $pkgname-bash-completion:bashcomp:noarch
+subpackages="${pkgname}-doc
+    ${pkgname}-bash-completion:bashcomp:noarch
 "
 
-builddir="${srcdir}/${pkgname}"
 
 package() {
-    mkdir -p -m 0700 "$pkgdir/usr/share/$pkgname" "$pkgdir/etc/$pkgname"
-    cp -r "$builddir/db" "$builddir/include" "$builddir/plugins" "$pkgdir/usr/share/$pkgname"
+    builddir="${srcdir}/${pkgname}"
+    mkdir -p -m 0700 "${pkgdir}/usr/share/${pkgname}" "${pkgdir}/etc/${pkgname}"
+    cp -r "${builddir}/db" "${builddir}/include" "${builddir}/plugins" "${pkgdir}/usr/share/${pkgname}"
 
-    install -Dm755 "$builddir/$pkgname" "$pkgdir/usr/sbin/$pkgname"
-    install -Dm600 "$builddir/default.prf" "$pkgdir/etc/$pkgname/default.prf"
-    install -Dm600 "$srcdir/$pkgname.cron" "$pkgdir"/etc/periodic/daily/$pkgname
+    install -Dm755 "${builddir}/${pkgname}"      "${pkgdir}/usr/sbin/${pkgname}"
+    install -Dm600 "${builddir}/default.prf"     "${pkgdir}/etc/${pkgname}/default.prf"
+    install -Dm600 "${builddir}/extras/${pkgname}.cron" "${pkgdir}/etc/cron.weekly/${pkgname}"
 
-    install -Dm600 "${srcdir}/extras/systemd/lynis.service" "${pkgdir}"/usr/lib/systemd/system/lynis.service
-    install -Dm600 "${srcdir}/extras/systemd/lynis.timer"   "${pkgdir}"/usr/lib/systemd/system/lynis.timer
+    install -Dm600 "${builddir}/extras/systemd/lynis.service" "${pkgdir}"/usr/lib/systemd/system/lynis.service
+    install -Dm600 "${builddir}/extras/systemd/lynis.timer"   "${pkgdir}"/usr/lib/systemd/system/lynis.timer
 
-    sed -i 's?ExecStart=/path/to/lynis?ExecStart=/usr/bin/lynis?' "${pkgdir}"/usr/lib/systemd/system/lynis.service
+    sed -i 's?ExecStart=/path/to/lynis?ExecStart=/usr/bin/lynis?' \
+                   "${pkgdir}"/usr/lib/systemd/system/lynis.service
  
    # lynis-doc
-    install -Dm644 CHANGELOG.md FAQ README -t "$pkgdir/usr/share/doc/$pkgname/"
-    install -Dm644 "$builddir/lynis.8" "$pkgdir/usr/share/man/man8/lynis.8"
+    install -Dm644 CHANGELOG.md FAQ README -t "${pkgdir}/usr/share/doc/${pkgname}/"
+    install -Dm644 "${builddir}/lynis.8" "${pkgdir}/usr/share/man/man8/lynis.8"
 
 }
 
 bashcomp() {
-    pkgdesc="Bash completions for $pkgname"
-    install_if="$pkgname=$pkgver-r$pkgrel bash-completion"
+    pkgdesc="Bash completions for ${pkgname}"
+    install_if="${pkgname}=${pkgver}-r${pkgrel} bash-completion"
 
     mkdir -p "$subpkgdir"/usr/share/bash-completion/completions/
-    install -Dm644 "$builddir/extras/bash_completion.d/lynis"    \
+    install -Dm644 "${builddir}/extras/bash_completion.d/lynis"    \
                    "$subpkgdir/usr/share/bash-completion/completions/lynis"
 }

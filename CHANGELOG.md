@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 3.0.3 (not released yet)
+## Lynis 3.0.3 (2021-01-07)
 
 ### Added
 

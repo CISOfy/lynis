@@ -8,6 +8,9 @@
 
 ### Changed
 
+- [DBS-1816]  - Force test to check only password authentication
+- [KRNL-5677] - Support for NetBSD
+- Bugfix: command 'configure settings' did not work as intended
 
 ---------------------------------------------------------------------------------
 

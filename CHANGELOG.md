@@ -4,12 +4,13 @@
 
 ### Added
 
+- HRDN-7231 - Check for registered non-native binary formats
 - OS detection of Parrot GNU/Linux
 
 ### Changed
 
-- [DBS-1816]  - Force test to check only password authentication
-- [KRNL-5677] - Support for NetBSD
+- DBS-1816  - Force test to check only password authentication
+- KRNL-5677 - Support for NetBSD
 - Bugfix: command 'configure settings' did not work as intended
 
 ---------------------------------------------------------------------------------
@@ -150,7 +151,6 @@ Using the relevant options, the scan will change base on the intended goal.
 - New test: FINT-4316 - presence of AIDE database and size test
 - New test: FINT-4340 - check dm-integrity status (Linux)
 - New test: FINT-4341 - verify status of dm-verity (Linux)
-- New test: HRDN-7231 - check for registered non-native binary formats
 - New test: INSE-8314 - test for NIS client
 - New test: INSE-8316 - test for NIS server
 - New test: NETW-2400 - test hostname for valid characters and length

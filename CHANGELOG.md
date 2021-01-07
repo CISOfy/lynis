@@ -1,20 +1,36 @@
 # Lynis Changelog
 
-## Lynis 3.0.2 (not released yet)
+## Lynis 3.0.3 (2021-01-07)
+
+### Added
+
+- HRDN-7231 - Check for registered non-native binary formats
+- OS detection of Parrot GNU/Linux
+
+### Changed
+
+- DBS-1816  - Force test to check only password authentication
+- KRNL-5677 - Support for NetBSD
+- Bugfix: command 'configure settings' did not work as intended
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.2 (2020-12-24)
 
 ### Added
 - AUTH-9284 - Scan for locked user accounts in /etc/passwd
+- LOGG-2153 - Loghost configuration
 - TOOL-5130 - Check for active Suricata daemon
 - OS detection of Flatcar, IPFire, Mageia, NixOS, ROSA Linux, SLES (extended), Void Linux, Zorin OS
 - OS detection of OpenIndiana (Hipster and Legacy), Shillix, SmartOS, Tribblix, and others
 - EOL dates for Alpine, macOS, Mageia, OmniosCE, and Solaris 11
 - Support for Solaris svcs (service manager)
 - Enumeration of Solaris services
-- LOGG-2153 - Loghost configuration
 
 ### Changed
 - ACCT-9626 - Detect sysstat systemd unit
-- BOOT-5184 - extended test with support for Solaris
+- AUTH-9230 - Only fail if both SHA_CRYPT_MIN_ROUNDS and SHA_CRYPT_MAX_ROUNDS are undefined
+- BOOT-5184 - Support for Solaris
 - KRNL-5830 - Improved reboot test by ignoring known bad values
 - KRNL-5830 - Ignore rescue kernel such as on CentOS systems
 - KRNL-5830 - Detection of Alpine Linux kernel
@@ -199,6 +215,7 @@ Using the relevant options, the scan will change base on the intended goal.
 - KRNL-5820 - extended check to include limits.d directory
 - KRNL-5830 - skip test partially when running non-privileged
 - KRNL-5830 - detect required reboots on Raspbian
+- KRNL-6000 - check more sysctls
 - LOGG-2154 - added support for rsyslog configurations
 - LOGG-2190 - skip mysqld related entries
 - MACF-6234 - SELinux tests extended

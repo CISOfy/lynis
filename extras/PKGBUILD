@@ -1,7 +1,7 @@
 # Maintainer: manjaro <manjaro-dev@garetech.com.au>
-pkgname=lynis
-pkgver=1.0.0
-pkgrel="$( uname -r | cut -d\. -f1-2 )"
+pkgname="lynis"
+pkgver=0.0.0
+pkgrel=54
 epoch=""
 pkgdesc="Security and system auditing tool to harden Unix/Linux systems"
 arch=(aarch64 x86_64)
@@ -19,7 +19,8 @@ backup=('etc/lynis/default.prf')
 options=()
 install=
 changelog=
-source=(git+${url}#branch=soedev)
+branch="soedev"
+source=(git+${url}#branch=${branch})
 noextract=()
 md5sums=("SKIP")
 validpgpkeys=()
@@ -32,6 +33,12 @@ pkgver() {
 package() {
     builddir="${srcdir}/${pkgname}"
 
+    echo "#startdir  : ${startdir}"
+    echo "#builddir  : ${builddir}"
+    echo "#pkgdir    : ${pkgdir}"
+    echo "#srcdir    : ${srcdir}"
+    echo "#pkgver    : ${pkgver}"
+
     # install
     install -Dm755 "${builddir}/${pkgname}"      "${pkgdir}/usr/sbin/${pkgname}"
 
@@ -40,28 +47,29 @@ package() {
     cp -r "${builddir}/include"  "${pkgdir}/usr/share/${pkgname}"
     cp -r "${builddir}/plugins"  "${pkgdir}/usr/share/${pkgname}"
 
-    mkdir -p -m 700                              "${pkgdir}/etc/${pkgname}"
-    install  -m 600 "${builddir}/default.prf"     "${pkgdir}/etc/${pkgname}/default.prf"
+    mkdir   -p -m 750                              "${pkgdir}/etc/${pkgname}"
+    mkdir   -p -m 750                              "${pkgdir}/etc/cron.weeky"
+    install -D -m 640 "${builddir}/default.prf"     "${pkgdir}/etc/${pkgname}/default.prf"
 
-    install  -m 600 "${builddir}/extras/${pkgname}.cron"       \
+    install -D -m 640 "${builddir}/extras/${pkgname}.cron"       \
                                                   "${pkgdir}/etc/cron.weekly/${pkgname}"
 
-    install  -m 600 "${builddir}/extras/systemd/lynis.service" \
+    install -D -m 640 "${builddir}/extras/systemd/lynis.service" \
                                                   "${pkgdir}"/usr/lib/systemd/system/lynis.service
 
-    install  -m 600 "${builddir}/extras/systemd/lynis.timer"   \
+    install -D -m 640 "${builddir}/extras/systemd/lynis.timer"   \
                                                   "${pkgdir}"/usr/lib/systemd/system/lynis.timer
 
     sed -i 's?ExecStart=/path/to/lynis?ExecStart=/usr/bin/lynis?' \
                                                   "${pkgdir}"/usr/lib/systemd/system/lynis.service
  
    # lynis-doc
-    mkdir   -p -m 755                           "${pkgdir}/usr/share/doc/${pkgname}"
-    install    -m 644 "${buildir}/CHANGELOG.md" "${pkgdir}/usr/share/doc/${pkgname}/"
-    install    -m 644 "${buildir}/FAQ"          "${pkgdir}/usr/share/doc/${pkgname}/"
-    install    -m 644 "${buildir}/README"       "${pkgdir}/usr/share/doc/${pkgname}/"
+    mkdir   -p -m 755                            "${pkgdir}/usr/share/doc/${pkgname}"
+    install    -m 644 "${builddir}/CHANGELOG.md" "${pkgdir}/usr/share/doc/${pkgname}/"
+    install    -m 644 "${builddir}/FAQ"          "${pkgdir}/usr/share/doc/${pkgname}/"
+    install    -m 644 "${builddir}/README"       "${pkgdir}/usr/share/doc/${pkgname}/"
 
-    mkdir   -p -m 755                           "${pkgdir}/usr/share/man/man8"
-    install    -m 644 "${builddir}/lynis.8"     "${pkgdir}/usr/share/man/man8/lynis.8"
+    mkdir   -p -m 755                            "${pkgdir}/usr/share/man/man8"
+    install    -m 644 "${builddir}/lynis.8"      "${pkgdir}/usr/share/man/man8/lynis.8"
 
 }

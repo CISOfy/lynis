@@ -6,7 +6,7 @@
 # ------------------
 #
 # Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2020, CISOfy
+# Copyright 2007-2021, CISOfy
 #
 # Website  : https://cisofy.com
 # Blog     : http://linux-audit.com
@@ -102,6 +102,27 @@
             ReportSuggestion "${TEST_NO}" "Harden the system by installing at least one malware scanner, to perform periodic file system scans" "-" "Install a tool like rkhunter, chkrootkit, OSSEC"
             AddHP 1 3
             LogText "Result: no malware scanner found"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : HRDN-7231
+    # Description : Check for registered non-native binary formats
+    Register --test-no HRDN-7231  --os Linux --weight L --network NO --category security --description "Check for registered non-native binary formats"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Check for registered non-native binary formats"
+        NFORMATS=0
+        if [ -d /proc/sys/fs/binfmt_misc ]; then
+            NFORMATS=$(${FINDBINARY} /proc/sys/fs/binfmt_misc -type f -not -name register -not -name status | ${WCBINARY} --lines)
+        fi
+        if [ ${NFORMATS} -eq 0 ]; then
+            LogText "Result: no non-native binary formats found"
+            Display --indent 4 --text "- Non-native binary formats" --result "${STATUS_NOT_FOUND}" --color GREEN
+        else
+            FORMATS=$(${FINDBINARY} /proc/sys/fs/binfmt_misc -type f -not -name register -not -name status -printf '%f ')
+            LogText "Result: found ${NFORMATS} non-native binary formats registered: ${FORMATS}"
+            Display --indent 4 --text "- Non-native binary formats" --result "${STATUS_FOUND}" --color RED
         fi
     fi
 #

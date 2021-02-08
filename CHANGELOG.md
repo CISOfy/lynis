@@ -1,13 +1,17 @@
 # Lynis Changelog
 
-## Lynis 3.0.3 (not released yet)
+## Lynis 3.0.3 (2021-01-07)
 
 ### Added
 
+- HRDN-7231 - Check for registered non-native binary formats
 - OS detection of Parrot GNU/Linux
 
 ### Changed
 
+- DBS-1816  - Force test to check only password authentication
+- KRNL-5677 - Support for NetBSD
+- Bugfix: command 'configure settings' did not work as intended
 
 ---------------------------------------------------------------------------------
 

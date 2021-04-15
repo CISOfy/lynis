@@ -24,7 +24,10 @@
 #
     AUDITD_CONF_LOCS="${ROOTDIR}etc ${ROOTDIR}etc/audit"
     AUDITD_CONF_FILE=""
+    CMD_CONF_LOCS="${ROOTDIR}etc ${ROOTDIR}etc/cmd"
+    CMD_CONF_FILE=""
     LINUX_AUDITD_RUNNING=0
+    LINUX_CMD_RUNNING=0
     AUDIT_DAEMON_RUNNING=0
     SOLARIS_AUDITD_RUNNING=0
 #
@@ -410,6 +413,59 @@
         else
             LogText "Result: ${ROOTDIR}usr/sbin/auditstat not found, skipping test"
             Display --indent 4 --text "- Checking Solaris audit statistics" --result "${STATUS_SKIPPED}" --color YELLOW
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : ACCT-9670
+    # Description : Check cmd status
+    if [ -n "${CMDBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no ACCT-9670 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for cmd"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Check cmd status"
+        if IsRunning "cmd_daemon"; then
+            LogText "Result: cmd running"
+            Display --indent 2 --text "- Checking cmd" --result "${STATUS_ENABLED}" --color GREEN
+            LINUX_CMD_RUNNING=1
+            AUDIT_DAEMON_RUNNING=1
+            Report "audit_trail_tool[]=cmd"
+            Report "linux_cmd_running=1"
+            AddHP 4 4
+        else
+            LogText "Result: cmd not active"
+            Display --indent 2 --text "- Checking cmd" --result "${STATUS_NOT_FOUND}" --color WHITE
+            if [ ! "${VMTYPE}" = "openvz" ]; then
+                ReportSuggestion "${TEST_NO}" "Install cmd to collect audit information"
+            fi
+            AddHP 0 1
+            Report "linux_cmd_running=0"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : ACCT-9672
+    # Description : Check cmd configuration file
+    if [ -n "${CMDBINARY}" -a ${LINUX_CMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no ACCT-9672 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for cmd configuration file"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking cmd configuration file"
+        for DIR in ${CMD_CONF_LOCS}; do
+            if [ -f ${DIR}/config.ini ]; then
+                CMD_CONF_FILE="${DIR}/config.ini"
+                LogText "Result: Found ${DIR}/config.ini"
+            else
+                LogText "Result: ${DIR}/config.ini not found"
+            fi
+        done
+        # Check if we discovered the configuration file. It should be there is the binaries are available and process is running
+        if [ -n "${CMD_CONF_FILE}" ]; then
+            Display --indent 4 --text "- Checking cmd configuration file" --result "${STATUS_OK}" --color GREEN
+        else
+            LogText "Result: could not find cmd configuration file"
+            Display --indent 4 --text "- Checking cmd configuration file" --result "${STATUS_FOUND}" --color RED
+            ReportSuggestion "${TEST_NO}" "Determine the location of cmd configuration file"
         fi
     fi
 #

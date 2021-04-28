@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.0.4 (not released yet)
+
+### Changed
+- FILE-6430 - Report suggestion only when at least one kernel module is not in the blacklist
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.3 (2021-01-07)
 
 ### Added
@@ -8,7 +15,6 @@
 - OS detection of Parrot GNU/Linux
 
 ### Changed
-
 - DBS-1816  - Force test to check only password authentication
 - KRNL-5677 - Support for NetBSD
 - Bugfix: command 'configure settings' did not work as intended

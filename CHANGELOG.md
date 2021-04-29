@@ -3,6 +3,7 @@
 ## Lynis 3.0.4 (not released yet)
 
 ### Changed
+- BOOT-5104 - Add service manager detection support for runit
 - FILE-6430 - Report suggestion only when at least one kernel module is not in the blacklist
 
 ---------------------------------------------------------------------------------

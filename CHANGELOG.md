@@ -5,6 +5,7 @@
 ### Changed
 - BOOT-5104 - Add service manager detection support for runit
 - FILE-6430 - Report suggestion only when at least one kernel module is not in the blacklist
+- Corrected issue when Lynis is not executed directly from lynis directory
 
 ---------------------------------------------------------------------------------
 

@@ -1,10 +1,19 @@
 # Lynis Changelog
 
-## Lynis 3.0.4 (not released yet)
+## Lynis 3.0.4 (2021-05-11)
+
+### Added
+- ACCT-9670 - Detection of cmd tooling
+- ACCT-9672 - Test cmd configuration file
+- BOOT-5140 - Check for ELILO boot loader presence
+- OS detection of AlmaLinux, Garuda Linux, Manjaro (ARM), and others
 
 ### Changed
 - BOOT-5104 - Add service manager detection support for runit
 - FILE-6430 - Report suggestion only when at least one kernel module is not in the blacklist
+- FIRE-4540 - Corrected nftables empy ruleset test
+- LOGG-2138 - Do not check for klogd when metalog is being used
+- TIME-3185 - Improved support for Debian stretch
 - Corrected issue when Lynis is not executed directly from lynis directory
 
 ---------------------------------------------------------------------------------
@@ -12,7 +21,6 @@
 ## Lynis 3.0.3 (2021-01-07)
 
 ### Added
-
 - HRDN-7231 - Check for registered non-native binary formats
 - OS detection of Parrot GNU/Linux
 

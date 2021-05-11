@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.0.4 (not released yet)
+
+### Added
+- OS detection of Rocky Linux
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.4 (2021-05-11)
 
 ### Added

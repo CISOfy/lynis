@@ -293,6 +293,32 @@
 #
 #################################################################################
 #
+    # Test        : CRYP-8006
+    # Description : Check that the MemoryOverwriteRequest-bit is set to protect against cold-boot attacks
+    Register --test-no CRYP-8006 --os Linux --weight L --network NO --root-only NO --category security --description "MemoryOverwriteRequest-bit set"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        MOR_CONTROL="${ROOTDIR}sys/firmware/efi/efivars/MemoryOverwriteRequestControl-e20939be-32d4-41be-a150-897f85d49829"
+        LogText "Test: looking for ${MOR_CONTROL}"
+        if [ -f "${MOR_CONTROL}" ]; then
+            DATA=$(od -An --skip-bytes=4 "$MOR_CONTROL")
+            if [ "$DATA" = " 000001" ]; then
+                LogText "Result: MOR-bit set"
+                Display --indent 2 --text "MOR-bit set" --result "${STATUS_YES}" --color GREEN
+            elif [ "$DATA" = " 000000" ]; then
+                LogText "Result: MOR-bit not set!"
+                Display --indent 2 --text "MOR-bit set" --result "${STATUS_NO}" --color RED
+            else
+                LogText "Result: MOR-bit unknown. Found: $DATA"
+                Display --indent 2 --text "MOR-bit set" --result "${STATUS_UNKNOWN}" --color YELLOW
+            fi
+        else
+            LogText "Result: could not find ${MOR_CONTROL}"
+            Display --indent 2 --text "- MOR variable not found" --result "${STATUS_WEAK}" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
     Report "rng_found=${RNG_FOUND}"
 #
 #################################################################################

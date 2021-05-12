@@ -63,6 +63,7 @@
     # Description : Determine service manager
     # Notes       :
     # initscripts     - Used by Arch before
+    # runit           - Used by Artix, Devuan, Dragora and Void
     # systemd         - Common option with more Linux distros implementing it
     # upstart         - Used by Debian/Ubuntu
     Register --test-no BOOT-5104 --weight L --network NO --category security --description "Determine service manager"
@@ -71,7 +72,7 @@
         case ${OS} in
             "Linux")
                 if [ -f /proc/1/cmdline ]; then
-                    OUTPUT=$(${AWKBINARY} '/(^\/|init)/ { print $1 }' /proc/1/cmdline | ${TRBINARY} '\0' ' ' | ${SEDBINARY} 's/ $//')
+                    OUTPUT=$(${AWKBINARY} '/(^\/|init|runit)/ { print $1 }' /proc/1/cmdline | ${TRBINARY} '\0' ' ' | ${SEDBINARY} 's/ $//')
                     LogText "Result: cmdline found = ${OUTPUT}"
                     FILENAME=$(echo "${OUTPUT}" | ${AWKBINARY} '{print $1}')
                     LogText "Result: file on disk = ${FILENAME}"
@@ -107,6 +108,9 @@
                                 ;;
                                 upstart)
                                     SERVICE_MANAGER="upstart"
+                                ;;
+                                runit)
+                                    SERVICE_MANAGER="runit"
                                 ;;
                                 *)
                                     CONTAINS_SYSTEMD=$(echo ${SHORTNAME} | ${GREPBINARY} "systemd")
@@ -480,6 +484,25 @@
         else
             LogText "Result: LILO configuration file not found"
         fi
+    fi
+#
+#################################################################################
+#
+    # Test        : BOOT-5140
+    # Description : Check for ELILO boot loader
+    Register --test-no BOOT-5140 --os "Linux" --weight L --network NO --root-only YES --category security --description "Check for ELILO boot loader presence"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        BOOT_LOADER_SEARCHED=1
+        CONF_FILES="${ROOTDIR}etc/elilo.conf ${ROOTDIR}boot/efi/EFI/${LINUX_VERSION}/elilo.conf"
+        for FILE in ${CONF_FILES}; do
+            FileExists ${FILE}
+            if [ ${FILE_FOUND} -eq 1 ]; then
+                Display --indent 2 --text "- Checking boot loader ELILO" --result "${STATUS_FOUND}" --color GREEN
+                LogText "Result: found ELILO boot loader"
+                BOOT_LOADER="ELILO"
+                BOOT_LOADER_FOUND=1
+            fi
+        done
     fi
 #
 #################################################################################
@@ -1068,23 +1091,28 @@
             if [ "${UNIT}" = "UNIT" ]; then
                 continue
             fi
+            STATUS="UNKNOWN"
             COLOR="BLACK"
             case ${PREDICATE} in
                 PERFECT | SAFE | OK)
+                    STATUS="${STATUS_PROTECTED}"
                     COLOR=GREEN
                 ;;
                 MEDIUM)
+                    STATUS="${STATUS_MEDIUM}"
                     COLOR=WHITE
                 ;;
                 EXPOSED)
+                    STATUS="${STATUS_EXPOSED}"
                     COLOR=YELLOW
                 ;;
                 UNSAFE | DANGEROUS)
+                    STATUS="${STATUS_UNSAFE}"
                     COLOR=RED
                 ;;
             esac
-            Display --indent 8 --text "- ${UNIT}:" --result "${PREDICATE}" --color "${COLOR}"
-            LogText "Result: ${UNIT}: ${EXPOSURE} ${PREDICATE}"
+            Display --indent 8 --text "- ${UNIT}:" --result "${STATUS}" --color "${COLOR}"
+            LogText "Result: ${UNIT}: ${EXPOSURE} ${STATUS}"
         done
         ReportSuggestion "${TEST_NO}" "Consider hardening system services" "Run '${SYSTEMDANALYZEBINARY} security SERVICE' for each service"
     fi

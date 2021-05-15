@@ -721,11 +721,45 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6398 TODO
+    # Test        : FILE-6398
     # Description : Check if JBD (Journal Block Device) driver is loaded
-
-    # Want to contribute to Lynis? Create this test
-
+    Register --test-no FILE-6398 --os Linux --weight L --network NO --category security --description "Checking if JBD (Journal Block Device) driver is loaded"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking if JBD (Journal Block Device) driver is loaded"
+        NOTINUSE=0
+        # Cannot check if driver is loaded/present if kernel is monolithic
+        if [ ${MONOLITHIC_KERNEL} -eq 0 ]; then
+            JBD=$(${LSMODBINARY} | ${GREPBINARY} ^jbd)
+            if [ -n "${JBD}" ]; then
+                LogText "Result: JBD driver is loaded"
+                INUSE=$(echo ${JBD} | ${AWKBINARY} '{if ($3 -ne 0) {print $4}}')
+                if [ -n "${INUSE}" ]; then
+                    LogText "Result: JBD driver is in use by drivers: ${INUSE}"
+                    Report "JBD driver is in use by drivers: ${INUSE}"
+                    Display --indent 2 --text "- JBD driver loaded and in use" --result "${STATUS_OK}" --color GREEN
+                else
+                    NOTINUSE=1
+                    LogText "Result: JBD driver loaded, but not in use"
+                    Report "JBD driver is loaded, but not in use."
+                    Display --indent 2 --text "- JBD driver loaded, but not in use" --result "${STATUS_SUGGESTION}" --color YELLOW
+                fi
+            else
+                NOTINUSE=2
+                LogText "Result: JBD driver not loaded"
+                Report "JBD driver not loaded."
+                Display --indent 2 --text "- JBD driver is not loaded" --result "${STATUS_CHECK_NEEDED}" --color YELLOW
+            fi
+            if [ ${NOTINUSE} -eq 1 ]; then
+                ReportSuggestion "${TEST_NO}" "The JBD (Journal Block Device) driver is loaded but not in use." "You are currently not using any filesystems with journaling, i.e. you have greater risk of data corruption in case of system crash."
+            elif [ ${NOTINUSE} -eq 2 ]; then
+                ReportSuggestion "${TEST_NO}" "The JBD (Journal Block Device) driver is not loaded." "Since boot-time, you have not been using any filesystems with journaling. Alternatively, reason could be driver is blacklisted."
+            fi
+        else
+            LogText "Kernel is monolithic - cannot check if JBD driver is part of compiled kernel."
+            Report "Kernel is monolithic - cannot check if JBD driver is part of compiled kernel."
+            Display --indent 2 --text "- JBD driver: unable to check" --result "${STATUS_UNKNOWN}" --color RED
+        fi
+    fi
 #
 #################################################################################
 #

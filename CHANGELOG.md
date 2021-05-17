@@ -3,7 +3,7 @@
 ## Lynis 3.0.5 (not released yet)
 
 ### Added
-- OS detection of Rocky Linux
+- OS detection of Arch Linux 32 and Rocky Linux
 - CRYP-8006 - Check MemoryOverwriteRequest bit to protect against cold-boot attacks (Linux)
 
 ### Changed

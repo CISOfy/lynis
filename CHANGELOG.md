@@ -8,6 +8,8 @@
 
 ### Changed
 - ACCT-9622 - Corrected typo
+- HRDN-7231 - When calling wc, use the short -l flag instead of --lines (Busybox compatibility)
+- PKGS-7320 - extended to Arch Linux 32
 
 ---------------------------------------------------------------------------------
 

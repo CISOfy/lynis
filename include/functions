@@ -899,20 +899,22 @@
     ################################################################################
 
     GetHostID() {
-
         if [ ${SKIP_GETHOSTID} -eq 1 ]; then
+            Debug "Skipping HostID generation due to SKIP_GETHOSTID"
             return 2
         fi
 
         if [ -n "${HOSTID}" -a -n "${HOSTID2}" ]; then
             Debug "Skipping creation of host identifiers, as they are already configured (via profile)"
+            HOSTID_GEN="profile"
             return 2
         fi
 
         if [ -f "${ROOTDIR}etc/lynis/hostids" ]; then
-            Debug "Used hostids file to fetch values"
             HOSTID=$(grep "^hostid=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
             HOSTID2=$(grep "^hostid2=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
+            Debug "Used hostids file to fetch values"
+            HOSTID_GEN="hostids-file"
             return 0
         fi
 
@@ -940,7 +942,7 @@
         fi
 
         if [ ! "${SHA1SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
-
+            LogText "Info: found hashing tool, start generation of HostID"
             case "${OS}" in
 
                 "AIX")
@@ -988,15 +990,29 @@
                 ;;
 
                 "Linux")
-
-                    # Future change
-                    # Show brief output of ip of links that are UP. Filter out items like 'UNKNOWN' in col 2
-                    # Using the {2} syntax does not work on all systems
-                    # ip -br link show up | sort | awk '$2=="UP" && $3 ~ /^[a-f0-9][a-f0-9]:/ {print $3}'
-
-                    # Use ifconfig
-                    if [ -n "${IFCONFIGBINARY}" ]; then
-                        # Determine if we have the eth0 interface (not all Linux distro have this, e.g. Arch)
+                    # First use ip, then ifconfig as fallback
+                    if [ -n "${IPBINARY}" ]; then
+                        # Determine if we have the common available eth0 interface. If so, give that priority.
+                        # Note: apply sorting in case there would be multiple MAC addresses linked to increase predictable end result
+                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]' | sort | head -1)
+                        if HasData "${FIND}"; then
+                            HOSTID_GEN="linux-ip-interface-eth0"
+                        else
+                            # Trying the most stable route here:
+                            # 1) First fetch all links that are UP and filter out everything not starting with 'en'
+                            # 2) Filter entries that have a MAC address and filter out Docker related MAC addresses starting with '02:42:'
+                            # 3) Convert everything to lowercase
+                            # 4) Sort the entries, so that the output is more predictable between runs when the same interfaces are available
+                            # 5) Select first entry
+                            FIND=$(${IPBINARY} -family link addr show up label 'en*' 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -1)
+                            if HasData "${FIND}"; then
+                                HOSTID_GEN="linux-ip-interface-other"
+                            else
+                                ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
+                            fi
+                        fi
+                    elif [ -n "${IFCONFIGBINARY}" ]; then
+                        # Determine if we have the eth0 interface (not all Linux distributions have this, e.g. Arch)
                         HASETH0=$(${IFCONFIGBINARY} | grep "^eth0")
                         # Check if we can find it with HWaddr on the line
                         FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "^eth0" | grep -v "eth0:" | grep HWaddr | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
@@ -1009,38 +1025,32 @@
                                 # If not, then falling back to getting first interface. Better than nothing.
                                 if HasData "${HASETH0}"; then
                                     FIND=$(${IFCONFIGBINARY} eth0 2> /dev/null | grep "ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                                    if HasData "${FIND}"; then
+                                        HOSTID_GEN="linux-ifconfig-interface-eth0-ether"
+                                    fi
                                 else
                                     FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -1 | tr '[:upper:]' '[:lower:]')
                                     if IsEmpty "${FIND}"; then
                                         ReportException "GetHostID" "No eth0 found (and no ether was found with ifconfig)"
                                     else
-                                        LogText "Result: No eth0 found (ether found), using first network interface to determine hostid (with ifconfig)"
+                                        HOSTID_GEN="linux-ifconfig-interface-first-ether"
+                                        LogText "Result: No eth0 found (but ether found), using first network interface to determine hostid (with ifconfig)"
                                     fi
                                 fi
                             else
                                 FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
-                                LogText "GetHostID: No eth0 found (but HWaddr was found), using first network interface to determine hostid, with ifconfig"
+                                HOSTID_GEN="linux-ifconfig-interface-first-hwaddr"
                             fi
-                        fi
-
-                    elif [ -n "${IPBINARY}" ]; then
-                        # Determine if we have the common available eth0 interface
-                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
-                        if IsEmpty "${FIND}"; then
-                            # Determine the MAC address of first interface with the ip command
-                            FIND=$(${IPBINARY} addr show 2> /dev/null | grep -E "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
-                            if IsEmpty "${FIND}"; then
-                                ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
-                            fi
+                        else
+                            HOSTID_GEN="linux-ifconfig-interface-eth0-hwaddr"
                         fi
                     else
                         ReportException "GetHostID" "Both ip and ifconfig tools are missing"
-
                     fi
 
                     # Check if we found a HostID
                     if HasData "${FIND}"; then
-                        LogText "Info: using hardware address ${FIND} to create ID"
+                        LogText "Info: using hardware address ${FIND} to create HostID"
                         HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                         LogText "Result: Found HostID: ${HOSTID}"
                     else
@@ -1100,9 +1110,9 @@
                     done
                     if [ ${FOUND} -eq 1 ]; then
                         FIND=$(${IFCONFIGBINARY} ${I} | grep ether | awk '{ if ($1=="ether") { print $2 }}')
-                        if [ ! "${SHA1SUMBINARY}" = "" ]; then
+                        if [ -n "${SHA1SUMBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
-                        elif [ ! "${OPENSSLBINARY}" = "" ]; then
+                        elif [ -n "${OPENSSLBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "Can not find sha1/sha1sum or openssl"
@@ -1116,8 +1126,9 @@
                         ReportException "GetHostID" "Can't create HOSTID as OS is not supported yet by this function"
                 ;;
             esac
+
             # Remove HOSTID if it contains a default MAC address with a related hash value
-            if [ ! "${HOSTID}" = "" ]; then
+            if [ -n "${HOSTID}" ]; then
                 for CHECKHASH in ${BLACKLISTED_HASHES}; do
                     if [ "${CHECKHASH}" = "${HOSTID}" ]; then
                         LogText "Result: hostid is a blacklisted value"
@@ -1125,6 +1136,7 @@
                     fi
                 done
             fi
+
         else
             ReportException "GetHostID" "Can't create HOSTID as there is no SHA1 hash tool available (sha1, sha1sum, openssl)"
         fi
@@ -1152,6 +1164,7 @@
                             if [ -n "${SHA1SUMBINARY}" ]; then
                                 HOSTID=$(${SHA1SUMBINARY} /etc/ssh/${I} | awk '{ print $1 }')
                                 LogText "result: Created HostID with SSH key ($I): ${HOSTID}"
+                                HOSTID_GEN="fallback-ssh-public-key"
                             else
                                 ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
                             fi
@@ -1163,9 +1176,9 @@
             fi
         fi
 
-        # New style host ID
-        if [ "${HOSTID2}" = "" ]; then
-            LogText "Info: creating a HostID (version 2)"
+        # Generation of HostID version 2
+        if [ -z "${HOSTID2}" ]; then
+            LogText "Info: start generation of HostID (version 2)"
             FOUND=0
             DATA_SSH=""
             # Use public keys
@@ -1188,19 +1201,21 @@
             if [ ${FOUND} -eq 1 -a -n "${DATA_SSH}" ]; then
                 LogText "Using SSH public key to create the second host identifier"
                 STRING_TO_HASH="${DATA_SSH}"
+                HOSTID2_GEN="ssh-public-key"
             else
                 if [ -n "${MACHINEID}" ]; then
                     LogText "Using the machine ID to create the second host identifier"
                     STRING_TO_HASH="${MACHINEID}"
+                    HOSTID2_GEN="machine-id"
                 fi
             fi
             # Check if we have a string to turn into a host identifier
             if [ -n "${STRING_TO_HASH}" ]; then
                 # Create hashes
-                if [ ! "${SHA256SUMBINARY}" = "" ]; then
+                if [ -n "${SHA256SUMBINARY}" ]; then
                     HASH2=$(echo ${STRING_TO_HASH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${SHA256SUMBINARY} | awk '{ print $1 }')
-                elif [ ! "${OPENSSLBINARY}" = "" ]; then
+                elif [ -n "${OPENSSLBINARY}" ]; then
                     HASH2=$(echo ${STRING_TO_HASH} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                 fi

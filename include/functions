@@ -990,28 +990,55 @@
                 ;;
 
                 "Linux")
-                    # First use ip, then ifconfig as fallback
+
+                    # First try ip, as it is available to most modern Linux distributions
                     if [ -n "${IPBINARY}" ]; then
+                        LogText "Info: trying output from 'ip' to generate HostID"
                         # Determine if we have the common available eth0 interface. If so, give that priority.
                         # Note: apply sorting in case there would be multiple MAC addresses linked to increase predictable end result
                         FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]' | sort | head -1)
                         if HasData "${FIND}"; then
                             HOSTID_GEN="linux-ip-interface-eth0"
                         else
-                            # Trying the most stable route here:
-                            # 1) First fetch all links that are UP and filter out everything not starting with 'en'
+                            # If eth0 does not exist, which is also common, then trying the next option:
+                            # 1) First fetch all links that are UP and start with 'en'
                             # 2) Filter entries that have a MAC address and filter out Docker related MAC addresses starting with '02:42:'
                             # 3) Convert everything to lowercase
                             # 4) Sort the entries, so that the output is more predictable between runs when the same interfaces are available
                             # 5) Select first entry
                             FIND=$(${IPBINARY} -family link addr show up label 'en*' 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -1)
                             if HasData "${FIND}"; then
-                                HOSTID_GEN="linux-ip-interface-other"
+                                HOSTID_GEN="linux-ip-interface-up-en"
                             else
-                                ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
+                                LogText "Info: selecting interfaces by label 'en*' did not return results, trying without it"
+                                # Try again, without specifying a preferred interface name
+                                FIND=$(${IPBINARY} -family link addr show up 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -1)
+                                if HasData "${FIND}"; then
+                                    HOSTID_GEN="linux-ip-interface-up-other"
+                                else
+                                    ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
+                                fi
                             fi
                         fi
-                    elif [ -n "${IFCONFIGBINARY}" ]; then
+                    fi
+
+                    # Try fetching information from /sys in case 'ip' is not available or does not give expected results
+                    if IsEmpty "${FIND}" && [ ${PRIVILEGED} -eq 1 -a -d /sys/class/net ]; then
+                        NET_INTERFACES=$(${FINDBINARY} /sys/class/net ! -type d -exec realpath {} \; 2> /dev/null | sort | awk -F'/' '!/virtual/ && /devices/ {for (x=1;x<=NF;x++) if ($x~"net") print $(x+1)}')
+                        for INTERFACE in ${NET_INTERFACES}; do
+                            if grep -s 'up' "/sys/class/net/${INTERFACE}/operstate"; then
+                                LogText "Interface '${INTERFACE}' is up, fetching MAC address"
+                                FIND=$(head -1 "/sys/class/net/${INTERFACE}/address" | tr '[:upper:]' '[:lower:]')
+                                if HasData "${FIND}"; then
+                                    HOSTID_GEN="linux-sys-interface-up"
+                                    break
+                                fi
+                            fi
+                        done
+                    fi
+
+                    if IsEmpty "${FIND}" && [ -n "${IFCONFIGBINARY}" ]; then
+                        LogText "Info: no information found from 'ip' or in /sys, trying output from 'ifconfig'"
                         # Determine if we have the eth0 interface (not all Linux distributions have this, e.g. Arch)
                         HASETH0=$(${IFCONFIGBINARY} | grep "^eth0")
                         # Check if we can find it with HWaddr on the line
@@ -1044,8 +1071,6 @@
                         else
                             HOSTID_GEN="linux-ifconfig-interface-eth0-hwaddr"
                         fi
-                    else
-                        ReportException "GetHostID" "Both ip and ifconfig tools are missing"
                     fi
 
                     # Check if we found a HostID
@@ -1054,7 +1079,7 @@
                         HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                         LogText "Result: Found HostID: ${HOSTID}"
                     else
-                        ReportException "GetHostID" "Can't create HOSTID, command ip not found"
+                        ReportException "GetHostID" "HostID could not be generated"
                     fi
                 ;;
 
@@ -1187,7 +1212,7 @@
                 for I in ${SSH_KEY_FILES}; do
                     if [ ${FOUND} -eq 0 ]; then
                         if [ -f /etc/ssh/${I} ]; then
-                            LogText "Result: found file ${I} in /etc/ssh, using that to create host identifier"
+                            LogText "Result: found file ${I} in /etc/ssh, using that as candidate to create hostid2"
                             DATA_SSH=$(cat /etc/ssh/${I})
                             FOUND=1
                         fi
@@ -1199,12 +1224,12 @@
 
             STRING_TO_HASH=""
             if [ ${FOUND} -eq 1 -a -n "${DATA_SSH}" ]; then
-                LogText "Using SSH public key to create the second host identifier"
+                LogText "Using SSH public key to create hostid2"
                 STRING_TO_HASH="${DATA_SSH}"
                 HOSTID2_GEN="ssh-public-key"
             else
                 if [ -n "${MACHINEID}" ]; then
-                    LogText "Using the machine ID to create the second host identifier"
+                    LogText "Using the machine ID to create hostid2"
                     STRING_TO_HASH="${MACHINEID}"
                     HOSTID2_GEN="machine-id"
                 fi

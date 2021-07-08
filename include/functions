@@ -1015,23 +1015,16 @@
                             HOSTID_GEN="linux-ip-interface-eth0"
                         else
                             # If eth0 does not exist, which is also common, then trying the next option:
-                            # 1) First fetch all links that are UP and start with 'en'
+                            # 1) First fetch all links that are UP
                             # 2) Filter entries that have a MAC address and filter out Docker related MAC addresses starting with '02:42:'
                             # 3) Convert everything to lowercase
                             # 4) Sort the entries, so that the output is more predictable between runs when the same interfaces are available
                             # 5) Select first entry
-                            FIND=$(${IPBINARY} -family link addr show up label 'en*' 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -1)
+                            FIND=$(${IPBINARY} -family link addr show up 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -1)
                             if HasData "${FIND}"; then
-                                HOSTID_GEN="linux-ip-interface-up-en"
+                                HOSTID_GEN="linux-ip-interface-up-other"
                             else
-                                LogText "Info: selecting interfaces by label 'en*' did not return results, trying without it"
-                                # Try again, without specifying a preferred interface name
-                                FIND=$(${IPBINARY} -family link addr show up 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -1)
-                                if HasData "${FIND}"; then
-                                    HOSTID_GEN="linux-ip-interface-up-other"
-                                else
-                                    ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
-                                fi
+                                ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
                             fi
                         fi
                     fi

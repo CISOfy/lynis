@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.0.6 (not released yet)
+
+### Changed
+- GetHostID function: fallback options added for Linux systems
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.5 (2021-07-02)
 
 ### Added

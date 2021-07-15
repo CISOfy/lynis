@@ -2,6 +2,9 @@
 
 ## Lynis 3.0.6 (not released yet)
 
+### Added
+- OS detection: NethServer
+
 ### Changed
 - GetHostID function: fallback options added for Linux systems
 

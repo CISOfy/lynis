@@ -4,6 +4,7 @@
 
 ### Added
 - OS detection: Artix Linux, macOS Monterey, NethServer, openSUSE MicroOS
+- Check for outdated translation files
 
 ### Changed
 - GetHostID function: fallback options added for Linux systems

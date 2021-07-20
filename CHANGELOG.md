@@ -4,6 +4,7 @@
 
 ### Changed
 - GetHostID function: fallback options added for Linux systems
+- Fix: show correct text when egrep is missing
 
 ---------------------------------------------------------------------------------
 

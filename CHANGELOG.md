@@ -3,12 +3,13 @@
 ## Lynis 3.0.6 (not released yet)
 
 ### Added
-- OS detection: Artix Linux, macOS Monterey, NethServer
+- OS detection: Artix Linux, macOS Monterey, NethServer, openSUSE MicroOS
 
 ### Changed
 - GetHostID function: fallback options added for Linux systems
 - Fix: macOS Big Sur detection
 - Fix: show correct text when egrep is missing
+- German and Spanish translations extended
 
 ---------------------------------------------------------------------------------
 

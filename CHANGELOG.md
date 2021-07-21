@@ -7,11 +7,14 @@
 - Check for outdated translation files
 
 ### Changed
+- DBS-1826 - Check if PostgreSQL is being used
+- DBS-1828 - Test multiple PostgreSQL configuration file(s)
 - KRNL-5830 - Sort kernels by version instead of modification date
 - PKGS-7410 - Don't show exception for systems using LXC
 - GetHostID function: fallback options added for Linux systems
 - Fix: macOS Big Sur detection
 - Fix: show correct text when egrep is missing
+- Fix: variable name for PostgreSQL
 - German and Spanish translations extended
 
 ---------------------------------------------------------------------------------

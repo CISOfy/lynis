@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 3.0.6 (not released yet)
+## Lynis 3.0.6 (2021-07-22)
 
 ### Added
 - OS detection: Artix Linux, macOS Monterey, NethServer, openSUSE MicroOS

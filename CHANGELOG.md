@@ -6,7 +6,7 @@
 - MALW-3290 - Show status of malware components
 
 ### Changed
-- MALW-3280 - Added Trend Micro Deep Security Agent
+- MALW-3280 - Added Trend Micro malware agent
 
 ---------------------------------------------------------------------------------
 

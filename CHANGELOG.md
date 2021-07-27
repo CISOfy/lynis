@@ -3,6 +3,7 @@
 ## Lynis 3.0.7 (Not released yet)
 
 ### Added
+- MALW-3290 - Show status of malware components
 
 ### Changed
 - MALW-3280 - Added Trend Micro Deep Security Agent

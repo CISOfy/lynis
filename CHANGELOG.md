@@ -1,5 +1,14 @@
 # Lynis Changelog
 
+## Lynis 3.0.7 (Not released yet)
+
+### Added
+
+### Changed
+- MALW-3280 - Added Trend Micro Deep Security Agent
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.6 (2021-07-22)
 
 ### Added

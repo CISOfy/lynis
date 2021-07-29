@@ -6,6 +6,7 @@
 - MALW-3290 - Show status of malware components
 
 ### Changed
+- DBS-1804 - Added alias for MariaDB
 - MALW-3280 - Added Trend Micro malware agent
 
 ---------------------------------------------------------------------------------

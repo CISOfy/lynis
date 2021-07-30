@@ -4,6 +4,7 @@
 
 ### Added
 - MALW-3290 - Show status of malware components
+- OS detection for RHEL 6
 
 ### Changed
 - DBS-1804 - Added alias for MariaDB

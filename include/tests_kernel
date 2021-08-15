@@ -673,9 +673,9 @@
                         LogText "Result: found ${ROOTDIR}boot/vmlinuz-lts"
                         FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-lts
                     else
-                        # Match on items like /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default. Get newest file (ls -t and pipe into head)
+                        # Match on items like /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default. Sort based on versions (-v) and then find the last item
                         # Note: ignore a rescue kernel (e.g. CentOS)
-                        FOUND_VMLINUZ=$(${LSBINARY} -t ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue\-' | ${HEADBINARY} -1)
+                        FOUND_VMLINUZ=$(${LSBINARY} -v ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue\-' | ${TAILBINARY} -1)
                         LogText "Result: found ${FOUND_VMLINUZ}"
                     fi
 
@@ -749,6 +749,7 @@
                         done
                         # Display kernels, extract version numbers and ${SORTBINARY} them numeric per column (up to 6 numbers)
                         # Ignore rescue images. Remove generic. and huge. for Slackware machines
+                        # TODO: see if this can be simplified using ls -v sorting
                         LogText "Action: checking relevant kernels"
                         KERNELS=$(${LSBINARY} /boot/vmlinuz* | ${GREPBINARY} -v rescue | ${SEDBINARY} 's/vmlinuz-//' | ${SEDBINARY} 's/generic.//' | ${SEDBINARY} 's/huge.//' | ${SEDBINARY} 's/\.[a-z].*.//g' | ${SEDBINARY} 's/-[a-z].*.//g' | ${SEDBINARY} 's./boot/..' | ${SEDBINARY} 's/-/./g' | ${SORTBINARY} -n -k1,1 -k2,2 -k3,3 -k4,4 -k5,5 -k6,6 -t \.)
                         KERNELS_ONE_LINE=$(${ECHOCMD} ${KERNELS} | ${TRBINARY} '\n' ' ')

@@ -1,9 +1,35 @@
 # Lynis Changelog
 
-## Lynis 3.0.6 (not released yet)
+## Lynis 3.0.7 (Not released yet)
+
+### Added
+- MALW-3290 - Show status of malware components
+- OS detection for RHEL 6
 
 ### Changed
+- DBS-1804 - Added alias for MariaDB
+- FINT-4316 - Support for newer Ubuntu versions
+- MALW-3280 - Added Trend Micro malware agent
+- Several improvements for busybox shell
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.6 (2021-07-22)
+
+### Added
+- OS detection: Artix Linux, macOS Monterey, NethServer, openSUSE MicroOS
+- Check for outdated translation files
+
+### Changed
+- DBS-1826 - Check if PostgreSQL is being used
+- DBS-1828 - Test multiple PostgreSQL configuration file(s)
+- KRNL-5830 - Sort kernels by version instead of modification date
+- PKGS-7410 - Don't show exception for systems using LXC
 - GetHostID function: fallback options added for Linux systems
+- Fix: macOS Big Sur detection
+- Fix: show correct text when egrep is missing
+- Fix: variable name for PostgreSQL
+- German and Spanish translations extended
 
 ---------------------------------------------------------------------------------
 

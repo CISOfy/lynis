@@ -44,7 +44,20 @@ Typical users of the software:
 
 ## Installation
 
+There are multiple options available to install Lynis.
+
+### Software Package
+
+For sytems running Linux, BSD, and macOS, there is typically a package available. This is the preferred method of obtaining Lynis, as it is quick to install and easy to update. The Lynis project itself also provides [packages](https://packages.cisofy.com/) in RPM or DEB format suitable for systems systems running:
+`CentOS`, `Debian`, `Fedora`, `OEL`, `openSUSE`, `RHEL`, `Ubuntu`, and others.
+
+Some distributions may also have Lynis in their software repository: [![Repology](https://repology.org/badge/tiny-repos/lynis.svg)](https://repology.org/project/lynis/versions)
+
+Note: Some distributions don't provide an up-to-date version. In that case it is better to use the CISOfy software repository, download the tarball from the website, or download the latest GitHub release.
+
 ### Git
+
+The very latest developments can be obtained via git.
 
 1. Clone or download the project files (**no compilation nor installation** is required) ;
 
@@ -52,26 +65,21 @@ Typical users of the software:
 
 2. Execute:
 
-        cd lynis; ./lynis audit system
+        cd lynis && ./lynis audit system
 
-If you want to run the software as `root`, we suggest changing the ownership of the files. Use `chown -R 0:0` to recursively alter the owner and group and set it to user ID `0` (`root`).
+If you want to run the software as `root` (or sudo), we suggest changing the ownership of the files. Use `chown -R 0:0` to recursively alter the owner and group and set it to user ID `0` (`root`). Otherwise Lynis will warn you about the file permissions. After all, you are executing files owned by a non-privileged user.
 
-### Software Package
-
-For Linux, BSD, and macOS, there is typically a package available. The Lynis project also provides packages in RPM or DEB format. The [CISOfy software repository](https://packages.cisofy.com) can be used to install Lynis on systems running:
-`CentOS`, `Debian`, `Fedora`, `OEL`, `openSUSE`, `RHEL`, `Ubuntu`, and others.
-
-Some distributions may also have Lynis in their software repository: [![Repology](https://repology.org/badge/tiny-repos/lynis.svg)](https://repology.org/project/lynis/versions)
-If they don't provide an up-to-date version, consider the CISOfy repository, tarball (website), or GitHub release.
 
 ### Enterprise Version
 
 This software component is also part of an enterprise solution. Same quality, yet with more functionality.
 
 Focus areas include compliance (`PCI DSS`, `HIPAA`, `ISO27001`, and others). The Enterprise version comes with:
-* a web interface and features a dashboard;
+* a web interface;
+* dashboard and reporting;
 * hardening snippets;
-* and an improvement plan.
+* improvement plan (based on risk);
+* commercial support.
 
 ## Documentation
 Full documentation: https://cisofy.com/documentation/lynis/.
@@ -83,7 +91,7 @@ If you want to create your own tests, have a look at the [Lynis software develop
 We participate in the [CII best practices](https://bestpractices.coreinfrastructure.org/projects/96) badge program of the Linux Foundation.
 
 ## Media and Awards
-Lynis is collecting some awards and we are proud of that.
+Lynis is collecting some awards along the way and we are proud of that.
 
 * 2016
   * [Best of Open Source Software Awards 2016](http://www.infoworld.com/article/3121251/open-source-tools/bossie-awards-2016-the-best-open-source-networking-and-security-software.html#slide13).

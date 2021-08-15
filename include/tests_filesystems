@@ -339,6 +339,7 @@
 #
     # Test        : FILE-6344
     # Description : Check proc mount options (Linux >=3.3 only)
+    #               hidepid textual values available kernel >= 5.8 only)
     # Examples    : proc /proc proc defaults,hidepid=2 0 0
     # Goal        : Users should not be able to see processes of other users
     if [ "${OS}" = "Linux" -a -f ${ROOTDIR}proc/version ]; then
@@ -353,15 +354,20 @@
     Register --test-no FILE-6344 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking proc mount options"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Proc should be mounted with 'hidepid=2' or 'hidepid=1' at least
+        # https://www.kernel.org/doc/html/latest/filesystems/proc.html#chapter-4-configuring-procfs
         LogText "Test: check proc mount with incorrect mount options"
-        FIND=$(${MOUNTBINARY} | ${EGREPBINARY} "${ROOTDIR}proc " | ${EGREPBINARY} -o "hidepid=[0-9]")
-        if [ "${FIND}" = "hidepid=2" ]; then
+        FIND=$(${MOUNTBINARY} | ${EGREPBINARY} "${ROOTDIR}proc " | ${EGREPBINARY} -o "hidepid=([0-9]|[a-z][a-z]*)")
+        if [ "${FIND}" = "hidepid=4" -o "${FIND}" = "hidepid=ptraceable" ]; then  # https://lwn.net/Articles/817137/
             Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: proc mount mounted with hidepid=2"
+            LogText "Result: proc mount mounted with ${FIND}"
             AddHP 3 3
-        elif [ "${FIND}" = "hidepid=1" ]; then
+        elif [ "${FIND}" = "hidepid=2" -o "${FIND}" = "hidepid=invisible" ]; then
             Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
-            LogText "Result: proc mount mounted with hidepid=1"
+            LogText "Result: proc mount mounted with ${FIND}"
+            AddHP 3 3
+        elif [ "${FIND}" = "hidepid=1" -o "${FIND}" = "hidepid=noaccess" ]; then
+            Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
+            LogText "Result: proc mount mounted with ${FIND}"
             AddHP 2 3
         elif [ -z "${FIND}" ]; then
             # HIDEPID1_SUGGESTION=" (or at least hidepid=1)"

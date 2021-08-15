@@ -43,10 +43,10 @@
     PROGRAM_WEBSITE="https://cisofy.com/lynis/"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2021-07-08"
-    PROGRAM_RELEASE_TIMESTAMP=1625744373
+    PROGRAM_RELEASE_DATE="2021-07-27"
+    PROGRAM_RELEASE_TIMESTAMP=1627375518
     PROGRAM_RELEASE_TYPE="pre-release" # pre-release or release
-    PROGRAM_VERSION="3.0.6"
+    PROGRAM_VERSION="3.0.7"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
@@ -599,11 +599,33 @@ ${NORMAL}
         Display --indent 2 --text "- Detecting language and localization" --result "${LANGUAGE}" --color WHITE
         if [ ! -f ${DBDIR}/languages/${LANGUAGE} ]; then
             Display --indent 4 --text "${YELLOW}Notice:${NORMAL} no language file found for '${LANGUAGE}' (tried: ${DBDIR}/languages/${LANGUAGE})"
-            if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/documentation/10-translations.md for more details to help translate Lynis"; fi
+            if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/blob/master/documentation/10-translations.md for more details to help translate Lynis"; fi
             sleep 5
         else
-            LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
-            . ${DBDIR}/languages/${LANGUAGE}
+            if SafeFile "${DBDIR}/languages/${LANGUAGE}"; then
+                LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
+                . ${DBDIR}/languages/${LANGUAGE}
+                # Check for missing translations if we are a pre-release or less than a week old
+                if grep -E -q -s "^#" ${DBDIR}/languages/${LANGUAGE}; then
+                    TIME_DIFFERENCE_CHECK=604800 # 1 week
+                    RELEASE_PLUS_TIMEDIFF=$((PROGRAM_RELEASE_TIMESTAMP + TIME_DIFFERENCE_CHECK))
+                    if IsDeveloperVersion || [ ${NOW} -lt ${RELEASE_PLUS_TIMEDIFF} ]; then
+                        Display --indent 4 --text "Translation file (db/languages/${LANGUAGE}) needs an update" --result "OUTDATED" --color RED
+                        Display --indent 4 --text "======================================================================="
+                        Display --indent 4 --text "Help other users and translate the missing lines:"
+                        Display --indent 4 --text "1) Go to: https://github.com/CISOfy/lynis/edit/master/db/languages/${LANGUAGE}"
+                        Display --indent 4 --text "2) Translate (some of) the lines starting with a hash (#) and remove the leading hash"
+                        Display --indent 4 --text "3) Commit the changes"
+                        Display --indent 4 --text "Thank you!"
+                        Display --indent 4 --text "Note: no lines with a hash? Look if the file recently has been changed by another translator."
+                        Display --indent 4 --text "======================================================================="
+                        sleep 30
+                    fi
+                fi
+            else
+                LogText "Could not import language file due to incorrect permissions"
+            fi
+
         fi
     fi
     LogTextBreak

@@ -36,3 +36,5 @@ its development, even after 12+ years!
 * Catalyst.net IT - January 2020
 Lynis gave us great insight in to the security state of our systems, as well as where we can improve.
 
+* David Osipov - October 2021
+Lynis opened my eyes on Linux security hardening best practices. As a newbie, I learn a lot about Linux system architecture while trying to harden my system.

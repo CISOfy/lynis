@@ -1533,31 +1533,49 @@
     # Description : Logging of failed login attempts
     Register --test-no AUTH-9408 --weight L --network NO --category security --description "Logging of failed login attempts"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -f "${ROOTDIR}etc/pam.conf" ]; then
+        if [ -f "${ROOTDIR}etc/pam.conf" -o -d "${ROOTDIR}etc/pam.d" ]; then
             FOUND_PAM_TALLY2=0
             FOUND_TALLYLOG=0
-            if [ -s "${ROOTDIR}var/log/tallylog" ]; then
+            FOUND_PAM_FAILLOCK=0
+            FOUND_FAILLOCKDIR=0
+            if [ -d "${ROOTDIR}var/run/faillock" ]; then
+                FOUND_FAILLOCKDIR=1
+                LogText "Result: found ${ROOTDIR}var/run/faillock directory"
+            elif [ -s "${ROOTDIR}var/log/tallylog" ]; then
                 FOUND_TALLYLOG=1
                 LogText "Result: found ${ROOTDIR}var/log/tallylog with a size bigger than zero"
             else
-                LogText "Result: did not find ${ROOTDIR}var/log/tallylog on disk or its file size is zero bytes"
+                LogText "Result: did not find ${ROOTDIR}var/run/faillock directory or ${ROOTDIR}var/log/tallylog file on disk or its file size is zero bytes"
             fi
-            # Determine if pam_tally2 is available
+            # Determine if pam_faillock is available
             for D in $(GetReportData --key "pam_module\\\[\\\]"); do
-                if ContainsString "pam_tally2" "${D}"; then
-                    LogText "Result: found pam_tally2 module on disk"
-                    FOUND_PAM_TALLY2=1
+                if ContainsString "pam_faillock" "${D}"; then
+                    LogText "Result: found pam_faillock module on disk"
+                    FOUND_PAM_FAILLOCK=1
                 fi
             done
-            if [ ${FOUND_PAM_TALLY2} -eq 1 -a ${FOUND_TALLYLOG} -eq 1 ]; then
+            if [ ${FOUND_PAM_FAILLOCK} -eq 0 ]; then
+                # Determine if pam_tally2 is available
+                for D in $(GetReportData --key "pam_module\\\[\\\]"); do
+                    if ContainsString "pam_tally2" "${D}"; then
+                        LogText "Result: found pam_tally2 module on disk"
+                        FOUND_PAM_TALLY2=1
+                    fi
+                done
+            fi
+            if [ ${FOUND_PAM_FAILLOCK} -eq 1 -a ${FOUND_FAILLOCKDIR} -eq 1 ]; then
+                LogText "Outcome: authentication failures are logged using pam_faillock"
+                AUTH_FAILED_LOGINS_LOGGED=1
+                Report "auth_failed_logins_tooling[]=pam_faillock"
+            elif [ ${FOUND_PAM_TALLY2} -eq 1 -a ${FOUND_TALLYLOG} -eq 1 ]; then
                 LogText "Outcome: authentication failures are logged using pam_tally2"
                 AUTH_FAILED_LOGINS_LOGGED=1
                 Report "auth_failed_logins_tooling[]=pam_tally2"
             else
-                LogText "Outcome: it looks like pam_tally2 is not configured to log failed login attempts"
+                LogText "Outcome: it looks like pam_faillock or pam_tally2 is not configured to log failed login attempts"
             fi
 
-            unset FOUND_PAM_TALLY2 FOUND_TALLYLOG
+            unset FOUND_PAM_TALLY2 FOUND_TALLYLOG FOUND_PAM_FAILLOCK FOUND_FAILLOCKDIR
         fi
         # Also check /etc/logins.defs, although its usage decreased over the years
         if [ -f ${ROOTDIR}etc/login.defs ]; then

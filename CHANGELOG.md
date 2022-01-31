@@ -7,6 +7,7 @@
 - EOL for Alpine Linux 3.14 and 3.15
 
 ### Changed
+- KRNL-5788 - Only run relevant tests and improved logging
 - KRNL-5830 - Check for /var/run/needs_restarting (Slackware)
 - KRNL-5830 - Add a presence check for /boot/vmlinuz
 

@@ -368,14 +368,14 @@
 #
     # Test        : KRNL-5788
     # Description : Checking availability new kernel
-    if [ "${LINUX_VERSION}" = "Debian" ] || [ "${LINUX_VERSION}" = "Ubuntu" ] ||
-           [ "${LINUX_VERSION_LIKE}" = "Debian" ] || [ "${LINUX_VERSION_LIKE}" = "Ubuntu" ]; then
+    if [ "${LINUX_VERSION}" = "Debian" ] || [ "${LINUX_VERSION}" = "Ubuntu" ] || [ "${LINUX_VERSION_LIKE}" = "Debian" ] || [ "${LINUX_VERSION_LIKE}" = "Ubuntu" ]; then
         PREQS_MET="YES"
     else
         PREQS_MET="NO"
     fi
     Register --test-no KRNL-5788 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking availability new Linux kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
+        FINDKERNEL=""
         HAS_VMLINUZ=0
         LogText "Test: Searching apt-cache, to determine if a newer kernel is available"
         if [ -x ${ROOTDIR}usr/bin/apt-cache ]; then
@@ -384,62 +384,69 @@
             if [ -f ${ROOTDIR}vmlinuz -o -f ${ROOTDIR}boot/vmlinuz ]; then
                 HAS_VMLINUZ=1
                 if [ -f ${ROOTDIR}vmlinuz ]; then
-                    FINDVMLINUZ=${ROOTDIR}vmlinuz
+                    FINDVMLINUZ="${ROOTDIR}vmlinuz"
                 else
-                    FINDVMLINUZ=${ROOTDIR}boot/vmlinuz
+                    FINDVMLINUZ="${ROOTDIR}boot/vmlinuz"
                 fi
                 LogText "Result: found ${FINDVMLINUZ}"
                 LogText "Test: checking readlink location of ${FINDVMLINUZ}"
                 FINDKERNFILE=$(readlink -f ${FINDVMLINUZ})
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
-                LogText "Test: checking package from dpkg -S"
+                LogText "Test: checking relevant package using output from dpkg -S"
                 FINDKERNEL=$(dpkg -S ${FINDKERNFILE} 2> /dev/null | ${AWKBINARY} -F : '{print $1}')
                 LogText "Output: dpkg -S reported package ${FINDKERNEL}"
             elif [ -e ${ROOTDIR}dev/grsec ]; then
-                FINDKERNEL=linux-image-$(uname -r)
+                FINDKERNEL="linux-image-$(uname -r)"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
             elif [ -e ${ROOTDIR}etc/rpi-issue ]; then
-                FINDKERNEL=raspberrypi-kernel
+                FINDKERNEL="raspberrypi-kernel"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to Raspbian"
-            elif `${EGREPBINARY} -q 'do_symlinks.*=.*No' ${ROOTDIR}etc/kernel-img.conf`; then
-                FINDKERNEL=linux-image-$(uname -r)
+            elif $(${EGREPBINARY} -q 'do_symlinks.*=.*No' ${ROOTDIR}etc/kernel-img.conf); then
+                FINDKERNEL="linux-image-$(uname -r)"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to /etc/kernel-img.conf item do_symlinks = No"
             else
-                LogText "This system is missing ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz.  Unable to check whether kernel is up-to-date."
+                LogText "This system is missing ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz. Unable to check whether kernel is up-to-date."
                 ReportSuggestion "${TEST_NO}" "Determine why ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz or /boot/vmlinuz"
             fi
-            LogText "Test: Using apt-cache policy to determine if there is an update available"
-            FINDINST=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
-            FINDCAND=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
-            LogText "Kernel installed: ${FINDINST}"
-            LogText "Kernel candidate: ${FINDCAND}"
-            if IsEmpty "${FINDINST}"; then
-                Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
-                LogText "Result: Exception occurred, no output from apt-cache policy"
-                if [ ${HAS_VMLINUZ} -eq 1 ]; then
-                    ReportException "${TEST_NO}:01"
-                    ReportSuggestion "${TEST_NO}" "Check the output of apt-cache policy to determine why its output is empty"
-                fi
-                LogText "Result: apt-cache policy did not return an installed kernel version"
+
+            if IsEmpty "${FINDKERNEL}"; then
+                LogText "Result: could not check kernel update status as kernel is unknown"
             else
-                if [ "${FINDINST}" = "${FINDCAND}" ]; then
-                    if [ -e /dev/grsec ]; then
-                        Display --indent 2 --text "- Checking for available kernel update" --result GRSEC --color GREEN
-                        LogText "Result: Grsecurity is installed; unable to determine if there's a newer kernel available"
-                        ReportManual "Manually check to confirm you're using a recent kernel and grsecurity patch"
-                    else
-                        Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_OK}" --color GREEN
-                        LogText "Result: no kernel update available"
+                LogText "Result: found kernel '${FINDKERNEL}' which will be used for further testing"
+                LogText "Test: Using apt-cache policy to determine if there is an update available"
+                FINDINSTALLED=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
+                FINDCANDIDATE=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
+                LogText "Kernel installed: ${FINDINSTALLED}"
+                LogText "Kernel candidate: ${FINDCANDIDATE}"
+                if IsEmpty "${FINDINSTALLED}"; then
+                    Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
+                    LogText "Result: Exception occurred, no output from apt-cache policy"
+                    if [ ${HAS_VMLINUZ} -eq 1 ]; then
+                        ReportException "${TEST_NO}:01" "Found vmlinuz (${FINDVMLINUZ}) but could not determine the installed kernel using apt-cache policy"
+                        ReportSuggestion "${TEST_NO}" "Check the output of apt-cache policy to determine why its output is empty"
                     fi
+                    LogText "Result: apt-cache policy did not return an installed kernel version"
                 else
-                    Display --indent 2 --text "- Checking for available kernel update" --result "UPDATE AVAILABLE" --color YELLOW
-                    LogText "Result: kernel update available according 'apt-cache policy'."
-                    ReportSuggestion "${TEST_NO}" "Determine priority for available kernel update"
+                    if [ "${FINDINSTALLED}" = "${FINDCANDIDATE}" ]; then
+                        if [ -e /dev/grsec ]; then
+                            Display --indent 2 --text "- Checking for available kernel update" --result GRSEC --color GREEN
+                            LogText "Result: Grsecurity is installed; unable to determine if there's a newer kernel available"
+                            ReportManual "Manually check to confirm you're using a recent kernel and grsecurity patch"
+                        else
+                            Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_OK}" --color GREEN
+                            LogText "Result: no kernel update available"
+                        fi
+                    else
+                        Display --indent 2 --text "- Checking for available kernel update" --result "UPDATE AVAILABLE" --color YELLOW
+                        LogText "Result: kernel update available according 'apt-cache policy'."
+                        ReportSuggestion "${TEST_NO}" "Determine priority for available kernel update"
+                    fi
                 fi
             fi
         else
-            LogText "Result: could NOT find /usr/bin/apt-cache, skipped other tests."
+            LogText "Result: could NOT find ${ROOTDIR}usr/bin/apt-cache, skipped other tests."
         fi
+        unset FINDCANDIDATE FINDINSTALLED FINDKERNEL HAS_VMLINUZ
     fi
 #
 #################################################################################

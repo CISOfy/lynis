@@ -4,6 +4,7 @@
 
 ### Added
 - MALW-3274 - Detect McAfee VirusScan Command Line Scanner
+- EOL for Alpine Linux 3.14 and 3.15
 
 ### Changed
 - KRNL-5830 - Check for /var/run/needs_restarting (Slackware)

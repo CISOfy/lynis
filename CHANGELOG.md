@@ -5,6 +5,9 @@
 ### Added
 - MALW-3274 - Detect McAfee VirusScan Command Line Scanner
 
+### Changed
+- KRNL-5830 - Check for /var/run/needs_restarting (Slackware)
+
 ---------------------------------------------------------------------------------
 
 ## Lynis 3.0.7 (2022-01-18)

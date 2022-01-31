@@ -1,16 +1,31 @@
 # Lynis Changelog
 
-## Lynis 3.0.7 (Not released yet)
+## Lynis 3.0.8 (not released yet)
+
+### Added
+- MALW-3274 - Detect McAfee VirusScan Command Line Scanner
+- EOL for Alpine Linux 3.14 and 3.15
+
+### Changed
+- KRNL-5830 - Check for /var/run/needs_restarting (Slackware)
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.7 (2022-01-18)
 
 ### Added
 - MALW-3290 - Show status of malware components
-- OS detection for RHEL 6
+- OS detection for RHEL 6 and Funtoo Linux
+- Added service manager openrc
 
 ### Changed
 - DBS-1804 - Added alias for MariaDB
 - FINT-4316 - Support for newer Ubuntu versions
 - MALW-3280 - Added Trend Micro malware agent
+- NETW-3200 - Allow unknown number of spaces in modprobe blacklists
+- PKGS-7320 - Support for Garuda Linux and arch-audit
 - Several improvements for busybox shell
+- Russian translation of Lynis extended
 
 ---------------------------------------------------------------------------------
 

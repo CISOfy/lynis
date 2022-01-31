@@ -8,6 +8,7 @@
 
 ### Changed
 - KRNL-5830 - Check for /var/run/needs_restarting (Slackware)
+- KRNL-5830 - Add a presence check for /boot/vmlinuz
 
 ---------------------------------------------------------------------------------
 

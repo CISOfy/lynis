@@ -139,8 +139,18 @@
     Register --test-no PRNT-2308 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check CUPSd network configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
-        # Checking network addresses
+        PORT_FOUND=0
+
         LogText "Test: Checking CUPS daemon listening network addresses"
+
+        # Search for Port statement
+        FIND=$(${EGREPBINARY} "^Port 631" ${CUPSD_CONFIG_FILE})
+        if [ -n "${FIND}" ]; then
+            LogText "Result: found CUPS listening on port 631 (most likely all interfaces)"
+            PORT_FOUND=1
+        fi
+
+        # Checking network addresses
         FIND=$(${EGREPBINARY} "^(SSL)?Listen" ${CUPSD_CONFIG_FILE} | ${GREPBINARY} -v "/" | ${AWKBINARY} '{ print $2 }')
         COUNT=0
         for ITEM in ${FIND}; do
@@ -149,17 +159,10 @@
             FOUND=1
         done
 
-        # Search for Port statement
-        FIND=$(${EGREPBINARY} "^Port 631" ${CUPSD_CONFIG_FILE})
-        if [ -n "${FIND}" ]; then
-            LogText "Result: found CUPS listening on port 631 (most likely all interfaces)"
-            FOUND=1
-        fi
-
         # Check if daemon might be running on localhost
-        if [ ${FOUND} -eq 0 ]; then
+        if [ ${FOUND} -eq 0 -a ${PORT_FOUND} -eq 0 ]; then
             LogText "Result: CUPS does not look to be listening on a network port"
-        elif [ ${COUNT} -eq 1 ]; then
+        elif [ ${COUNT} -eq 1 -a ${PORT_FOUND} -eq 0 ]; then
             if [ "${FIND}" = "localhost:631" -o "${FIND}" = "127.0.0.1:631" ]; then
                 LogText "Result: CUPS daemon only running on localhost"
                 AddHP 2 2

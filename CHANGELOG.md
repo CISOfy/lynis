@@ -4,12 +4,20 @@
 
 ### Added
 - MALW-3274 - Detect McAfee VirusScan Command Line Scanner
+- PKGS-7346 Check Alpine Package Keeper (apk)
+- PKGS-7395 Check Alpine upgradeable packages
 - EOL for Alpine Linux 3.14 and 3.15
 
 ### Changed
+- AUTH-9408 - Check for pam_faillock as well (replacement for pam_tally2)
+- FILE-7524 - Test enhanced to support symlinks
+- HTTP-6643 - Support ModSecurity version 2 and 3
 - KRNL-5788 - Only run relevant tests and improved logging
 - KRNL-5830 - Check for /var/run/needs_restarting (Slackware)
 - KRNL-5830 - Add a presence check for /boot/vmlinuz
+- PRNT-2308 - Bugfix that prevented test from storing values correctly
+- Extended location of PAM files for AARCH64
+- Some messages in log improved
 
 ---------------------------------------------------------------------------------
 

@@ -35,6 +35,34 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7200
+    # Description : Check Alpine Package Keeper (apk)
+    if [ -x ${ROOTDIR}/sbin/apk ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7200 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying apk"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        COUNT=0
+        Display --indent 4 --text "- Searching apk package manager" --result "${STATUS_FOUND}" --color GREEN
+        LogText "Result: Found apk binary"
+        Report "package_manager[]=apk"
+        PACKAGE_MGR_PKG=1
+        LogText "Test: Querying apk info -v to get package list"
+        Display --indent 6 --text "- Querying package manager"
+        LogText "Output:"
+        SPACKAGES=$(apk info -v | ${SEDBINARY} -r -e 's/([a-z,A-Z,0-9,_,-,.]{1,250})-([a-z,A-Z,0-9,.]+-r[a-z,A-Z,0-9]+)/\1,\2/' | sort)
+        for J in ${SPACKAGES}; do
+            COUNT=$((COUNT + 1))
+            PACKAGE_NAME=$(echo ${J} | ${CUTBINARY} -d ',' -f1)
+            PACKAGE_VERSION=$(echo ${J} | ${CUTBINARY} -d ',' -f2)
+            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done
+        Report "installed_packages=${COUNT}"
+    else
+        LogText "Result: apk "${STATUS_NOT_FOUND}", test skipped"
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7301
     # Description : Query FreeBSD pkg
     if [ -x ${ROOTDIR}usr/sbin/pkg ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -463,34 +491,6 @@
         Report "installed_packages=${COUNT}"
     else
         LogText "Result: dpkg can NOT be found on this system, test skipped"
-    fi
-#
-#################################################################################
-#
-    # Test        : PKGS-7346
-    # Description : Check Alpine Package Keeper (apk)
-    if [ -x ${ROOTDIR}/sbin/apk ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
-    Register --test-no PKGS-7346 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying apk"
-    if [ ${SKIPTEST} -eq 0 ]; then
-        COUNT=0
-        Display --indent 4 --text "- Searching apk package manager" --result "${STATUS_FOUND}" --color GREEN
-        LogText "Result: Found apk binary"
-        Report "package_manager[]=apk"
-        PACKAGE_MGR_PKG=1
-        LogText "Test: Querying apk info -v to get package list"
-        Display --indent 6 --text "- Querying package manager"
-        LogText "Output:"
-        SPACKAGES=$(apk info -v | ${SEDBINARY} -r -e 's/([a-z,A-Z,0-9,_,-,.]{1,250})-([a-z,A-Z,0-9,.]+-r[a-z,A-Z,0-9]+)/\1,\2/' | sort)
-        for J in ${SPACKAGES}; do
-            COUNT=$((COUNT + 1))
-            PACKAGE_NAME=$(echo ${J} | ${CUTBINARY} -d ',' -f1)
-            PACKAGE_VERSION=$(echo ${J} | ${CUTBINARY} -d ',' -f2)
-            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
-            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
-        done
-        Report "installed_packages=${COUNT}"
-    else
-        LogText "Result: apk "${STATUS_NOT_FOUND}", test skipped"
     fi
 #
 #################################################################################

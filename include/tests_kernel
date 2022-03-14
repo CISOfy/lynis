@@ -470,9 +470,9 @@
             # check conf files in possibly existing coredump.conf.d folders 
             # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
             # while there could be multiple files overwriting each other, we are checking the number of occurrences
-            SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0 *$" | ${WCBINARY} -l)
-            SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0 *$" | ${WCBINARY} -l)
-            SYSD_CORED_SUB_STORAGE_FOUND=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} -L /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0 *$" | ${WCBINARY} -l)
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED=$(${FINDBINARY} -L /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0 *$" | ${WCBINARY} -l)
+            SYSD_CORED_SUB_STORAGE_FOUND=$(${FINDBINARY} -L /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
             SYSD_CORED_SUB_STORAGE_NR_ENABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${SEDBINARY} 's/none//g' | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             SYSD_CORED_SUB_STORAGE_NR_DISABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${GREPBINARY} -o "none" | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             if ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_BASE_STORAGE_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -eq 0 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -eq 0 ] ) || \
@@ -513,7 +513,7 @@
             LogText "Test: Checking if 'ulimit -c 0' exists in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"
             # use tail -1 in the following commands to get the last entry, which is the one that counts (in case of profile.d/ probably counts)
             ULIMIT_C_VALUE="$(${GREPBINARY} "ulimit -c " ${ROOTDIR}etc/profile 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
-            ULIMIT_C_VALUE_SUB="$(${FINDBINARY} ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} "ulimit -c " | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
+            ULIMIT_C_VALUE_SUB="$(${FINDBINARY} -L ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} "ulimit -c " | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
             if ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE_SUB}" = "0" ] ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE}" = "0" ] ); then
                 LogText "Result: core dumps are disabled by 'ulimit -c 0' in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"
                 Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_DISABLED}" --color GREEN
@@ -531,16 +531,17 @@
                 Display --indent 4 --text "- configuration in ${ROOTDIR}etc/profile" --result "${STATUS_ERROR}" --color YELLOW
             fi
         fi
-        # Limits option
+        
+        # Limits options
         for DIR in "/" "/usr/"; do
             LogText "Test: Checking presence ${DIR}etc/security/limits.conf"
             if [ -f "${DIR}etc/security/limits.conf" ]; then
                 LogText "Result: file ${DIR}etc/security/limits.conf exists"
                 LogText "Test: Checking if core dumps are disabled in ${DIR}etc/security/limits.conf and ${LIMITS_DIRECTORY}/*"
                 # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
-                FIND1=$(${FINDBINARY} "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
-                FIND2=$(${FINDBINARY} "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
-                FIND3=$(${FINDBINARY} "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="-" && $3=="core" && $4=="0") { print "core dumps disabled" } else if ($1=="*" && $2=="-" && $3=="core" && $4!="0") { print "core dumps enabled" } }' | ${TAILBINARY} -1)
+                FIND1=$(${FINDBINARY} -L "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
+                FIND2=$(${FINDBINARY} -L "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
+                FIND3=$(${FINDBINARY} -L "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="-" && $3=="core" && $4=="0") { print "core dumps disabled" } else if ($1=="*" && $2=="-" && $3=="core" && $4!="0") { print "core dumps enabled" } }' | ${TAILBINARY} -1)
 
                 # When "* - core [value]" is used, then this sets both soft and core. In that case we set the values, as they the type 'hard' and 'soft' will not be present in the configuration file.
                 if [ "${FIND3}" = "core dumps disabled" ]; then

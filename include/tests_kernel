@@ -532,62 +532,67 @@
             fi
         fi
         # Limits option
-        LogText "Test: Checking presence ${ROOTDIR}etc/security/limits.conf"
-        if [ -f "${ROOTDIR}etc/security/limits.conf" ]; then
-            LogText "Result: file ${ROOTDIR}etc/security/limits.conf exists"
-            LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${LIMITS_DIRECTORY}/*"
-            # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
-            FIND1=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
-            FIND2=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
-            FIND3=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="-" && $3=="core" && $4=="0") { print "core dumps disabled" } else if ($1=="*" && $2=="-" && $3=="core" && $4!="0") { print "core dumps enabled" } }' | ${TAILBINARY} -1)
+        ROOTDIR_BACKUP=$ROOTDIR
+        for ALTERNATIVE_DIR in "/usr/" "/"; do
+            ROOTDIR=$ALTERNATIVE_DIR
+            LogText "Test: Checking presence ${ROOTDIR}etc/security/limits.conf"
+            if [ -f "${ROOTDIR}etc/security/limits.conf" ]; then
+                LogText "Result: file ${ROOTDIR}etc/security/limits.conf exists"
+                LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${LIMITS_DIRECTORY}/*"
+                # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
+                FIND1=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
+                FIND2=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
+                FIND3=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="-" && $3=="core" && $4=="0") { print "core dumps disabled" } else if ($1=="*" && $2=="-" && $3=="core" && $4!="0") { print "core dumps enabled" } }' | ${TAILBINARY} -1)
 
-            # When "* - core [value]" is used, then this sets both soft and core. In that case we set the values, as they the type 'hard' and 'soft' will not be present in the configuration file.
-            if [ "${FIND3}" = "core dumps disabled" ]; then
-                FIND1="soft core disabled"
-                FIND2="hard core disabled"
-            elif [ "${FIND3}" = "core dumps enabled" ]; then
-                FIND1="soft core enabled"
-                FIND2="hard core enabled"
-            fi
-
-            IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
-            IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
-
-            if [ "${FIND2}" = "hard core disabled" ]; then
-                LogText "Result: core dumps are hard disabled"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "GREEN"
-                if [ "${FIND1}" = "soft core disabled" ]; then
-                    Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
-                else
-                    Display --indent 4 --text "- 'soft' config in security/limits.conf (implicit)" --result "${STATUS_DISABLED}" --color "GREEN"
+                # When "* - core [value]" is used, then this sets both soft and core. In that case we set the values, as they the type 'hard' and 'soft' will not be present in the configuration file.
+                if [ "${FIND3}" = "core dumps disabled" ]; then
+                    FIND1="soft core disabled"
+                    FIND2="hard core disabled"
+                elif [ "${FIND3}" = "core dumps enabled" ]; then
+                    FIND1="soft core enabled"
+                    FIND2="hard core enabled"
                 fi
-                AddHP 3 3
-            elif [ "${FIND1}" = "soft core enabled" ] && [ "${FIND2}" = "hard core enabled" ]; then
-                LogText "Result: core dumps (soft and hard) are enabled"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
-                ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in /etc/security/limits.conf file"
-                AddHP 0 3
-            elif [ "${FIND1}" = "soft core disabled" ]; then
-                LogText "Result: core dumps are disabled for 'soft' ('hard'=${IS_HARDCORE_DISABLED})"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
-                AddHP 2 3
-            elif [ "${FIND1}" = "soft core enabled" ] || [ "${FIND2}" = "hard core enabled" ]; then
-                LogText "Result: core dumps are partially enabled ('hard'=${IS_HARDCORE_DISABLED}, 'soft'=${IS_SOFTCORE_DISABLED})"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "$(if [ "${IS_SOFTCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_SOFTCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
-                AddHP 0 3
+
+                IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
+                IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
+
+                if [ "${FIND2}" = "hard core disabled" ]; then
+                    LogText "Result: core dumps are hard disabled"
+                    Display --indent 4 --text "- 'hard' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "GREEN"
+                    if [ "${FIND1}" = "soft core disabled" ]; then
+                        Display --indent 4 --text "- 'soft' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
+                    else
+                        Display --indent 4 --text "- 'soft' config in ${ROOTDIR}etc/security/limits.conf (implicit)" --result "${STATUS_DISABLED}" --color "GREEN"
+                    fi
+                    AddHP 3 3
+                elif [ "${FIND1}" = "soft core enabled" ] && [ "${FIND2}" = "hard core enabled" ]; then
+                    LogText "Result: core dumps (soft and hard) are enabled"
+                    Display --indent 4 --text "- 'hard' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
+                    Display --indent 4 --text "- 'soft' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
+                    ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in /etc/security/limits.conf file"
+                    AddHP 0 3
+                elif [ "${FIND1}" = "soft core disabled" ]; then
+                    LogText "Result: core dumps are disabled for 'soft' ('hard'=${IS_HARDCORE_DISABLED})"
+                    Display --indent 4 --text "- 'hard' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                    Display --indent 4 --text "- 'soft' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
+                    AddHP 2 3
+                elif [ "${FIND1}" = "soft core enabled" ] || [ "${FIND2}" = "hard core enabled" ]; then
+                    LogText "Result: core dumps are partially enabled ('hard'=${IS_HARDCORE_DISABLED}, 'soft'=${IS_SOFTCORE_DISABLED})"
+                    Display --indent 4 --text "- 'hard' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                    Display --indent 4 --text "- 'soft' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "$(if [ "${IS_SOFTCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_SOFTCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                    AddHP 0 3
+                else
+                    LogText "Result: core dumps are not explicitly disabled"
+                    Display --indent 4 --text "- 'hard' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
+                    Display --indent 4 --text "- 'soft' configuration in ${ROOTDIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
+                    ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in ${ROOTDIR}etc/security/limits.conf file"
+                    AddHP 1 3
+                fi
             else
-                LogText "Result: core dumps are not explicitly disabled"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
-                ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in ${ROOTDIR}etc/security/limits.conf file"
-                AddHP 1 3
+                LogText "Result: file ${ROOTDIR}etc/security/limits.conf does not exist, skipping test"
             fi
-        else
-            LogText "Result: file ${ROOTDIR}etc/security/limits.conf does not exist, skipping test"
-        fi
+        done
+        ROOTDIR=$ROOTDIR_BACKUP
 
         # Sysctl option
         LogText "Test: Checking sysctl value of fs.suid_dumpable"

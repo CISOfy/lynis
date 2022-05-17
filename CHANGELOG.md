@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 3.0.8 (not released yet)
+## Lynis 3.0.8 (2022-05-17)
 
 ### Added
 - MALW-3274 - Detect McAfee VirusScan Command Line Scanner

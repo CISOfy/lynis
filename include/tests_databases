@@ -127,12 +127,25 @@
             for FILE in ${MONGO_CONF_FILES}; do
                 if [ -f ${FILE} ]; then
                     LogText "Result: found MongoDB configuration file (${FILE})"
-                    LogText "Test: determine authorization setting in new style YAML format"
-                    AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
-                    if HasData "${AUTH_IN_CONFIG}"; then
-                        LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)"
-                        MONGODB_AUTHORIZATION_ENABLED=1
-                    else
+                    # YAML with quotes
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                        LogText "Test: determine authorization setting in new style YAML format"
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: \"enabled\"" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if HasData "${AUTH_IN_CONFIG}"; then
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format with quotes)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
+                        fi
+                    fi
+                    # YAML without quotes
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if HasData "${AUTH_IN_CONFIG}"; then
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format without quotes)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
+                        fi
+                    fi
+                    # Old style
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
                         LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)"
                         LogText "Test: now searching for old style configuration (auth = true) in configuration file"
                         AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")

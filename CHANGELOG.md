@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.0.9 (not released yet)
+
+### Changed
+- DBS-1820 - added newer style format for Mongo authorization setting
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.8 (2022-05-17)
 
 ### Added

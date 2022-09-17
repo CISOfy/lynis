@@ -777,10 +777,26 @@
     ECHONB=""
 
     case ${OS} in
-        "AIX")                           ECHOCMD="echo"; ECHONB="printf" ;;
-        "DragonFly"|"FreeBSD"|"NetBSD")  ECHOCMD="echo -e"; ECHONB="echo -n" ;;
-        "macOS" | "Mac OS X")                         ECHOCMD="echo"; ECHONB="/bin/echo -n" ;;
-        "Solaris")                       ECHOCMD="echo" ; test -f /usr/ucb/echo && ECHONB="/usr/ucb/echo -n" ;;
+        "AIX")
+            ECHOCMD="echo";
+            ECHONB="printf"
+        ;;
+        "DragonFly"|"FreeBSD"|"NetBSD")
+            ECHOCMD="echo -e"
+            ECHONB="echo -n"
+            NOW=$(date "+%s")
+        ;;
+        "macOS" | "Mac OS X")
+            ECHOCMD="echo"
+            ECHONB="/bin/echo -n"
+            NOW=$(date "+%s")
+        ;;
+
+        "Solaris")         
+            ECHOCMD="echo"
+            test -f /usr/ucb/echo && ECHONB="/usr/ucb/echo -n"
+            NOW=$(nawk 'BEGIN{print srand()}')
+        ;;
         "Linux")
             # Check if dash is used (Debian/Ubuntu)
             DEFAULT_SHELL=$(ls -l /bin/sh | awk -F'>' '{print $2}')
@@ -788,10 +804,14 @@
                 " dash")                 ECHOCMD="/bin/echo -e" ;;
                 *)                       ECHOCMD="echo -e" ;;
             esac
+            NOW=$(date "+%s")
         ;;
-        *)                               ECHOCMD="echo -e" ;;
+        *)
+            ECHOCMD="echo -e"
+            NOW=$(date "+%s")
+        ;;
     esac
-
+    
     # Check if we have full featured commands, or are using BusyBox as a shell
     if [ -x /bin/busybox ]; then
         if [ -L /bin/ps ]; then
@@ -820,13 +840,10 @@
             if [ -n "${EOL_TIMESTAMP}" ]; then
                 EOL_DATE=$(awk -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $3}}' ${DBDIR}/software-eol.db | head -n 1)
                 if [ -n "${EOL_DATE}" ]; then
-                    NOW=$(date "+%s")
-                    if [ -n "${NOW}" ]; then
-                        if [ ${NOW} -gt ${EOL_TIMESTAMP} ]; then
-                            EOL=1
-                        else
-                            EOL=0
-                        fi
+                    if [ ${NOW} -gt ${EOL_TIMESTAMP} ]; then
+                        EOL=1
+                    else
+                        EOL=0
                     fi
                 else
                     EOL=0

@@ -4,6 +4,7 @@
 
 ### Changed
 - DBS-1820 - added newer style format for Mongo authorization setting
+- Extra check to verify if nanoseconds are supported by the date command
 
 ---------------------------------------------------------------------------------
 

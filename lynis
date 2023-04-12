@@ -36,6 +36,26 @@
 #
 #################################################################################
 #
+
+#
+#################################################################################
+#
+
+    # egrep is obsolescent in newer Linux versions,
+    # check if "grep -E" or "egrep" should be used.
+    # egrep can still be used on Solaris
+    # TODO: maybe check if host OS is solaris instead?
+    grep -p 'E' /dev/null >/dev/null 2>&1
+    if [ $? = 2 ]; then
+        EGREPBINARY="grep -E"
+    else
+        EGREPBINARY="egrep"
+    fi
+
+#
+#################################################################################
+#
+
     # Program information
     PROGRAM_NAME="Lynis"
     PROGRAM_AUTHOR="CISOfy"
@@ -217,10 +237,10 @@
 
     # Extract the short notation of the language (first two characters).
     if [ -x "$(command -v locale 2> /dev/null)" ]; then
-        LANGUAGE=$(locale | grep -E "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | grep -E "^[a-z]{2}$")
+        LANGUAGE=$(locale | ${EGREPBINARY} "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | ${EGREPBINARY} "^[a-z]{2}$")
         # Try locale command if shell variable had no value
         if [ -z "${DISPLAY_LANG}" ]; then
-            DISPLAY_LANG=$(locale | grep -E "^LANG=" | cut -d= -f2)
+            DISPLAY_LANG=$(locale | ${EGREPBINARY} "^LANG=" | cut -d= -f2)
         fi
     else
         LANGUAGE="en"
@@ -605,7 +625,7 @@ ${NORMAL}
                 LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
                 . ${DBDIR}/languages/${LANGUAGE}
                 # Check for missing translations if we are a pre-release or less than a week old
-                if grep -E -q -s "^#" ${DBDIR}/languages/${LANGUAGE}; then
+                if ${EGREPBINARY} -q -s "^#" ${DBDIR}/languages/${LANGUAGE}; then
                     TIME_DIFFERENCE_CHECK=604800 # 1 week
                     RELEASE_PLUS_TIMEDIFF=$((PROGRAM_RELEASE_TIMESTAMP + TIME_DIFFERENCE_CHECK))
                     if IsDeveloperVersion || [ ${NOW} -lt ${RELEASE_PLUS_TIMEDIFF} ]; then

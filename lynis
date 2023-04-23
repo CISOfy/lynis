@@ -148,25 +148,13 @@
     # Perform a basic check for permissions. After including functions, using SafePerms()
     IGNORE_FILE_PERMISSION_ISSUES=0
 
-    FILES_TO_CHECK="consts functions parameters binaries osdetection data_upload"
+    FILES_TO_CHECK="consts functions"
 
     ISSUE=0
     ISSUE_TYPE=""
     SHOWPERMERROR=0
 
     for FILE in ${FILES_TO_CHECK}; do
-        SUGGESTED_PERMS=640
-        if [ ${PRIVILEGED} -eq 0 ]; then
-            SUGGESTED_PERMS=644
-        fi
-
-        # First check if files are readable so the shell can execute them
-        if [ ! -r ${INCLUDEDIR}/${FILE} ]; then
-            ISSUE=1
-            ISSUE_TYPE="perms"
-            echo "[!] Change file permissions of ${INCLUDEDIR}/${FILE} to ${SUGGESTED_PERMS}."; echo "    Command: chmod ${SUGGESTED_PERMS} ${INCLUDEDIR}/${FILE}"
-        fi
-
         PERMS=$(ls -l ${INCLUDEDIR}/${FILE} | cut -c 2-10)
         GROUPPERMS=$(ls -l ${INCLUDEDIR}/${FILE} | cut -c 5-7)
         GROUPOWNERID=$(ls -n ${INCLUDEDIR}/${FILE} | awk '{ print $4 }')
@@ -229,10 +217,10 @@
 
     # Extract the short notation of the language (first two characters).
     if [ -x "$(command -v locale 2> /dev/null)" ]; then
-        LANGUAGE=$(locale | grep -E "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | grep -E "^[a-z]{2}$")
+        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | grep -E "^[a-z]{2}$")
         # Try locale command if shell variable had no value
         if [ -z "${DISPLAY_LANG}" ]; then
-            DISPLAY_LANG=$(locale | grep -E "^LANG=" | cut -d= -f2)
+            DISPLAY_LANG=$(locale | egrep "^LANG=" | cut -d= -f2)
         fi
     else
         LANGUAGE="en"
@@ -1048,7 +1036,7 @@ ${NORMAL}
                 if SafeFile ${INCLUDE_FILE}; then
                     . ${INCLUDE_FILE}
                 else
-                    LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 644, 640, 600 or 400)"
+                    LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 640, 600 or 400)"
                     ReportWarning "NONE" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
                     # Insert a section and warn user also on screen
                     InsertSection "${SECTION_GENERAL}"
@@ -1075,7 +1063,7 @@ ${NORMAL}
                 LogText "Result: file permissions fine, running custom tests"
                 . ${INCLUDEDIR}/tests_custom
             else
-                LogText "Exception: skipping custom tests, file has bad permissions (should be 644, 640, 600 or 400)"
+                LogText "Exception: skipping custom tests, file has bad permissions (should be 640, 600 or 400)"
                 ReportWarning "NONE" "Invalid permissions on custom tests file"
                 Display --indent 2 --text "- Running custom tests... " --result "${STATUS_WARNING}" --color RED
             fi

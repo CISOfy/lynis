@@ -3,7 +3,11 @@
 ## Lynis 3.0.9 (not released yet)
 
 ### Changed
-- DBS-1820 - added newer style format for Mongo authorization setting
+- DBS-1820 - Added newer style format for Mongo authorization setting
+- FILE-6410 - Locations added for plocate
+- SSH-7408 - Only test Compression if sshd version < 7.4
+- Improved fetching timestamp
+- Minor changes such as typos
 
 ---------------------------------------------------------------------------------
 

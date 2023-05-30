@@ -347,12 +347,13 @@
     Register --test-no PKGS-7322 --os "Linux" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Discover vulnerable packages with arch-audit"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking arch-audit output for vulnerable packages"
-        FIND=$(${ARCH_AUDIT_BINARY} | ${SEDBINARY} 's/\.\..*$//' | ${SEDBINARY} 's/, //g' | ${SEDBINARY} 's/\(\["\|"\]\)//g' | ${SEDBINARY} 's/""/,/g' | ${AWKBINARY} '{ if($1=="Package") { print $2"|"$6"|"}}' | ${AWKBINARY} -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]"|"}}' | ${SEDBINARY} 's/,/|cve=/' | ${SORTBINARY})
+        FIND=$(${ARCH_AUDIT_BINARY} | ${SEDBINARY} 's/ High risk!//' | ${SEDBINARY} 's/ Medium risk!//' | ${SEDBINARY} 's/ Low risk!//' | ${SEDBINARY} 's/\.\..*$//' | ${SEDBINARY} 's/, /,/g' | ${SEDBINARY} 's/\(\["\|"\]\)//g' | ${SEDBINARY} 's/""/,/g' | ${AWKBINARY} '{if ($0 ~ /is affected by CVE\-/) {print $1"|"$5"|"} else {ORS=""; print $1"|"; for (i=5; i<=NF; i++)print $i; print "\n"; ORS="\n"}}'| ${AWKBINARY} -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]"|"}}' | ${SEDBINARY} 's/,CVE-/|cve=CVE-/' | ${SORTBINARY})
         if [ -z "${FIND}" ]; then
             LogText "Result: no vulnerable packages found with arch-audit"
             AddHP 10 10
         else
             LogText "Result: found one or more vulnerable packages"
+            VULNERABLE_PACKAGES_FOUND=1
             for ITEM in ${FIND}; do
                 LogText "Found line: ${ITEM}"
                 Report "vulnerable_package[]=${ITEM}"

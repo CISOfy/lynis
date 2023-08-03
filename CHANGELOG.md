@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.1.0 (not released yet)
+
+### Changed
+- STATUS_NOT_ACTIVE variable added to translation files
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.9 (2023-08-03)
 
 ### Changed

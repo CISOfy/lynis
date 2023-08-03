@@ -3,6 +3,7 @@
 ## Lynis 3.1.0 (not released yet)
 
 ### Changed
+- Updated Amazon Linux EOL dates and addition of Amazon Linux 2023
 - STATUS_NOT_ACTIVE variable added to translation files
 
 ---------------------------------------------------------------------------------

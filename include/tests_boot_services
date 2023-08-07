@@ -460,7 +460,7 @@
                 BOOT_LOADER_FOUND=1
                 Display --indent 2 --text "- Checking presence LILO" --result "${STATUS_OK}" --color GREEN
                 LogText "Checking password option LILO"
-                FIND=$(${EGREPBINARY} 'password[[:space:]]?=' ${LILOCONFFILE} | ${GREPBINARY} -v "^#")
+                FIND=$(${GREPBINARY} -E 'password[[:space:]]?=' ${LILOCONFFILE} | ${GREPBINARY} -v "^#")
                 if [ -z "${FIND}" ]; then
                     if [ "${MACHINE_ROLE}" = "server" -o "${MACHINE_ROLE}" = "workstation" ]; then
                         Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color RED
@@ -605,7 +605,7 @@
         else
             # FreeBSD (Read /etc/rc.conf file for enabled services)
             LogText "Searching for services at startup (rc.conf)"
-            FIND=$(${EGREPBINARY} -v -i '^#|none' ${ROOTDIR}etc/rc.conf | ${EGREPBINARY} -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | ${SEDBINARY} 's/_enable//')
+            FIND=$(${GREPBINARY} -E -v -i '^#|none' ${ROOTDIR}etc/rc.conf | ${GREPBINARY} -E -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | ${SEDBINARY} 's/_enable//')
         fi
         COUNT=0
         for ITEM in ${FIND}; do
@@ -715,7 +715,7 @@
             if [ -n "${CHKCONFIGBINARY}" ]; then
                 LogText "Result: chkconfig binary found, trying that to discover information"
                 LogText "Searching for services at startup (chkconfig, runlevel 3 and 5)"
-                FIND=$(${CHKCONFIGBINARY} --list | ${EGREPBINARY} '3:on|5:on' | ${AWKBINARY} '{ print $1 }')
+                FIND=$(${CHKCONFIGBINARY} --list | ${GREPBINARY} -E '3:on|5:on' | ${AWKBINARY} '{ print $1 }')
                 COUNT=0
                 Report "boot_service_tool=chkconfig"
                 for ITEM in ${FIND}; do
@@ -947,7 +947,7 @@
         if [ -f ${ROOTDIR}usr/lib/systemd/system/rescue.service ]; then
             LogText "Result: file /usr/lib/systemd/system/rescue.service"
             LogText "Test: checking presence sulogin for single user mode"
-            FIND=$(${EGREPBINARY} "^ExecStart=.*sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
+            FIND=$(${GREPBINARY} -E "^ExecStart=.*sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
             if [ -n "${FIND}" ]; then
                 FOUND=1
                 LogText "Result: found sulogin, so single user is protected"
@@ -981,14 +981,14 @@
                 Report "running_service[]=${ITEM}"
                 COUNT=$((COUNT + 1 ))
             done
-            LogText "Note: Run rcctl ls all | egrep  '^(pf|check_quotas|library_aslr)$' to see all daemons"
+            LogText "Note: Run rcctl ls all | grep -E '^(pf|check_quotas|library_aslr)$' to see all daemons"
             Display --indent 2 --text "- Check running daemons (rcctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} running daemons"
             LogText "Result: Found ${COUNT} running daemons"
 
             # OpenBSD (Ask rcctl(8) for enabled daemons)
             LogText "Searching for enabled daemons (rcctl)"
-            FIND=$(${RCCTLBINARY} ls on | ${EGREPBINARY} -v '^(pf|check_quotas|library_aslr)$')
+            FIND=$(${RCCTLBINARY} ls on | ${GREPBINARY} -E -v '^(pf|check_quotas|library_aslr)$')
             COUNT=0
             Report "boot_service_tool=rcctl"
             for ITEM in ${FIND}; do
@@ -996,7 +996,7 @@
                 Report "boot_service[]=${ITEM}"
                 COUNT=$((COUNT + 1 ))
             done
-            LogText "Note: Run rcctl ls all | egrep  '^(pf|check_quotas|library_aslr)$' to see all daemons"
+            LogText "Note: Run rcctl ls all | grep -E  '^(pf|check_quotas|library_aslr)$' to see all daemons"
             Display --indent 2 --text "- Check enabled daemons at boot (rcctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} enabled daemons at boot"
             LogText "Result: Found ${COUNT} enabled daemons at boot"

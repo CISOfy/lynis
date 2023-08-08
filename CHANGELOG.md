@@ -5,6 +5,7 @@
 ### Changed
 - Updated Amazon Linux EOL dates and addition of Amazon Linux 2023
 - STATUS_NOT_ACTIVE variable added to translation files
+- MALW-3280 - Correction to detect com.avast.daemon
 
 ---------------------------------------------------------------------------------
 

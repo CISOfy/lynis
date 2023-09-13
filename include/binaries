@@ -169,7 +169,6 @@
                             domainname)             DOMAINNAMEBINARY="${BINARY}";      LogText "  Found known binary: domainname (NIS domain) - ${BINARY}" ;;
                             dpkg)                   DPKGBINARY="${BINARY}";            LogText "  Found known binary: dpkg (package management) - ${BINARY}" ;;
                             xbps-query)             XBPSBINARY="${BINARY}";            LogText "  Found known binary: xbps (package management) - ${BINARY}" ;;
-                            egrep)                  EGREPBINARY=${BINARY};             LogText "  Found known binary: egrep (text search) - ${BINARY}" ;;
                             equery)                 EQUERYBINARY="${BINARY}";          LogText "  Found known binary: query (package manager) - ${BINARY}" ;;
                             evmctl)                 EVMCTLBINARY=${BINARY};            LogText "  Found known binary: evmctl (IMA/EVM tool) - ${BINARY}" ;;
                             exim)                   EXIMBINARY="${BINARY}";            EXIMVERSION=$(${BINARY} -bV | grep 'Exim version' | awk '{ print $3 }' | xargs); LogText "  Found known binary ${BINARY} (version ${EXIMVERSION})" ;;
@@ -337,11 +336,19 @@
         Report "binaries_sgid_count=${SGID_BINARIES}"
         Report "binary_paths=${BINARY_PATHS_FOUND}"
 
+	# If grep is capable of extended regexp, use that instead of egrep to avoid annoying warning
+	if [ "${GREPBINARY:-}" ] ; then
+		${GREPBINARY} --help | ${GREPBINARY} -e "extended-regexp" > /dev/null
+		if [ $? -eq 0 ] ; then
+			EGREPBINARY="${GREPBINARY} -E"
+		fi
+	fi
+	
+
         # Test if the basic system tools are defined. These will be used during the audit.
         [ "${AWKBINARY:-}" ] || ExitFatal "awk binary not found"
         [ "${CAT_BINARY:-}" ] || ExitFatal "cat binary not found"
         [ "${CUTBINARY:-}" ] || ExitFatal "cut binary not found"
-        [ "${EGREPBINARY:-}" ] || ExitFatal "egrep binary not found"
         [ "${FINDBINARY:-}" ] || ExitFatal "find binary not found"
         [ "${GREPBINARY:-}" ] || ExitFatal "grep binary not found"
         [ "${HEADBINARY:-}" ] || ExitFatal "head binary not found"

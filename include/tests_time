@@ -139,7 +139,7 @@
         for I in ${CRONTAB_FILES}; do
             if [ -f ${I} ]; then
                 LogText "Test: checking for ntpdate, rdate, sntp or ntpdig in crontab file ${I}"
-                FIND=$(${EGREPBINARY} "${CRONTAB_REGEX}" ${I} | ${GREPBINARY} -v '^#')
+                FIND=$(${GREPBINARY} -E "${CRONTAB_REGEX}" ${I} | ${GREPBINARY} -v '^#')
                 if [ -n "${FIND}" ]; then
                     FOUND=1; NTP_CONFIG_TYPE_SCHEDULED=1
                     Display --indent 2 --text "- Checking NTP client in crontab file (${I})" --result "${STATUS_FOUND}" --color GREEN
@@ -161,10 +161,10 @@
         for I in ${CRON_DIRS}; do
             for J in "${I}"/*; do  # iterate over folders in a safe way
                 # Check: regular file, readable and not called .placeholder
-                FIND=$(echo "${J}" | ${EGREPBINARY} '/.placeholder$')
+                FIND=$(echo "${J}" | ${GREPBINARY} -E '/.placeholder$')
                 if [ -f "${J}" ] && [ -r "${J}" ] && [ -z "${FIND}" ]; then
                     LogText "Test: checking for ntpdate, rdate, sntp or ntpdig in ${J}"
-                    FIND=$("${EGREPBINARY}" "${CRONTAB_REGEX}" "${J}" | "${GREPBINARY}" -v "^#")
+                    FIND=$("${GREPBINARY}" -E "${CRONTAB_REGEX}" "${J}" | "${GREPBINARY}" -v "^#")
                     if [ -n "${FIND}" ]; then
                         FOUND=1; FOUND_IN_CRON=1; NTP_CONFIG_TYPE_SCHEDULED=1
                         LogText "Result: found ntpdate, rdate, sntp or ntpdig in ${J}"
@@ -232,7 +232,7 @@
     Register --test-no TIME-3106 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check systemd NTP time synchronization status"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check the status of time synchronization via timedatectl"
-        FIND=$(${TIMEDATECTL} status | ${EGREPBINARY} "(NTP|System clock) synchronized: yes")
+        FIND=$(${TIMEDATECTL} status | ${GREPBINARY} -E "(NTP|System clock) synchronized: yes")
         if [ -z "${FIND}" ]; then
             LogText "Result: time not synchronized via NTP"
             ReportSuggestion "${TEST_NO}" "Check timedatectl output. Synchronization via NTP is enabled, but status reflects it is not synchronized"
@@ -273,7 +273,7 @@
         else
             for ITEM in ${FIND}; do
                 LogText "Found stratum 16 peer: ${ITEM}"
-                FIND2=$(${EGREPBINARY} "^ntp-ignore-stratum-16-peer=${ITEM}" ${PROFILE})
+                FIND2=$(${GREPBINARY} -E "^ntp-ignore-stratum-16-peer=${ITEM}" ${PROFILE})
                 if IsEmpty "${FIND2}"; then
                     COUNT=$((COUNT + 1))
                     Report "ntp_stratum_16_peer[]=${ITEM}"
@@ -303,7 +303,7 @@
     Register --test-no TIME-3120 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check unreliable NTP peers"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking unreliable ntp peers"
-        FIND=$(${NTPQBINARY} -p -n | ${EGREPBINARY} "^(-|#)" | ${AWKBINARY} '{ print $1 }' | ${SEDBINARY} 's/^-//g')
+        FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} -E "^(-|#)" | ${AWKBINARY} '{ print $1 }' | ${SEDBINARY} 's/^-//g')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking unreliable ntp peers" --result "${STATUS_NONE}" --color GREEN
             LogText "Result: No unreliable peers found"
@@ -371,7 +371,7 @@
     Register --test-no TIME-3132 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check NTP falsetickers"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking preferred time source"
-        FIND=$(${NTPQBINARY} -p -n | ${EGREPBINARY} '^x')
+        FIND=$(${NTPQBINARY} -p -n | ${GREPBINARY} -E '^x')
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking falsetickers" --result "${STATUS_OK}" --color GREEN
             LogText "Result: No falsetickers found (items preceding with an 'x')"
@@ -455,7 +455,7 @@
         else
             LogText "Result: ${FILE} is not empty, which is fine"
             Display --indent 2 --text "- Checking NTP step-tickers file" --result "${STATUS_OK}" --color GREEN
-            sFIND=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE} | ${EGREPBINARY} -v "^127." | ${EGREPBINARY} -v "^::1")
+            sFIND=$(${AWKBINARY} '/^[a-z0-9]/ { print $1 }' ${FILE} | ${GREPBINARY} -E -v "^127." | ${GREPBINARY} -E -v "^::1")
             for I in ${sFIND}; do
                 FIND=$(${GREPBINARY} ^${I} ${FILE} | wc -l)
                 if [ ${FIND} -gt 0 ]; then
@@ -553,7 +553,7 @@
     Register --test-no TIME-3182 --preqs-met "${PREQS_MET}" --weight L --network NO --category security --description "Check OpenNTPD has working peers"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Format is "xx/yy peers valid, ..."
-        FIND=$(${NTPCTLBINARY} -s status | ${EGREPBINARY} -o '[0-9]+/[0-9]+' | ${CUTBINARY} -d '/' -f 1)
+        FIND=$(${NTPCTLBINARY} -s status | ${GREPBINARY} -E -o '[0-9]+/[0-9]+' | ${CUTBINARY} -d '/' -f 1)
         if [ -z "${FIND}" ] || [ "${FIND}" -eq 0 ]; then
             ReportWarning "${TEST_NO}" "OpenNTPD has no peers" "${NTPCTLBINARY} -s status"
         fi

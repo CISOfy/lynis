@@ -112,7 +112,7 @@
         TABLES="filter"
         for TABLE in ${TABLES}; do
             LogText "Test: gathering information from table ${TABLE}"
-            FIND="$FIND""\n"$(${IPTABLESBINARY} -t ${TABLE} --numeric --list | ${EGREPBINARY}  -z -o -w  '[A-Z]+' | tr -d '\0' | ${AWKBINARY} -v t=${TABLE} 'NR%2 {printf "%s %s ",t, $0 ; next;}1')
+            FIND="$FIND""\n"$(${IPTABLESBINARY} -t ${TABLE} --numeric --list | ${GREPBINARY} -E  -z -o -w  '[A-Z]+' | tr -d '\0' | ${AWKBINARY} -v t=${TABLE} 'NR%2 {printf "%s %s ",t, $0 ; next;}1')
         done
 
         echo "${FIND}" | while read -r line; do
@@ -154,7 +154,7 @@
     if [ -n "${IPTABLESBINARY}" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FIRE-4512 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Check iptables for empty ruleset"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${IPTABLESBINARY} --list --numeric 2> /dev/null | ${EGREPBINARY} -v "^(Chain|target|$)" | ${WCBINARY} -l | ${TRBINARY} -d ' ')
+        FIND=$(${IPTABLESBINARY} --list --numeric 2> /dev/null | ${GREPBINARY} -E -v "^(Chain|target|$)" | ${WCBINARY} -l | ${TRBINARY} -d ' ')
         if [ -n "${FIND}" ]; then
             FIREWALL_ACTIVE=1
             if [ ${FIND} -le 5 ]; then
@@ -506,7 +506,7 @@
     Register --test-no FIRE-4540 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Check for empty nftables configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check for empty ruleset
-        NFT_RULES_LENGTH=$(${NFTBINARY} --stateless list ruleset 2> /dev/null | ${EGREPBINARY} -v "table|chain|;$|}$|^$" | ${WCBINARY} -l)
+        NFT_RULES_LENGTH=$(${NFTBINARY} --stateless list ruleset 2> /dev/null | ${GREPBINARY} -E -v "table|chain|;$|}$|^$" | ${WCBINARY} -l)
         if [ ${NFT_RULES_LENGTH} -le 3 ]; then
             FIREWALL_EMPTY_RULESET=1
             LogText "Result: this firewall set has 3 rules or less and is considered to be empty"

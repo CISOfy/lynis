@@ -49,7 +49,7 @@
                     LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
                     ReportException "${TEST_NO}:01"
                 else
-                    FIND2=$(${ECHOCMD} ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
+                    FIND2=$(${ECHOCMD} ${FIND} | ${GREPBINARY} -E "runlevel5|graphical")
                     if HasData "${FIND2}"; then
                         LogText "Result: Found match on runlevel5/graphical"
                         Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
@@ -401,7 +401,7 @@
             elif [ -e ${ROOTDIR}etc/rpi-issue ]; then
                 FINDKERNEL="raspberrypi-kernel"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to Raspbian"
-            elif $(${EGREPBINARY} -q 'do_symlinks.*=.*No' ${ROOTDIR}etc/kernel-img.conf); then
+            elif $(${GREPBINARY} -E -q 'do_symlinks.*=.*No' ${ROOTDIR}etc/kernel-img.conf); then
                 FINDKERNEL="linux-image-$(uname -r)"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to /etc/kernel-img.conf item do_symlinks = No"
             else
@@ -414,8 +414,8 @@
             else
                 LogText "Result: found kernel '${FINDKERNEL}' which will be used for further testing"
                 LogText "Test: Using apt-cache policy to determine if there is an update available"
-                FINDINSTALLED=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
-                FINDCANDIDATE=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
+                FINDINSTALLED=$(apt-cache policy ${FINDKERNEL} | ${GREPBINARY} -E 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
+                FINDCANDIDATE=$(apt-cache policy ${FINDKERNEL} | ${GREPBINARY} -E 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
                 LogText "Kernel installed: ${FINDINSTALLED}"
                 LogText "Kernel candidate: ${FINDCANDIDATE}"
                 if IsEmpty "${FINDINSTALLED}"; then
@@ -826,7 +826,7 @@
             LogText "Check: try to find raspberrypi-kernel file in ${APT_ARCHIVE_DIRECTORY} and extract package date from file name"
 
             FOUND_KERNEL_DATE=$(${FINDBINARY} ${APT_ARCHIVE_DIRECTORY} -name "raspberrypi-kernel*" -printf "%T@ %Tc %p\n" 2> /dev/null \
-            | ${SORTBINARY} -nr | ${HEADBINARY} -1 | ${GREPBINARY} -o "raspberrypi-kernel.*deb" | ${EGREPBINARY} -o "\.[0-9]+" | ${SEDBINARY} 's/\.//g')
+            | ${SORTBINARY} -nr | ${HEADBINARY} -1 | ${GREPBINARY} -o "raspberrypi-kernel.*deb" | ${GREPBINARY} -E -o "\.[0-9]+" | ${SEDBINARY} 's/\.//g')
 
             if [ -n "${FOUND_KERNEL_DATE}" ]; then
                 FOUND_KERNEL_IN_SECONDS=$(date -d "${FOUND_KERNEL_DATE}" "+%s" 2> /dev/null)
@@ -851,21 +851,21 @@
                             next="month"
                         fi
                     elif [ "$next" = "month" ]; then
-                        if [ $(${ECHOCMD} "${part}" | ${EGREPBINARY} -c "[A-Z][a-z]") -ge 1 ]; then
+                        if [ $(${ECHOCMD} "${part}" | ${GREPBINARY} -E -c "[A-Z][a-z]") -ge 1 ]; then
                             UNAME_DATE_MONTH="${part}"
                             next="day"
                         fi
                     elif [ "${next}" = "day" ]; then
-                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                        if [ $(${ECHOCMD} ${part} | ${GREPBINARY} -E -c "[0-9][0-9]") -ge 1 ]; then
                             UNAME_DATE_DAY="${part}"
                             next="time"
                         fi
                     elif [ "${next}" = "time" ]; then
-                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c ":[0-9][0-9]:") -ge 1 ]; then
+                        if [ $(${ECHOCMD} ${part} | ${GREPBINARY} -E -c ":[0-9][0-9]:") -ge 1 ]; then
                             next="year"
                         fi
                     elif [ "${next}" = "year" ]; then
-                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                        if [ $(${ECHOCMD} ${part} | ${GREPBINARY} -E -c "[0-9][0-9]") -ge 1 ]; then
                             UNAME_DATE_YEAR="${part}"
                             break
                         fi

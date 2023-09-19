@@ -339,7 +339,7 @@
     Register --test-no NAME-4210 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check DNS banner"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Trying to determine version from banner"
-        FIND=$(${DIGBINARY} @localhost version.bind chaos txt | ${GREPBINARY} "^version.bind" | ${GREPBINARY} TXT | ${EGREPBINARY} "[0-9].[0-9].[0-9]*")
+        FIND=$(${DIGBINARY} @localhost version.bind chaos txt | ${GREPBINARY} "^version.bind" | ${GREPBINARY} TXT | ${GREPBINARY} -E "[0-9].[0-9].[0-9]*")
         if [ "${FIND}" = "" ]; then
             LogText "Result: no useful information in banner found"
             Display --indent 4 --text "- Checking BIND version in banner" --result "${STATUS_OK}" --color GREEN
@@ -571,7 +571,7 @@
     Register --test-no NAME-4402 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check duplicate line in /etc/hosts"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: check duplicate line in ${ROOTDIR}etc/hosts"
-        OUTPUT=$(${AWKBINARY} '{ print $1, $2 }' ${ROOTDIR}etc/hosts | ${EGREPBINARY} -v '^(#|$)' | ${EGREPBINARY} "[a-f0-9]" | ${SORTBINARY} | ${UNIQBINARY} -d)
+        OUTPUT=$(${AWKBINARY} '{ print $1, $2 }' ${ROOTDIR}etc/hosts | ${GREPBINARY} -E -v '^(#|$)' | ${GREPBINARY} -E "[a-f0-9]" | ${SORTBINARY} | ${UNIQBINARY} -d)
         if [ -z "${OUTPUT}" ]; then
             LogText "Result: OK, no duplicate lines found"
             Display --indent 4 --text "- Duplicate entries in hosts file" --result "${STATUS_NONE}" --color GREEN
@@ -592,7 +592,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check /etc/hosts contains an entry for this server name"
         if [ -n "${HOSTNAME}" ]; then
-            DATA=$(${EGREPBINARY} -v '^(#|$|^::1\s|localhost)' ${ROOTDIR}etc/hosts | ${GREPBINARY} -i ${HOSTNAME})
+            DATA=$(${GREPBINARY} -E -v '^(#|$|^::1\s|localhost)' ${ROOTDIR}etc/hosts | ${GREPBINARY} -i ${HOSTNAME})
             if [ -n "${DATA}" ]; then
                 LogText "Result: Found entry for ${HOSTNAME} in ${ROOTDIR}etc/hosts"
                 Display --indent 4 --text "- Presence of configured hostname in /etc/hosts" --result "${STATUS_FOUND}" --color GREEN
@@ -615,7 +615,7 @@
     Register --test-no NAME-4406 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check server hostname mapping"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Check server hostname not locally mapped in ${ROOTDIR}etc/hosts"
-        DATA=$(${EGREPBINARY} -v '^(#|$)' ${ROOTDIR}etc/hosts | ${EGREPBINARY} '^(localhost|::1)\s' | ${GREPBINARY} -w ${HOSTNAME})
+        DATA=$(${GREPBINARY} -E -v '^(#|$)' ${ROOTDIR}etc/hosts | ${GREPBINARY} -E '^(localhost|::1)\s' | ${GREPBINARY} -w ${HOSTNAME})
         if [ -n "${DATA}" ]; then
             LogText "Result: Found this server hostname mapped to a local address"
             LogText "Output: ${DATA}"

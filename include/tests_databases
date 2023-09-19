@@ -45,7 +45,7 @@
     # Description : Check if MySQL is being used
     Register --test-no DBS-1804 --weight L --network NO --category security --description "Checking active MySQL process"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "mariadb|mysqld|mysqld_safe" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} -E "mariadb|mysqld|mysqld_safe" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- MySQL process status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: MySQL process not active"
@@ -216,7 +216,8 @@
 
     Register --test-no DBS-1828 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Test PostgreSQL configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND_PATHS="${ROOTDIR}etc/postgres ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data"
+        FIND_PATHS=$(${LSBINARY} -d ${ROOTDIR}usr/local/pgsql/data* 2> /dev/null)
+        FIND_PATHS="${FIND_PATHS} ${ROOTDIR}etc/postgres ${ROOTDIR}etc/postgresql ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data"
         CONFIG_FILES=$(${FINDBINARY} -L ${FIND_PATHS} -type f -name "*.conf" -print0 2> /dev/null | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} -d '\n' | ${TRBINARY} '\0' '\n' | xargs -i sh -c 'test -r "{}" && echo "{}"' | ${SEDBINARY} "s/ /:space:/g")
         for CF in ${CONFIG_FILES}; do
             Report "postgresql_config_file[]=${CF}"
@@ -244,7 +245,7 @@
     #               reco: recovery (optional)
     Register --test-no DBS-1840 --weight L --network NO --category security --description "Checking active Oracle processes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} -E "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: Oracle process(es) not active"

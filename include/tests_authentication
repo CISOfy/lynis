@@ -42,9 +42,9 @@
         LogText "Test: Searching accounts with UID 0"
         # Check if device is a QNAP, as the root user is called admin, and not root
         if [ ${QNAP_DEVICE} -eq 1 ]; then
-            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^admin:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
+            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${GREPBINARY} -E -v '^#|^admin:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
         else
-            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
+            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${GREPBINARY} -E -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
         fi
         if [ -n "${FIND}" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
@@ -163,7 +163,7 @@
         LogText "Test: Checking login shells"
         if [ -f ${ROOTDIR}etc/master.passwd ]; then
             # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
-            FIND=$(${GREPBINARY} "[a-z]:\*:" ${ROOTDIR}etc/master.passwd | ${EGREPBINARY} -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g')
+            FIND=$(${GREPBINARY} "[a-z]:\*:" ${ROOTDIR}etc/master.passwd | ${GREPBINARY} -E -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g')
             if [ -z "${FIND}" ]; then
                 Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
             else
@@ -499,13 +499,13 @@
     Register --test-no AUTH-9240 --weight L --network NO --category security --description "Query NIS+ authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nisplus")
+            FIND=$(${GREPBINARY} -E "^passwd" /etc/nsswitch.conf | ${GREPBINARY} -E "compat|nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS+ authentication not enabled"
                 Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
-                FIND2=$(${EGREPBINARY} "^passwd_compat" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
-                FIND3=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
+                FIND2=$(${GREPBINARY} -E "^passwd_compat" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
+                FIND3=$(${GREPBINARY} -E "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
                 if [ -n "${FIND2}" -o -n "${FIND3}" ]; then
                     LogText "Result: NIS+ authentication enabled"
                     Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_ENABLED}" --color GREEN
@@ -526,13 +526,13 @@
     Register --test-no AUTH-9242 --weight L --network NO --category security --description "Query NIS authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nis" | ${GREPBINARY} -v "nisplus")
+            FIND=$(${GREPBINARY} -E "^passwd" /etc/nsswitch.conf | ${GREPBINARY} -E "compat|nis" | ${GREPBINARY} -v "nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS authentication not enabled"
                 Display --indent 2 --text "- NIS authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
-                FIND2=$(${EGREPBINARY} "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
-                FIND3=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
+                FIND2=$(${GREPBINARY} -E "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
+                FIND3=$(${GREPBINARY} -E "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
                 if [ -n "${FIND2}" -o -n "${FIND3}" ]; then
                     LogText "Result: NIS authentication enabled"
                     Display --indent 2 --text "- NIS authentication support" --result "${STATUS_ENABLED}" --color GREEN
@@ -737,7 +737,7 @@
             LogText "Result: file ${ROOTDIR}etc/pam.conf exists"
             Display --indent 2 --text "- PAM configuration files (pam.conf)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Test: searching PAM configuration files"
-            FIND=$(${EGREPBINARY} -v "^#" ${ROOTDIR}etc/pam.conf | ${EGREPBINARY} -v "^$" | ${SEDBINARY} 's/[[:space:]]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/ /:space:/g')
+            FIND=$(${GREPBINARY} -E -v "^#" ${ROOTDIR}etc/pam.conf | ${GREPBINARY} -E -v "^$" | ${SEDBINARY} 's/[[:space:]]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/ /:space:/g')
             if [ -z "${FIND}" ]; then
                 LogText "Result: File has no configuration options defined (empty, or only filled with comments and empty lines)"
             else
@@ -1017,7 +1017,7 @@
             LogText "Data: Days since epoch is ${DAYS_SINCE_EPOCH}"
             LogText "Test: collecting accounts which have an expired password (last day changed + maximum change time)"
             # Skip fields with a !, *, or x, or !* (field $3 is last changed, $5 is maximum changed)
-            FIND=$(${EGREPBINARY} -v ":[\!\*x]([\*\!])?:" /etc/shadow | ${AWKBINARY} -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
+            FIND=$(${GREPBINARY} -E -v ":[\!\*x]([\*\!])?:" /etc/shadow | ${AWKBINARY} -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
             if [ -n "${FIND}" ]; then
                 for ACCOUNT in ${FIND}; do
                     LogText "Result: password of user ${ACCOUNT} has been expired"
@@ -1109,8 +1109,8 @@
                 TEST_PERFORMED=1
                 LogText "Result: file ${ROOTDIR}etc/inittab exists"
                 LogText "Test: checking presence sulogin for single user mode"
-                FIND=$(${EGREPBINARY} "^[a-zA-Z0-9~]+:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
-                FIND2=$(${EGREPBINARY} "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
+                FIND=$(${GREPBINARY} -E "^[a-zA-Z0-9~]+:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
+                FIND2=$(${GREPBINARY} -E "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
                 if [ -n "${FIND}" -o -n "${FIND2}" ]; then
                     FOUND=1
                     LogText "Result: found sulogin, so single user is protected"
@@ -1147,7 +1147,7 @@
                     # Mark test as performed only when at least 1 target exists (e.g. Ubuntu 14.04 has limited systemd support)
                     TEST_PERFORMED=1
                     LogText "Result: found target ${I}"
-                    FIND=$(${EGREPBINARY} "^ExecStart=" ${FILE} | ${GREPBINARY} "sulogin")
+                    FIND=$(${GREPBINARY} -E "^ExecStart=" ${FILE} | ${GREPBINARY} "sulogin")
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: did not find sulogin specified, possible risk of getting into single user mode without authentication"
                     else
@@ -1486,7 +1486,7 @@
     Register --test-no AUTH-9402 --weight L --network NO --category security --description "Query LDAP authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f ${ROOTDIR}etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "ldap")
+            FIND=$(${GREPBINARY} -E "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "ldap")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: LDAP authentication not enabled"
                 Display --indent 2 --text "- LDAP authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
@@ -1514,7 +1514,7 @@
                 LogText "Result: file ${FILE} exists, LDAP being used"
                 LDAP_CLIENT_CONFIG_FILE="${FILE}"
                 LogText "Test: checking LDAP servers in file ${FILE}"
-                FIND=$(${EGREPBINARY} "^host " ${FILE} | ${AWKBINARY} '{ print $2 }')
+                FIND=$(${GREPBINARY} -E "^host " ${FILE} | ${AWKBINARY} '{ print $2 }')
                 for SERVER in ${FIND}; do
                     Display --indent 6 --text "LDAP server: ${SERVER}"
                     LogText "Result: found LDAP server ${SERVER}"

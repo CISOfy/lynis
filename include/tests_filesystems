@@ -356,7 +356,7 @@
         # Proc should be mounted with 'hidepid=2' or 'hidepid=1' at least
         # https://www.kernel.org/doc/html/latest/filesystems/proc.html#chapter-4-configuring-procfs
         LogText "Test: check proc mount with incorrect mount options"
-        FIND=$(${MOUNTBINARY} | ${EGREPBINARY} "${ROOTDIR}proc " | ${EGREPBINARY} -o "hidepid=([0-9]|[a-z][a-z]*)")
+        FIND=$(${MOUNTBINARY} | ${GREPBINARY} -E "${ROOTDIR}proc " | ${GREPBINARY} -E -o "hidepid=([0-9]|[a-z][a-z]*)")
         if [ "${FIND}" = "hidepid=4" -o "${FIND}" = "hidepid=ptraceable" ]; then  # https://lwn.net/Articles/817137/
             Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
             LogText "Result: proc mount mounted with ${FIND}"
@@ -504,7 +504,7 @@
         fi
 
         LogText "Test: Checking acl option on xfs root file system"
-        FIND=$(${MOUNTBINARY} | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | ${EGREPBINARY} 'no_acl|no_user_xattr')
+        FIND=$(${MOUNTBINARY} | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | ${GREPBINARY} -E 'no_acl|no_user_xattr')
         if [ -z "${FIND}" ]; then
             FOUND=1
             # some other tests to do ?
@@ -638,7 +638,7 @@
         NDEVMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v nodev | ${WCBINARY} -l)
         NEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${WCBINARY} -l)
         NSUIDMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v nosuid | ${WCBINARY} -l)
-        NWRITEANDEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${EGREPBINARY} -v '^\(ro[,)]' | ${WCBINARY} -l)
+        NWRITEANDEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${GREPBINARY} -E -v '^\(ro[,)]' | ${WCBINARY} -l)
         LogText "Result: Total without nodev:${NDEVMOUNTS} noexec:${NEXECMOUNTS} nosuid:${NSUIDMOUNTS} ro or noexec (W^X): ${NWRITEANDEXECMOUNTS}, of total ${NMOUNTS}"
         Display --indent 2 --text "- Total without nodev:${NDEVMOUNTS} noexec:${NEXECMOUNTS} nosuid:${NSUIDMOUNTS} ro or noexec (W^X): ${NWRITEANDEXECMOUNTS} of total ${NMOUNTS}"
     fi
@@ -814,13 +814,13 @@
             AVAILABLE_MODPROBE_FS=""
             for FS in ${LIST_FS_NOT_SUPPORTED}; do
                 # Check if filesystem is present in modprobe output
-                FIND=$(${MODPROBEBINARY} -v -n ${FS} 2>/dev/null | ${EGREPBINARY} "/${FS}.ko" | ${TAILBINARY} -1)
+                FIND=$(${MODPROBEBINARY} -v -n ${FS} 2>/dev/null | ${GREPBINARY} -E "/${FS}.ko" | ${TAILBINARY} -1)
                 if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FS} support in the kernel (output = ${FIND})"
                     Debug "Module ${FS} present in the kernel"
                     LogText "Test: Checking if ${FS} is active"
                     # Check if FS is present in lsmod output
-                    FIND=$(${LSMODBINARY} | ${EGREPBINARY} "^${FS}")
+                    FIND=$(${LSMODBINARY} | ${GREPBINARY} -E "^${FS}")
                     if IsEmpty "${FIND}"; then
                         LogText "Result: module ${FS} is currently not loaded in the kernel."
                         AddHP 2 3
@@ -837,8 +837,8 @@
                 fi
                 FIND=$(${LSBINARY} ${ROOTDIR}etc/modprobe.d/* 2> /dev/null)
                 if [ -n "${FIND}" ]; then
-                    FIND1=$(${EGREPBINARY} "^blacklist \+${FS}$" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
-                    FIND2=$(${EGREPBINARY} "^install \+${FS} \+/bin/true$" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+                    FIND1=$(${GREPBINARY} -E "^blacklist \+${FS}$" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+                    FIND2=$(${GREPBINARY} -E "^install \+${FS} \+/bin/true$" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
                         if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
                             Display --indent 4 --text "- Module $FS is blacklisted" --result "OK" --color GREEN
                             LogText "Result: module ${FS} is blacklisted"

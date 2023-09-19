@@ -1,10 +1,22 @@
 # Lynis Changelog
 
-## Lynis 3.0.9 (not released yet)
+## Lynis 3.1.0 (not released yet)
 
 ### Changed
-- DBS-1820 - added newer style format for Mongo authorization setting
-- Extra check to verify if nanoseconds are supported by the date command
+- Updated Amazon Linux EOL dates and addition of Amazon Linux 2023
+- STATUS_NOT_ACTIVE variable added to translation files
+- MALW-3280 - Correction to detect com.avast.daemon
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.9 (2023-08-03)
+
+### Changed
+- DBS-1820 - Added newer style format for Mongo authorization setting
+- FILE-6410 - Locations added for plocate
+- SSH-7408 - Only test Compression if sshd version < 7.4
+- Improved fetching timestamp
+- Minor changes such as typos
 
 ---------------------------------------------------------------------------------
 

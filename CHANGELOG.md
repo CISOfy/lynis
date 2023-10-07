@@ -3,9 +3,17 @@
 ## Lynis 3.1.0 (not released yet)
 
 ### Changed
+- MALW-3280 - Correction to detect com.avast.daemon
+- OS detection added for Guix System, macOS Ventura (13.x)/Sonoma (14.x), NXP LSDK, OpenEmbedded "nodistro", and The Yocto Projects distro "Poky"
 - Updated Amazon Linux EOL dates and addition of Amazon Linux 2023
 - STATUS_NOT_ACTIVE variable added to translation files
-- MALW-3280 - Correction to detect com.avast.daemon
+- End-of-life dates updated
+- Fixing missing or erroneous test number comments
+- Wazuh for file integrity and tooling
+- Updated parsing output of arch-audit
+- Added support for SentinelOne detection
+- Replacing deprecated option -i for xargs
+- Path detection for PostgreSQL improved
 
 ---------------------------------------------------------------------------------
 

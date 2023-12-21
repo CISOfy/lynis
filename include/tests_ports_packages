@@ -347,12 +347,13 @@
     Register --test-no PKGS-7322 --os "Linux" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Discover vulnerable packages with arch-audit"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking arch-audit output for vulnerable packages"
-        FIND=$(${ARCH_AUDIT_BINARY} | ${SEDBINARY} 's/\.\..*$//' | ${SEDBINARY} 's/, //g' | ${SEDBINARY} 's/\(\["\|"\]\)//g' | ${SEDBINARY} 's/""/,/g' | ${AWKBINARY} '{ if($1=="Package") { print $2"|"$6"|"}}' | ${AWKBINARY} -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]"|"}}' | ${SEDBINARY} 's/,/|cve=/' | ${SORTBINARY})
+        FIND=$(${ARCH_AUDIT_BINARY} | ${SEDBINARY} 's/ High risk!//' | ${SEDBINARY} 's/ Medium risk!//' | ${SEDBINARY} 's/ Low risk!//' | ${SEDBINARY} 's/\.\..*$//' | ${SEDBINARY} 's/, /,/g' | ${SEDBINARY} 's/\(\["\|"\]\)//g' | ${SEDBINARY} 's/""/,/g' | ${AWKBINARY} '{if ($0 ~ /is affected by CVE\-/) {print $1"|"$5"|"} else {ORS=""; print $1"|"; for (i=5; i<=NF; i++)print $i; print "\n"; ORS="\n"}}'| ${AWKBINARY} -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]"|"}}' | ${SEDBINARY} 's/,CVE-/|cve=CVE-/' | ${SORTBINARY})
         if [ -z "${FIND}" ]; then
             LogText "Result: no vulnerable packages found with arch-audit"
             AddHP 10 10
         else
             LogText "Result: found one or more vulnerable packages"
+            VULNERABLE_PACKAGES_FOUND=1
             for ITEM in ${FIND}; do
                 LogText "Found line: ${ITEM}"
                 Report "vulnerable_package[]=${ITEM}"
@@ -836,7 +837,7 @@
     Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
-        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/[[:blank:]]//g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
+        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/[[:blank:]]//g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -E "^[0-9]+$")
         if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
             LogText "Result: YUM package update management failed"
             Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_WARNING}" --color RED
@@ -1030,7 +1031,7 @@
         if [ ${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY} -eq 0 ]; then
             if [ -f ${ROOTDIR}etc/apt/sources.list ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list file"
-                FIND=$(${EGREPBINARY} "security.debian.org|security.ubuntu.com|security/? " ${ROOTDIR}etc/apt/sources.list | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                FIND=$(${GREPBINARY} -E "security.debian.org|security.ubuntu.com|security/? " ${ROOTDIR}etc/apt/sources.list | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
                 if [ -n "${FIND}" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list file" --result "${STATUS_OK}" --color GREEN
@@ -1043,7 +1044,7 @@
             fi
             if [ -d /etc/apt/sources.list.d ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
-                FIND=$(${EGREPBINARY} -r "security.debian.org|security.ubuntu.com|security/? " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                FIND=$(${GREPBINARY} -E -r "security.debian.org|security.ubuntu.com|security/? " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
                 if [ -n "${FIND}" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list.d directory" --result "${STATUS_OK}" --color GREEN
@@ -1338,7 +1339,7 @@
         if [ "${DPKGBINARY}" ]; then
             TESTED=1
             KERNEL_PKG_NAMES="linux-image-[0-9]|raspberrypi-kernel|pve-kernel-[0-9]"
-            KERNELS=$(${DPKGBINARY} -l 2> /dev/null | ${EGREPBINARY} "${KERNEL_PKG_NAMES}" | ${WCBINARY} -l)
+            KERNELS=$(${DPKGBINARY} -l 2> /dev/null | ${GREPBINARY} -E "${KERNEL_PKG_NAMES}" | ${WCBINARY} -l)
             if [ ${KERNELS} -eq 0 ]; then
                 LogText "Result: found no kernels from dpkg -l output, which is unexpected"
             elif [ ${KERNELS} -gt 5 ]; then

@@ -64,6 +64,8 @@
                     10.15 | 10.15.[0-9]*) OS_FULLNAME="macOS Catalina (${OS_VERSION})" ;;
                     11 | 11.[0-9]*) OS_FULLNAME="macOS Big Sur (${OS_VERSION})" ;;
                     12 | 12.[0-9]*) OS_FULLNAME="macOS Monterey (${OS_VERSION})" ;;
+                    13 | 13.[0-9]*) OS_FULLNAME="macOS Ventura (${OS_VERSION})" ;;
+                    14 | 14.[0-9]*) OS_FULLNAME="macOS Sonoma (${OS_VERSION})" ;;
                     *) echo "Unknown macOS version. Do you know what version it is? Create an issue at ${PROGRAM_SOURCE}" ;;
                 esac
             else
@@ -260,6 +262,12 @@
                             OS_NAME="Gentoo Linux"
                             OS_VERSION="Rolling release"
                         ;;
+                        "guix")
+                            LINUX_VERSION="Guix"
+                            OS_FULLNAME="Guix System"
+                            OS_NAME="Guix"
+                            OS_VERSION="Rolling release"
+                        ;;
                         "ipfire")
                             LINUX_VERSION="IPFire"
                             OS_NAME="IPFire"
@@ -276,6 +284,11 @@
                             LINUX_VERSION_LIKE="Ubuntu"
                             OS_NAME="Linux Mint"
                             OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                            OS_VERSION_FULL=$(grep "^VERSION=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                        ;;
+                        "lsdk")
+                            LINUX_VERSION="NXP LSDK"
+                            OS_NAME="NXP LSDK"
                             OS_VERSION_FULL=$(grep "^VERSION=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                         ;;
                         "mageia")
@@ -308,6 +321,12 @@
                             OS_REDHAT_OR_CLONE=1
                             OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                         ;;
+                        "nodistro")
+                            LINUX_VERSION="openembedded"
+                            OS_NAME="OpenEmbedded"
+                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                            OS_VERSION_FULL=$(grep "^VERSION=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                        ;;
                         "opensuse-tumbleweed")
                             LINUX_VERSION="openSUSE Tumbleweed"
                             # It's rolling release but has a snapshot version (the date of the snapshot)
@@ -329,6 +348,14 @@
                             OS_NAME="Parrot GNU/Linux"
                             OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                             OS_VERSION_FULL=$(grep "^PRETTY_NAME=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                        ;;
+                        "poky")
+                            LINUX_VERSION="Poky"
+                            OS_NAME="openembedded"
+                            LINUX_VERSION_LIKE="openembedded"
+                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                            OS_VERSION_FULL=$(grep "^PRETTY_NAME=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+
                         ;;
                         "pop")
                             LINUX_VERSION="Pop!_OS"
@@ -777,10 +804,26 @@
     ECHONB=""
 
     case ${OS} in
-        "AIX")                           ECHOCMD="echo"; ECHONB="printf" ;;
-        "DragonFly"|"FreeBSD"|"NetBSD")  ECHOCMD="echo -e"; ECHONB="echo -n" ;;
-        "macOS" | "Mac OS X")                         ECHOCMD="echo"; ECHONB="/bin/echo -n" ;;
-        "Solaris")                       ECHOCMD="echo" ; test -f /usr/ucb/echo && ECHONB="/usr/ucb/echo -n" ;;
+        "AIX")
+            ECHOCMD="echo";
+            ECHONB="printf"
+        ;;
+        "DragonFly"|"FreeBSD"|"NetBSD")
+            ECHOCMD="echo -e"
+            ECHONB="echo -n"
+            NOW=$(date "+%s")
+        ;;
+        "macOS" | "Mac OS X")
+            ECHOCMD="echo"
+            ECHONB="/bin/echo -n"
+            NOW=$(date "+%s")
+        ;;
+
+        "Solaris")         
+            ECHOCMD="echo"
+            test -f /usr/ucb/echo && ECHONB="/usr/ucb/echo -n"
+            NOW=$(nawk 'BEGIN{print srand()}')
+        ;;
         "Linux")
             # Check if dash is used (Debian/Ubuntu)
             DEFAULT_SHELL=$(ls -l /bin/sh | awk -F'>' '{print $2}')
@@ -788,10 +831,14 @@
                 " dash")                 ECHOCMD="/bin/echo -e" ;;
                 *)                       ECHOCMD="echo -e" ;;
             esac
+            NOW=$(date "+%s")
         ;;
-        *)                               ECHOCMD="echo -e" ;;
+        *)
+            ECHOCMD="echo -e"
+            NOW=$(date "+%s")
+        ;;
     esac
-
+    
     # Check if we have full featured commands, or are using BusyBox as a shell
     if [ -x /bin/busybox ]; then
         if [ -L /bin/ps ]; then
@@ -820,13 +867,10 @@
             if [ -n "${EOL_TIMESTAMP}" ]; then
                 EOL_DATE=$(awk -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $3}}' ${DBDIR}/software-eol.db | head -n 1)
                 if [ -n "${EOL_DATE}" ]; then
-                    NOW=$(date "+%s")
-                    if [ -n "${NOW}" ]; then
-                        if [ ${NOW} -gt ${EOL_TIMESTAMP} ]; then
-                            EOL=1
-                        else
-                            EOL=0
-                        fi
+                    if [ ${NOW} -gt ${EOL_TIMESTAMP} ]; then
+                        EOL=1
+                    else
+                        EOL=0
                     fi
                 else
                     EOL=0

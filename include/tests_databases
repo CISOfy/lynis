@@ -45,7 +45,7 @@
     # Description : Check if MySQL is being used
     Register --test-no DBS-1804 --weight L --network NO --category security --description "Checking active MySQL process"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "mariadb|mysqld|mysqld_safe" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} -E "mariadb|mysqld|mysqld_safe" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- MySQL process status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: MySQL process not active"
@@ -127,12 +127,25 @@
             for FILE in ${MONGO_CONF_FILES}; do
                 if [ -f ${FILE} ]; then
                     LogText "Result: found MongoDB configuration file (${FILE})"
-                    LogText "Test: determine authorization setting in new style YAML format"
-                    AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
-                    if HasData "${AUTH_IN_CONFIG}"; then
-                        LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)"
-                        MONGODB_AUTHORIZATION_ENABLED=1
-                    else
+                    # YAML with quotes
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                        LogText "Test: determine authorization setting in new style YAML format"
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: \"enabled\"" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if HasData "${AUTH_IN_CONFIG}"; then
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format with quotes)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
+                        fi
+                    fi
+                    # YAML without quotes
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if HasData "${AUTH_IN_CONFIG}"; then
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format without quotes)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
+                        fi
+                    fi
+                    # Old style
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
                         LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)"
                         LogText "Test: now searching for old style configuration (auth = true) in configuration file"
                         AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")
@@ -203,7 +216,8 @@
 
     Register --test-no DBS-1828 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Test PostgreSQL configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND_PATHS="${ROOTDIR}etc/postgres ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data"
+        FIND_PATHS=$(${LSBINARY} -d ${ROOTDIR}usr/local/pgsql/data* 2> /dev/null)
+        FIND_PATHS="${FIND_PATHS} ${ROOTDIR}etc/postgres ${ROOTDIR}etc/postgresql ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data"
         CONFIG_FILES=$(${FINDBINARY} -L ${FIND_PATHS} -type f -name "*.conf" -print0 2> /dev/null | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} -d '\n' | ${TRBINARY} '\0' '\n' | xargs -i sh -c 'test -r "{}" && echo "{}"' | ${SEDBINARY} "s/ /:space:/g")
         for CF in ${CONFIG_FILES}; do
             Report "postgresql_config_file[]=${CF}"
@@ -231,7 +245,7 @@
     #               reco: recovery (optional)
     Register --test-no DBS-1840 --weight L --network NO --category security --description "Checking active Oracle processes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} -E "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: Oracle process(es) not active"

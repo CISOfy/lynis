@@ -1,0 +1,121 @@
+#!/bin/sh
+
+#########################################################################
+#
+#    * DO NOT REMOVE *
+#-----------------------------------------------------
+# PLUGIN_AUTHOR="pyllyukko"
+# PLUGIN_CATEGORY=security
+# PLUGIN_DATE=2024-02-14
+# PLUGIN_DESC=Kerberos
+# PLUGIN_NAME=krb5
+# PLUGIN_REQUIRED_TESTS=
+# PLUGIN_VERSION=0.1
+#-----------------------------------------------------
+#
+#########################################################################
+#
+
+    # Test for the prerequisites first
+    if [ -n "${KADMINLOCALBINARY}" ]
+    then
+        PREQS_MET="YES"
+        # Make sure krb5 debugging doesn't mess up the output
+        unset KRB5_TRACE
+        PRINCS="$(${KADMINLOCALBINARY} listprincs | ${TRBINARY:-tr} '\n' ' ')"
+        if [ -z "${PRINCS}" ]
+        then
+            PREQS_MET="NO"
+        fi
+    else
+        PREQS_MET="NO"
+    fi
+
+    # Test        : KRB5-0001
+    # Description : Check that Kerberos principals have passwords that expire
+    Register --test-no KRB5-0001 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check that Kerberos principals have passwords that expire" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for I in ${PRINCS}
+        do
+            FIND="$(${KADMINLOCALBINARY} getprinc "${I}" | ${GREPBINARY} '^Password expiration date:')"
+            if [ "${FIND}" = "Password expiration date: [never]" ]
+            then
+                LogText "Result: Kerberos principal ${I} has a password/key that never expires"
+            fi
+        done
+    fi
+#
+#################################################################################
+#
+
+    # Test        : KRB5-0002
+    # Description : Check last password change for Kerberos principals
+    Register --test-no KRB5-0002 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check last password change for Kerberos principals" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for I in ${PRINCS}
+        do
+            FIND="$(${KADMINLOCALBINARY} getprinc "${I}" | ${SEDBINARY} -n '/^Last password change:\s\+/s/^Last password change:\s\+//p')"
+            if [ "${FIND}" = "[never]" ]
+            then
+                LogText "Result: Kerberos principal ${I} has a password/key that has never been changed"
+            else
+                J="$(date -d "${FIND}" +%s)"
+                if [ ${J} -lt $((NOW - 60 * 60 * 24 * 365)) ]
+                then
+                    LogText "Result: Kerberos principal ${I} has had a password/key change over a year ago"
+                fi
+            fi
+        done
+    fi
+
+#
+#################################################################################
+#
+
+    # Test        : KRB5-0003
+    # Description : Check that Kerberos principals have a policy associated to them
+    Register --test-no KRB5-0003 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check that Kerberos principals have a policy associated to them" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for I in ${PRINCS}
+        do
+            FIND="$(${KADMINLOCALBINARY} getprinc "${I}" | ${GREPBINARY} '^Policy:')"
+            if [ "${FIND}" = "Policy: [none]" ]
+            then
+                LogText "Result: Kerberos principal ${I} does not have a policy associated to it"
+            fi
+        done
+    fi
+
+#
+#################################################################################
+#
+
+    # Test        : KRB5-0004
+    # Description : Check various attributes for Kerberos principals
+    Register --test-no KRB5-0004 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check various attributes for Kerberos principals" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for I in ${PRINCS}
+        do
+            J="$(${KADMINLOCALBINARY} getprinc "${I}" | ${SEDBINARY} -n 's/^Attributes:\s\+\(.\+\)$/\1/p')"
+            if ContainsString "^K/M@" "${I}" || \
+                ContainsString "^kadmin/admin@" "${I}" || \
+                ContainsString "^kadmin/changepw@" "${I}" || \
+                ContainsString "^krbtgt/" "${I}"
+            then
+                if ! ContainsString "\bLOCKDOWN_KEYS\b" "${J}"
+                then
+                    LogText "Result: Sensitive Kerberos principal ${I} does not have the lockdown_keys attribute"
+                fi
+            fi
+        done
+    fi
+
+#
+#################################################################################
+#
+
+unset PRINCS
+unset I
+unset J
+
+#EOF

@@ -10,14 +10,14 @@
 # PLUGIN_DESC=Kerberos
 # PLUGIN_NAME=krb5
 # PLUGIN_REQUIRED_TESTS=
-# PLUGIN_VERSION=0.1
+# PLUGIN_VERSION=0.2
 #-----------------------------------------------------
 #
 #########################################################################
 #
 
     # Test for the prerequisites first
-    if [ -n "${KADMINLOCALBINARY}" ]
+    if [ -n "${KADMINLOCALBINARY}" ] && [ -n "${KDB5UTILBINARY}" ]
     then
         PREQS_MET="YES"
         # Make sure krb5 debugging doesn't mess up the output
@@ -106,8 +106,37 @@
                 then
                     LogText "Result: Sensitive Kerberos principal ${I} does not have the lockdown_keys attribute"
                 fi
+            elif ContainsString "/admin@" "${I}"
+            then
+                if ! ContainsString "\bDISALLOW_TGT_BASED\b" "${J}"
+                then
+                    LogText "Result: Kerberos admin principal ${I} does not have the disallow_tgt_based attribute"
+                fi
+            elif ContainsString "^[^/$]+@" "${I}"
+            then
+                if ! ContainsString "\bREQUIRES_PRE_AUTH\b.+\bDISALLOW_SVR\b" "${J}"
+                then
+                    LogText "Result: Regular Kerberos user principal ${I} does not have the requires_pre_auth and/or the disallow_svr attribute"
+                fi
             fi
         done
+    fi
+
+#
+#################################################################################
+#
+
+    # Test        : KRB5-0005
+    # Description : Check for weak crypto
+    Register --test-no KRB5-0005 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for weak crypto" --progress
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(${KDB5UTILBINARY} tabdump keyinfo | ${AWKBINARY} '$4 ~ /(des|arcfour|cbc|sha1)/{print$1,$4}')
+        while read I J
+        do
+            LogText "Result: Kerberos principal ${I} has a key with weak cryptographic algorithm ${J}"
+        done << EOF
+${FIND}
+EOF
     fi
 
 #

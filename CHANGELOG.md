@@ -2,6 +2,9 @@
 
 ## Lynis 3.1.0 (not released yet)
 
+### Added
+- Translation: Indonesian
+
 ### Changed
 - MALW-3280 - Correction to detect com.avast.daemon
 - OS detection added for Guix System, macOS Ventura (13.x)/Sonoma (14.x), NXP LSDK, OpenEmbedded "nodistro", and The Yocto Projects distro "Poky"

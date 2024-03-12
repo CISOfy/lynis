@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.1.1 (not released yet)
+
+### Changed
+- DBS-1882 - Redis configuration file path added for FreeBSD (/usr/local/etc/redis.conf)
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.1.0 (2024-03-11)
 
 ### Added

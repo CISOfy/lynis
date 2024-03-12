@@ -4,6 +4,7 @@
 
 ### Changed
 - DBS-1882 - Redis configuration file path added for FreeBSD (/usr/local/etc/redis.conf)
+- DBS-1882 - Check /snap directory location for Redis configuration file
 
 ---------------------------------------------------------------------------------
 

@@ -1,6 +1,9 @@
 # Lynis Changelog
 
-## Lynis 3.1.1 (not released yet)
+## Lynis 3.1.1 (2024-03-17)
+
+### Added
+- Detection of ArcoLinux
 
 ### Changed
 - DBS-1882 - Redis configuration file path added for FreeBSD (/usr/local/etc/redis.conf)

@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.1.2 (not released yet)
+
+### Changed
+- Correction of software EOL database and inclusion of AIX entries 
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.1.1 (2024-03-17)
 
 ### Added

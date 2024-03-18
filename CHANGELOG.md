@@ -2,6 +2,9 @@
 
 ## Lynis 3.1.2 (not released yet)
 
+### Added
+- Detection of Open Source Media Center (OSMC)
+
 ### Changed
 - Correction of software EOL database and inclusion of AIX entries 
 

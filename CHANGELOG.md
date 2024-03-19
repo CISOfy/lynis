@@ -3,6 +3,7 @@
 ## Lynis 3.1.2 (not released yet)
 
 ### Added
+- Detection of Athena OS
 - Detection of Open Source Media Center (OSMC)
 
 ### Changed

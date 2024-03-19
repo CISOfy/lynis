@@ -127,11 +127,15 @@
         LogText "Test: Querying brew to get package list"
         Display --indent 4 --text "- Querying brew for installed packages"
         LogText "Output:"; LogText "-----"
-        GPACKAGES=$(brew list)
-        for J in ${GPACKAGES}; do
-            LogText "Found package ${J}"
-            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
-        done
+        GPACKAGES=$(brew list --versions)
+        while IFS= read -r PKG; do
+            PACKAGE_NAME=$(echo ${PKG} | ${CUTBINARY} -d ' ' -f1)
+            PACKAGE_VERSION=$(echo ${PKG} | ${CUTBINARY} -d ' ' -f2)
+            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done << EOF
+$GPACKAGES
+EOF
     else
         LogText "Result: brew can NOT be found on this system"
     fi

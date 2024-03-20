@@ -28,6 +28,7 @@
     METALOG_RUNNING=0
     RFC3195D_RUNNING=0
     RSYSLOG_RUNNING=0
+    WAZUH_AGENT_RUNNING=0
     SOLARIS_LOGHOST=""
     SOLARIS_LOGHOST_FOUND=0
     SOLARIS_LOGHOST_LOCALHOST=0
@@ -216,6 +217,23 @@
         else
             Display --indent 4 --text "- Checking minilogd instances" --result "${STATUS_NOT_FOUND}" --color WHITE
             LogText "Result: No minilogd is running"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : LOGG-2144
+    # Description : Check for wazuh-agent presence on Linux systems
+    Register --test-no LOGG-2144 --os Linux --weight L --network NO --category security --description "Checking wazuh-agent"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Result: Searching for wazuh-agent instances in the process list"
+        if IsRunning "wazuh-agent"; then
+            LogText "Result: Found wazuh-agent in process list"
+            Display --indent 4 --text "- Checking wazuh-agent status" --result "${STATUS_FOUND}" --color GREEN
+            WAZUH_AGENT_RUNNING=1
+        else
+            LogText "Result: wazuh-agent NOT found in process list"
+            Display --indent 4 --text "- Checking wazuh-agent daemon status" --result "${STATUS_NOT_FOUND}" --color WHITE
         fi
     fi
 #
@@ -443,6 +461,21 @@
                         REMOTE_LOGGING_ENABLED=1
                     fi
                 done
+            fi
+        fi
+
+        # Test wazuh-agent configuration for syslog configuration
+        if [ ${WAZUH_AGENT_RUNNING} ]; then
+            WAZUH_AGENT_CONF="/var/ossec/etc/ossec.conf"
+        fi
+
+        if [ -f ${WAZUH_AGENT_CONF} ]; then
+            LogText "Test: Checking Wazuh agent configuration for remote syslog forwarding"
+            FIND=$(${EGREPBINARY} '<location>/var/log/syslog</location>' ${WAZUH_AGENT_CONF})
+            if [ "${FIND}" ]; then
+                DESTINATION=$(${EGREPBINARY} -o '<address>([A-Za-z0-9\.\-\_]*)</address>' ${WAZUH_AGENT_CONF} | sed 's/<address>//' | sed 's/<\/address>//')
+                LogText "Result: found destination ${DESTINATION} configured for remote logging with wazuh"
+                REMOTE_LOGGING_ENABLED=1
             fi
         fi
 

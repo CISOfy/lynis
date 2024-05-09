@@ -186,8 +186,10 @@
     # Test        : DBS-1826
     # Description : Check if PostgreSQL is being used
     Register --test-no DBS-1826 --weight L --network NO --category security --description "Checking active PostgreSQL processes"
+    for PROCES in postgres postmaster
+    do
     if [ ${SKIPTEST} -eq 0 ]; then
-        if IsRunning "postgres"; then
+        if IsRunning "${PROCES}"; then
             Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: PostgreSQL is active"
             POSTGRESQL_RUNNING=1
@@ -195,9 +197,10 @@
             Report "postgresql_running=${POSTGRESQL_RUNNING}"
         else
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
-            LogText "Result: PostgreSQL process not active"
+            LogText "Result: PostgreSQL process ${PROCES} not active"
         fi
     fi
+    done
 #
 #################################################################################
 #
@@ -211,14 +214,15 @@
     # Arch            /var/lib/postgres/data/postgresql.conf
     # CentOS/Fedora   /var/lib/pgsql/data/postgresql.conf
     # Ubuntu          /etc/postgresql/x.y/main/postgresql.conf
+    # FreeBSD         /var/db/postgres/data[0-9][0-9]/postgresql.conf
 
     if [ "${POSTGRESQL_RUNNING}" -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="PostgreSQL not installed or not running"; fi
 
     Register --test-no DBS-1828 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Test PostgreSQL configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         FIND_PATHS=$(${LSBINARY} -d ${ROOTDIR}usr/local/pgsql/data* 2> /dev/null)
-        FIND_PATHS="${FIND_PATHS} ${ROOTDIR}etc/postgres ${ROOTDIR}etc/postgresql ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data"
-        CONFIG_FILES=$(${FINDBINARY} -L ${FIND_PATHS} -type f -name "*.conf" -print0 2> /dev/null | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} -d '\n' | ${TRBINARY} '\0' '\n' | xargs -i sh -c 'test -r "{}" && echo "{}"' | ${SEDBINARY} "s/ /:space:/g")
+        FIND_PATHS="${FIND_PATHS} ${ROOTDIR}etc/postgres ${ROOTDIR}etc/postgresql ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data ${ROOTDIR}var/lib/pgsql/data ${ROOTDIR}var/db/postgres/data[0-9][0-9]"
+        CONFIG_FILES=$(${FINDBINARY} -L ${FIND_PATHS} -type f -name "*.conf" -print0 2> /dev/null | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} -d '\n' | ${TRBINARY} '\0' '\n' | xargs -I'{}' sh -c 'test -r "{}" && echo "{}"' | ${SEDBINARY} "s/ /:space:/g")
         for CF in ${CONFIG_FILES}; do
             Report "postgresql_config_file[]=${CF}"
             LogText "Found configuration file (${CF})"

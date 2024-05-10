@@ -7,7 +7,8 @@
 - Detection of Open Source Media Center (OSMC)
 
 ### Changed
-- Correction of software EOL database and inclusion of AIX entries 
+- Correction of software EOL database and inclusion of AIX entries
+- DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
 
 ---------------------------------------------------------------------------------
 

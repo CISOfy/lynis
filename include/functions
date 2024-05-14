@@ -1315,7 +1315,7 @@
             return 2
         else
             for CHECK_PERMISSION in ${CHECKPERMISSION_FULL}; do
-                DATA=$(echo ${CHECK_PERMISSION} | ${EGREPBINARY} "[rwx]")
+                DATA=$(echo ${CHECK_PERMISSION} | ${GREPBINARY} -E "[rwx]")
                 if [ $? -eq 0 ]; then
                     # add a dummy character as first character so it looks like output is a normal file
                     CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
@@ -1608,7 +1608,7 @@
                 # This search is not foolproof
                 LogText "Performing simple ps scan (busybox)"
                 PSOPTIONS=" -o args="
-                FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${EGREPBINARY:-egrep} "( |/)${search}" | ${GREPBINARY:-grep} -v "grep")
+                FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${GREPBINARY:-grep} -E "( |/)${search}" | ${GREPBINARY:-grep} -v "grep")
             else
                 if [ -n "${users}" ]; then
                     for u in ${users}; do
@@ -2086,6 +2086,10 @@
         elif [ -n "${PKGINFOBINARY}" ]; then
             output=$(${PKGINFOBINARY} -q -e ${package} >/dev/null 2>&1)
             exit_code=$?  # 0=package installed, 1=package not installed
+        # Slackware also has RPM for some reason and that's why this test precedes the RPMBINARY test
+        elif [ "${OS_NAME}" = "Slackware Linux" -a -d "${ROOTDIR}/var/lib/pkgtools/packages" ]; then
+            output=$( ls ${ROOTDIR}/var/lib/pkgtools/packages/ 2> /dev/null | ${GREPBINARY} "^${package}-[^-]\+-[^-]\+-[^-]\+$" )
+            exit_code=$?
         elif [ -n "${RPMBINARY}" ]; then
             output=$(${RPMBINARY} --quiet -q ${package} > /dev/null 2>&1)
             exit_code=$?
@@ -2099,7 +2103,7 @@
             output=$(${XBPSBINARY} ${package} 2> /dev/null | ${GREPBINARY} "^ii")
             exit_code=$?
         elif [ -n "${APKBINARY}" ]; then
-            output=$(${APKBINARY} search ${package} 2> /dev/null | ${GREPBINARY} ${package})
+            output=$(${APKBINARY} list --installed ${package} 2> /dev/null | ${GREPBINARY} ${package})
             exit_code=$?
         else
             if [ "${package}" != "__dummy__" ]; then

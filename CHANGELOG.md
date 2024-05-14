@@ -1,10 +1,57 @@
 # Lynis Changelog
 
-## Lynis 3.0.9 (not released yet)
+## Lynis 3.1.2 (not released yet)
+
+### Added
+- Detection of Athena OS
+- Detection of Open Source Media Center (OSMC)
 
 ### Changed
-- DBS-1820 - added newer style format for Mongo authorization setting
-- Extra check to verify if nanoseconds are supported by the date command
+- Correction of software EOL database and inclusion of AIX entries
+- DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.1.1 (2024-03-17)
+
+### Added
+- Detection of ArcoLinux
+
+### Changed
+- DBS-1882 - Redis configuration file path added for FreeBSD (/usr/local/etc/redis.conf)
+- DBS-1882 - Check /snap directory location for Redis configuration file
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.1.0 (2024-03-11)
+
+### Added
+- Translation: Indonesian
+
+### Changed
+- MALW-3280 - Correction to detect com.avast.daemon
+- OS detection added for Guix System, macOS Ventura (13.x)/Sonoma (14.x), NXP LSDK, OpenEmbedded "nodistro", and The Yocto Projects distro "Poky"
+- Updated Amazon Linux EOL dates and addition of Amazon Linux 2023
+- STATUS_NOT_ACTIVE variable added to translation files
+- End-of-life dates updated
+- Fixing missing or erroneous test number comments
+- Detection of SentinelOne corrected
+- Wazuh for file integrity and tooling
+- Updated parsing output of arch-audit
+- Added support for SentinelOne detection
+- Replacing deprecated option -i for xargs
+- Path detection for PostgreSQL improved
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.9 (2023-08-03)
+
+### Changed
+- DBS-1820 - Added newer style format for Mongo authorization setting
+- FILE-6410 - Locations added for plocate
+- SSH-7408 - Only test Compression if sshd version < 7.4
+- Improved fetching timestamp
+- Minor changes such as typos
 
 ---------------------------------------------------------------------------------
 

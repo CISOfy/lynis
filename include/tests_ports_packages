@@ -162,6 +162,29 @@ EOF
         LogText "Result: emerge can NOT be found on this system"
     fi
 #
+#################################################################################
+#
+    # Test        : PKGS-7305
+    # Description : Query macOS Apps in /Applications and CoreServices
+    Register --test-no PKGS-7305 --os macOS --weight L --network NO --category security --description "Query macOS Apps in /Applications and CoreServices"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Querying Apps in /Applications"
+        Display --indent 4 --text "- Querying macOS Apps in /Applications"
+        LogText "Output:"; LogText "-----"
+        for APP in /Applications/*.app; do
+            PACKAGE_NAME=$(basename "$APP" .app)
+            PACKAGE_VERSION=$(defaults read "$APP/Contents/Info" CFBundleShortVersionString 2>/dev/null || echo "N/A")
+            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done
+        Display --indent 4 --text "- Querying Apple CoreServices"
+        for CS in /Library/Apple/System/Library/CoreServices/*.app; do
+            PACKAGE_NAME=$(basename "$CS" .app)
+            PACKAGE_VERSION=$(defaults read "$CS/Contents/Info" CFBundleShortVersionString 2>/dev/null || echo "N/A")
+            LogText "Found CoreServices: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done   
+    fi
 #
 #################################################################################
 #

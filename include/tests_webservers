@@ -48,6 +48,8 @@
     TMPFILE="${TEMP_FILE}"
     CreateTempFile || ExitFatal
     TMPFILE2="${TEMP_FILE}"
+    CreateTempFile || ExitFatal
+    TMPFILE3="${TEMP_FILE}"
 #
 #################################################################################
 #
@@ -300,8 +302,42 @@
 #
 #################################################################################
 #
-    # Test        : HTTP-6660 TODO
+    # Test        : HTTP-6660
     # Description : Search for "TraceEnable off" in configuration files
+    if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no HTTP-6660 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Apache security setting: TraceEnable"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for DIR in ${sTEST_APACHE_TARGETS}; do
+            if [ -d ${DIR} ]; then
+                find ${DIR} -name "*.conf" -print >> ${TMPFILE3}
+            fi
+        done
+
+        # Check all Apache conf-files for TraceEnable
+        if [ -f ${TMPFILE3} ]; then
+            Display --indent 2 --text '- Checking TraceEnable setting in:'
+            for APACHE_CONFFILE in $(cat ${TMPFILE3}); do
+                TRACEENABLE=$( ${GREPBINARY} -i -E '^TraceEnable' ${APACHE_CONFFILE} | ${AWKBINARY} '{print $2}' )
+                if [ ! ${TRACEENABLE} ]; then
+                    LogText "Result: no TraceEnable setting found in ${APACHE_CONFFILE}"
+                    Display --indent 4 --text "  ${APACHE_CONFFILE}" --result "${STATUS_NOT_FOUND}" --color WHITE
+                else
+                    TRACEENABLED_SETTING=$( echo ${TRACEENABLE} | tr 'A-Z' 'a-z' )
+                    if [ x${TRACEENABLED_SETTING} == x'off' ]; then
+                        LogText "Result: found TraceEnable setting set to 'off' in ${APACHE_CONFFILE}"
+                        Report "Apache setting: 'TraceEnable Off' in ${APACHE_CONFFILE}"
+                        Display --indent 4 --text "  ${APACHE_CONFFILE}" --result "${STATUS_FOUND}" --color GREEN
+                    else
+                        LogText "Result: found TraceEnable setting set to '"${TRACEENABLE}"' in ${APACHE_CONFFILE}"
+                        Report "Apache setting: 'TraceEnable "${TRACEENABLE}"' in ${APACHE_CONFFILE}"
+                        Display --indent 4 --text "  ${APACHE_CONFFILE}" --result "${STATUS_SUGGESTION}" --color YELLOW
+                        ReportSuggestion "${TEST_NO}" "Consider setting 'TraceEnable Off' in ${APACHE_CONFFILE}" "Set TraceEnable to 'On' or 'extended' for testing and diagnostic purposes only."
+                    fi
+                fi
+            done
+            rm -f ${TMPFILE3}
+        fi
+    fi
 #
 #################################################################################
 #
@@ -608,6 +644,7 @@
     # Remove temp file (double check)
     if [ -n "${TMPFILE}" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
     if [ -n "${TMPFILE2}" ]; then if [ -f ${TMPFILE2} ]; then rm -f ${TMPFILE2}; fi; fi
+    if [ -n "${TMPFILE3}" ]; then if [ -f ${TMPFILE3} ]; then rm -f ${TMPFILE3}; fi; fi
 
     WaitForKeyPress
 

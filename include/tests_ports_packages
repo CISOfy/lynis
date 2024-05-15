@@ -699,9 +699,20 @@ EOF
             # Check in /etc/cron.hourly, daily, weekly, monthly etc
             COUNT=$(find /etc/cron* -name debsums | wc -l)
             if [ ${COUNT} -gt 0 ]; then
-                LogText "Result: Cron job is configured for debsums utility."
-                Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_FOUND}" --color GREEN
-                AddHP 3 3
+                CRON_CHECK=""
+                if [ -f ${ROOTDIR}etc/default/debsums ]; then
+                    CRON_CHECK=$(${GREPBINARY} CRON_CHECK /etc/default/debsums|${AWKBINARY} -F "=" '{print $2}')
+                fi
+                if [ "${CRON_CHECK}" = "daily" ] || [ "${CRON_CHECK}" = "weekly" ] || [ "${CRON_CHECK}" = "monthly" ]; then
+                    LogText "Result: Cron job is configured for debsums utility."
+                    Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_FOUND}" --color GREEN
+                    AddHP 3 3
+                else
+                    LogText "Result: Cron job is not configured for debsums utility."
+                    Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    AddHP 1 3
+                    ReportSuggestion "${TEST_NO}" "Check debsums configuration and enable checking regularly via a cron job (CRON_CHECK in default file)."
+                fi
             else
                 LogText "Result: Cron job is not configured for debsums utility."
                 Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_NOT_FOUND}" --color YELLOW

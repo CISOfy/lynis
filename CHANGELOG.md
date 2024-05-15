@@ -18,11 +18,7 @@
 
 ### Changed
 - Correction of software EOL database and inclusion of AIX entries
-- DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
-- KRNL-5622 - Use systemctl get-default instead of following link #1296 
-- FILE-6344 - Test kernel version (major/minor)
-- PKGS-7303 - Added version numbers to brew packages.
-- Support sysctl value perf_event_paranoid -> 2|3 #1260
+- Support sysctl value perf_event_paranoid -> 2|3
 - Update of Turkish translation
 - Grammar and spell improvements
 - Improved package detection on Alpine Linux
@@ -32,12 +28,17 @@
 - Added Wazuh as a malware scanner/antivirus and rootkit detection tool
 - AUTH-9262 - Corrected message with advised PAM libary (libpam-passwdqc)
 - CONT-8104 - Checking for errors, not only warning in docker info output
+- DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
+- FILE-6344 - Test kernel version (major/minor)
+- KRNL-5622 - Use systemctl get-default instead of following link
 - LOGG-2144 - Check for wazuh-agent presence on Linux systems
 - MACF-6234 - Test if semanage binary is available
 - MALW-3200 - ESET Endpoint Antivirus added
 - MALW-3280 - McAfee Antivirus for Linux deprecated
 - MALW-3291 - Check if Microsoft Defender Antivirus is installe
 - NETW-3200 - Added regex to allow both /bin/true as /bin/false
+- PKGS-7303 - Added version numbers to brew packages
+- PKGS-7370 - Cron job check for debsums improved
 
 ---------------------------------------------------------------------------------
 

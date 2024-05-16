@@ -41,6 +41,7 @@
 - NETW-3200 - Added regex to allow both /bin/true as /bin/false
 - PKGS-7303 - Added version numbers to brew packages
 - PKGS-7370 - Cron job check for debsums improved
+- PKGS-7392 - Improved filtering of apt-check output (Ubuntu 24.04 may give an error)
 
 ---------------------------------------------------------------------------------
 

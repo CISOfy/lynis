@@ -26,11 +26,13 @@
 - Added words prosecute/report to LEGAL_BANNER_STRINGS
 - Busybox support: Replace newer tr command syntax with older ascii specific operations
 - Added Wazuh as a malware scanner/antivirus and rootkit detection tool
+- Updated PHP versions and removed PHP 5 (deprecated)
 - AUTH-9262 - Corrected message with advised PAM libary (libpam-passwdqc)
 - CONT-8104 - Checking for errors, not only warning in docker info output
 - DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
 - FILE-6344 - Test kernel version (major/minor)
 - KRNL-5622 - Use systemctl get-default instead of following link
+- KRNL-5820 - Accept ulimit with -H parameter also
 - LOGG-2144 - Check for wazuh-agent presence on Linux systems
 - MACF-6234 - Test if semanage binary is available
 - MALW-3200 - ESET Endpoint Antivirus added

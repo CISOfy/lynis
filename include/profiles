@@ -56,7 +56,7 @@
         fi
 
         # Security check for unexpected and possibly harmful escape characters (hyphen should be listed as first or last character)
-        DATA=$(grep -Ev '^$|^ |^#|^config:' "${PROFILE}" | tr -d '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-')
+        DATA=$(grep -Ev '^$|^ |^#|^config:' "${PROFILE}" | tr -d '[a-zA-Z0-9]/\[\]\(\)_\|,\.:;= \n\r-')
         if ! IsEmpty "${DATA}"; then
             DisplayWarning "Your profile '${PROFILE}' contains unexpected characters. See the log file for more information."
             LogText "Found unexpected or possibly harmful characters in profile '${PROFILE}'. See which characters matched in the output below and compare them with your profile."
@@ -68,7 +68,7 @@
         fi
 
         # Now parse the profile and filter out unwanted characters
-        DATA=$(grep -E "^config:|^[a-z-].*=" ${PROFILE} | tr -dc '[:alnum:]/\[\]\(\)_\|,\.:;= \n\r-' | sed 's/ /!space!/g')
+        DATA=$(grep -E "^config:|^[a-z-].*=" ${PROFILE} | tr -dc '[a-zA-Z0-9]/\[\]\(\)_\|,\.:;= \n\r-' | sed 's/ /!space!/g')
         for CONFIGOPTION in ${DATA}; do
             if ContainsString "^config:" "${CONFIGOPTION}"; then
                 # Old style configuration
@@ -352,7 +352,7 @@
 
                 # Which tests to skip (skip-test=ABCD-1234 or skip-test=ABCD-1234:subtest)
                 skip-test)
-                    STRING=$(echo ${VALUE} | tr '[:lower:]' '[:upper:]')
+                    STRING=$(echo ${VALUE} | awk '{print toupper($0)}')
                     SKIP_TESTS="${SKIP_TESTS} ${STRING}"
                 ;;
 
@@ -371,7 +371,7 @@
 
                 ssl-certificate-paths-to-ignore)
                     # Retrieve paths to ignore when searching for certificates. Strip special characters, replace possible spaces
-                    SSL_CERTIFICATE_PATHS_TO_IGNORE=$(echo ${VALUE} | tr -d '[:cntrl:]' | sed 's/ /__space__/g' | tr ':' ' ')
+                    SSL_CERTIFICATE_PATHS_TO_IGNORE=$(echo ${VALUE} | tr -d '[\001-\037]' | sed 's/ /__space__/g' | tr ':' ' ')
                     Debug "SSL paths to ignore: ${SSL_CERTIFICATE_PATHS_TO_IGNORE}"
                     AddSetting "ssl-certificate-paths-to-ignore" "${SSL_CERTIFICATE_PATHS_TO_IGNORE}" "Paths that should be ignored for SSL certificates"
                 ;;
@@ -479,7 +479,7 @@
 
                 # Deprecated: skip tests
                 test_skip_always)
-                    STRING=$(echo ${VALUE} | tr '[:lower:]' '[:upper:]')
+                    STRING=$(echo ${VALUE} | awk '{print toupper($0)}')
                     SKIP_TESTS="${SKIP_TESTS} ${STRING}"
                     LogText "[deprecated option] Tests to be skipped: ${VALUE}"
                     DisplayToolTip "Replace deprecated option 'test_skip_always' and replace with 'skip-test' (add to custom.prf)"

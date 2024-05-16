@@ -2086,6 +2086,10 @@
         elif [ -n "${PKGINFOBINARY}" ]; then
             output=$(${PKGINFOBINARY} -q -e ${package} >/dev/null 2>&1)
             exit_code=$?  # 0=package installed, 1=package not installed
+        # Slackware also has RPM for some reason and that's why this test precedes the RPMBINARY test
+        elif [ "${OS_NAME}" = "Slackware Linux" -a -d "${ROOTDIR}/var/lib/pkgtools/packages" ]; then
+            output=$( ls ${ROOTDIR}/var/lib/pkgtools/packages/ 2> /dev/null | ${GREPBINARY} "^${package}-[^-]\+-[^-]\+-[^-]\+$" )
+            exit_code=$?
         elif [ -n "${RPMBINARY}" ]; then
             output=$(${RPMBINARY} --quiet -q ${package} > /dev/null 2>&1)
             exit_code=$?
@@ -2099,7 +2103,7 @@
             output=$(${XBPSBINARY} ${package} 2> /dev/null | ${GREPBINARY} "^ii")
             exit_code=$?
         elif [ -n "${APKBINARY}" ]; then
-            output=$(${APKBINARY} search ${package} 2> /dev/null | ${GREPBINARY} ${package})
+            output=$(${APKBINARY} list --installed ${package} 2> /dev/null | ${GREPBINARY} ${package})
             exit_code=$?
         else
             if [ "${package}" != "__dummy__" ]; then
@@ -2758,7 +2762,6 @@
             if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Reason to skip: ${SKIPREASON}"; fi
             TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
         fi
-        unset SKIPREASON
 
         # Save timestamp for next time the Register function is called
         PREVIOUS_TEST="${TEST_NO}"
@@ -3171,7 +3174,7 @@
 
                     if [ ${PENTESTINGMODE} -eq 0 -a ${IS_PARAMETERS} -eq 0 ]; then
                         if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
-                            echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
+                            echo "Fatal error: group owner of directory $1 should be owned by root group, wheel or similar (found: ${GROUP})."
                             ExitFatal
                         fi
                     fi

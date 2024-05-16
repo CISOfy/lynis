@@ -3,11 +3,42 @@
 ## Lynis 3.1.2 (not released yet)
 
 ### Added
+- Detection of ALT Linux
 - Detection of Athena OS
+- Detection of Container-Optimized OS from Google
+- Detection of Koozali SME Server
+- Detection of Nobara Linux
 - Detection of Open Source Media Center (OSMC)
+- Detection of PostmarketOS
+- CRYP-7932 - macOS FileVault encryption test
+- FILE-6398 - Check if JBD (Journal Block Device) driver is loaded
+- FINT-4344 - Wazuh system running state
+- PKGS-7305 - Query macOS Apps in /Applications and CoreServices
+- File added: .editorconfig, which is used by editors to standardize formatting
 
 ### Changed
-- Correction of software EOL database and inclusion of AIX entries 
+- Correction of software EOL database and inclusion of AIX entries
+- Support sysctl value perf_event_paranoid -> 2|3
+- Update of Turkish translation
+- Grammar and spell improvements
+- Improved package detection on Alpine Linux
+- Slackware support to check installed packges (functionPackageIsInstalled())
+- Added words prosecute/report to LEGAL_BANNER_STRINGS
+- Busybox support: Replace newer tr command syntax with older ascii specific operations
+- Added Wazuh as a malware scanner/antivirus and rootkit detection tool
+- AUTH-9262 - Corrected message with advised PAM libary (libpam-passwdqc)
+- CONT-8104 - Checking for errors, not only warning in docker info output
+- DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
+- FILE-6344 - Test kernel version (major/minor)
+- KRNL-5622 - Use systemctl get-default instead of following link
+- LOGG-2144 - Check for wazuh-agent presence on Linux systems
+- MACF-6234 - Test if semanage binary is available
+- MALW-3200 - ESET Endpoint Antivirus added
+- MALW-3280 - McAfee Antivirus for Linux deprecated
+- MALW-3291 - Check if Microsoft Defender Antivirus is installe
+- NETW-3200 - Added regex to allow both /bin/true as /bin/false
+- PKGS-7303 - Added version numbers to brew packages
+- PKGS-7370 - Cron job check for debsums improved
 
 ---------------------------------------------------------------------------------
 

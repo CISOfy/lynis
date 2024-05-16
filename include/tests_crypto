@@ -218,6 +218,33 @@
 #
 #################################################################################
 #
+    # Test        : CRYP-7932
+    # Description : Determine if system has enabled macOS FileVault encryption
+    Register --test-no CRYP-7932 --os macOS --weight L --network NO --category crypto --description "Determine if system has enabled macOS FileVault encryption"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if command -v fdesetup &> /dev/null; then
+            case $(fdesetup status) in
+                *"FileVault is On."*)
+                    LogText "Result: FileVault is enabled."
+                    Display --indent 2 --text "- FileVault is enabled." --result "${STATUS_OK}" --color GREEN
+                    Report "encryption[]=filevault"
+                    AddHP 3 3
+                    ;;
+                *)
+                    LogText "Result: FileVault is not enabled."
+                    Display --indent 2 --text "- FileVault is not enabled." --result "${STATUS_WARNING}" --color RED
+                    AddHP 0 3
+                    ;;
+            esac
+        else
+            LogText "Result: fdesetup command not found. Unable to determine FileVault status."
+            Display --indent 2 --text "- Unable to determine FileVault status (fdesetup command not found)." --result "${STATUS_WARNING}" --color YELLOW
+            AddHP 0 3
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : CRYP-8002
     # Description : Gather available kernel entropy
     Register --test-no CRYP-8002 --os Linux --weight L --network NO --root-only NO --category security --description "Gather available kernel entropy"

@@ -41,28 +41,17 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Checking if we can find the systemd default target
         LogText "Test: Checking for systemd default.target"
-        if [ -L ${ROOTDIR}etc/systemd/system/default.target ]; then
-            LogText "Result: symlink found"
-            if HasData "${READLINKBINARY}"; then
-                FIND=$(${READLINKBINARY} ${ROOTDIR}etc/systemd/system/default.target)
-                if ! HasData "${FIND}"; then
-                    LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
-                    ReportException "${TEST_NO}:01"
-                else
-                    FIND2=$(${ECHOCMD} ${FIND} | ${GREPBINARY} -E "runlevel5|graphical")
-                    if HasData "${FIND2}"; then
-                        LogText "Result: Found match on runlevel5/graphical"
-                        Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
-                        Report "linux_default_runlevel=5"
-                    else
-                        LogText "Result: No match found on runlevel, defaulting to runlevel 3"
-                        Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
-                        Report "linux_default_runlevel=3"
-                    fi
-                fi
+        if [ $(${SYSTEMCTLBINARY} get-default) ]; then
+            FIND=$(${SYSTEMCTLBINARY} get-default)
+            FIND2=$(${ECHOCMD} ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
+            if HasData "${FIND2}"; then
+                LogText "Result: Found match on runlevel5/graphical"
+                Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
+                Report "linux_default_runlevel=5"
             else
-                LogText "Result: No readlink binary, can't determine where symlink is pointing to"
-                Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
+                LogText "Result: No match found on runlevel, defaulting to runlevel 3"
+                Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
+                Report "linux_default_runlevel=3"
             fi
         else
             LogText "Result: no systemd found, so trying inittab"
@@ -467,7 +456,7 @@
             SYSD_CORED_BASE_STORAGE_FOUND=$(${GREPBINARY} -v "^ *#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
             SYSD_CORED_BASE_STORAGE_NR_ENABLED=$(${ECHOCMD} "${SYSD_CORED_BASE_STORAGE_FOUND}" | ${SEDBINARY} 's/none//g' | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             SYSD_CORED_BASE_STORAGE_NR_DISABLED=$(${ECHOCMD} "${SYSD_CORED_BASE_STORAGE_FOUND}" | ${GREPBINARY} -o "none" | ${WCBINARY} | ${AWKBINARY} '{print $2}')
-            # check conf files in possibly existing coredump.conf.d folders 
+            # check conf files in possibly existing coredump.conf.d folders
             # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
             # while there could be multiple files overwriting each other, we are checking the number of occurrences
             SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} -L /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0 *$" | ${WCBINARY} -l)
@@ -531,7 +520,7 @@
                 Display --indent 4 --text "- configuration in ${ROOTDIR}etc/profile" --result "${STATUS_ERROR}" --color YELLOW
             fi
         fi
-        
+
         # Limits options
         for DIR in "/" "/usr/"; do
             LogText "Test: Checking presence ${DIR}etc/security/limits.conf"
@@ -692,7 +681,7 @@
                     else
                         # Match on items like /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default. Sort based on versions (-v) and then find the last item
                         # Note: ignore a rescue kernel (e.g. CentOS)
-                        FOUND_VMLINUZ=$(${LSBINARY} -v ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue\-' | ${TAILBINARY} -1)
+                        FOUND_VMLINUZ=$(${LSBINARY} -v ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue-' | ${TAILBINARY} -1)
                         LogText "Result: found ${FOUND_VMLINUZ}"
                     fi
 
@@ -840,7 +829,7 @@
             else
                 LogText "Result: Skipping this test, as extracting the seconds of package date failed"
             fi
-            
+
             if [ -n "${UNAME_OUTPUT}" ]; then
                 LogText "Result: Got an output from 'uname -v'"
                 LogText "Check: Trying to extract kernel build date from 'uname -v' output"
@@ -911,8 +900,7 @@
             else
                 LogText "Result: Did not get output from 'uname -v'. Skipping test."
             fi
-                
-            
+
         else
             LogText "Result: /var/cache/apt/archives/ does not exist"
         fi

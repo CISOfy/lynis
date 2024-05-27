@@ -20,6 +20,7 @@
 - Correction of software EOL database and inclusion of AIX entries
 - Support sysctl value perf_event_paranoid -> 2|3
 - Update of Turkish translation
+- Update of Portuguese translation
 - Grammar and spell improvements
 - Improved package detection on Alpine Linux
 - Slackware support to check installed packges (functionPackageIsInstalled())

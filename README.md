@@ -61,7 +61,7 @@ The very latest developments can be obtained via git.
 
 1. Clone or download the project files (**no compilation nor installation** is required) ;
 
-        git clone https://github.com/CISOfy/lynis
+        git clone https://github.com/CISOfy/lynis.git
 
 2. Execute:
 

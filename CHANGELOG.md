@@ -19,8 +19,7 @@
 ### Changed
 - Correction of software EOL database and inclusion of AIX entries
 - Support sysctl value perf_event_paranoid -> 2|3
-- Update of Turkish translation
-- Update of Portuguese translation
+- Update of translations: German, Portuguest, Turkish
 - Grammar and spell improvements
 - Improved package detection on Alpine Linux
 - Slackware support to check installed packges (functionPackageIsInstalled())
@@ -32,6 +31,7 @@
 - CONT-8104 - Checking for errors, not only warning in docker info output
 - DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
 - FILE-6344 - Test kernel version (major/minor)
+- INSE-8000 - Added inetd package and service name used in ubuntu 24.04
 - KRNL-5622 - Use systemctl get-default instead of following link
 - KRNL-5820 - Accept ulimit with -H parameter also
 - LOGG-2144 - Check for wazuh-agent presence on Linux systems
@@ -43,6 +43,7 @@
 - PKGS-7303 - Added version numbers to brew packages
 - PKGS-7370 - Cron job check for debsums improved
 - PKGS-7392 - Improved filtering of apt-check output (Ubuntu 24.04 may give an error)
+- PKGS-7410 - Added kernel name for Hardkernel odroid XU4
 
 ---------------------------------------------------------------------------------
 

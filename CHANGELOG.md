@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 3.1.2 (not released yet)
+## Lynis 3.1.2 (2024-09-26)
 
 ### Added
 - Detection of ALT Linux

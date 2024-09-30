@@ -5,6 +5,7 @@
 ### Changed
 - FILE-6398 - Only perform test if we know if Linux kernel is monolithic/modular
 - KRNL-5622 - Test if systemctl binary is set
+- OS detection for Fedora Linux Asahi Remix
 
 ---------------------------------------------------------------------------------
 

@@ -39,50 +39,55 @@
     # Description : Check default run level on Linux machines
     Register --test-no KRNL-5622 --os Linux --weight L --network NO --category security --description "Determine Linux default run level"
     if [ ${SKIPTEST} -eq 0 ]; then
-        # Checking if we can find the systemd default target
-        LogText "Test: Checking for systemd default.target"
-        if [ $(${SYSTEMCTLBINARY} get-default) ]; then
-            FIND=$(${SYSTEMCTLBINARY} get-default)
-            FIND2=$(${ECHOCMD} ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
-            if HasData "${FIND2}"; then
-                LogText "Result: Found match on runlevel5/graphical"
-                Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
-                Report "linux_default_runlevel=5"
-            else
-                LogText "Result: No match found on runlevel, defaulting to runlevel 3"
-                Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
-                Report "linux_default_runlevel=3"
-            fi
-        else
-            LogText "Result: no systemd found, so trying inittab"
-            LogText "Test: Checking ${ROOTDIR}etc/inittab"
-            if [ -f ${ROOTDIR}etc/inittab ]; then
-                LogText "Result: file ${ROOTDIR}etc/inittab found"
-                LogText "Test: Checking default Linux run level"
-                FIND=$(${AWKBINARY} -F: '/^id/ { print $2; }' ${ROOTDIR}etc/inittab | head -n 1)
-                if IsEmpty "${FIND}"; then
-                    Display --indent 2 --text "- Checking default runlevel" --result "${STATUS_UNKNOWN}" --color YELLOW
-                    LogText "Result: Can't determine default run level from ${ROOTDIR}etc/inittab"
+        # Only run if systemctl binary is available
+        if [ -n "${SYSTEMCTLBINARY}" ]; then
+            # Checking if we can find the systemd default target
+            LogText "Test: Checking for systemd default.target"
+            if [ $(${SYSTEMCTLBINARY} get-default) ]; then
+                FIND=$(${SYSTEMCTLBINARY} get-default)
+                FIND2=$(${ECHOCMD} ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
+                if HasData "${FIND2}"; then
+                    LogText "Result: Found match on runlevel5/graphical"
+                    Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
+                    Report "linux_default_runlevel=5"
                 else
-                    Display --indent 2 --text "- Checking default run level" --result "${FIND}" --color GREEN
-                    LogText "Found default run level '${FIND}'"
-                    Report "linux_default_runlevel=${FIND}"
+                    LogText "Result: No match found on runlevel, defaulting to runlevel 3"
+                    Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
+                    Report "linux_default_runlevel=3"
                 fi
             else
-                LogText "Result: file ${ROOTDIR}etc/inittab not found"
-                if [ "${LINUX_VERSION}" = "Debian" ] || [ "${LINUX_VERSION}" = "Ubuntu" ] || [ "${LINUX_VERSION_LIKE}" = "Debian" ] || [ "${LINUX_VERSION_LIKE}" = "Ubuntu" ]; then
-                    LogText "Test: Checking run level with who -r, for Debian based systems"
-                    FIND=$(who -r | ${AWKBINARY} '{ if ($1=="run-level") { print $2 } }')
-                    if HasData "${FIND}"; then
-                        LogText "Result: Found default run level '${FIND}'"
-                        Report "linux_default_runlevel=${FIND}"
-                        Display --indent 2 --text "- Checking default run level" --result "RUNLEVEL ${FIND}" --color GREEN
+                LogText "Result: no systemd found, so trying inittab"
+                LogText "Test: Checking ${ROOTDIR}etc/inittab"
+                if [ -f ${ROOTDIR}etc/inittab ]; then
+                    LogText "Result: file ${ROOTDIR}etc/inittab found"
+                    LogText "Test: Checking default Linux run level"
+                    FIND=$(${AWKBINARY} -F: '/^id/ { print $2; }' ${ROOTDIR}etc/inittab | head -n 1)
+                    if IsEmpty "${FIND}"; then
+                        Display --indent 2 --text "- Checking default runlevel" --result "${STATUS_UNKNOWN}" --color YELLOW
+                        LogText "Result: Can't determine default run level from ${ROOTDIR}etc/inittab"
                     else
-                        LogText "Result: Can't determine default run level from who -r"
-                        Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
+                        Display --indent 2 --text "- Checking default run level" --result "${FIND}" --color GREEN
+                        LogText "Found default run level '${FIND}'"
+                        Report "linux_default_runlevel=${FIND}"
+                    fi
+                else
+                    LogText "Result: file ${ROOTDIR}etc/inittab not found"
+                    if [ "${LINUX_VERSION}" = "Debian" ] || [ "${LINUX_VERSION}" = "Ubuntu" ] || [ "${LINUX_VERSION_LIKE}" = "Debian" ] || [ "${LINUX_VERSION_LIKE}" = "Ubuntu" ]; then
+                        LogText "Test: Checking run level with who -r, for Debian based systems"
+                        FIND=$(who -r | ${AWKBINARY} '{ if ($1=="run-level") { print $2 } }')
+                        if HasData "${FIND}"; then
+                            LogText "Result: Found default run level '${FIND}'"
+                            Report "linux_default_runlevel=${FIND}"
+                            Display --indent 2 --text "- Checking default run level" --result "RUNLEVEL ${FIND}" --color GREEN
+                        else
+                            LogText "Result: Can't determine default run level from who -r"
+                            Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
+                        fi
                     fi
                 fi
             fi
+        else
+            LogText "Result: test skipped, as systemctl binary could not be found"
         fi
     fi
 #

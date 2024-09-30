@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.1.3 (not released yet)
+
+### Changed
+- FILE-6398 - Only perform test if we know if Linux kernel is monolithic/modular
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.1.2 (2024-09-26)
 
 ### Added

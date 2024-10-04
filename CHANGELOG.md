@@ -3,8 +3,7 @@
 ## Lynis 3.1.3 (not released yet)
 
 ### Added
-- Detection of Buildroot
-- Detection of Fedora Linux Asahi Remix
+- Detection of Buildroot, Fedora Linux Asahi Remix, Peppermint OS
 
 ### Changed
 - FILE-6398 - Only perform test if we know if Linux kernel is monolithic/modular

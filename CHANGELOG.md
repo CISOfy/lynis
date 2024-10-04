@@ -2,10 +2,14 @@
 
 ## Lynis 3.1.3 (not released yet)
 
+### Added
+- Detection of Buildroot, Fedora Linux Asahi Remix, Peppermint OS
+
 ### Changed
 - FILE-6398 - Only perform test if we know if Linux kernel is monolithic/modular
+- FIRE-4508 - Fix typo in conditional expression
 - KRNL-5622 - Test if systemctl binary is set
-- OS detection for Fedora Linux Asahi Remix
+- Update of translations: Russian
 
 ---------------------------------------------------------------------------------
 
@@ -28,7 +32,7 @@
 ### Changed
 - Correction of software EOL database and inclusion of AIX entries
 - Support sysctl value perf_event_paranoid -> 2|3
-- Update of translations: German, Portuguest, Turkish
+- Update of translations: German, Portuguese, Turkish
 - Grammar and spell improvements
 - Improved package detection on Alpine Linux
 - Slackware support to check installed packges (functionPackageIsInstalled())

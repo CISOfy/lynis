@@ -110,42 +110,54 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 4 --text "- Checking iptables policies of chains" --result "${STATUS_FOUND}" --color GREEN
         TABLES="filter nat mangle raw security"
-        for TABLE in ${TABLES}; do
-            LogText "Test: gathering information from table ${TABLE}"
-            FIND="$FIND"$(${IPTABLESBINARY} -t ${TABLE} --numeric --list | ${GREPBINARY} -E -o -w  '[A-Z]+' | tr -d '\0' | ${AWKBINARY} -v t=${TABLE} 'NR%2 {printf "%s %s ",t, $0 ; next;}1')
-        done
-
-        echo "${FIND}" | sort | uniq | while read -r line; do
-            table=$(echo ${line} | ${AWKBINARY} '{ print $1 }')
-            chainname=$(echo ${line} | ${AWKBINARY} '{ print $2 }')
-            policy=$(echo ${line} | ${AWKBINARY} '{ print $3 }')
-            LogText "Result: iptables  ${table}  -- ${chainname} policy is ${policy}."
-            LogText "Result: ${policy}"
-
+        for table in ${TABLES}; do
+            chains="PREROUTING INPUT FORWARD OUTPUT POSTROUTING"
             if [ "${table}" = "filter" ]; then
-                if [ "${chainname}" = "INPUT" ]; then
-                    case ${policy} in
-                        "ACCEPT")
-                             LogText "Result: Found ACCEPT for ${chainname} (table: ${table})"
-                             Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, policy ${policy})" --result "ACCEPT" --color YELLOW
-                             #ReportSuggestion "${TEST_NO}" "Consider settings default chain policy to DROP (iptables chain ${chainname}, table: ${table})"
-                             AddHP 1 3
-                             ;;
-                         "DROP")
-                             LogText "Result: Found DROP for ${chainname} (table: ${table})"
-                             Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, policy ${policy})" --result "DROP" --color GREEN
-                             AddHP 3 3
-                             ;;
-                         *)
-                             Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, policy ${policy})" --result "other" --color YELLOW
-                             LogText "Result: Unknown policy: ${policy}"
-                             #ReportSuggestion "${TEST_NO}" "Check iptables ${chainname} (table: ${table}) chain policy"
-                             ;;
-                    esac
-                fi
+                chains="INPUT FORWARD OUTPUT"
             fi
+            for chain in ${chains}; do
+                ${IPTABLESBINARY} -t "${table}" -S "${chain}" | while read -r line; do
+                    readarray -d" " -t array <<< ${line}
+                    c=0
+                    for i in ${array[@]}; do
+                        if [ "${i}" = "-j" ]; then
+                            let index=c+1
+                            target="${array[${index}]}"
+                        fi
+                        if [ "${i}" = "-d" ]; then
+                            let index=c+1
+                            destination="${array[${index}]}"
+                        fi
+                        if [ "${i}" = "-s" ]; then
+                            let index=c+1
+                            source="${array[${index}]}"
+                        fi
+                        let c++
+                    done
+
+                    # logics
+                    if ( [ "${table}" = "filter" ] || [ "${table}" = "security" ] ) && [ "${chain}" = "INPUT" ] && [ "${target}" = "ACCEPT" ] ; then
+                        LogText "Result: Found ACCEPT for ${chainname} (table: ${table})"
+                        Display --indent 6 --text "- Checking chain ${chain} (table: ${table}, chain ${chain})" --result "${target}" --color YELLOW
+                        AddHP 1 3
+                    fi
+                    if ( [ "${table}" = "filter" ] || [ "${table}" = "security" ] ) && [ "${chain}" = "INPUT" ] && [ "${target}" = "DROP" ] ; then
+                        LogText "Result: Found DROP for ${chainname} (table: ${table})"
+                        Display --indent 6 --text "- Checking chain ${chain} (table: ${table}, chain ${chain})" --result "${target}" --color GREEN
+                        AddHP 3 3
+                    fi
+                    if ( [ "${table}" = "filter" ] || [ "${table}" = "security" ] ) && ( [ "${chain}" = "INPUT" ] || [ "${chain}" = "FORWARD" ] || [ "${chain}" = "OUTPUT" ] ) && [ "${target}" = "NFQUEUE" ] ; then
+                        LogText "Result: Found DROP for ${chainname} (table: ${table})"
+                        Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, chain ${chain})" --result "DROP" --color RED
+                        ReportSuggestion "${TEST_NO}" "Consider avoid ${target} target if possible (iptables chain ${chain}, table: ${table})"
+                        AddHP 0 3
+                    fi
+                done
+            done
         done
+
     fi
+
 #
 #################################################################################
 #

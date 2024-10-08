@@ -116,48 +116,47 @@
                 chains="INPUT FORWARD OUTPUT"
             fi
             for chain in ${chains}; do
-                ${IPTABLESBINARY} -t "${table}" -S "${chain}" | while read -r line; do
-                    readarray -d" " -t array <<< ${line}
-                    c=0
-                    for i in ${array[@]}; do
-                        if [ "${i}" = "-j" ]; then
-                            let index=c+1
-                            target="${array[${index}]}"
+                iptables -t "${table}" -S "${chain}" 2>/dev/zero | while read -r line; do
+                    set -- ${line}
+                    while [ $# -gt 0 ]; do
+                        if [ "${1}" = "-P" ]; then
+                            target="${3}"
+                            shift 3
+                        elif [ "${1}" = "-j" ]; then
+                            target="${2}"
+                            shift
+                        elif [ "${1}" = "-d" ]; then
+                            dst="${2}"
+                            shift
+                        elif [ "${1}" = "-s" ]; then
+                            src="${2}"
+                            shift
+                        else
+                            shift
                         fi
-                        if [ "${i}" = "-d" ]; then
-                            let index=c+1
-                            destination="${array[${index}]}"
-                        fi
-                        if [ "${i}" = "-s" ]; then
-                            let index=c+1
-                            source="${array[${index}]}"
-                        fi
-                        let c++
                     done
 
                     # logics
                     if ( [ "${table}" = "filter" ] || [ "${table}" = "security" ] ) && [ "${chain}" = "INPUT" ] && [ "${target}" = "ACCEPT" ] ; then
-                        LogText "Result: Found ACCEPT for ${chainname} (table: ${table})"
+                        LogText "Result: Found ACCEPT for ${chain} (table: ${table})"
                         Display --indent 6 --text "- Checking chain ${chain} (table: ${table}, chain ${chain})" --result "${target}" --color YELLOW
                         AddHP 1 3
                     fi
                     if ( [ "${table}" = "filter" ] || [ "${table}" = "security" ] ) && [ "${chain}" = "INPUT" ] && [ "${target}" = "DROP" ] ; then
-                        LogText "Result: Found DROP for ${chainname} (table: ${table})"
+                        LogText "Result: Found DROP for ${chain} (table: ${table})"
                         Display --indent 6 --text "- Checking chain ${chain} (table: ${table}, chain ${chain})" --result "${target}" --color GREEN
                         AddHP 3 3
                     fi
                     if ( [ "${table}" = "filter" ] || [ "${table}" = "security" ] ) && ( [ "${chain}" = "INPUT" ] || [ "${chain}" = "FORWARD" ] || [ "${chain}" = "OUTPUT" ] ) && [ "${target}" = "NFQUEUE" ] ; then
-                        LogText "Result: Found DROP for ${chainname} (table: ${table})"
-                        Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, chain ${chain})" --result "DROP" --color RED
+                        LogText "Result: Found DROP for ${chain} (table: ${table})"
+                        Display --indent 6 --text "- Checking chain ${chain} (table: ${table}, chain ${chain})" --result "NFQUEUE" --color RED
                         ReportSuggestion "${TEST_NO}" "Consider avoid ${target} target if possible (iptables chain ${chain}, table: ${table})"
                         AddHP 0 3
                     fi
                 done
-            done
-        done
-
+             done
+         done
     fi
-
 #
 #################################################################################
 #

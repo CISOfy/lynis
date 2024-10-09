@@ -112,7 +112,7 @@
         tables="filter nat mangle raw security"
         for t in ${tables}
         do
-            ${iptables_binary} -t "${t}" -S -v -w 1 2>/dev/zero | while read -r line
+            ${IPTABLESBINARY} -t "${t}" -S -v -w 1 2>/dev/zero | while read -r line
             do
                 set -- ${line}
                 while [ $# -gt 0 ]
@@ -199,16 +199,25 @@
                 # logics
                 if [ "${t}" = "filter" ] || [ "${t}" = "security" ]
                 then
-                    if [ "${c}" = "INPUT" ] && [ "${j}" = "ACCEPT" ]
+                    if [ "${c}" = "INPUT" ]
                     then
-                        LogText "Result: Found ${j} for ${c} (table: ${t})"
-                        Display --indent 6 --text "- Checking chain ${c} (table: ${t}, chain ${c})" --result "${j}" --color YELLOW
-                        AddHP 1 3
-                    elif [ "${c}" = "INPUT" ] && [ "${j}" = "DROP" ]
+                        if [ "${j}" = "ACCEPT" ]
+                        then
+                            LogText "Result: Found ${j} for ${c} (table: ${t})"
+                            Display --indent 6 --text "- Checking chain ${c} (table: ${t}, chain ${c})" --result "${j}" --color YELLOW
+                            AddHP 1 3
+                        elif [ "${j}" = "DROP" ]
+                        then
+                            LogText "Result: Found ${j} for ${c} (table: ${t})"
+                            Display --indent 6 --text "- Checking chain ${c} (table: ${t}, chain ${c})" --result "${j}" --color GREEN
+                            AddHP 3 3
+                        fi
+                    elif [ "${c}" = "FORWARD" ]
                     then
-                        LogText "Result: Found ${j} for ${c} (table: ${t})"
-                        Display --indent 6 --text "- Checking chain ${c} (table: ${t}, chain ${c})" --result "${j}" --color GREEN
-                        AddHP 3 3
+                        :
+                    elif [ "${c}" = "OUTPUT" ]
+                    then
+                        :
                     elif [ "${c}" = "INPUT" ] || [ "${c}" = "FORWARD" ] || [ "${c}" = "OUTPUT" ]
                     then
                         if [ "${j}" = "NFQUEUE" ]

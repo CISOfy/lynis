@@ -112,39 +112,14 @@
         tables="filter nat mangle raw security"
         for t in ${tables}
         do
-            ${IPTABLESBINARY} -t "${t}" -S -v -w 1 2>/dev/zero |
+            ${IPTABLESBINARY} -t "${t}" -S -w 1 2>/dev/zero |
             {
                 while IFS="\n" read -r line
                 do
                     set -- ${line}
                     while [ $# -gt 0 ]
                     do
-                        if [ "${1}" = "!" ]
-                        then
-                            not="${1}"
-                            if [ "${2}" = "-d" ]
-                            then
-                                d="${not} ${3}"
-                                shift 3
-                            elif [ "${2}" = "-s" ]
-                            then
-                                s="${not} ${3}"
-                                shift 3
-                            elif [ "${2}" = "-i" ]
-                            then
-                                p="${not} ${3}"
-                                shift 3
-                            elif [ "${2}" = "-o" ]
-                            then
-                                o="${not} ${3}"
-                                shift 3
-                            elif [ "${2}" = "-f" ]
-                            then
-                                p="${not} ${3}"
-                                shift 3
-                            fi
-                            shift
-                        elif [ "${1}" = "-P" ]
+                        if [ "${1}" = "-P" ]
                         then
                             c="${2}"
                             j="${3}"
@@ -157,43 +132,6 @@
                         then
                             j="${2}"
                             shift
-                        elif [ "${1}" = "-p" ]
-                        then
-                            p="${2}"
-                            shift
-                        elif [ "${1}" = "-d" ]
-                        then
-                            d="${2}"
-                            shift
-                        elif [ "${1}" = "-s" ]
-                        then
-                            s="${2}"
-                            shift
-                        elif [ "${1}" = "-m" ]
-                        then
-                            m="${2}"
-                            shift
-                        elif [ "${1}" = "-g" ]
-                        then
-                            g="${2}"
-                            shift
-                        elif [ "${1}" = "-i" ]
-                        then
-                            i="${2}"
-                            shift
-                        elif [ "${1}" = "-o" ]
-                        then
-                            o="${2}"
-                            shift
-                        elif [ "${1}" = "-f" ]
-                        then
-                            f="${2}"
-                            shift
-                        elif [ "${1}" = "-c" ]
-                        then
-                            pc="${2}"
-                            bc="${3}"
-                            shift 3
                         else
                             shift
                         fi
@@ -212,12 +150,6 @@
                                 errqueue="${errqueue}\n${t} ${c} ${j} GREEN"
                                 AddHP 3 3
                             fi
-                        elif [ "${c}" = "FORWARD" ]
-                        then
-                            :
-                        elif [ "${c}" = "OUTPUT" ]
-                        then
-                            :
                         fi
                         if [ "${c}" = "INPUT" ] || [ "${c}" = "FORWARD" ] || [ "${c}" = "OUTPUT" ]
                         then
@@ -230,12 +162,14 @@
                     fi
                 done
                 # resume
-                echo ${errqueue} | ${SORTBINARY} -u | while IFS="\n" read -r eq
+                if [ ! "${SORTBINARY}" = "" ]; then eq="$( echo "${errqueue}" | ${SORTBINARY} -u )"; else eq="${errqueue}"; fi
+                echo "${eq}" | while IFS="\n" read -r eql
                 do
-                    set -- ${eq}
+                    set -- ${eql}
                     while [ $# -gt 0 ]
                     do
-                        Display --indent 6 --text "Checking chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
+                        LogText "Result: Found ${3} for ${2} (table: ${1})"
+                        Display --indent 6 --text "- Checking chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
                         if [ "${3}" = "NFQUEUE" ]
                         then
                             ReportSuggestion "${TEST_NO}" "Consider avoid ${3} target if possible (iptables chain ${2}, table: ${1})"

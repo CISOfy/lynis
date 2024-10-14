@@ -114,9 +114,9 @@
         do
             ${IPTABLESBINARY} -t "${IPTABLES_TABLE}" --list-rules --wait 1 2>/dev/zero |
             {
-                while IFS="$(printf '\n')" read -r IPTABLES_OUTPUT_LINE
+                while IFS="$(printf '\n')" read -r IPTABLES_LINES
                 do
-                    set -- ${IPTABLES_OUTPUT_LINE}
+                    set -- ${IPTABLES_LINES}
                     while [ $# -gt 0 ]
                     do
                         if [ "${1}" = "-P" ]
@@ -137,26 +137,29 @@
                         fi
                     done
                     # logics
-                    if [ "${IPTABLES_TABLE}" = "filter" ] || [ "${IPTABLES_TABLE}" = "security" ]
+                    if [ ! "${IPTABLES_TABLE}" = "" ] && [ ! "${IPTABLES_CHAIN}" = "" ] && [ ! "${IPTABLES_TARGET}" = "" ]
                     then
-                        if [ "${IPTABLES_CHAIN}" = "INPUT" ]
+                        if [ "${IPTABLES_TABLE}" = "filter" ] || [ "${IPTABLES_TABLE}" = "security" ]
                         then
-                            if [ "${IPTABLES_TARGET}" = "ACCEPT" ]
+                            if [ "${IPTABLES_CHAIN}" = "INPUT" ]
                             then
-                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} YELLOW"
-                                AddHP 1 3
-                            elif [ "${IPTABLES_TARGET}" = "DROP" ]
-                            then
-                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} GREEN"
-                                AddHP 3 3
+                                if [ "${IPTABLES_TARGET}" = "ACCEPT" ]
+                                then
+                                    IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} YELLOW"
+                                    AddHP 1 3
+                                elif [ "${IPTABLES_TARGET}" = "DROP" ]
+                                then
+                                    IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} GREEN"
+                                    AddHP 3 3
+                                fi
                             fi
-                        fi
-                        if [ "${IPTABLES_CHAIN}" = "INPUT" ] || [ "${IPTABLES_CHAIN}" = "FORWARD" ] || [ "${IPTABLES_CHAIN}" = "OUTPUT" ]
-                        then
-                            if [ "${IPTABLES_TARGET}" = "NFQUEUE" ]
+                            if [ "${IPTABLES_CHAIN}" = "INPUT" ] || [ "${IPTABLES_CHAIN}" = "FORWARD" ] || [ "${IPTABLES_CHAIN}" = "OUTPUT" ]
                             then
-                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} RED"
-                                AddHP 0 3
+                                if [ "${IPTABLES_TARGET}" = "NFQUEUE" ]
+                                then
+                                    IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} RED"
+                                    AddHP 0 3
+                                fi
                             fi
                         fi
                     fi
@@ -185,8 +188,11 @@
                     fi
                 done
             }
+            unset IPTABLES_TABLE
         done
+        unset IPTABLES_TABLES
     fi
+    unset PREQS_MET
 #
 #################################################################################
 #

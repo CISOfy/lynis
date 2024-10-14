@@ -109,65 +109,70 @@
     Register --test-no FIRE-4508 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Check used policies of iptables chains"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 4 --text "- Checking iptables policies of chains" --result "${STATUS_FOUND}" --color GREEN
-        tables="filter nat mangle raw security"
-        for t in ${tables}
+        IPTABLES_TABLES="filter nat mangle raw security"
+        for IPTABLES_TABLE in ${IPTABLES_TABLES}
         do
-            ${IPTABLESBINARY} -t "${t}" -S -w 1 2>/dev/zero |
+            ${IPTABLESBINARY} -t "${IPTABLES_TABLE}" --list-rules --wait 1 2>/dev/zero |
             {
-                while IFS="\n" read -r line
+                while IFS="$(printf '\n')" read -r IPTABLES_LINES
                 do
-                    set -- ${line}
+                    set -- ${IPTABLES_LINES}
                     while [ $# -gt 0 ]
                     do
                         if [ "${1}" = "-P" ]
                         then
-                            c="${2}"
-                            j="${3}"
+                            IPTABLES_CHAIN="${2}"
+                            IPTABLES_TARGET="${3}"
                             shift 3
                         elif [ "${1}" = "-A" ] || [ "${1}" = "-N" ]
                         then
-                            c="${2}"
+                            IPTABLES_CHAIN="${2}"
                             shift 2
                         elif [ "${1}" = "-j" ]
                         then
-                            j="${2}"
+                            IPTABLES_TARGET="${2}"
                             shift
                         else
                             shift
                         fi
                     done
                     # logics
-                    if [ "${t}" = "filter" ] || [ "${t}" = "security" ]
+                    if [ "${IPTABLES_TABLE}" = "filter" ] || [ "${IPTABLES_TABLE}" = "security" ]
                     then
-                        if [ "${c}" = "INPUT" ]
+                        if [ "${IPTABLES_CHAIN}" = "INPUT" ]
                         then
-                            if [ "${j}" = "ACCEPT" ]
+                            if [ "${IPTABLES_TARGET}" = "ACCEPT" ]
                             then
-                                errqueue="${errqueue}\n${t} ${c} ${j} YELLOW"
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} YELLOW"
                                 AddHP 1 3
-                            elif [ "${j}" = "DROP" ]
+                            elif [ "${IPTABLES_TARGET}" = "DROP" ]
                             then
-                                errqueue="${errqueue}\n${t} ${c} ${j} GREEN"
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} GREEN"
                                 AddHP 3 3
                             fi
                         fi
-                        if [ "${c}" = "INPUT" ] || [ "${c}" = "FORWARD" ] || [ "${c}" = "OUTPUT" ]
+                        if [ "${IPTABLES_CHAIN}" = "INPUT" ] || [ "${IPTABLES_CHAIN}" = "FORWARD" ] || [ "${IPTABLES_CHAIN}" = "OUTPUT" ]
                         then
-                            if [ "${j}" = "NFQUEUE" ]
+                            if [ "${IPTABLES_TARGET}" = "NFQUEUE" ]
                             then
-                                errqueue="${errqueue}\n${t} ${c} ${j} RED"
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} RED"
                                 AddHP 0 3
                             fi
                         fi
                     fi
                 done
                 # resume
-                if [ ! "${SORTBINARY}" = "" ]; then eq="$( echo "${errqueue}" | ${SORTBINARY} -u )"; else eq="${errqueue}"; fi
-                echo "${eq}" | while IFS="\n" read -r eql
+                if [ ! "${SORTBINARY}" = "" ]
+                then
+                    IPTABLES_OUTPUT="$( echo "${IPTABLES_OUTPUT_QUEUE}" | ${SORTBINARY} -u )"
+                else
+                    IPTABLES_OUTPUT="${IPTABLES_OUTPUT_QUEUE}"
+                fi
+                echo "${IPTABLES_OUTPUT}" | while IFS="$(printf '\n')" read -r IPTABLES_OUTPUT_LINE
                 do
-                    if [ ! "$eql" = "" ]
+                    if [ ! "$IPTABLES_OUTPUT_LINE" = "" ]
                     then
-                        set -- ${eql}
+                        set -- ${IPTABLES_OUTPUT_LINE}
                         while [ $# -gt 0 ]
                         do
                             Display --indent 6 --text "- Checking chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
@@ -180,8 +185,11 @@
                     fi
                 done
             }
+            unset IPTABLES_TABLE
         done
+        unset IPTABLES_TABLES
     fi
+    unset PREQS_MET
 #
 #################################################################################
 #

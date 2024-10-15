@@ -8,7 +8,7 @@
 
 ### Changed
 - BOOT-5264 - Changed output of systemd-analyze test and added link
-- FILE-6398 - Only perform test if we know if Linux kernel is monolithic/modular
+- FILE-6398 - Test temporarily disabled as on modern kernels JDB support is built-in
 - FIRE-4508 - Several changes to expand the test, make it more generic, resolve minor issues
 - KRNL-5622 - Test if systemctl binary is set
 - Update of translations: Italian, Russian

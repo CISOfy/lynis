@@ -118,19 +118,15 @@
                 while IFS="$(printf '\n')" read -r IPTABLES_LINES
                 do
                     set -- ${IPTABLES_LINES}
-                    while [ $# -gt 0 ]
-                    do
-                        if [ "${1}" = "-P" ]
-                        then
+                    while [ $# -gt 0 ]; do
+                        if [ "${1}" = "-P" ]; then
                             IPTABLES_CHAIN="${2}"
                             IPTABLES_TARGET="${3}"
                             shift 3
-                        elif [ "${1}" = "-A" ] || [ "${1}" = "-N" ]
-                        then
+                        elif [ "${1}" = "-A" ] || [ "${1}" = "-N" ]; then
                             IPTABLES_CHAIN="${2}"
                             shift 2
-                        elif [ "${1}" = "-j" ]
-                        then
+                        elif [ "${1}" = "-j" ]; then
                             IPTABLES_TARGET="${2}"
                             shift
                         else
@@ -138,46 +134,38 @@
                         fi
                     done
                     # logics
-                    if [ "${IPTABLES_TABLE}" = "filter" ] || [ "${IPTABLES_TABLE}" = "security" ]
-                    then
-                        if [ "${IPTABLES_CHAIN}" = "INPUT" ]
-                        then
-                            if [ "${IPTABLES_TARGET}" = "ACCEPT" ]
-                            then
+                    if [ "${IPTABLES_TABLE}" = "filter" ] || [ "${IPTABLES_TABLE}" = "security" ]; then
+                        if [ "${IPTABLES_CHAIN}" = "INPUT" ]; then
+                            if [ "${IPTABLES_TARGET}" = "ACCEPT" ]; then
                                 IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE} ${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} YELLOW"
                                 AddHP 1 3
-                            elif [ "${IPTABLES_TARGET}" = "DROP" ]
-                            then
+                            elif [ "${IPTABLES_TARGET}" = "DROP" ]; then
                                 IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE} ${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} GREEN"
                                 AddHP 3 3
                             fi
                         fi
-                        if [ "${IPTABLES_CHAIN}" = "INPUT" ] || [ "${IPTABLES_CHAIN}" = "FORWARD" ] || [ "${IPTABLES_CHAIN}" = "OUTPUT" ]
-                        then
-                            if [ "${IPTABLES_TARGET}" = "NFQUEUE" ]
-                            then
+                        if [ "${IPTABLES_CHAIN}" = "INPUT" ] || [ "${IPTABLES_CHAIN}" = "FORWARD" ] || [ "${IPTABLES_CHAIN}" = "OUTPUT" ]; then
+                            if [ "${IPTABLES_TARGET}" = "NFQUEUE" ]; then
                                 IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE} ${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} RED"
                                 AddHP 0 3
                             fi
                         fi
                     fi
                 done
-                # resume
-                if [ ! "${SORTBINARY}" = "" ]
-                then
-                    IPTABLES_OUTPUT="$( echo "${IPTABLES_OUTPUT_QUEUE}" | ${SORTBINARY} -u )"
+                # Sort output if sort tool is available
+                if [ -n "${SORTBINARY}" ]; then
+                    LogText "Info: sorting output"
+                    IPTABLES_OUTPUT="$(echo "${IPTABLES_OUTPUT_QUEUE}" | ${SORTBINARY} -u )"
                 else
                     IPTABLES_OUTPUT="${IPTABLES_OUTPUT_QUEUE}"
                 fi
                 echo "${IPTABLES_OUTPUT}" | while IFS="$(printf '\n')" read -r IPTABLES_OUTPUT_LINE
                 do
-                    if [ ! "$IPTABLES_OUTPUT_LINE" = "" ]
-                    then
+                    if [ -n "$IPTABLES_OUTPUT_LINE" ]; then
                         set -- ${IPTABLES_OUTPUT_LINE}
-                        while [ $# -gt 0 ]
-                        do
-                            LogText "Result: Found ${3} for ${2} (table: ${1})"
-                            Display --indent 6 --text "- Checking chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
+                        while [ $# -gt 0 ]; do
+                            LogText "Result: Found target '${3}' for chain '${2}' (table: ${1})"
+                            Display --indent 6 --text "- Chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
                             if [ "${3}" = "NFQUEUE" ]
                             then
                                 ReportSuggestion "${TEST_NO}" "Consider avoid ${3} target if possible (iptables chain ${2}, table: ${1})"

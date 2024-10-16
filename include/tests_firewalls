@@ -137,43 +137,43 @@
                     if [ "${IPTABLES_TABLE}" = "filter" ] || [ "${IPTABLES_TABLE}" = "security" ]; then
                         if [ "${IPTABLES_CHAIN}" = "INPUT" ]; then
                             if [ "${IPTABLES_TARGET}" = "ACCEPT" ]; then
-                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE} ${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} YELLOW"
-                                AddHP 1 3
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} YELLOW 1 3"
                             elif [ "${IPTABLES_TARGET}" = "DROP" ]; then
-                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE} ${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} GREEN"
-                                AddHP 3 3
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} GREEN 3 3"
                             fi
                         fi
                         if [ "${IPTABLES_CHAIN}" = "INPUT" ] || [ "${IPTABLES_CHAIN}" = "FORWARD" ] || [ "${IPTABLES_CHAIN}" = "OUTPUT" ]; then
                             if [ "${IPTABLES_TARGET}" = "NFQUEUE" ]; then
-                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE} ${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} RED"
-                                AddHP 0 3
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} RED 0 3"
                             fi
                         fi
                     fi
                 done
-                # Sort output if sort tool is available
-                if [ -n "${SORTBINARY}" ]; then
-                    LogText "Info: sorting output"
-                    IPTABLES_OUTPUT="$(echo "${IPTABLES_OUTPUT_QUEUE}" | ${SORTBINARY} -u )"
-                else
-                    IPTABLES_OUTPUT="${IPTABLES_OUTPUT_QUEUE}"
-                fi
-                echo "${IPTABLES_OUTPUT}" | while IFS="$(printf '\n')" read -r IPTABLES_OUTPUT_LINE
-                do
-                    if [ -n "$IPTABLES_OUTPUT_LINE" ]; then
-                        set -- ${IPTABLES_OUTPUT_LINE}
-                        while [ $# -gt 0 ]; do
-                            LogText "Result: Found target '${3}' for chain '${2}' (table: ${1})"
-                            Display --indent 6 --text "- Chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
-                            if [ "${3}" = "NFQUEUE" ]
-                            then
-                                ReportSuggestion "${TEST_NO}" "Consider avoid ${3} target if possible (iptables chain ${2}, table: ${1})"
-                            fi
-                            shift 4
-                        done
+                if [ -n "${IPTABLES_OUTPUT_QUEUE}" ]; then
+                    # Sort output if sort tool is available
+                    if [ -n "${SORTBINARY}" ]; then
+                        LogText "Info: sorting output"
+                        IPTABLES_OUTPUT="$(printf '%b' "${IPTABLES_OUTPUT_QUEUE}" | ${SORTBINARY} -u )"
+                    else
+                        IPTABLES_OUTPUT="$(printf '%b' "${IPTABLES_OUTPUT_QUEUE}")"
                     fi
-                done
+                    printf '%b\n' "${IPTABLES_OUTPUT}" | while IFS="$(printf '\n')" read -r IPTABLES_OUTPUT_LINE
+                    do
+                        if [ -n "$IPTABLES_OUTPUT_LINE" ]; then
+                            set -- ${IPTABLES_OUTPUT_LINE}
+                            while [ $# -gt 0 ]; do
+                                LogText "Result: Found target '${3}' for chain '${2}' (table: ${1})"
+                                Display --indent 6 --text "- Chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
+                                if [ "${3}" = "NFQUEUE" ]
+                                then
+                                    ReportSuggestion "${TEST_NO}" "Consider avoid ${3} target if possible (iptables chain ${2}, table: ${1})"
+                                fi
+                                AddHP "${5}" "${6}"
+                                shift 6
+                            done
+                        fi
+                    done
+                fi
             }
             unset IPTABLES_TABLE
         done

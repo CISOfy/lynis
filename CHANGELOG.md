@@ -11,6 +11,7 @@
 - FILE-6398 - Test temporarily disabled as on modern kernels JDB support is built-in
 - FIRE-4508 - Several changes to expand the test, make it more generic, resolve minor issues
 - KRNL-5622 - Test if systemctl binary is set
+- Several improvements for busybox
 - Update of translations: Italian, Russian
 
 ---------------------------------------------------------------------------------

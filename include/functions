@@ -968,7 +968,7 @@
                 ;;
 
                 "DragonFly" | "FreeBSD")
-                    FIND=$(${IFCONFIGBINARY} | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} | grep ether | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if HasData "${FIND}"; then
                         HOSTID=$(echo ${FIND} | sha1)
                     else
@@ -996,7 +996,7 @@
                         for INTERFACE in ${NET_INTERFACES}; do
                             if grep -q -s 'up' "/sys/class/net/${INTERFACE}/operstate"; then
                                 LogText "Interface '${INTERFACE}' is up, fetching MAC address"
-                                FIND=$(head -1 "/sys/class/net/${INTERFACE}/address" | tr '[:upper:]' '[:lower:]')
+                                FIND=$(head -n 1 "/sys/class/net/${INTERFACE}/address" | tr '[:upper:]' '[:lower:]')
                                 if HasData "${FIND}"; then
                                     HOSTID_GEN="linux-sys-interface-up"
                                     break
@@ -1010,7 +1010,7 @@
                         LogText "Info: trying output from 'ip' to generate HostID"
                         # Determine if we have the common available eth0 interface. If so, give that priority.
                         # Note: apply sorting in case there would be multiple MAC addresses linked to increase predictable end result
-                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]' | sort | head -1)
+                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]' | sort | head -n 1)
                         if HasData "${FIND}"; then
                             HOSTID_GEN="linux-ip-interface-eth0"
                         else
@@ -1020,7 +1020,7 @@
                             # 3) Convert everything to lowercase
                             # 4) Sort the entries, so that the output is more predictable between runs when the same interfaces are available
                             # 5) Select first entry
-                            FIND=$(${IPBINARY} -family link addr show up 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -1)
+                            FIND=$(${IPBINARY} -family link addr show up 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -n 1)
                             if HasData "${FIND}"; then
                                 HOSTID_GEN="linux-ip-interface-up-other"
                             else
@@ -1049,7 +1049,7 @@
                                         HOSTID_GEN="linux-ifconfig-interface-eth0-ether"
                                     fi
                                 else
-                                    FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -1 | tr '[:upper:]' '[:lower:]')
+                                    FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -n 1 | tr '[:upper:]' '[:lower:]')
                                     if IsEmpty "${FIND}"; then
                                         ReportException "GetHostID" "No eth0 found (and no ether was found with ifconfig)"
                                     else
@@ -1058,7 +1058,7 @@
                                     fi
                                 fi
                             else
-                                FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
+                                FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -n 1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
                                 HOSTID_GEN="linux-ifconfig-interface-first-hwaddr"
                             fi
                         else
@@ -1077,7 +1077,7 @@
                 ;;
 
                 "macOS")
-                    FIND=$(${IFCONFIGBINARY} en0 | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} en0 | grep ether | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if [ ! "${FIND}" = "" ]; then
                         HOSTID=$(echo ${FIND} | shasum | awk '{ print $1 }')
                     else
@@ -1099,7 +1099,7 @@
                 ;;
 
                 "NetBSD")
-                    FIND=$(${IFCONFIGBINARY} -a | grep "address:" | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} -a | grep "address:" | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if HasData "${FIND}"; then
                         HOSTID=$(echo ${FIND} | sha1)
                     else
@@ -1108,7 +1108,7 @@
                 ;;
 
                 "OpenBSD")
-                    FIND=$(${IFCONFIGBINARY} | grep "lladdr " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} | grep "lladdr " | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if HasData "${FIND}"; then
                         HOSTID=$(echo ${FIND} | sha1)
                     else
@@ -1164,7 +1164,7 @@
         # Optional: DBUS creates ID as well with dbus-uuidgen and is stored in /var/lib/dbus-machine-id (might be symlinked to /etc/machine-id)
         sMACHINEIDFILE="/etc/machine-id"
         if [ -f ${sMACHINEIDFILE} ]; then
-            FIND=$(head -1 ${sMACHINEIDFILE} | grep "^[a-f0-9]")
+            FIND=$(head -n 1 ${sMACHINEIDFILE} | grep "^[a-f0-9]")
             if [ "${FIND}" = "" ]; then
                 MACHINEID="${FIND}"
             fi
@@ -1336,6 +1336,8 @@
                             # busybox does not support format
                             if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
                                 DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
+                            else
+                                DATA=$(${STATBINARY} -c %a ${CHECKFILE})
                             fi
                         ;;
                     esac
@@ -1349,12 +1351,16 @@
                         ;;
                         *)
                             # Only use find when OS is NOT AIX and binaries are NOT busybox
+                            if [ -d "${CHECKFILE}" ]; then
+                                MAXDEPTH="-maxdepth 0"
+                            else
+                                MAXDEPTH=""
+                            fi
+
                             if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
-                                if [ -d ${CHECKFILE} ]; then
-                                    DATA=$(${FINDBINARY} ${CHECKFILE} -maxdepth 0 -printf "%m")
-                                else
-                                    DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
-                                fi
+                                DATA=$(${FINDBINARY} "${CHECKFILE}" ${MAXDEPTH} -printf "%m")
+                            else
+                                DATA=$(${FINDBINARY} "${CHECKFILE}" ${MAXDEPTH} -exec stat -c %a {} \;)
                             fi
                         ;;
                     esac
@@ -1872,7 +1878,7 @@
             # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
             # NetBSD: machdep.dmi.system-product
             # OpenBSD: hw.product
-            FIND=$(sysctl -a 2> /dev/null | grep -E "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }')
+            FIND=$(sysctl -a 2> /dev/null | grep -E "(hw.product|machdep.dmi.system-product)" | head -n 1 | sed 's/ = /=/' | awk -F= '{ print $2 }')
             if [ ! "${FIND}" = "" ]; then
                 SHORT="${FIND}"
             fi
@@ -3049,7 +3055,8 @@
         # By default remove only control characters
         if [ $# -eq 1 ]; then
             input="$1"
-            cleaned=$(echo ${input} | tr -d '[:cntrl:]')
+            # cleaned=$(echo ${input} | tr -d '[:cntrl:]')
+            cleaned=$(echo "$input" | sed 's/[^a-zA-Z0-9_-]//g')
         # If know what to test against, then see if input matches the specified class
         elif [ $# -eq 2 ]; then
             input="$1"

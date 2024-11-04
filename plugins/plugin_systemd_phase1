@@ -47,13 +47,13 @@
     if [ -n "${SYSTEMCTLBINARY}" -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PLGN-3802 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query systemd version and options" --progress
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${SYSTEMCTLBINARY} --version 2> /dev/null | ${AWKBINARY} '{ if ($1=="systemd") { print $2 } }' | grep "^[1-9][0-9][0-9]$" | head -1)
+        FIND=$(${SYSTEMCTLBINARY} --version 2> /dev/null | ${AWKBINARY} '{ if ($1=="systemd") { print $2 } }' | grep "^[1-9][0-9][0-9]$" | head -n 1)
         if [ -n "${FIND}" ]; then
             SYSTEMD_VERSION=${FIND}
             Report "systemd_version=${FIND}"
             LogText "Result: found systemd version ${FIND}"
         fi
-        FIND=$(${SYSTEMCTLBINARY} --version 2> /dev/null | grep "^[-+]" | sed 's/[[:space:]]/,/g' | head -1)
+        FIND=$(${SYSTEMCTLBINARY} --version 2> /dev/null | grep "^[-+]" | sed 's/[[:space:]]/,/g' | head -n 1)
         if [ -n "${FIND}" ]; then
             Report "systemd_builtin_components=${FIND}"
             LogText "Result: found builtin components list"
@@ -101,7 +101,7 @@
     if [ -f ${ROOTDIR}etc/machine-id -a ${SYSTEMD_RUNNING} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PLGN-3808 --preqs-met ${PREQS_MET} --weight L --network NO --description "Gather systemd machine ID" --progress
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(cat ${ROOTDIR}etc/machine-id | head -1)
+        FIND=$(cat ${ROOTDIR}etc/machine-id | head -n 1)
         if [ -n "${FIND}" ]; then
             SYSTEMD_MACHINEID="${FIND}"
             LogText "Result: found machine ID: ${SYSTEMD_MACHINEID}"
@@ -134,7 +134,7 @@
         FIND=$(${JOURNALCTLBINARY} --list-boots | wc -l)
         LogText "Output: number of boots listed in journal is ${FIND}"
         if [ -n "${FIND}" ]; then Report "journal_bootlogs=${FIND}"; fi
-        FIND=$(${JOURNALCTLBINARY} --list-boots | head -1 | awk '{ print $4 }')
+        FIND=$(${JOURNALCTLBINARY} --list-boots | head -n 1 | awk '{ print $4 }')
         LogText "Output: oldest boot date in journal is ${FIND}"
         if [ -n "${FIND}" ]; then Report "journal_oldest_bootdate=${FIND}"; fi
     fi
@@ -204,7 +204,7 @@
     if [ -n "${SYSTEMCTLBINARY}" -a ${SYSTEMD_RUNNING} -eq 1 -a ${SYSTEMD_VERSION} -ge 215 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no PLGN-3830 --preqs-met ${PREQS_MET} --weight L --network NO --description "Query systemd status" --progress
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${SYSTEMCTLBINARY} is-system-running 2> /dev/null | head -1)
+        FIND=$(${SYSTEMCTLBINARY} is-system-running 2> /dev/null | head -n 1)
         if [ -n "${FIND}" ]; then
             Report "systemd_status=${FIND}"
             LogText "Result: found systemd status = ${FIND}"

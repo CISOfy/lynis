@@ -238,7 +238,7 @@
 
     echo "[*] Starting with DEB building process"
 
-        DEBCHANGELOGFULLVERSION=$(head -1 ../debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//')
+        DEBCHANGELOGFULLVERSION=$(head -n 1 ../debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//')
         DEBCHANGELOGVERSION=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }')
         DEBCHANGELOGVERSIONREV=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }')
         if [ "${LYNIS_VERSION}" = "${DEBCHANGELOGVERSION}" ]; then
@@ -251,7 +251,7 @@
 #    BZRSTATUS=$(${BZRBINARY} status . 2>&1 > /dev/null; echo $?)
 #    if [ "${BZRSTATUS}" = "0" ]; then
 #        echo "[V] bzr has proper directory tree"
-#        DEBCHANGELOGFULLVERSION=$(head -1 debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//')
+#        DEBCHANGELOGFULLVERSION=$(head -n 1 debian/changelog | awk '{ print $2 }' | sed 's/(//' | sed 's/)//')
 #        DEBCHANGELOGVERSION=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $1 }')
 #        DEBCHANGELOGVERSIONREV=$(echo ${DEBCHANGELOGFULLVERSION} | awk -F- '{ print $2 }')
 #        echo "[=] Version in Debian changelog: ${DEBCHANGELOGVERSION} (revision: ${DEBCHANGELOGVERSIONREV})"

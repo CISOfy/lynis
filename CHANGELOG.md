@@ -12,7 +12,7 @@
 - FIRE-4508 - Several changes to expand the test, make it more generic, resolve minor issues
 - KRNL-5622 - Test if systemctl binary is set
 - Several improvements for busybox
-- Update of translations: Italian, Russian
+- Update of translations: Italian, Russian, Spanish
 
 ---------------------------------------------------------------------------------
 

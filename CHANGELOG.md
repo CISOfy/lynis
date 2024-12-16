@@ -4,6 +4,8 @@
 
 ### Changed
 - Update of translations: Portuguese
+- Add macOS Sequoia
+- Update of EOL database
 
 ---------------------------------------------------------------------------------
 

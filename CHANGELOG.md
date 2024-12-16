@@ -1,6 +1,9 @@
 # Lynis Changelog
 
-## Lynis 3.1.3 (not released yet)
+## Lynis 3.1.3 (2024-12-16)
+
+This release introduces additional documentation in the form of blog articles
+to support the (missing) control information on the website. 
 
 ### Added
 - Detection of Buildroot, Fedora Linux Asahi Remix, Garden Linux, Peppermint OS

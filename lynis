@@ -148,13 +148,25 @@
     # Perform a basic check for permissions. After including functions, using SafePerms()
     IGNORE_FILE_PERMISSION_ISSUES=0
 
-    FILES_TO_CHECK="consts functions"
+    FILES_TO_CHECK="consts functions parameters binaries osdetection data_upload"
 
     ISSUE=0
     ISSUE_TYPE=""
     SHOWPERMERROR=0
 
     for FILE in ${FILES_TO_CHECK}; do
+        SUGGESTED_PERMS=640
+        if [ ${PRIVILEGED} -eq 0 ]; then
+            SUGGESTED_PERMS=644
+        fi
+
+        # First check if files are readable so the shell can execute them
+        if [ ! -r ${INCLUDEDIR}/${FILE} ]; then
+            ISSUE=1
+            ISSUE_TYPE="perms"
+            echo "[!] Change file permissions of ${INCLUDEDIR}/${FILE} to ${SUGGESTED_PERMS}."; echo "    Command: chmod ${SUGGESTED_PERMS} ${INCLUDEDIR}/${FILE}"
+        fi
+
         PERMS=$(ls -l ${INCLUDEDIR}/${FILE} | cut -c 2-10)
         GROUPPERMS=$(ls -l ${INCLUDEDIR}/${FILE} | cut -c 5-7)
         GROUPOWNERID=$(ls -n ${INCLUDEDIR}/${FILE} | awk '{ print $4 }')
@@ -163,11 +175,11 @@
 
         # Check permissions of include/X file (400, 600, 640, 644)
         if [ "${PERMS}" = "rwxrwxrwx" ]; then
-            ISSUE=1; ISSUE_TYPE="perms"; echo "[!] Change file permissions of ${INCLUDEDIR}/${FILE} to 640."; echo "    Command: chmod 640 ${INCLUDEDIR}/${FILE}"
+            ISSUE=1; ISSUE_TYPE="perms"; echo "[!] Change file permissions of ${INCLUDEDIR}/${FILE} to ${SUGGESTED_PERMS}."; echo "    Command: chmod ${SUGGESTED_PERMS} ${INCLUDEDIR}/${FILE}"
         elif [ ! "${PERMS}" = "r--------" -a ! "${PERMS}" = "rw-------" -a ! "${PERMS}" = "rw-r-----" -a ! "${PERMS}" = "rw-r--r--" ]; then
             # If group ID equals user ID, we consider permissions to be fine (probably default umask)
             if [ ! "${GROUPOWNERID}" = "${OWNERID}" ]; then
-                ISSUE=1; ISSUE_TYPE="perms"; echo "[!] Change file permissions of ${INCLUDEDIR}/${FILE} to 640."; echo "    Command: chmod 640 ${INCLUDEDIR}/${FILE}"
+                ISSUE=1; ISSUE_TYPE="perms"; echo "[!] Change file permissions of ${INCLUDEDIR}/${FILE} to ${SUGGESTED_PERMS}."; echo "    Command: chmod ${SUGGESTED_PERMS} ${INCLUDEDIR}/${FILE}"
             fi
         fi
 
@@ -193,7 +205,7 @@
     if [ ${ISSUE} -eq 1 ]; then
         printf "\n[X] Security check failed\n\n    Why do I see this error?\n    -------------------------------\n    This is a protection mechanism to prevent the root user from executing user created files. The files may be altered, or including malicious pieces of script.\n\n    What can I do?\n    ---------------------\n    Option 1) Check if a trusted user created the files (e.g. due to using Git, Homebrew or similar).\n              If you trust these files, you can decide to continue this run by pressing ENTER.\n"
         if [ "${ISSUE_TYPE}" = "perms" ]; then
-            printf "\n    Option 2) Change permissions of the related files.\n\n       Commands (full directory):\n         # chmod 640 include/*\n         # ./lynis audit system"
+            printf "\n    Option 2) Change permissions of the related files.\n\n       Commands (full directory):\n         # chmod ${SUGGESTED_PERMS} include/*\n         # ./lynis audit system"
         elif [ "${ISSUE_TYPE}" = "owner" ]; then
             printf "\n    Option 2) Change ownership of the related files (or full directory).\n\n       Commands (full directory):\n         # cd ..\n         # chown -R 0:0 lynis\n         # cd lynis\n         # ./lynis audit system"
         fi
@@ -1036,7 +1048,7 @@ ${NORMAL}
                 if SafeFile ${INCLUDE_FILE}; then
                     . ${INCLUDE_FILE}
                 else
-                    LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 640, 600 or 400)"
+                    LogText "Exception: skipping test category ${INCLUDE_TEST}, file ${INCLUDE_FILE} has bad permissions (should be 644, 640, 600 or 400)"
                     ReportWarning "NONE" "Invalid permissions on tests file tests_${INCLUDE_TEST}"
                     # Insert a section and warn user also on screen
                     InsertSection "${SECTION_GENERAL}"
@@ -1063,7 +1075,7 @@ ${NORMAL}
                 LogText "Result: file permissions fine, running custom tests"
                 . ${INCLUDEDIR}/tests_custom
             else
-                LogText "Exception: skipping custom tests, file has bad permissions (should be 640, 600 or 400)"
+                LogText "Exception: skipping custom tests, file has bad permissions (should be 644, 640, 600 or 400)"
                 ReportWarning "NONE" "Invalid permissions on custom tests file"
                 Display --indent 2 --text "- Running custom tests... " --result "${STATUS_WARNING}" --color RED
             fi

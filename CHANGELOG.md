@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.1.4 (not released yet)
+
+### Changed
+- Update of translations: Portuguese
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.1.3 (2024-12-16)
 
 This release introduces additional documentation in the form of blog articles

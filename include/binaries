@@ -134,6 +134,7 @@
                             aide)                   AIDEBINARY=${BINARY};              LogText "  Found known binary: aide (file integrity checker) - ${BINARY}" ;;
                             apache2)                HTTPDBINARY=${BINARY};             LogText "  Found known binary: apache2 (web server) - ${BINARY}" ;;
                             apt)                    APTBINARY=${BINARY};               LogText "  Found known binary: apt (package manager) - ${BINARY}" ;;
+                            apk)                    APKBINARY=${BINARY};               LogText "  Found known binary: apk (package manager) - ${BINARY}" ;;
                             arch-audit)             ARCH_AUDIT_BINARY="${BINARY}";     LogText "  Found known binary: arch-audit (auditing utility to test for vulnerable packages) - ${BINARY}" ;;
                             auditd)                 AUDITDBINARY=${BINARY};            LogText "  Found known binary: auditd (audit framework) - ${BINARY}" ;;
                             awk)                    AWKBINARY=${BINARY};               LogText "  Found known binary: awk (string tool) - ${BINARY}" ;;
@@ -152,6 +153,7 @@
                             clang)                  CLANGBINARY=${BINARY};             COMPILER_INSTALLED=1;  LogText "  Found known binary: clang (compiler) - ${BINARY}" ;;
                             cfagent)                CFAGENTBINARY="${BINARY}";         FILE_INT_TOOL_FOUND=1;                 LogText "  Found known binary: cfengine agent (configuration tool) - ${BINARY}" ;;
                             chkrootkit)             CHKROOTKITBINARY="${BINARY}";      MALWARE_SCANNER_INSTALLED=1;           LogText "  Found known binary: chkrootkit (malware scanner) - ${BINARY}" ;;
+                            cmd_daemon)             CMDBINARY=${BINARY};               LogText "  Found known binary: cmd (audit framework) - ${BINARY}" ;;
                             comm)                   COMMBINARY="${BINARY}";            LogText "  Found known binary: comm (file compare) - ${BINARY}" ;;
                             cryptsetup)             CRYPTSETUPBINARY="${BINARY}";      LogText "  Found known binary: cryptsetup (block device encryption) - ${BINARY}" ;;
                             csum)                   CSUMBINARY="${BINARY}";            LogText "  Found known binary: csum (hashing tool on AIX) - ${BINARY}" ;;
@@ -167,7 +169,6 @@
                             domainname)             DOMAINNAMEBINARY="${BINARY}";      LogText "  Found known binary: domainname (NIS domain) - ${BINARY}" ;;
                             dpkg)                   DPKGBINARY="${BINARY}";            LogText "  Found known binary: dpkg (package management) - ${BINARY}" ;;
                             xbps-query)             XBPSBINARY="${BINARY}";            LogText "  Found known binary: xbps (package management) - ${BINARY}" ;;
-                            egrep)                  EGREPBINARY=${BINARY};             LogText "  Found known binary: egrep (text search) - ${BINARY}" ;;
                             equery)                 EQUERYBINARY="${BINARY}";          LogText "  Found known binary: query (package manager) - ${BINARY}" ;;
                             evmctl)                 EVMCTLBINARY=${BINARY};            LogText "  Found known binary: evmctl (IMA/EVM tool) - ${BINARY}" ;;
                             exim)                   EXIMBINARY="${BINARY}";            EXIMVERSION=$(${BINARY} -bV | grep 'Exim version' | awk '{ print $3 }' | xargs); LogText "  Found known binary ${BINARY} (version ${EXIMVERSION})" ;;
@@ -195,6 +196,8 @@
                             iptables-save)          IPTABLESSAVEBINARY="${BINARY}";    LogText "  Found known binary: iptables-save (firewall) - ${BINARY}" ;;
                             istat)                  ISTATBINARY="${BINARY}";           LogText "  Found known binary: istat (file information) - ${BINARY}" ;;
                             journalctl)             JOURNALCTLBINARY="${BINARY}";      LogText "  Found known binary: journalctl (systemd journal) - ${BINARY}" ;;
+                            kadmin.local)           KADMINLOCALBINARY="${BINARY}";     LogText "  Found known binary: kadmin.local (krb5) - ${BINARY}" ;;
+                            kdb5_util)              KDB5UTILBINARY="${BINARY}";        LogText "  Found known binary: kdb5_util (krb5) - ${BINARY}" ;;
                             kldstat)                KLDSTATBINARY="${BINARY}";         LogText "  Found known binary: kldstat (kernel modules) - ${BINARY}" ;;
                             kstat)                  KSTATBINARY="${BINARY}";           LogText "  Found known binary: kstat (kernel statistics) - ${BINARY}" ;;
                             launchctl)              LAUNCHCTL_BINARY="${BINARY}";      SERVICE_MANAGER="launchd"; LogText "  Found known binary: launchctl (launchd client) - ${BINARY}" ;;
@@ -202,7 +205,7 @@
                             logrotate)              LOGROTATEBINARY="${BINARY}";       LogText "  Found known binary: logrotate (log rotation tool) - ${BINARY}" ;;
                             ls)                     LSBINARY="${BINARY}";              LogText "  Found known binary: ls (file listing) - ${BINARY}" ;;
                             lsattr)                 LSATTRBINARY="${BINARY}";          LogText "  Found known binary: lsattr (file attributes) - ${BINARY}" ;;
-                            lsblk)		            LSBLKBINARY="${BINARY}";	       LogText "  Found known binary: lsblk (block devices) - ${BINARY}" ;;
+                            lsblk)                  LSBLKBINARY="${BINARY}";           LogText "  Found known binary: lsblk (block devices) - ${BINARY}" ;;
                             lsmod)                  LSMODBINARY="${BINARY}";           LogText "  Found known binary: lsmod (kernel modules) - ${BINARY}" ;;
                             lsof)
                                 LSOFBINARY="${BINARY}"
@@ -335,11 +338,19 @@
         Report "binaries_sgid_count=${SGID_BINARIES}"
         Report "binary_paths=${BINARY_PATHS_FOUND}"
 
+	# If grep is capable of extended regexp, use that instead of egrep to avoid annoying warning
+	if [ "${GREPBINARY:-}" ] ; then
+		${GREPBINARY} --help 2> /dev/null | ${GREPBINARY} -e "extended-regexp" > /dev/null
+		if [ $? -eq 0 ] ; then
+			EGREPBINARY="${GREPBINARY} -E"
+		fi
+	fi
+	
+
         # Test if the basic system tools are defined. These will be used during the audit.
         [ "${AWKBINARY:-}" ] || ExitFatal "awk binary not found"
         [ "${CAT_BINARY:-}" ] || ExitFatal "cat binary not found"
         [ "${CUTBINARY:-}" ] || ExitFatal "cut binary not found"
-        [ "${EGREPBINARY:-}" ] || ExitFatal "grep binary not found"
         [ "${FINDBINARY:-}" ] || ExitFatal "find binary not found"
         [ "${GREPBINARY:-}" ] || ExitFatal "grep binary not found"
         [ "${HEADBINARY:-}" ] || ExitFatal "head binary not found"

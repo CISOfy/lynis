@@ -899,20 +899,22 @@
     ################################################################################
 
     GetHostID() {
-
         if [ ${SKIP_GETHOSTID} -eq 1 ]; then
+            Debug "Skipping HostID generation due to SKIP_GETHOSTID"
             return 2
         fi
 
         if [ -n "${HOSTID}" -a -n "${HOSTID2}" ]; then
             Debug "Skipping creation of host identifiers, as they are already configured (via profile)"
+            HOSTID_GEN="profile"
             return 2
         fi
 
         if [ -f "${ROOTDIR}etc/lynis/hostids" ]; then
-            Debug "Used hostids file to fetch values"
             HOSTID=$(grep "^hostid=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
             HOSTID2=$(grep "^hostid2=" ${ROOTDIR}etc/lynis/hostids | awk -F= '{print $2}')
+            Debug "Used hostids file to fetch values"
+            HOSTID_GEN="hostids-file"
             return 0
         fi
 
@@ -940,7 +942,7 @@
         fi
 
         if [ ! "${SHA1SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
-
+            LogText "Info: found hashing tool, start generation of HostID"
             case "${OS}" in
 
                 "AIX")
@@ -966,7 +968,7 @@
                 ;;
 
                 "DragonFly" | "FreeBSD")
-                    FIND=$(${IFCONFIGBINARY} | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} | grep ether | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if HasData "${FIND}"; then
                         HOSTID=$(echo ${FIND} | sha1)
                     else
@@ -988,15 +990,49 @@
                 ;;
 
                 "Linux")
+                    # Try fetching information from /sys in case 'ip' is not available or does not give expected results
+                    if IsEmpty "${FIND}" && [ -d /sys/class/net ]; then
+                        NET_INTERFACES=$(${FINDBINARY} /sys/class/net ! -type d -exec realpath {} \; 2> /dev/null | sort | awk -F'/' '!/virtual/ && /devices/ {for (x=1;x<=NF;x++) if ($x~"net") print $(x+1)}')
+                        for INTERFACE in ${NET_INTERFACES}; do
+                            if grep -q -s 'up' "/sys/class/net/${INTERFACE}/operstate"; then
+                                LogText "Interface '${INTERFACE}' is up, fetching MAC address"
+                                FIND=$(head -n 1 "/sys/class/net/${INTERFACE}/address" | tr '[:upper:]' '[:lower:]')
+                                if HasData "${FIND}"; then
+                                    HOSTID_GEN="linux-sys-interface-up"
+                                    break
+                                fi
+                            fi
+                        done
+                    fi
 
-                    # Future change
-                    # Show brief output of ip of links that are UP. Filter out items like 'UNKNOWN' in col 2
-                    # Using the {2} syntax does not work on all systems
-                    # ip -br link show up | sort | awk '$2=="UP" && $3 ~ /^[a-f0-9][a-f0-9]:/ {print $3}'
+                    # Next is to try ip, as it is available to most modern Linux distributions
+                    if IsEmpty "${FIND}" && [ -n "${IPBINARY}" ]; then
+                        LogText "Info: trying output from 'ip' to generate HostID"
+                        # Determine if we have the common available eth0 interface. If so, give that priority.
+                        # Note: apply sorting in case there would be multiple MAC addresses linked to increase predictable end result
+                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]' | sort | head -n 1)
+                        if HasData "${FIND}"; then
+                            HOSTID_GEN="linux-ip-interface-eth0"
+                        else
+                            # If eth0 does not exist, which is also common, then trying the next option:
+                            # 1) First fetch all links that are UP
+                            # 2) Filter entries that have a MAC address and filter out Docker related MAC addresses starting with '02:42:'
+                            # 3) Convert everything to lowercase
+                            # 4) Sort the entries, so that the output is more predictable between runs when the same interfaces are available
+                            # 5) Select first entry
+                            FIND=$(${IPBINARY} -family link addr show up 2> /dev/null | awk '{if($1=="link/ether" && $2 !~ "^02:42:"){print $2}}' | tr '[:upper:]' '[:lower:]' | sort | head -n 1)
+                            if HasData "${FIND}"; then
+                                HOSTID_GEN="linux-ip-interface-up-other"
+                            else
+                                ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
+                            fi
+                        fi
+                    fi
 
-                    # Use ifconfig
-                    if [ -n "${IFCONFIGBINARY}" ]; then
-                        # Determine if we have the eth0 interface (not all Linux distro have this, e.g. Arch)
+                    # Finally try ifconfig
+                    if IsEmpty "${FIND}" && [ -n "${IFCONFIGBINARY}" ]; then
+                        LogText "Info: no information found from 'ip' or in /sys, trying output from 'ifconfig'"
+                        # Determine if we have the eth0 interface (not all Linux distributions have this, e.g. Arch)
                         HASETH0=$(${IFCONFIGBINARY} | grep "^eth0")
                         # Check if we can find it with HWaddr on the line
                         FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "^eth0" | grep -v "eth0:" | grep HWaddr | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
@@ -1009,47 +1045,39 @@
                                 # If not, then falling back to getting first interface. Better than nothing.
                                 if HasData "${HASETH0}"; then
                                     FIND=$(${IFCONFIGBINARY} eth0 2> /dev/null | grep "ether " | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                                    if HasData "${FIND}"; then
+                                        HOSTID_GEN="linux-ifconfig-interface-eth0-ether"
+                                    fi
                                 else
-                                    FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -1 | tr '[:upper:]' '[:lower:]')
+                                    FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep "ether " | awk '{ print $2 }' | head -n 1 | tr '[:upper:]' '[:lower:]')
                                     if IsEmpty "${FIND}"; then
                                         ReportException "GetHostID" "No eth0 found (and no ether was found with ifconfig)"
                                     else
-                                        LogText "Result: No eth0 found (ether found), using first network interface to determine hostid (with ifconfig)"
+                                        HOSTID_GEN="linux-ifconfig-interface-first-ether"
+                                        LogText "Result: No eth0 found (but ether found), using first network interface to determine hostid (with ifconfig)"
                                     fi
                                 fi
                             else
-                                FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
-                                LogText "GetHostID: No eth0 found (but HWaddr was found), using first network interface to determine hostid, with ifconfig"
+                                FIND=$(${IFCONFIGBINARY} 2> /dev/null | grep HWaddr | head -n 1 | awk '{ print $5 }' | tr '[:upper:]' '[:lower:]')
+                                HOSTID_GEN="linux-ifconfig-interface-first-hwaddr"
                             fi
+                        else
+                            HOSTID_GEN="linux-ifconfig-interface-eth0-hwaddr"
                         fi
-
-                    elif [ -n "${IPBINARY}" ]; then
-                        # Determine if we have the common available eth0 interface
-                        FIND=$(${IPBINARY} addr show eth0 2> /dev/null | grep -E "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
-                        if IsEmpty "${FIND}"; then
-                            # Determine the MAC address of first interface with the ip command
-                            FIND=$(${IPBINARY} addr show 2> /dev/null | grep -E "link/ether " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
-                            if IsEmpty "${FIND}"; then
-                                ReportException "GetHostID" "Can't create hostid (no MAC addresses found)"
-                            fi
-                        fi
-                    else
-                        ReportException "GetHostID" "Both ip and ifconfig tools are missing"
-
                     fi
 
-                    # Check if we found a HostID
+                    # Check if we found a MAC address to generate the HostID
                     if HasData "${FIND}"; then
-                        LogText "Info: using hardware address ${FIND} to create ID"
+                        LogText "Info: using hardware address '${FIND}' to create HostID"
                         HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                         LogText "Result: Found HostID: ${HOSTID}"
                     else
-                        ReportException "GetHostID" "Can't create HOSTID, command ip not found"
+                        ReportException "GetHostID" "HostID could not be generated"
                     fi
                 ;;
 
                 "macOS")
-                    FIND=$(${IFCONFIGBINARY} en0 | grep ether | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} en0 | grep ether | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if [ ! "${FIND}" = "" ]; then
                         HOSTID=$(echo ${FIND} | shasum | awk '{ print $1 }')
                     else
@@ -1071,7 +1099,7 @@
                 ;;
 
                 "NetBSD")
-                    FIND=$(${IFCONFIGBINARY} -a | grep "address:" | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} -a | grep "address:" | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if HasData "${FIND}"; then
                         HOSTID=$(echo ${FIND} | sha1)
                     else
@@ -1080,7 +1108,7 @@
                 ;;
 
                 "OpenBSD")
-                    FIND=$(${IFCONFIGBINARY} | grep "lladdr " | head -1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
+                    FIND=$(${IFCONFIGBINARY} | grep "lladdr " | head -n 1 | awk '{ print $2 }' | tr '[:upper:]' '[:lower:]')
                     if HasData "${FIND}"; then
                         HOSTID=$(echo ${FIND} | sha1)
                     else
@@ -1100,9 +1128,9 @@
                     done
                     if [ ${FOUND} -eq 1 ]; then
                         FIND=$(${IFCONFIGBINARY} ${I} | grep ether | awk '{ if ($1=="ether") { print $2 }}')
-                        if [ ! "${SHA1SUMBINARY}" = "" ]; then
+                        if [ -n "${SHA1SUMBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
-                        elif [ ! "${OPENSSLBINARY}" = "" ]; then
+                        elif [ -n "${OPENSSLBINARY}" ]; then
                             HOSTID=$(echo ${FIND} | ${OPENSSLBINARY} sha -sha1 | awk '{ print $2 }')
                         else
                             ReportException "GetHostID" "Can not find sha1/sha1sum or openssl"
@@ -1116,8 +1144,9 @@
                         ReportException "GetHostID" "Can't create HOSTID as OS is not supported yet by this function"
                 ;;
             esac
+
             # Remove HOSTID if it contains a default MAC address with a related hash value
-            if [ ! "${HOSTID}" = "" ]; then
+            if [ -n "${HOSTID}" ]; then
                 for CHECKHASH in ${BLACKLISTED_HASHES}; do
                     if [ "${CHECKHASH}" = "${HOSTID}" ]; then
                         LogText "Result: hostid is a blacklisted value"
@@ -1125,6 +1154,7 @@
                     fi
                 done
             fi
+
         else
             ReportException "GetHostID" "Can't create HOSTID as there is no SHA1 hash tool available (sha1, sha1sum, openssl)"
         fi
@@ -1134,7 +1164,7 @@
         # Optional: DBUS creates ID as well with dbus-uuidgen and is stored in /var/lib/dbus-machine-id (might be symlinked to /etc/machine-id)
         sMACHINEIDFILE="/etc/machine-id"
         if [ -f ${sMACHINEIDFILE} ]; then
-            FIND=$(head -1 ${sMACHINEIDFILE} | grep "^[a-f0-9]")
+            FIND=$(head -n 1 ${sMACHINEIDFILE} | grep "^[a-f0-9]")
             if [ "${FIND}" = "" ]; then
                 MACHINEID="${FIND}"
             fi
@@ -1152,6 +1182,7 @@
                             if [ -n "${SHA1SUMBINARY}" ]; then
                                 HOSTID=$(${SHA1SUMBINARY} /etc/ssh/${I} | awk '{ print $1 }')
                                 LogText "result: Created HostID with SSH key ($I): ${HOSTID}"
+                                HOSTID_GEN="fallback-ssh-public-key"
                             else
                                 ReportException "GetHostID" "Can't create HOSTID with SSH key, as sha1sum binary is missing"
                             fi
@@ -1163,9 +1194,9 @@
             fi
         fi
 
-        # New style host ID
-        if [ "${HOSTID2}" = "" ]; then
-            LogText "Info: creating a HostID (version 2)"
+        # Generation of HostID version 2
+        if [ -z "${HOSTID2}" ]; then
+            LogText "Info: start generation of HostID (version 2)"
             FOUND=0
             DATA_SSH=""
             # Use public keys
@@ -1174,7 +1205,7 @@
                 for I in ${SSH_KEY_FILES}; do
                     if [ ${FOUND} -eq 0 ]; then
                         if [ -f /etc/ssh/${I} ]; then
-                            LogText "Result: found file ${I} in /etc/ssh, using that to create host identifier"
+                            LogText "Result: found file ${I} in /etc/ssh, using that as candidate to create hostid2"
                             DATA_SSH=$(cat /etc/ssh/${I})
                             FOUND=1
                         fi
@@ -1186,21 +1217,23 @@
 
             STRING_TO_HASH=""
             if [ ${FOUND} -eq 1 -a -n "${DATA_SSH}" ]; then
-                LogText "Using SSH public key to create the second host identifier"
+                LogText "Using SSH public key to create hostid2"
                 STRING_TO_HASH="${DATA_SSH}"
+                HOSTID2_GEN="ssh-public-key"
             else
                 if [ -n "${MACHINEID}" ]; then
-                    LogText "Using the machine ID to create the second host identifier"
+                    LogText "Using the machine ID to create hostid2"
                     STRING_TO_HASH="${MACHINEID}"
+                    HOSTID2_GEN="machine-id"
                 fi
             fi
             # Check if we have a string to turn into a host identifier
             if [ -n "${STRING_TO_HASH}" ]; then
                 # Create hashes
-                if [ ! "${SHA256SUMBINARY}" = "" ]; then
+                if [ -n "${SHA256SUMBINARY}" ]; then
                     HASH2=$(echo ${STRING_TO_HASH} | ${SHA256SUMBINARY} | awk '{ print $1 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${SHA256SUMBINARY} | awk '{ print $1 }')
-                elif [ ! "${OPENSSLBINARY}" = "" ]; then
+                elif [ -n "${OPENSSLBINARY}" ]; then
                     HASH2=$(echo ${STRING_TO_HASH} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                     HASH_HOSTNAME=$(echo ${HOSTNAME} | ${OPENSSLBINARY} dgst -${OPENSSL_HASHTYPE} | awk '{ print $2 }')
                 fi
@@ -1273,11 +1306,16 @@
         if [ $# -ne 2 ]; then Fatal "Incorrect usage of HasCorrectFilePermissions"; fi
         CHECKFILE="$1"
         CHECKPERMISSION_FULL="$2"
+        # Check for symlink
+        if [ -L ${CHECKFILE} ]; then
+            ShowSymlinkPath ${CHECKFILE}
+            if [ ! "${SYMLINK}" = "" ]; then CHECKFILE="${SYMLINK}"; fi
+        fi
         if [ ! -d ${CHECKFILE} -a ! -f ${CHECKFILE} ]; then
             return 2
         else
             for CHECK_PERMISSION in ${CHECKPERMISSION_FULL}; do
-                DATA=$(echo ${CHECK_PERMISSION} | ${EGREPBINARY} "[rwx]")
+                DATA=$(echo ${CHECK_PERMISSION} | ${GREPBINARY} -E "[rwx]")
                 if [ $? -eq 0 ]; then
                     # add a dummy character as first character so it looks like output is a normal file
                     CHECK_PERMISSION=$(echo "-${CHECK_PERMISSION}" | ${AWKBINARY} '{k=0;for(i=0;i<=8;i++)k+=((substr($1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf("%0o",k)}')
@@ -1287,9 +1325,8 @@
                 CHECK_PERMISSION=$(echo "${CHECK_PERMISSION}" | ${AWKBINARY} '{printf "%03d",$1}')
 
                 # First try stat command
-                LogText "Test: checking if file ${CHECKFILE} has the permissions set to ${CHECK_PERMISSION} or more restrictive"
+                LogText "Test: checking if file ${CHECKFILE} has the permissions set to ${CHECK_PERMISSION} (${CHECKPERMISSION_FULL}) or more restrictive"
                 if [ -n "${STATBINARY}" ]; then
-
                     case ${OS} in
                         *BSD | "macOS")
                             # BSD and macOS have no --format, only short notation
@@ -1299,6 +1336,8 @@
                             # busybox does not support format
                             if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
                                 DATA=$(${STATBINARY} --format=%a ${CHECKFILE})
+                            else
+                                DATA=$(${STATBINARY} -c %a ${CHECKFILE})
                             fi
                         ;;
                     esac
@@ -1312,12 +1351,16 @@
                         ;;
                         *)
                             # Only use find when OS is NOT AIX and binaries are NOT busybox
+                            if [ -d "${CHECKFILE}" ]; then
+                                MAXDEPTH="-maxdepth 0"
+                            else
+                                MAXDEPTH=""
+                            fi
+
                             if [ ${SHELL_IS_BUSYBOX} -eq 0 ]; then
-                                if [ -d ${CHECKFILE} ]; then
-                                    DATA=$(${FINDBINARY} ${CHECKFILE} -maxdepth 0 -printf "%m")
-                                else
-                                    DATA=$(${FINDBINARY} ${CHECKFILE} -printf "%m")
-                                fi
+                                DATA=$(${FINDBINARY} "${CHECKFILE}" ${MAXDEPTH} -printf "%m")
+                            else
+                                DATA=$(${FINDBINARY} "${CHECKFILE}" ${MAXDEPTH} -exec stat -c %a {} \;)
                             fi
                         ;;
                     esac
@@ -1355,7 +1398,7 @@
                 fi
             done
 
-            LogText "Outcome: permissions of file ${CHECKFILE} are not matching expected value (${DATA} != ${CHECKPERMISSION_FULL})"
+            LogText "Outcome: permissions of file ${CHECKFILE} are not matching expected value (${DATA} != ${CHECK_PERMISSION})"
             # No match, return exit code 1
             return 1
         fi
@@ -1571,7 +1614,7 @@
                 # This search is not foolproof
                 LogText "Performing simple ps scan (busybox)"
                 PSOPTIONS=" -o args="
-                FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${EGREPBINARY:-egrep} "( |/)${search}" | ${GREPBINARY:-grep} -v "grep")
+                FIND=$(${PSBINARY:-ps} ${PSOPTIONS} | ${GREPBINARY:-grep} -E "( |/)${search}" | ${GREPBINARY:-grep} -v "grep")
             else
                 if [ -n "${users}" ]; then
                     for u in ${users}; do
@@ -1835,7 +1878,7 @@
             # FreeBSD: hw.hv_vendor (remains empty for VirtualBox)
             # NetBSD: machdep.dmi.system-product
             # OpenBSD: hw.product
-            FIND=$(sysctl -a 2> /dev/null | grep -E "(hw.product|machdep.dmi.system-product)" | head -1 | sed 's/ = /=/' | awk -F= '{ print $2 }')
+            FIND=$(sysctl -a 2> /dev/null | grep -E "(hw.product|machdep.dmi.system-product)" | head -n 1 | sed 's/ = /=/' | awk -F= '{ print $2 }')
             if [ ! "${FIND}" = "" ]; then
                 SHORT="${FIND}"
             fi
@@ -1969,7 +2012,11 @@
         if [ $# -eq 0 ]; then ExitFatal "Missing parameter when calling IsWorldWritable function"; fi
         sFILE=$1
         FileIsWorldWritable=""
-
+        # Check for symlink
+        if [ -L ${sFILE} ]; then
+            ShowSymlinkPath ${sFILE}
+            if [ ! "${SYMLINK}" = "" ]; then sFILE="${SYMLINK}"; fi
+        fi
         # Only check if target is a file or directory
         if [ -f ${sFILE} -o -d ${sFILE} ]; then
             FINDVAL=$(ls -ld ${sFILE} | cut -c 9)
@@ -2045,6 +2092,10 @@
         elif [ -n "${PKGINFOBINARY}" ]; then
             output=$(${PKGINFOBINARY} -q -e ${package} >/dev/null 2>&1)
             exit_code=$?  # 0=package installed, 1=package not installed
+        # Slackware also has RPM for some reason and that's why this test precedes the RPMBINARY test
+        elif [ "${OS_NAME}" = "Slackware Linux" -a -d "${ROOTDIR}/var/lib/pkgtools/packages" ]; then
+            output=$( ls ${ROOTDIR}/var/lib/pkgtools/packages/ 2> /dev/null | ${GREPBINARY} "^${package}-[^-]\+-[^-]\+-[^-]\+$" )
+            exit_code=$?
         elif [ -n "${RPMBINARY}" ]; then
             output=$(${RPMBINARY} --quiet -q ${package} > /dev/null 2>&1)
             exit_code=$?
@@ -2056,6 +2107,9 @@
             if [ -n "${output}" ]; then exit_code=0; else exit_code=1; fi
         elif [ -n "${XBPSBINARY}" ]; then
             output=$(${XBPSBINARY} ${package} 2> /dev/null | ${GREPBINARY} "^ii")
+            exit_code=$?
+        elif [ -n "${APKBINARY}" ]; then
+            output=$(${APKBINARY} list --installed ${package} 2> /dev/null | ${GREPBINARY} ${package})
             exit_code=$?
         else
             if [ "${package}" != "__dummy__" ]; then
@@ -2518,14 +2572,18 @@
 
     GetTimestamp() {
         ts=0
-        case "${OS}" in
-            "Linux")
+        # Detect if the implementation of date supports nanoseconds,
+        if [ "${OS}" = "Linux" ]; then
+            current_nanoseconds=$(date "+%N")
+            # Verify if the result of the command is a number
+            if [ -n "$current_nanoseconds" ] && [ "$current_nanoseconds" -eq "$current_nanoseconds" ] 2>/dev/null; then
                 ts=$(date "+%s%N")
-            ;;
-            *)
+            else
                 ts=$(date "+%s")
-            ;;
-        esac
+            fi
+        else
+            ts=$(date "+%s")
+        fi
         echo $ts
     }
 
@@ -2710,7 +2768,6 @@
             if [ ${SKIPLOGTEST} -eq 0 ]; then LogText "Reason to skip: ${SKIPREASON}"; fi
             TESTS_SKIPPED="${TEST_NO}|${TESTS_SKIPPED}"
         fi
-        unset SKIPREASON
 
         # Save timestamp for next time the Register function is called
         PREVIOUS_TEST="${TEST_NO}"
@@ -2995,10 +3052,11 @@
 
     SafeInput() {
         exitcode=1
-        # By default remove only control characters
+        # By default remove only special or undefined characters
         if [ $# -eq 1 ]; then
             input="$1"
-            cleaned=$(echo ${input} | tr -d '[:cntrl:]')
+            # Allow only a common set of characters in first parameter
+            cleaned=$(echo "$input" | sed 's/[^a-zA-Z0-9\._:=-]//g')
         # If know what to test against, then see if input matches the specified class
         elif [ $# -eq 2 ]; then
             input="$1"
@@ -3007,7 +3065,7 @@
         else
             ExitFatal "No argument or too many arguments provided to SafeInput()"
         fi
-
+        # Test if the cleaned string is the same as the original input
         if [ "${cleaned}" = "${input}" ]; then
             exitcode=0
         fi
@@ -3123,7 +3181,7 @@
 
                     if [ ${PENTESTINGMODE} -eq 0 -a ${IS_PARAMETERS} -eq 0 ]; then
                         if [ ! "${GROUP}" = "root" -a ! "${GROUP}" = "wheel" -a ! "${GROUPID}" = "0" ]; then
-                            echo "Fatal error: group owner of directory $1 should be owned by root user, wheel or similar (found: ${GROUP})."
+                            echo "Fatal error: group owner of directory $1 should be owned by root group, wheel or similar (found: ${GROUP})."
                             ExitFatal
                         fi
                     fi

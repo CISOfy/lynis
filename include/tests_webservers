@@ -48,6 +48,8 @@
     TMPFILE="${TEMP_FILE}"
     CreateTempFile || ExitFatal
     TMPFILE2="${TEMP_FILE}"
+    CreateTempFile || ExitFatal
+    TMPFILE3="${TEMP_FILE}"
 #
 #################################################################################
 #
@@ -63,7 +65,7 @@
             Display --indent 2 --text "- Checking Apache" --result "${STATUS_NOT_FOUND}" --color WHITE
         else
             LogText "Test: Scanning for Apache binary"
-            IS_APACHE=$(${HTTPDBINARY} -v 2> /dev/null | ${EGREPBINARY} '[aA]pache')
+            IS_APACHE=$(${HTTPDBINARY} -v 2> /dev/null | ${GREPBINARY} -E '[aA]pache')
             if IsEmpty "${IS_APACHE}"; then
                 LogText "Result: ${HTTPDBINARY} is not Apache"
                 Display --indent 2 --text "- Checking Apache (binary ${HTTPDBINARY})" --result "NO MATCH" --color WHITE
@@ -203,7 +205,7 @@
     #if [ ${SKIPTEST} -eq 0 ]; then
     #    # Testing Debian style
     #    LogText "Test: searching loaded/enabled Apache modules"
-    #    apachectl -t -D DUMP_MODULES 2>&1 | ${EGREPBINARY} -v "(Loaded Modules|Syntax OK)" | ${SEDBINARY} 's/(\(shared\|static\))//' | ${SEDBINARY} 's/ //'
+    #    apachectl -t -D DUMP_MODULES 2>&1 | ${GREPBINARY} -E -v "(Loaded Modules|Syntax OK)" | ${SEDBINARY} 's/(\(shared\|static\))//' | ${SEDBINARY} 's/ //'
     #    for I in ${APACHE_MODULES_ENABLED_LOCS}; do
     #        LogText "Test: checking ${I}"
     #        if [ -d ${I} ]; then
@@ -288,7 +290,7 @@
     Register --test-no HTTP-6643 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Determining existence of specific Apache modules"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check modules, module
-        if CheckItem "apache_module" "/mod_security2.so"; then
+        if CheckItem "apache_module" "/mod_security(2|3).so" ; then
             Display --indent 10 --text "ModSecurity: web application firewall" --result "${STATUS_FOUND}" --color GREEN
             AddHP 3 3
         else
@@ -300,8 +302,42 @@
 #
 #################################################################################
 #
-    # Test        : HTTP-6660 TODO
+    # Test        : HTTP-6660
     # Description : Search for "TraceEnable off" in configuration files
+    if [ ${APACHE_INSTALLED} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no HTTP-6660 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking Apache security setting: TraceEnable"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        for DIR in ${sTEST_APACHE_TARGETS}; do
+            if [ -d ${DIR} ]; then
+                find ${DIR} -name "*.conf" -print >> ${TMPFILE3}
+            fi
+        done
+
+        # Check all Apache conf-files for TraceEnable
+        if [ -f ${TMPFILE3} ]; then
+            Display --indent 2 --text '- Checking TraceEnable setting in:'
+            for APACHE_CONFFILE in $(cat ${TMPFILE3}); do
+                TRACEENABLE=$( ${GREPBINARY} -i -E '^TraceEnable' ${APACHE_CONFFILE} | ${AWKBINARY} '{print $2}' )
+                if [ ! ${TRACEENABLE} ]; then
+                    LogText "Result: no TraceEnable setting found in ${APACHE_CONFFILE}"
+                    Display --indent 4 --text "  ${APACHE_CONFFILE}" --result "${STATUS_NOT_FOUND}" --color WHITE
+                else
+                    TRACEENABLED_SETTING=$( echo ${TRACEENABLE} | tr 'A-Z' 'a-z' )
+                    if [ "x${TRACEENABLED_SETTING}" = 'xoff' ]; then
+                        LogText "Result: found TraceEnable setting set to 'off' in ${APACHE_CONFFILE}"
+                        Report "Apache setting: 'TraceEnable Off' in ${APACHE_CONFFILE}"
+                        Display --indent 4 --text "  ${APACHE_CONFFILE}" --result "${STATUS_FOUND}" --color GREEN
+                    else
+                        LogText "Result: found TraceEnable setting set to '"${TRACEENABLE}"' in ${APACHE_CONFFILE}"
+                        Report "Apache setting: 'TraceEnable "${TRACEENABLE}"' in ${APACHE_CONFFILE}"
+                        Display --indent 4 --text "  ${APACHE_CONFFILE}" --result "${STATUS_SUGGESTION}" --color YELLOW
+                        ReportSuggestion "${TEST_NO}" "Consider setting 'TraceEnable Off' in ${APACHE_CONFFILE}" "Set TraceEnable to 'On' or 'extended' for testing and diagnostic purposes only."
+                    fi
+                fi
+            done
+            rm -f ${TMPFILE3}
+        fi
+    fi
 #
 #################################################################################
 #
@@ -381,7 +417,7 @@
         done
 
         # Sort all discovered configuration lines and store unique ones. Also strip out the mime types configured in nginx
-        SORTFILE=$(${SORTBINARY} -u ${TMPFILE} | ${SEDBINARY} 's/ /:space:/g' | ${EGREPBINARY} -v "(application|audio|image|text|video)/" | ${EGREPBINARY} -v "({|})")
+        SORTFILE=$(${SORTBINARY} -u ${TMPFILE} | ${SEDBINARY} 's/ /:space:/g' | ${GREPBINARY} -E -v "(application|audio|image|text|video)/" | ${GREPBINARY} -E -v "({|})")
         for I in ${SORTFILE}; do
             I=$(echo ${I} | ${SEDBINARY} 's/:space:/ /g')
             Report "nginx_config_option[]=${I}";
@@ -608,6 +644,7 @@
     # Remove temp file (double check)
     if [ -n "${TMPFILE}" ]; then if [ -f ${TMPFILE} ]; then rm -f ${TMPFILE}; fi; fi
     if [ -n "${TMPFILE2}" ]; then if [ -f ${TMPFILE2} ]; then rm -f ${TMPFILE2}; fi; fi
+    if [ -n "${TMPFILE3}" ]; then if [ -f ${TMPFILE3} ]; then rm -f ${TMPFILE3}; fi; fi
 
     WaitForKeyPress
 

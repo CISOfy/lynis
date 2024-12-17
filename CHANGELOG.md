@@ -1,14 +1,223 @@
 # Lynis Changelog
 
+## Lynis 3.1.4 (not released yet)
+
+### Changed
+- Update of translations: Portuguese
+- Add macOS Sequoia
+- Update of EOL database
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.1.3 (2024-12-16)
+
+This release introduces additional documentation in the form of blog articles
+to support the (missing) control information on the website. 
+
+### Added
+- Detection of Buildroot, Fedora Linux Asahi Remix, Garden Linux, Peppermint OS
+- Support for blog posts and articles to enhance suggestions
+
+### Changed
+- BOOT-5264 - Changed output of systemd-analyze test and added link
+- FILE-6398 - Test temporarily disabled as on modern kernels JDB support is built-in
+- FIRE-4508 - Several changes to expand the test, make it more generic, resolve minor issues
+- KRNL-5622 - Test if systemctl binary is set
+- Several improvements for busybox
+- Update of translations: Italian, Russian, Spanish
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.1.2 (2024-09-26)
+
+### Added
+- Detection of ALT Linux
+- Detection of Athena OS
+- Detection of Container-Optimized OS from Google
+- Detection of Koozali SME Server
+- Detection of Nobara Linux
+- Detection of Open Source Media Center (OSMC)
+- Detection of PostmarketOS
+- CRYP-7932 - macOS FileVault encryption test
+- FILE-6398 - Check if JBD (Journal Block Device) driver is loaded
+- FINT-4344 - Wazuh system running state
+- PKGS-7305 - Query macOS Apps in /Applications and CoreServices
+- File added: .editorconfig, which is used by editors to standardize formatting
+
+### Changed
+- Correction of software EOL database and inclusion of AIX entries
+- Support sysctl value perf_event_paranoid -> 2|3
+- Update of translations: German, Portuguese, Turkish
+- Grammar and spell improvements
+- Improved package detection on Alpine Linux
+- Slackware support to check installed packges (functionPackageIsInstalled())
+- Added words prosecute/report to LEGAL_BANNER_STRINGS
+- Busybox support: Replace newer tr command syntax with older ascii specific operations
+- Added Wazuh as a malware scanner/antivirus and rootkit detection tool
+- Updated PHP versions and removed PHP 5 (deprecated)
+- AUTH-9262 - Corrected message with advised PAM libary (libpam-passwdqc)
+- CONT-8104 - Checking for errors, not only warning in docker info output
+- DBS-1826 - PostgreSQL detection improved for AlmaLinux, Rocky Linux, and FreeBSD
+- FILE-6344 - Test kernel version (major/minor)
+- INSE-8000 - Added inetd package and service name used in ubuntu 24.04
+- KRNL-5622 - Use systemctl get-default instead of following link
+- KRNL-5820 - Accept ulimit with -H parameter also
+- LOGG-2144 - Check for wazuh-agent presence on Linux systems
+- MACF-6234 - Test if semanage binary is available
+- MALW-3200 - ESET Endpoint Antivirus added
+- MALW-3280 - McAfee Antivirus for Linux deprecated
+- MALW-3291 - Check if Microsoft Defender Antivirus is installe
+- NETW-3200 - Added regex to allow both /bin/true as /bin/false
+- PKGS-7303 - Added version numbers to brew packages
+- PKGS-7370 - Cron job check for debsums improved
+- PKGS-7392 - Improved filtering of apt-check output (Ubuntu 24.04 may give an error)
+- PKGS-7410 - Added kernel name for Hardkernel odroid XU4
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.1.1 (2024-03-17)
+
+### Added
+- Detection of ArcoLinux
+
+### Changed
+- DBS-1882 - Redis configuration file path added for FreeBSD (/usr/local/etc/redis.conf)
+- DBS-1882 - Check /snap directory location for Redis configuration file
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.1.0 (2024-03-11)
+
+### Added
+- Translation: Indonesian
+
+### Changed
+- MALW-3280 - Correction to detect com.avast.daemon
+- OS detection added for Guix System, macOS Ventura (13.x)/Sonoma (14.x), NXP LSDK, OpenEmbedded "nodistro", and The Yocto Projects distro "Poky"
+- Updated Amazon Linux EOL dates and addition of Amazon Linux 2023
+- STATUS_NOT_ACTIVE variable added to translation files
+- End-of-life dates updated
+- Fixing missing or erroneous test number comments
+- Detection of SentinelOne corrected
+- Wazuh for file integrity and tooling
+- Updated parsing output of arch-audit
+- Added support for SentinelOne detection
+- Replacing deprecated option -i for xargs
+- Path detection for PostgreSQL improved
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.9 (2023-08-03)
+
+### Changed
+- DBS-1820 - Added newer style format for Mongo authorization setting
+- FILE-6410 - Locations added for plocate
+- SSH-7408 - Only test Compression if sshd version < 7.4
+- Improved fetching timestamp
+- Minor changes such as typos
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.8 (2022-05-17)
+
+### Added
+- MALW-3274 - Detect McAfee VirusScan Command Line Scanner
+- PKGS-7346 Check Alpine Package Keeper (apk)
+- PKGS-7395 Check Alpine upgradeable packages
+- EOL for Alpine Linux 3.14 and 3.15
+
+### Changed
+- AUTH-9408 - Check for pam_faillock as well (replacement for pam_tally2)
+- FILE-7524 - Test enhanced to support symlinks
+- HTTP-6643 - Support ModSecurity version 2 and 3
+- KRNL-5788 - Only run relevant tests and improved logging
+- KRNL-5820 - Additional path for security/limits.conf
+- KRNL-5830 - Check for /var/run/needs_restarting (Slackware)
+- KRNL-5830 - Add a presence check for /boot/vmlinuz
+- PRNT-2308 - Bugfix that prevented test from storing values correctly
+- Extended location of PAM files for AARCH64
+- Some messages in log improved
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.7 (2022-01-18)
+
+### Added
+- MALW-3290 - Show status of malware components
+- OS detection for RHEL 6 and Funtoo Linux
+- Added service manager openrc
+
+### Changed
+- DBS-1804 - Added alias for MariaDB
+- FINT-4316 - Support for newer Ubuntu versions
+- MALW-3280 - Added Trend Micro malware agent
+- NETW-3200 - Allow unknown number of spaces in modprobe blacklists
+- PKGS-7320 - Support for Garuda Linux and arch-audit
+- Several improvements for busybox shell
+- Russian translation of Lynis extended
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.6 (2021-07-22)
+
+### Added
+- OS detection: Artix Linux, macOS Monterey, NethServer, openSUSE MicroOS
+- Check for outdated translation files
+
+### Changed
+- DBS-1826 - Check if PostgreSQL is being used
+- DBS-1828 - Test multiple PostgreSQL configuration file(s)
+- KRNL-5830 - Sort kernels by version instead of modification date
+- PKGS-7410 - Don't show exception for systems using LXC
+- GetHostID function: fallback options added for Linux systems
+- Fix: macOS Big Sur detection
+- Fix: show correct text when egrep is missing
+- Fix: variable name for PostgreSQL
+- German and Spanish translations extended
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.5 (2021-07-02)
+
+### Added
+- OS detection of Arch Linux 32, BunsenLabs Linux, and Rocky Linux
+- CRYP-8006 - Check MemoryOverwriteRequest bit to protect against cold-boot attacks (Linux)
+
+### Changed
+- ACCT-9622 - Corrected typo
+- HRDN-7231 - When calling wc, use the short -l flag instead of --lines (Busybox compatibility)
+- PKGS-7320 - extended to Arch Linux 32
+- Generation of host identifiers (hostid/hostid2) extended
+- Linux host identifiers are now using ip as preferred input source
+- Improved logging in several areas
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.0.4 (2021-05-11)
+
+### Added
+- ACCT-9670 - Detection of cmd tooling
+- ACCT-9672 - Test cmd configuration file
+- BOOT-5140 - Check for ELILO boot loader presence
+- OS detection of AlmaLinux, Garuda Linux, Manjaro (ARM), and others
+
+### Changed
+- BOOT-5104 - Add service manager detection support for runit
+- FILE-6430 - Report suggestion only when at least one kernel module is not in the blacklist
+- FIRE-4540 - Corrected nftables empy ruleset test
+- LOGG-2138 - Do not check for klogd when metalog is being used
+- TIME-3185 - Improved support for Debian stretch
+- Corrected issue when Lynis is not executed directly from lynis directory
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.0.3 (2021-01-07)
 
 ### Added
-
 - HRDN-7231 - Check for registered non-native binary formats
 - OS detection of Parrot GNU/Linux
 
 ### Changed
-
 - DBS-1816  - Force test to check only password authentication
 - KRNL-5677 - Support for NetBSD
 - Bugfix: command 'configure settings' did not work as intended

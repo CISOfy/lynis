@@ -35,6 +35,34 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7200
+    # Description : Check Alpine Package Keeper (apk)
+    if [ -x ${ROOTDIR}/sbin/apk ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7200 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying apk"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        COUNT=0
+        Display --indent 4 --text "- Searching apk package manager" --result "${STATUS_FOUND}" --color GREEN
+        LogText "Result: Found apk binary"
+        Report "package_manager[]=apk"
+        PACKAGE_MGR_PKG=1
+        LogText "Test: Querying apk info -v to get package list"
+        Display --indent 6 --text "- Querying package manager"
+        LogText "Output:"
+        SPACKAGES=$(apk info -v | ${SEDBINARY} -r -e 's/([a-z,A-Z,0-9,_,-,.]{1,250})-([a-z,A-Z,0-9,.]+-r[a-z,A-Z,0-9]+)/\1,\2/' | sort)
+        for J in ${SPACKAGES}; do
+            COUNT=$((COUNT + 1))
+            PACKAGE_NAME=$(echo ${J} | ${CUTBINARY} -d ',' -f1)
+            PACKAGE_VERSION=$(echo ${J} | ${CUTBINARY} -d ',' -f2)
+            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done
+        Report "installed_packages=${COUNT}"
+    else
+        LogText "Result: apk "${STATUS_NOT_FOUND}", test skipped"
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7301
     # Description : Query FreeBSD pkg
     if [ -x ${ROOTDIR}usr/sbin/pkg ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
@@ -99,11 +127,15 @@
         LogText "Test: Querying brew to get package list"
         Display --indent 4 --text "- Querying brew for installed packages"
         LogText "Output:"; LogText "-----"
-        GPACKAGES=$(brew list)
-        for J in ${GPACKAGES}; do
-            LogText "Found package ${J}"
-            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${J}"
-        done
+        GPACKAGES=$(brew list --versions)
+        while IFS= read -r PKG; do
+            PACKAGE_NAME=$(echo ${PKG} | ${CUTBINARY} -d ' ' -f1)
+            PACKAGE_VERSION=$(echo ${PKG} | ${CUTBINARY} -d ' ' -f2)
+            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done << EOF
+$GPACKAGES
+EOF
     else
         LogText "Result: brew can NOT be found on this system"
     fi
@@ -130,6 +162,29 @@
         LogText "Result: emerge can NOT be found on this system"
     fi
 #
+#################################################################################
+#
+    # Test        : PKGS-7305
+    # Description : Query macOS Apps in /Applications and CoreServices
+    Register --test-no PKGS-7305 --os macOS --weight L --network NO --category security --description "Query macOS Apps in /Applications and CoreServices"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Querying Apps in /Applications"
+        Display --indent 4 --text "- Querying macOS Apps in /Applications"
+        LogText "Output:"; LogText "-----"
+        for APP in /Applications/*.app; do
+            PACKAGE_NAME=$(basename "$APP" .app)
+            PACKAGE_VERSION=$(defaults read "$APP/Contents/Info" CFBundleShortVersionString 2>/dev/null || echo "N/A")
+            LogText "Found package: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done
+        Display --indent 4 --text "- Querying Apple CoreServices"
+        for CS in /Library/Apple/System/Library/CoreServices/*.app; do
+            PACKAGE_NAME=$(basename "$CS" .app)
+            PACKAGE_VERSION=$(defaults read "$CS/Contents/Info" CFBundleShortVersionString 2>/dev/null || echo "N/A")
+            LogText "Found CoreServices: ${PACKAGE_NAME} (version: ${PACKAGE_VERSION})"
+            INSTALLED_PACKAGES="${INSTALLED_PACKAGES}|${PACKAGE_NAME},${PACKAGE_VERSION}"
+        done   
+    fi
 #
 #################################################################################
 #
@@ -296,7 +351,7 @@
 #
     # Test        : PKGS-7320
     # Description : Check available of arch-audit
-    if [ "${OS_FULLNAME}" = "Arch Linux" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="Test only applies to Arch Linux"; fi
+    if [ "${OS_FULLNAME}" = "Arch Linux" ] || [ "${OS_FULLNAME}" = "Arch Linux 32" ] || [ "${OS_FULLNAME}" = "Garuda Linux" ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="Test only applies to Arch Linux and Garuda Linux"; fi
     Register --test-no PKGS-7320 --os "Linux" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Checking for arch-audit tooling"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -z "${ARCH_AUDIT_BINARY}" ]; then
@@ -319,12 +374,13 @@
     Register --test-no PKGS-7322 --os "Linux" --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Discover vulnerable packages with arch-audit"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking arch-audit output for vulnerable packages"
-        FIND=$(${ARCH_AUDIT_BINARY} | ${SEDBINARY} 's/\.\..*$//' | ${SEDBINARY} 's/, //g' | ${SEDBINARY} 's/\(\["\|"\]\)//g' | ${SEDBINARY} 's/""/,/g' | ${AWKBINARY} '{ if($1=="Package") { print $2"|"$6"|"}}' | ${AWKBINARY} -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]"|"}}' | ${SEDBINARY} 's/,/|cve=/' | ${SORTBINARY})
+        FIND=$(${ARCH_AUDIT_BINARY} | ${SEDBINARY} 's/ High risk!//' | ${SEDBINARY} 's/ Medium risk!//' | ${SEDBINARY} 's/ Low risk!//' | ${SEDBINARY} 's/\.\..*$//' | ${SEDBINARY} 's/, /,/g' | ${SEDBINARY} 's/\(\["\|"\]\)//g' | ${SEDBINARY} 's/""/,/g' | ${AWKBINARY} '{if ($0 ~ /is affected by CVE\-/) {print $1"|"$5"|"} else {ORS=""; print $1"|"; for (i=5; i<=NF; i++)print $i; print "\n"; ORS="\n"}}'| ${AWKBINARY} -F'|' 'NF>1{a[$1] = a[$1]","$2}END{for(i in a){print i""a[i]"|"}}' | ${SEDBINARY} 's/,CVE-/|cve=CVE-/' | ${SORTBINARY})
         if [ -z "${FIND}" ]; then
             LogText "Result: no vulnerable packages found with arch-audit"
             AddHP 10 10
         else
             LogText "Result: found one or more vulnerable packages"
+            VULNERABLE_PACKAGES_FOUND=1
             for ITEM in ${FIND}; do
                 LogText "Found line: ${ITEM}"
                 Report "vulnerable_package[]=${ITEM}"
@@ -643,9 +699,20 @@
             # Check in /etc/cron.hourly, daily, weekly, monthly etc
             COUNT=$(find /etc/cron* -name debsums | wc -l)
             if [ ${COUNT} -gt 0 ]; then
-                LogText "Result: Cron job is configured for debsums utility."
-                Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_FOUND}" --color GREEN
-                AddHP 3 3
+                CRON_CHECK=""
+                if [ -f ${ROOTDIR}etc/default/debsums ]; then
+                    CRON_CHECK=$(${GREPBINARY} CRON_CHECK /etc/default/debsums|${AWKBINARY} -F "=" '{print $2}')
+                fi
+                if [ "${CRON_CHECK}" = "daily" ] || [ "${CRON_CHECK}" = "weekly" ] || [ "${CRON_CHECK}" = "monthly" ]; then
+                    LogText "Result: Cron job is configured for debsums utility."
+                    Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_FOUND}" --color GREEN
+                    AddHP 3 3
+                else
+                    LogText "Result: Cron job is not configured for debsums utility."
+                    Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_NOT_FOUND}" --color YELLOW
+                    AddHP 1 3
+                    ReportSuggestion "${TEST_NO}" "Check debsums configuration and enable checking regularly via a cron job (CRON_CHECK in default file)."
+                fi
             else
                 LogText "Result: Cron job is not configured for debsums utility."
                 Display --indent 6 --text "- Cron job for debsums" --result "${STATUS_NOT_FOUND}" --color YELLOW
@@ -808,7 +875,7 @@
     Register --test-no PKGS-7383 --preqs-met ${PREQS_MET} --os Linux --weight M --network NO --category security --description "Check for YUM package update management"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: YUM package update management"
-        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/[[:blank:]]//g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${EGREPBINARY} "^[0-9]+$")
+        FIND=$(${YUMBINARY} repolist 2>/dev/null | ${GREPBINARY} repolist | ${SEDBINARY} 's/[[:blank:]]//g' | ${SEDBINARY} 's/[,.]//g' | ${AWKBINARY} -F ":" '{print $2}' | ${GREPBINARY} -E "^[0-9]+$")
         if [ -z "${FIND}" -o "${FIND}" = "0" ]; then
             LogText "Result: YUM package update management failed"
             Display --indent 2 --text "- YUM package management consistency" --result "${STATUS_WARNING}" --color RED
@@ -1002,7 +1069,7 @@
         if [ ${OPTION_DEBIAN_SKIP_SECURITY_REPOSITORY} -eq 0 ]; then
             if [ -f ${ROOTDIR}etc/apt/sources.list ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list file"
-                FIND=$(${EGREPBINARY} "security.debian.org|security.ubuntu.com|security/? " ${ROOTDIR}etc/apt/sources.list | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                FIND=$(${GREPBINARY} -E "security.debian.org|security.ubuntu.com|security/? " ${ROOTDIR}etc/apt/sources.list | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
                 if [ -n "${FIND}" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list file" --result "${STATUS_OK}" --color GREEN
@@ -1015,7 +1082,7 @@
             fi
             if [ -d /etc/apt/sources.list.d ]; then
                 LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
-                FIND=$(${EGREPBINARY} -r "security.debian.org|security.ubuntu.com|security/? " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                FIND=$(${GREPBINARY} -E -r "security.debian.org|security.ubuntu.com|security/? " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
                 if [ -n "${FIND}" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list.d directory" --result "${STATUS_OK}" --color GREEN
@@ -1094,7 +1161,9 @@
             LogText "Result: found ${ROOTDIR}usr/lib/update-notifier/apt-check"
             LogText "Test: checking if any of the updates contain security updates"
             # apt-check binary is a script and translated. Do not search for normal text strings, but use numbered output only
-            FIND=$(${ROOTDIR}usr/lib/update-notifier/apt-check 2>&1 | ${AWKBINARY} -F\; '{ print $2 }')
+            # We search for the lines that start with a number, as on Ubuntu 24.04 an error can happen:
+            # Warning: W:Unable to read /var/lib/ubuntu-advantage/apt-esm/etc/apt/apt.conf.d/ - DirectoryExists (2: No such file or directory)
+            FIND=$(${ROOTDIR}usr/lib/update-notifier/apt-check 2>&1 | ${GREPBINARY} '^[0-9]' | ${AWKBINARY} -F\; '{ print $2 }')
             # Check if we get the proper line back and amount of security patches available
             if [ -z "${FIND}" ]; then
                 LogText "Result: did not find security updates line"
@@ -1236,6 +1305,41 @@
 #
 #################################################################################
 #
+    # Test        : PKGS-7395
+    # Description : Check Alpine upgradeable packages
+    if [ "${LINUX_VERSION}" = "Alpine Linux" ]  && [ -x "${ROOTDIR}sbin/apk" ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+
+    Register --test-no PKGS-7395 --os Linux --preqs-met ${PREQS_MET} --weight L --network YES --category security --description "Check for Alpine updates"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if [ ${REFRESH_REPOSITORIES} -eq 1 ]; then
+            LogText "Action: updating package repository with apk"
+            ${ROOTDIR}sbin/apk update
+            LogText "Result: apk finished"
+        else
+            LogText "Result: using a possibly outdated repository, as updating is disabled via configuration"
+        fi
+        LogText "Test: Checking packages which can be upgraded via apk version -l '<'"
+        FIND=$(${ROOTDIR}sbin/apk version -l '<' | ${GREPBINARY} '<' | ${SEDBINARY} 's/\s\+<\s/</g')
+        if [ -z "${FIND}" ]; then
+            LogText "Result: no packages found which can be upgraded"
+            Display --indent 2 --text "- Checking upgradeable packages" --result "${STATUS_NONE}" --color GREEN
+            AddHP 3 3
+        else
+            LogText "Result: found one or more packages which can be upgraded"
+            Display --indent 2 --text "- Checking upgradeable packages" --result "${STATUS_FOUND}" --color YELLOW
+            for ITEM in ${FIND}; do
+                ITEM=$(echo ${ITEM} | ${SEDBINARY}  -r -e 's/([a-z,A-Z,0-9,_,-,.]{1,250})-([a-z,A-Z,0-9,.]+-r[a-z,A-Z,0-9]+)<([a-z,A-Z,0-9,-,.]+)/\1 from \2 to \3/')
+                LogText "${ITEM}"
+            done
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7398
     # Description : Check package audit tool
     Register --test-no PKGS-7398 --weight L --network YES --category security --description "Check for package audit tool"
@@ -1274,8 +1378,8 @@
 
         if [ "${DPKGBINARY}" ]; then
             TESTED=1
-            KERNEL_PKG_NAMES="linux-image-[0-9]|raspberrypi-kernel|pve-kernel-[0-9]"
-            KERNELS=$(${DPKGBINARY} -l 2> /dev/null | ${EGREPBINARY} "${KERNEL_PKG_NAMES}" | ${WCBINARY} -l)
+            KERNEL_PKG_NAMES="linux-image-[0-9]|raspberrypi-kernel|pve-kernel-[0-9]|linux-odroid-5422"
+            KERNELS=$(${DPKGBINARY} -l 2> /dev/null | ${GREPBINARY} -E "${KERNEL_PKG_NAMES}" | ${WCBINARY} -l)
             if [ ${KERNELS} -eq 0 ]; then
                 LogText "Result: found no kernels from dpkg -l output, which is unexpected"
             elif [ ${KERNELS} -gt 5 ]; then
@@ -1316,11 +1420,18 @@
             # Only report exception if there are kernels actually there. For example, LXC use the kernel of host system
             case "${OS}" in
                 "Linux")
-                    if [ -d "${ROOTDIR}boot" ]; then
-                        if [ -z "$(${FINDBINARY} /boot -maxdepth 1 -type f -name 'vmlinuz*' -print -quit)" ]; then
-                            ReportException "${TEST_NO}" "Could not find any kernel packages via package manager"
-                        fi
-                    fi
+                    case "${CONTAINER_TYPE}" in
+                        "LXC")
+                            LogText "Info: LXC shares the kernel with host, so skipping further testing"
+                        ;;
+                        *)
+                            if [ -d "${ROOTDIR}boot" ]; then
+                                if [ -z "$(${FINDBINARY} /boot -maxdepth 1 -type f -name 'vmlinuz*' -print -quit)" ]; then
+                                    ReportException "${TEST_NO}" "Could not find any kernel packages via package manager"
+                                fi
+                            fi
+                        ;;
+                    esac
                 ;;
                 *)
                     ReportException "${TEST_NO}" "Could not find any kernel packages via package manager"

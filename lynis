@@ -43,16 +43,16 @@
     PROGRAM_WEBSITE="https://cisofy.com/lynis/"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2021-01-07"
-    PROGRAM_RELEASE_TIMESTAMP=1610029111
-    PROGRAM_RELEASE_TYPE="release" # pre-release or release
-    PROGRAM_VERSION="3.0.3"
+    PROGRAM_RELEASE_DATE="2024-12-16"
+    PROGRAM_RELEASE_TIMESTAMP=1734340704
+    PROGRAM_RELEASE_TYPE="pre-release" # pre-release or release
+    PROGRAM_VERSION="3.1.4"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
     PROGRAM_PACKAGE="https://packages.cisofy.com/"
     PROGRAM_DOCUMENTATION="https://cisofy.com/docs/"
-    PROGRAM_COPYRIGHT="2007-2021, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
+    PROGRAM_COPYRIGHT="2007-2024, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
     PROGRAM_LICENSE="${PROGRAM_NAME} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
   welcome to redistribute it under the terms of the GNU General Public License.
   See the LICENSE file for details about using this software."
@@ -89,6 +89,7 @@
                 if [ -d "${WORKDIR}/include" ]; then INCLUDEDIR="${WORKDIR}/include"; fi
             elif [ -d ${I} -a -z "${INCLUDEDIR}" ]; then
                 INCLUDEDIR=${I}
+		break
             fi
         done
     fi
@@ -216,10 +217,10 @@
 
     # Extract the short notation of the language (first two characters).
     if [ -x "$(command -v locale 2> /dev/null)" ]; then
-        LANGUAGE=$(locale | egrep "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | egrep "^[a-z]{2}$")
+        LANGUAGE=$(locale | grep -E "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr -d '"' | grep -E "^[a-z]{2}$")
         # Try locale command if shell variable had no value
         if [ -z "${DISPLAY_LANG}" ]; then
-            DISPLAY_LANG=$(locale | egrep "^LANG=" | cut -d= -f2)
+            DISPLAY_LANG=$(locale | grep -E "^LANG=" | cut -d= -f2)
         fi
     else
         LANGUAGE="en"
@@ -513,7 +514,7 @@ ${NORMAL}
     . ${INCLUDEDIR}/osdetection
     Display --indent 2 --text "- Detecting OS... " --result "${STATUS_DONE}" --color GREEN
 
-    # Check hostname
+    # Check hostname and get timestamp
     case ${OS} in
         HP-UX)
                     HOSTNAME=$(hostname) ;;
@@ -530,7 +531,6 @@ ${NORMAL}
     if [ "${OS}" = "Linux" -a "${HOSTNAME}" = "${FQDN}" ]; then
         FQDN=$(hostname -f 2> /dev/null)
     fi
-
 #
 #################################################################################
 #
@@ -598,11 +598,33 @@ ${NORMAL}
         Display --indent 2 --text "- Detecting language and localization" --result "${LANGUAGE}" --color WHITE
         if [ ! -f ${DBDIR}/languages/${LANGUAGE} ]; then
             Display --indent 4 --text "${YELLOW}Notice:${NORMAL} no language file found for '${LANGUAGE}' (tried: ${DBDIR}/languages/${LANGUAGE})"
-            if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/documentation/10-translations.md for more details to help translate Lynis"; fi
+            if IsDeveloperVersion; then Display --indent 4 --text "See https://github.com/CISOfy/lynis-sdk/blob/master/documentation/10-translations.md for more details to help translate Lynis"; fi
             sleep 5
         else
-            LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
-            . ${DBDIR}/languages/${LANGUAGE}
+            if SafeFile "${DBDIR}/languages/${LANGUAGE}"; then
+                LogText "Importing language file (${DBDIR}/languages/${LANGUAGE})"
+                . ${DBDIR}/languages/${LANGUAGE}
+                # Check for missing translations if we are a pre-release or less than a week old
+                if grep -E -q -s "^#" ${DBDIR}/languages/${LANGUAGE}; then
+                    TIME_DIFFERENCE_CHECK=604800 # 1 week
+                    RELEASE_PLUS_TIMEDIFF=$((PROGRAM_RELEASE_TIMESTAMP + TIME_DIFFERENCE_CHECK))
+                    if IsDeveloperVersion || [ ${NOW} -lt ${RELEASE_PLUS_TIMEDIFF} ]; then
+                        Display --indent 4 --text "Translation file (db/languages/${LANGUAGE}) needs an update" --result "OUTDATED" --color RED
+                        Display --indent 4 --text "======================================================================="
+                        Display --indent 4 --text "Help other users and translate the missing lines:"
+                        Display --indent 4 --text "1) Go to: https://github.com/CISOfy/lynis/edit/master/db/languages/${LANGUAGE}"
+                        Display --indent 4 --text "2) Translate (some of) the lines starting with a hash (#) and remove the leading hash"
+                        Display --indent 4 --text "3) Commit the changes"
+                        Display --indent 4 --text "Thank you!"
+                        Display --indent 4 --text "Note: no lines with a hash? Look if the file recently has been changed by another translator."
+                        Display --indent 4 --text "======================================================================="
+                        sleep 30
+                    fi
+                fi
+            else
+                LogText "Could not import language file due to incorrect permissions"
+            fi
+
         fi
     fi
     LogTextBreak
@@ -766,16 +788,10 @@ ${NORMAL}
         fi
     fi
 
-    # Test for older releases, without testing via update mechanism
-    if [ "${OS}" = "Solaris" ]; then
-        NOW=$(nawk 'BEGIN{print srand()}')
-    else
-        NOW=$(date "+%s")
-    fi
-
     OLD_RELEASE=0
     TIME_DIFFERENCE_CHECK=10368000 # 4 months
     RELEASE_PLUS_TIMEDIFF=$((PROGRAM_RELEASE_TIMESTAMP + TIME_DIFFERENCE_CHECK))
+    NOW=$(date "+%s")
     if [ ${NOW} -gt ${RELEASE_PLUS_TIMEDIFF} ]; then
         # Show if release is old, only if we didn't show it with normal update check
         if [ ${UPDATE_AVAILABLE} -eq 0 ]; then
@@ -969,17 +985,23 @@ ${NORMAL}
     # Get host ID
     LogTextBreak
     GetHostID
+    LogText "hostid-generation: method ${HOSTID_GEN}"
+    LogText "hostid2-generation: method ${HOSTID2_GEN}"
     # Check if result is not empty (no blank, or hash of blank value, or minus, or zeros)
-    if [ ! "${HOSTID}" = "-" -a ! "${HOSTID}" = "" -a ! "${HOSTID}" = "adc83b19e793491b1c6ea0fd8b46cd9f32e592fc" -a ! "${HOSTID}" = "6ef1338f520d075957424741d7ed35ab5966ae97" ]; then
-        LogText "Info: found valid HostID ${HOSTID}"
-        Report "hostid=${HOSTID}"
-    else
-        LogText "Info: no HostID found or invalid one"
-    fi
-    if [ ! "${HOSTID2}" = "" ]; then
+    case ${HOSTID} in
+        "" | "-" | "adc83b19e793491b1c6ea0fd8b46cd9f32e592fc" | "6ef1338f520d075957424741d7ed35ab5966ae97")
+            LogText "Info: no HostID found or invalid one"
+        ;;
+        *)
+            LogText "Info: HostID ${HOSTID} looks to be valid"
+            Report "hostid=${HOSTID}"
+        ;;
+    esac
+
+    if [ -n "${HOSTID2}" ]; then
         Report "hostid2=${HOSTID2}"
     fi
-    if [ ! "${MACHINEID}" = "" ]; then
+    if [ -n "${MACHINEID}" ]; then
         LogText "Info: found a machine ID ${MACHINEID}"
         Report "machineid=${MACHINEID}"
     else
@@ -996,7 +1018,7 @@ ${NORMAL}
         if [ "${TEST_GROUP_TO_CHECK}" = "all" ]; then
             LogText "Info: perform tests from all categories"
 
-            INCLUDE_TESTS="boot_services kernel memory_processes authentication shells \
+            INCLUDE_TESTS="boot_services kernel memory_processes authentication kerberos shells \
                            filesystems usb storage storage_nfs nameservices dns ports_packages networking printers_spoolers \
                            mail_messaging firewalls webservers ssh snmp databases ldap php squid logging \
                            insecure_services banners scheduling accounting time crypto virtualization containers \

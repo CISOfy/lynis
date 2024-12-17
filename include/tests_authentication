@@ -25,7 +25,7 @@
     LDAP_AUTH_ENABLED=0
     LDAP_PAM_ENABLED=0
     LDAP_CONF_LOCATIONS="${ROOTDIR}etc/ldap.conf ${ROOTDIR}etc/ldap/ldap.conf ${ROOTDIR}etc/openldap/ldap.conf ${ROOTDIR}usr/local/etc/ldap.conf ${ROOTDIR}usr/local/etc/openldap/ldap.conf"
-    PAM_FILE_LOCATIONS="${ROOTDIR}lib/arm-linux-gnueabihf/security ${ROOTDIR}lib/i386-linux-gnu/security ${ROOTDIR}lib/security ${ROOTDIR}lib/x86_64-linux-gnu/security ${ROOTDIR}lib64/security ${ROOTDIR}usr/lib /usr/lib/security"
+    PAM_FILE_LOCATIONS="${ROOTDIR}usr/lib/aarch64-linux-gnu/security ${ROOTDIR}lib/arm-linux-gnueabihf/security ${ROOTDIR}lib/i386-linux-gnu/security ${ROOTDIR}lib/security ${ROOTDIR}lib/x86_64-linux-gnu/security ${ROOTDIR}lib64/security ${ROOTDIR}usr/lib /usr/lib/security"
     SUDOERS_LOCATIONS="${ROOTDIR}etc/sudoers ${ROOTDIR}usr/local/etc/sudoers ${ROOTDIR}usr/pkg/etc/sudoers"
     SUDOERS_FILE=""
 #
@@ -42,9 +42,9 @@
         LogText "Test: Searching accounts with UID 0"
         # Check if device is a QNAP, as the root user is called admin, and not root
         if [ ${QNAP_DEVICE} -eq 1 ]; then
-            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^admin:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
+            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${GREPBINARY} -E -v '^#|^admin:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
         else
-            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${EGREPBINARY} -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
+            FIND=$(${GREPBINARY} ':0:' ${ROOTDIR}etc/passwd | ${GREPBINARY} -E -v '^#|^root:|^(\+:\*)?:0:0:::' | ${CUTBINARY} -d ":" -f1,3 | ${GREPBINARY} ':0')
         fi
         if [ -n "${FIND}" ]; then
             Display --indent 2 --text "- Administrator accounts" --result "${STATUS_WARNING}" --color RED
@@ -163,7 +163,7 @@
         LogText "Test: Checking login shells"
         if [ -f ${ROOTDIR}etc/master.passwd ]; then
             # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
-            FIND=$(${GREPBINARY} "[a-z]:\*:" ${ROOTDIR}etc/master.passwd | ${EGREPBINARY} -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g')
+            FIND=$(${GREPBINARY} "[a-z]:\*:" ${ROOTDIR}etc/master.passwd | ${GREPBINARY} -E -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g')
             if [ -z "${FIND}" ]; then
                 Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
             else
@@ -294,12 +294,12 @@
                 # disabled | shadowed | no password | locked account (can be literal *LOCK* or something like LOCKED)
                 ;;
             *:\$5\$*| *:\$6\$*)
-                # sha256crypt | sha512crypt: check number of rounds, should be >5000
+                # sha256crypt | sha512crypt: check number of rounds, should be >=5000
                 ROUNDS=$(echo "${METHOD}" | sed -n 's/.*rounds=\([0-9]*\)\$.*/\1/gp')
                 if [ -z "${ROUNDS}" ]; then
-                    echo 'sha256crypt/sha512crypt(default<=5000rounds)'
-                elif [ "${ROUNDS}" -le 5000 ]; then
-                    echo 'sha256crypt/sha512crypt(<=5000rounds)'
+                    echo 'sha256crypt/sha512crypt(default=5000rounds)'
+                elif [ "${ROUNDS}" -lt 5000 ]; then
+                    echo 'sha256crypt/sha512crypt(<5000rounds)'
                 fi
                 ;;
             *:\$y\$* | *:\$gy\$* | *:\$2b\$* | *:\$7\$*)
@@ -499,13 +499,13 @@
     Register --test-no AUTH-9240 --weight L --network NO --category security --description "Query NIS+ authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nisplus")
+            FIND=$(${GREPBINARY} -E "^passwd" /etc/nsswitch.conf | ${GREPBINARY} -E "compat|nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS+ authentication not enabled"
                 Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
-                FIND2=$(${EGREPBINARY} "^passwd_compat" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
-                FIND3=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
+                FIND2=$(${GREPBINARY} -E "^passwd_compat" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
+                FIND3=$(${GREPBINARY} -E "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "nisplus")
                 if [ -n "${FIND2}" -o -n "${FIND3}" ]; then
                     LogText "Result: NIS+ authentication enabled"
                     Display --indent 2 --text "- NIS+ authentication support" --result "${STATUS_ENABLED}" --color GREEN
@@ -526,13 +526,13 @@
     Register --test-no AUTH-9242 --weight L --network NO --category security --description "Query NIS authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f /etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${EGREPBINARY} "compat|nis" | ${GREPBINARY} -v "nisplus")
+            FIND=$(${GREPBINARY} -E "^passwd" /etc/nsswitch.conf | ${GREPBINARY} -E "compat|nis" | ${GREPBINARY} -v "nisplus")
             if [ -z "${FIND}" ]; then
                 LogText "Result: NIS authentication not enabled"
                 Display --indent 2 --text "- NIS authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
             else
-                FIND2=$(${EGREPBINARY} "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
-                FIND3=$(${EGREPBINARY} "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
+                FIND2=$(${GREPBINARY} -E "^passwd_compat" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
+                FIND3=$(${GREPBINARY} -E "^passwd" /etc/nsswitch.conf | ${GREPBINARY} "nis" | ${GREPBINARY} -v "nisplus")
                 if [ -n "${FIND2}" -o -n "${FIND3}" ]; then
                     LogText "Result: NIS authentication enabled"
                     Display --indent 2 --text "- NIS authentication support" --result "${STATUS_ENABLED}" --color GREEN
@@ -607,7 +607,7 @@
                     Display --indent 4 --text "- Permissions for directory: ${SUDOERS_D}" --result "${STATUS_WARNING}" --color RED
                     ;;
             esac
-            SUDO_CONFIG_FILES="${SUDO_CONFIG_FILES} $(${FINDBINARY} ${SUDOERS_D} -type f -print)"
+            SUDO_CONFIG_FILES="${SUDO_CONFIG_FILES} $(${FINDBINARY} -L ${SUDOERS_D} -type f -print)"
         fi
         for f in ${SUDO_CONFIG_FILES}; do
             LogText "Test: checking file (${f})"
@@ -717,7 +717,7 @@
         if [ ${FOUND} -eq 0 ]; then
             Display --indent 2 --text "- PAM password strength tools" --result "${STATUS_SUGGESTION}" --color YELLOW
             LogText "Result: no PAM modules for password strength testing found"
-            ReportSuggestion "${TEST_NO}" "Install a PAM module for password strength testing like pam_cracklib or pam_passwdqc"
+            ReportSuggestion "${TEST_NO}" "Install a PAM module for password strength testing like pam_cracklib or pam_passwdqc or libpam-passwdqc"
             AddHP 0 3
         else
             Display --indent 2 --text "- PAM password strength tools" --result "${STATUS_OK}" --color GREEN
@@ -737,7 +737,7 @@
             LogText "Result: file ${ROOTDIR}etc/pam.conf exists"
             Display --indent 2 --text "- PAM configuration files (pam.conf)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Test: searching PAM configuration files"
-            FIND=$(${EGREPBINARY} -v "^#" ${ROOTDIR}etc/pam.conf | ${EGREPBINARY} -v "^$" | ${SEDBINARY} 's/[[:space:]]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/ /:space:/g')
+            FIND=$(${GREPBINARY} -E -v "^#" ${ROOTDIR}etc/pam.conf | ${GREPBINARY} -E -v "^$" | ${SEDBINARY} 's/[[:space:]]/ /g' | ${SEDBINARY} 's/  / /g' | ${SEDBINARY} 's/ /:space:/g')
             if [ -z "${FIND}" ]; then
                 LogText "Result: File has no configuration options defined (empty, or only filled with comments and empty lines)"
             else
@@ -764,7 +764,7 @@
             LogText "Result: directory /etc/pam.d exists"
             Display --indent 2 --text "- PAM configuration files (pam.d)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Test: searching PAM configuration files"
-            FIND=$(${FINDBINARY} ${ROOTDIR}etc/pam.d \! -name "*.pam-old" -type f -print | sort)
+            FIND=$(${FINDBINARY} -L ${ROOTDIR}etc/pam.d \! -name "*.pam-old" -type f -print | sort)
             for FILE in ${FIND}; do
                 LogText "Found file: ${FILE}"
             done
@@ -916,7 +916,7 @@
             LogText "Result: found one or more accounts without password"
             for I in ${FIND2}; do
                 LogText "Account without password: ${I}"
-                Report "account_without_password=${I}"
+                Report "account_without_password[]=${I}"
             done
             Display --indent 2 --text "- Accounts without password" --result "${STATUS_WARNING}" --color RED
             ReportWarning "${TEST_NO}" "Found accounts without password"
@@ -1017,7 +1017,7 @@
             LogText "Data: Days since epoch is ${DAYS_SINCE_EPOCH}"
             LogText "Test: collecting accounts which have an expired password (last day changed + maximum change time)"
             # Skip fields with a !, *, or x, or !* (field $3 is last changed, $5 is maximum changed)
-            FIND=$(${EGREPBINARY} -v ":[\!\*x]([\*\!])?:" /etc/shadow | ${AWKBINARY} -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
+            FIND=$(${GREPBINARY} -E -v ":[\!\*x]([\*\!])?:" /etc/shadow | ${AWKBINARY} -v today=${DAYS_SINCE_EPOCH} -F: '{ if (($5!="") && (today>$3+$5)) { print $1 }}')
             if [ -n "${FIND}" ]; then
                 for ACCOUNT in ${FIND}; do
                     LogText "Result: password of user ${ACCOUNT} has been expired"
@@ -1109,8 +1109,8 @@
                 TEST_PERFORMED=1
                 LogText "Result: file ${ROOTDIR}etc/inittab exists"
                 LogText "Test: checking presence sulogin for single user mode"
-                FIND=$(${EGREPBINARY} "^[a-zA-Z0-9~]+:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
-                FIND2=$(${EGREPBINARY} "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
+                FIND=$(${GREPBINARY} -E "^[a-zA-Z0-9~]+:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
+                FIND2=$(${GREPBINARY} -E "^su:S:(respawn|wait):/sbin/sulogin" /etc/inittab)
                 if [ -n "${FIND}" -o -n "${FIND2}" ]; then
                     FOUND=1
                     LogText "Result: found sulogin, so single user is protected"
@@ -1147,7 +1147,7 @@
                     # Mark test as performed only when at least 1 target exists (e.g. Ubuntu 14.04 has limited systemd support)
                     TEST_PERFORMED=1
                     LogText "Result: found target ${I}"
-                    FIND=$(${EGREPBINARY} "^ExecStart=" ${FILE} | ${GREPBINARY} "sulogin")
+                    FIND=$(${GREPBINARY} -E "^ExecStart=" ${FILE} | ${GREPBINARY} "sulogin")
                     if [ "${FIND}" = "" ]; then
                         LogText "Result: did not find sulogin specified, possible risk of getting into single user mode without authentication"
                     else
@@ -1270,8 +1270,6 @@
                 LogText "Result: found no umask. Please check if this is correct"
                 Display --indent 4 --text "- umask (/etc/profile)" --result "${STATUS_NOT_FOUND}" --color YELLOW
             fi
-          else
-            LogText "Result: file /etc/profile does not exist"
         fi
 
         # /etc/passwd
@@ -1486,7 +1484,7 @@
     Register --test-no AUTH-9402 --weight L --network NO --category security --description "Query LDAP authentication support"
     if [ ${SKIPTEST} -eq 0 ]; then
         if [ -f ${ROOTDIR}etc/nsswitch.conf ]; then
-            FIND=$(${EGREPBINARY} "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "ldap")
+            FIND=$(${GREPBINARY} -E "^passwd" ${ROOTDIR}etc/nsswitch.conf | ${GREPBINARY} "ldap")
             if [ "${FIND}" = "" ]; then
                 LogText "Result: LDAP authentication not enabled"
                 Display --indent 2 --text "- LDAP authentication support" --result "${STATUS_NOT_ENABLED}" --color WHITE
@@ -1514,7 +1512,7 @@
                 LogText "Result: file ${FILE} exists, LDAP being used"
                 LDAP_CLIENT_CONFIG_FILE="${FILE}"
                 LogText "Test: checking LDAP servers in file ${FILE}"
-                FIND=$(${EGREPBINARY} "^host " ${FILE} | ${AWKBINARY} '{ print $2 }')
+                FIND=$(${GREPBINARY} -E "^host " ${FILE} | ${AWKBINARY} '{ print $2 }')
                 for SERVER in ${FIND}; do
                     Display --indent 6 --text "LDAP server: ${SERVER}"
                     LogText "Result: found LDAP server ${SERVER}"
@@ -1533,31 +1531,49 @@
     # Description : Logging of failed login attempts
     Register --test-no AUTH-9408 --weight L --network NO --category security --description "Logging of failed login attempts"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ -f "${ROOTDIR}etc/pam.conf" ]; then
+        if [ -f "${ROOTDIR}etc/pam.conf" -o -d "${ROOTDIR}etc/pam.d" ]; then
             FOUND_PAM_TALLY2=0
             FOUND_TALLYLOG=0
-            if [ -s "${ROOTDIR}var/log/tallylog" ]; then
+            FOUND_PAM_FAILLOCK=0
+            FOUND_FAILLOCKDIR=0
+            if [ -d "${ROOTDIR}var/run/faillock" ]; then
+                FOUND_FAILLOCKDIR=1
+                LogText "Result: found ${ROOTDIR}var/run/faillock directory"
+            elif [ -s "${ROOTDIR}var/log/tallylog" ]; then
                 FOUND_TALLYLOG=1
                 LogText "Result: found ${ROOTDIR}var/log/tallylog with a size bigger than zero"
             else
-                LogText "Result: did not find ${ROOTDIR}var/log/tallylog on disk or its file size is zero bytes"
+                LogText "Result: did not find ${ROOTDIR}var/run/faillock directory or ${ROOTDIR}var/log/tallylog file on disk or its file size is zero bytes"
             fi
-            # Determine if pam_tally2 is available
+            # Determine if pam_faillock is available
             for D in $(GetReportData --key "pam_module\\\[\\\]"); do
-                if ContainsString "pam_tally2" "${D}"; then
-                    LogText "Result: found pam_tally2 module on disk"
-                    FOUND_PAM_TALLY2=1
+                if ContainsString "pam_faillock" "${D}"; then
+                    LogText "Result: found pam_faillock module on disk"
+                    FOUND_PAM_FAILLOCK=1
                 fi
             done
-            if [ ${FOUND_PAM_TALLY2} -eq 1 -a ${FOUND_TALLYLOG} -eq 1 ]; then
+            if [ ${FOUND_PAM_FAILLOCK} -eq 0 ]; then
+                # Determine if pam_tally2 is available
+                for D in $(GetReportData --key "pam_module\\\[\\\]"); do
+                    if ContainsString "pam_tally2" "${D}"; then
+                        LogText "Result: found pam_tally2 module on disk"
+                        FOUND_PAM_TALLY2=1
+                    fi
+                done
+            fi
+            if [ ${FOUND_PAM_FAILLOCK} -eq 1 -a ${FOUND_FAILLOCKDIR} -eq 1 ]; then
+                LogText "Outcome: authentication failures are logged using pam_faillock"
+                AUTH_FAILED_LOGINS_LOGGED=1
+                Report "auth_failed_logins_tooling[]=pam_faillock"
+            elif [ ${FOUND_PAM_TALLY2} -eq 1 -a ${FOUND_TALLYLOG} -eq 1 ]; then
                 LogText "Outcome: authentication failures are logged using pam_tally2"
                 AUTH_FAILED_LOGINS_LOGGED=1
                 Report "auth_failed_logins_tooling[]=pam_tally2"
             else
-                LogText "Outcome: it looks like pam_tally2 is not configured to log failed login attempts"
+                LogText "Outcome: it looks like pam_faillock or pam_tally2 is not configured to log failed login attempts"
             fi
 
-            unset FOUND_PAM_TALLY2 FOUND_TALLYLOG
+            unset FOUND_PAM_TALLY2 FOUND_TALLYLOG FOUND_PAM_FAILLOCK FOUND_FAILLOCKDIR
         fi
         # Also check /etc/logins.defs, although its usage decreased over the years
         if [ -f ${ROOTDIR}etc/login.defs ]; then

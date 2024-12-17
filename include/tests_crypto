@@ -54,7 +54,7 @@
                     LASTSUBDIR=""
                     LogText "Result: found directory ${DIR}"
                     # Search for certificate files
-                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${EGREPBINARY} ".cer$|.crt$|.der$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /__space__/g')
+                    FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${GREPBINARY} -E ".cer$|.crt$|.der$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /__space__/g')
                     for FILE in ${FILES}; do
                         FILE=$(echo ${FILE} | ${SEDBINARY} 's/__space__/ /g')
                         # See if we need to skip this path
@@ -80,7 +80,7 @@
                             if [ ${CANREAD} -eq 1 ]; then
                                 # Only check the files that are not installed by a package, unless enabled by profile
                                 if [ ${SSL_CERTIFICATE_INCLUDE_PACKAGES} -eq 1 ] || ! FileInstalledByPackage "${FILE}"; then
-                                    echo ${FILE} | ${EGREPBINARY} --quiet ".cer$|.der$"
+                                    echo ${FILE} | ${GREPBINARY} -E -q ".cer$|.der$"
                                     CER_DER=$?
                                     OUTPUT=$(${GREPBINARY} -q 'BEGIN CERT' "${FILE}")
                                     if [ $? -eq 0 -o ${CER_DER} -eq 0 ]; then
@@ -200,7 +200,7 @@
                     LogText "Result: Found LUKS encrypted swap device: ${BLOCK_DEV}"
                     ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS + 1))
                     Report "encrypted_swap[]=${BLOCK_DEV},LUKS"
-                elif ${CRYPTSETUPBINARY} status "${BLOCK_DEV}" 2> /dev/null | ${GREPBINARY} --quiet "cipher:"; then
+                elif ${CRYPTSETUPBINARY} status "${BLOCK_DEV}" 2> /dev/null | ${GREPBINARY} -q "cipher:"; then
                     LogText "Result: Found non-LUKS encrypted swap device: ${BLOCK_DEV}"
                     ENCRYPTED_SWAPS=$((ENCRYPTED_SWAPS + 1))
                     Report "encrypted_swap[]=${BLOCK_DEV},other"
@@ -213,6 +213,33 @@
             Display --indent 2 --text "- Found ${ENCRYPTED_SWAPS} encrypted and ${UNENCRYPTED_SWAPS} unencrypted swap devices in use." --result OK --color WHITE
         else
             LogText "Result: skipping testing as swapon returned an error."
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-7932
+    # Description : Determine if system has enabled macOS FileVault encryption
+    Register --test-no CRYP-7932 --os macOS --weight L --network NO --category crypto --description "Determine if system has enabled macOS FileVault encryption"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        if command -v fdesetup &> /dev/null; then
+            case $(fdesetup status) in
+                *"FileVault is On."*)
+                    LogText "Result: FileVault is enabled."
+                    Display --indent 2 --text "- FileVault is enabled." --result "${STATUS_OK}" --color GREEN
+                    Report "encryption[]=filevault"
+                    AddHP 3 3
+                    ;;
+                *)
+                    LogText "Result: FileVault is not enabled."
+                    Display --indent 2 --text "- FileVault is not enabled." --result "${STATUS_WARNING}" --color RED
+                    AddHP 0 3
+                    ;;
+            esac
+        else
+            LogText "Result: fdesetup command not found. Unable to determine FileVault status."
+            Display --indent 2 --text "- Unable to determine FileVault status (fdesetup command not found)." --result "${STATUS_WARNING}" --color YELLOW
+            AddHP 0 3
         fi
     fi
 #
@@ -288,6 +315,32 @@
             RNG_FOUND=1
             Display --indent 2 --text "- SW prng" --result "${STATUS_YES}" --color GREEN
             LogText "Result: found ${FOUND} running"
+        fi
+    fi
+#
+#################################################################################
+#
+    # Test        : CRYP-8006
+    # Description : Check that the MemoryOverwriteRequest-bit is set to protect against cold-boot attacks
+    Register --test-no CRYP-8006 --os Linux --weight L --network NO --root-only NO --category security --description "MemoryOverwriteRequest-bit set"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        MOR_CONTROL="${ROOTDIR}sys/firmware/efi/efivars/MemoryOverwriteRequestControl-e20939be-32d4-41be-a150-897f85d49829"
+        LogText "Test: looking for ${MOR_CONTROL}"
+        if [ -f "${MOR_CONTROL}" ]; then
+            DATA=$(od -An --skip-bytes=4 "$MOR_CONTROL")
+            if [ "$DATA" = " 000001" ]; then
+                LogText "Result: MOR-bit set"
+                Display --indent 2 --text "MOR-bit set" --result "${STATUS_YES}" --color GREEN
+            elif [ "$DATA" = " 000000" ]; then
+                LogText "Result: MOR-bit not set!"
+                Display --indent 2 --text "MOR-bit set" --result "${STATUS_NO}" --color RED
+            else
+                LogText "Result: MOR-bit unknown. Found: $DATA"
+                Display --indent 2 --text "MOR-bit set" --result "${STATUS_UNKNOWN}" --color YELLOW
+            fi
+        else
+            LogText "Result: could not find ${MOR_CONTROL}"
+            Display --indent 2 --text "- MOR variable not found" --result "${STATUS_WEAK}" --color WHITE
         fi
     fi
 #

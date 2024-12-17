@@ -161,7 +161,8 @@
                 for SUGGESTION in ${SUGGESTIONS}; do
                     SOLUTION=""
                     SHOWSUGGESTION=$(echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^.* Suggestion: //' | sed 's/\[details:\(.*\)\] \[solution:\(.*\)\]//' | sed 's/test://')
-                    ADDLINK=$(echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^.* Suggestion: \(.*\)\[test://' | sed 's/\]\(.*\)]//' | ${AWKBINARY} -F: '{print $1}')
+                    RELATED_CONTROL=$(echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^.* Suggestion: \(.*\)\[test://' | sed 's/\]\(.*\)]//' | ${AWKBINARY} -F: '{print $1}')
+                    ADDLINK="${RELATED_CONTROL}"
                     DETAILS=$(echo ${SUGGESTION} | sed 's/!space!/ /g' | sed 's/^.* Suggestion: \(.*\)\[details://' | sed 's/\]\(.*\)]//')
                     SUGGESTION_PIECES=$(echo ${SUGGESTION} | sed 's/\[/ [/g')
                     for PIECE in ${SUGGESTION_PIECES}; do
@@ -174,10 +175,23 @@
                     echo "  ${YELLOW}*${NORMAL} ${SHOWSUGGESTION}"
                     if [ ! "${DETAILS}" = "-" -a -n "${DETAILS}" ]; then echo "    - Details  : ${CYAN}${DETAILS}${NORMAL}"; fi
                     if [ ${SHOW_REPORT_SOLUTION} -eq 1 -a ! "${SOLUTION}" = "-" ]; then echo "    - Solution : ${SOLUTION}"; fi
+                    # Show relevant articles if the database is available
+                    if [ -f ${DBDIR}/control-links.db ]; then
+                        echo "    - Related resources"
+                        ARTICLES=$($AWKBINARY -F \; -v control=${RELATED_CONTROL} '{if($1==control && $2=="blog"){print $2";"$3";"$4";"}}' "${DBDIR}/control-links.db" | sed 's/ /!space!/g')
+                        if [ -n "${ARTICLES}" ]; then
+                            for ITEM in ${ARTICLES}; do
+                                ITEM=$(echo ${ITEM} | sed 's/!space!/ /g')
+                                ARTICLE=$(echo ${ITEM} | awk -F\; '{print $2}')
+                                ARTICLE_LINK=$(echo ${ITEM} | awk -F\; '{print $3}')
+                                echo "      * Article: ${CYAN}${ARTICLE}${NORMAL}: ${ARTICLE_LINK}"
+                            done
+                        fi
+                    fi
                     if [ -z "${IS_CUSTOM}" ]; then
-                        echo "      ${GRAY}${CONTROL_URL_PROTOCOL}://${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}${NORMAL}"
+                        echo "      * Website: ${GRAY}${CONTROL_URL_PROTOCOL}://${CONTROL_URL_PREPEND}${ADDLINK}${CONTROL_URL_APPEND}${NORMAL}"
                     else
-                        echo "      ${GRAY}${CUSTOM_URL_PROTOCOL}://${CUSTOM_URL_PREPEND}${ADDLINK}${CUSTOM_URL_APPEND}${NORMAL}"
+                        echo "      * Details: ${GRAY}${CUSTOM_URL_PROTOCOL}://${CUSTOM_URL_PREPEND}${ADDLINK}${CUSTOM_URL_APPEND}${NORMAL}"
                     fi
                     echo ""
                 done

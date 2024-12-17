@@ -109,43 +109,77 @@
     Register --test-no FIRE-4508 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Check used policies of iptables chains"
     if [ ${SKIPTEST} -eq 0 ]; then
         Display --indent 4 --text "- Checking iptables policies of chains" --result "${STATUS_FOUND}" --color GREEN
-        TABLES="filter"
-        for TABLE in ${TABLES}; do
-            LogText "Test: gathering information from table ${TABLE}"
-            FIND="$FIND""\n"$(${IPTABLESBINARY} -t ${TABLE} --numeric --list | ${EGREPBINARY}  -z -o -w  '[A-Z]+' | tr -d '\0' | ${AWKBINARY} -v t=${TABLE} 'NR%2 {printf "%s %s ",t, $0 ; next;}1')
-        done
-
-        echo "${FIND}" | while read -r line; do
-            table=$(echo ${line} | ${AWKBINARY} '{ print $1 }')
-            chainname=$(echo ${line} | ${AWKBINARY} '{ print $2 }')
-            policy=$(echo ${line} | ${AWKBINARY} '{ print $3 }')
-            LogText "Result: iptables  ${table}  -- ${chainname} policy is ${policy}."
-            LogText "Result: ${policy}"
-
-            if [ "${TABLE}" = "filter" ]; then
-                if [ "${chainname}" = "INPUT" ]; then
-                    case ${policy} in
-                        "ACCEPT")
-                             LogText "Result: Found ACCEPT for ${chainname} (table: ${table})"
-                             Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, policy ${policy})" --result "ACCEPT" --color YELLOW
-                             #ReportSuggestion "${TEST_NO}" "Consider settings default chain policy to DROP (iptables chain ${chainname}, table: ${table})"
-                             AddHP 1 3
-                             ;;
-                         "DROP")
-                             LogText "Result: Found DROP for ${chainname} (table: ${table})"
-                             Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, policy ${policy})" --result "DROP" --color GREEN
-                             AddHP 3 3
-                             ;;
-                         *)
-                             Display --indent 6 --text "- Checking chain ${chainname} (table: ${table}, policy ${policy})" --result "other" --color YELLOW
-                             LogText "Result: Unknown policy: ${policy}"
-                             #ReportSuggestion "${TEST_NO}" "Check iptables ${chainname} (table: ${table}) chain policy"
-                             ;;
-                    esac
+        IPTABLES_TABLES="filter nat mangle raw security"
+        for IPTABLES_TABLE in ${IPTABLES_TABLES}
+        do
+            ${IPTABLESBINARY} -t "${IPTABLES_TABLE}" --list-rules --wait 1 2>/dev/zero |
+            {
+                IPTABLES_OUTPUT_QUEUE=""
+                while IFS="$(printf '\n')" read -r IPTABLES_LINES
+                do
+                    set -- ${IPTABLES_LINES}
+                    while [ $# -gt 0 ]; do
+                        if [ "${1}" = "-P" ]; then
+                            IPTABLES_CHAIN="${2}"
+                            IPTABLES_TARGET="${3}"
+                            shift 3
+                        elif [ "${1}" = "-A" ] || [ "${1}" = "-N" ]; then
+                            IPTABLES_CHAIN="${2}"
+                            shift 2
+                        elif [ "${1}" = "-j" ]; then
+                            IPTABLES_TARGET="${2}"
+                            shift
+                        else
+                            shift
+                        fi
+                    done
+                    # logics
+                    if [ "${IPTABLES_TABLE}" = "filter" ] || [ "${IPTABLES_TABLE}" = "security" ]; then
+                        if [ "${IPTABLES_CHAIN}" = "INPUT" ]; then
+                            if [ "${IPTABLES_TARGET}" = "ACCEPT" ]; then
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} YELLOW 1 3"
+                            elif [ "${IPTABLES_TARGET}" = "DROP" ]; then
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} GREEN 3 3"
+                            fi
+                        fi
+                        if [ "${IPTABLES_CHAIN}" = "INPUT" ] || [ "${IPTABLES_CHAIN}" = "FORWARD" ] || [ "${IPTABLES_CHAIN}" = "OUTPUT" ]; then
+                            if [ "${IPTABLES_TARGET}" = "NFQUEUE" ]; then
+                                IPTABLES_OUTPUT_QUEUE="${IPTABLES_OUTPUT_QUEUE}\n${IPTABLES_TABLE} ${IPTABLES_CHAIN} ${IPTABLES_TARGET} RED 0 3"
+                            fi
+                        fi
+                    fi
+                done
+                if [ -n "${IPTABLES_OUTPUT_QUEUE}" ]; then
+                    # Sort output if sort tool is available
+                    if [ -n "${SORTBINARY}" ]; then
+                        LogText "Info: sorting output"
+                        IPTABLES_OUTPUT="$(printf '%b' "${IPTABLES_OUTPUT_QUEUE}" | ${SORTBINARY} -u )"
+                    else
+                        IPTABLES_OUTPUT="$(printf '%b' "${IPTABLES_OUTPUT_QUEUE}")"
+                    fi
+                    printf '%b\n' "${IPTABLES_OUTPUT}" | while IFS="$(printf '\n')" read -r IPTABLES_OUTPUT_LINE
+                    do
+                        if [ -n "$IPTABLES_OUTPUT_LINE" ]; then
+                            set -- ${IPTABLES_OUTPUT_LINE}
+                            while [ $# -gt 0 ]; do
+                                LogText "Result: Found target '${3}' for chain '${2}' (table: ${1})"
+                                Display --indent 6 --text "- Chain ${2} (table: ${1}, target: ${3})" --result "${3}" --color "${4}"
+                                if [ "${3}" = "NFQUEUE" ]
+                                then
+                                    ReportSuggestion "${TEST_NO}" "Consider avoid ${3} target if possible (iptables chain ${2}, table: ${1})"
+                                fi
+                                AddHP "${5}" "${6}"
+                                shift 6
+                            done
+                        fi
+                    done
                 fi
-            fi
+            }
+            unset IPTABLES_TABLE
         done
+        unset IPTABLES_TABLES
     fi
+    unset PREQS_MET
 #
 #################################################################################
 #
@@ -154,7 +188,7 @@
     if [ -n "${IPTABLESBINARY}" -a ${IPTABLES_ACTIVE} -eq 1 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no FIRE-4512 --preqs-met ${PREQS_MET} --os Linux --weight L --network NO --root-only YES --category security --description "Check iptables for empty ruleset"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${IPTABLESBINARY} --list --numeric 2> /dev/null | ${EGREPBINARY} -v "^(Chain|target|$)" | ${WCBINARY} -l | ${TRBINARY} -d ' ')
+        FIND=$(${IPTABLESBINARY} --list --numeric 2> /dev/null | ${GREPBINARY} -E -v "^(Chain|target|$)" | ${WCBINARY} -l | ${TRBINARY} -d ' ')
         if [ -n "${FIND}" ]; then
             FIREWALL_ACTIVE=1
             if [ ${FIND} -le 5 ]; then
@@ -506,7 +540,7 @@
     Register --test-no FIRE-4540 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --root-only YES --category security --description "Check for empty nftables configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         # Check for empty ruleset
-        NFT_RULES_LENGTH=$(${NFTBINARY} list ruleset --stateless 2> /dev/null | ${EGREPBINARY} -v "table|chain|;$|}$|^$" | ${WCBINARY} -l)
+        NFT_RULES_LENGTH=$(${NFTBINARY} --stateless list ruleset 2> /dev/null | ${GREPBINARY} -E -v "table|chain|;$|}$|^$" | ${WCBINARY} -l)
         if [ ${NFT_RULES_LENGTH} -le 3 ]; then
             FIREWALL_EMPTY_RULESET=1
             LogText "Result: this firewall set has 3 rules or less and is considered to be empty"

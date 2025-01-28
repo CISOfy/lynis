@@ -6,6 +6,7 @@
 - Update of translations: Portuguese
 - Add macOS Sequoia
 - Update of EOL database
+- Bugfix for using slashes in parameters (SafeInput function)
 
 ---------------------------------------------------------------------------------
 

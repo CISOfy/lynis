@@ -1,5 +1,12 @@
 # Lynis Changelog
 
+## Lynis 3.1.5 (not released yet)
+
+### Changed
+- Corrected detection of service manager SMF
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.1.4 (2025-01-28)
 
 ### Changed

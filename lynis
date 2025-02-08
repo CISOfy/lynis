@@ -520,12 +520,17 @@ ${NORMAL}
         HP-UX)
             HOSTNAME=$(hostname) ;;
         Linux)
-            HOSTNAME=$(hostname -s 2> /dev/null)
-            if [ -z "${HOSTNAME}" ]; then
-                HOSTNAME="${FQDN:-no-hostname}"
-            fi
-            if [ "${HOSTNAME}" = "${FQDN}" ]; then
-                FQDN=$(hostname -f 2> /dev/null)
+            if [ "${LINUX_VERSION}" = "OpenWrt" ]; then
+                HOSTNAME=$(uname -n)
+                FQDN="${HOSTNAME:+$HOSTNAME.}$(uci -q get dhcp.@dnsmasq[0].domain)"
+            else
+                HOSTNAME=$(hostname -s 2> /dev/null)
+                if [ -z "${HOSTNAME}" ]; then
+                  HOSTNAME="${FQDN:-no-hostname}"
+                fi
+                if [ "${HOSTNAME}" = "${FQDN}" ]; then
+                    FQDN=$(hostname -f 2> /dev/null)
+                fi
             fi
             ;;
         Solaris)

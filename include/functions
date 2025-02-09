@@ -940,7 +940,7 @@
             done
         fi
 
-        if [ ! "${SHA1SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
+        if [ ! "${SHA1SUMBINARY}" = "" -o ! "${SHA256SUMBINARY}" = "" -o ! "${OPENSSLBINARY}" = "" -o ! "${CSUMBINARY}" = "" ]; then
             LogText "Info: found hashing tool, start generation of HostID"
             case "${OS}" in
 
@@ -1068,7 +1068,12 @@
                     # Check if we found a MAC address to generate the HostID
                     if HasData "${FIND}"; then
                         LogText "Info: using hardware address '${FIND}' to create HostID"
+                        if [ -n "${SHA1SUMBINARY}" ]; then
                         HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
+                        elif [ -n "${SHA256SUMBINARY}" ]; then
+                            # Truncate hash to match SHA1 length
+                            HOSTID=$(echo ${FIND} | ${SHA256SUMBINARY} | awk '{ print $1 }' | head -c 40)
+                        fi
                         LogText "Result: Found HostID: ${HOSTID}"
                     else
                         ReportException "GetHostID" "HostID could not be generated"
@@ -1155,7 +1160,7 @@
             fi
 
         else
-            ReportException "GetHostID" "Can't create HOSTID as there is no SHA1 hash tool available (sha1, sha1sum, openssl)"
+            ReportException "GetHostID" "Can't create HOSTID as there is no hash tool available (sha1, sha1sum, openssl, truncated sha256sum)"
         fi
 
         # Search machine ID

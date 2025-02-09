@@ -1069,7 +1069,7 @@
                     if HasData "${FIND}"; then
                         LogText "Info: using hardware address '${FIND}' to create HostID"
                         if [ -n "${SHA1SUMBINARY}" ]; then
-                        HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
+                            HOSTID=$(echo ${FIND} | ${SHA1SUMBINARY} | awk '{ print $1 }')
                         elif [ -n "${SHA256SUMBINARY}" ]; then
                             # Truncate hash to match SHA1 length
                             HOSTID=$(echo ${FIND} | ${SHA256SUMBINARY} | awk '{ print $1 }' | head -c 40)
@@ -1203,10 +1203,9 @@
             LogText "Info: start generation of HostID (version 2)"
             FOUND=0
             DATA_SSH=""
-            # Use public keys
-            SSH_KEY_FILES="ssh_host_ed25519_key.pub ssh_host_ecdsa_key.pub ssh_host_dsa_key.pub ssh_host_rsa_key.pub"
             if [ -d /etc/ssh ]; then
-                for I in ${SSH_KEY_FILES}; do
+                SSH_PUBKEY_FILES="ssh_host_ed25519_key.pub ssh_host_ecdsa_key.pub ssh_host_dsa_key.pub ssh_host_rsa_key.pub"
+                for I in ${SSH_PUBKEY_FILES}; do
                     if [ ${FOUND} -eq 0 ]; then
                         if [ -f /etc/ssh/${I} ]; then
                             LogText "Result: found file ${I} in /etc/ssh, using that as candidate to create hostid2"
@@ -1215,8 +1214,20 @@
                         fi
                     fi
                 done
+            elif [ -d /etc/dropbear ]; then
+                SSH_KEY_FILES="dropbear_ed25519_host_key dropbear_rsa_host_key"
+                for I in ${SSH_KEY_FILES}; do
+                    if [ ${FOUND} -eq 0 ]; then
+                        if [ -f "/etc/dropbear/${I}" ]; then
+                            LogText "Result: found file ${I} in /etc/dropbear, using that as candidate to create hostid2"
+                            # Dropbear stores both keys in one binary file
+                            DATA_SSH=$(dropbearkey -y -f "/etc/dropbear/${I}" | grep '^ssh')
+                            FOUND=1
+                        fi
+                    fi
+                done
             else
-                LogText "Result: no /etc/ssh directory found, skipping"
+                LogText "Result: no /etc/ssh nor /etc/dropbear directory found, skipping"
             fi
 
             STRING_TO_HASH=""

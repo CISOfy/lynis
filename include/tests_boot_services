@@ -5,11 +5,10 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2021, CISOfy
+# Copyright (c) Michael Boelen, CISOfy, and many contributors.
 #
 # Website  : https://cisofy.com
-# Blog     : http://linux-audit.com
+# Blog     : https://linux-audit.com/
 # GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -147,7 +146,7 @@
                 fi
             ;;
             "Solaris")
-                if [ -n "${ROOTDIR}usr/bin/svcs" ]; then
+                if [ -x "${ROOTDIR}usr/bin/svcs" ]; then
                     SERVICE_MANAGER="SMF (svcs)"
                 elif [ -d "${ROOTDIR}etc/init.d" ]; then
                     SERVICE_MANAGER="SysV Init"
@@ -347,7 +346,7 @@
         FOUND=0
 
         if [ -d "${ROOTDIR}etc/grub.d" ]; then
-            CONF_FILES=$(${FINDBINARY} "${ROOTDIR}etc/grub.d" -type f -name "[0-9][0-9]*" -print0 | ${TRBINARY} '\0' ' ' | ${TRBINARY} -d '[:cntrl:]')
+            CONF_FILES=$(${FINDBINARY} -L "${ROOTDIR}etc/grub.d" -type f -name "[0-9][0-9]*" -print0 | ${TRBINARY} '\0' ' ' | ${TRBINARY} -d '[:cntrl:]')
             CONF_FILES="${GRUBCONFFILE} ${ROOTDIR}boot/grub/custom.cfg ${CONF_FILES}"
         else
             CONF_FILES="${GRUBCONFFILE} ${ROOTDIR}boot/grub/custom.cfg"
@@ -460,7 +459,7 @@
                 BOOT_LOADER_FOUND=1
                 Display --indent 2 --text "- Checking presence LILO" --result "${STATUS_OK}" --color GREEN
                 LogText "Checking password option LILO"
-                FIND=$(${EGREPBINARY} 'password[[:space:]]?=' ${LILOCONFFILE} | ${GREPBINARY} -v "^#")
+                FIND=$(${GREPBINARY} -E 'password[[:space:]]?=' ${LILOCONFFILE} | ${GREPBINARY} -v "^#")
                 if [ -z "${FIND}" ]; then
                     if [ "${MACHINE_ROLE}" = "server" -o "${MACHINE_ROLE}" = "workstation" ]; then
                         Display --indent 4 --text "- Password option presence " --result "${STATUS_WARNING}" --color RED
@@ -605,7 +604,7 @@
         else
             # FreeBSD (Read /etc/rc.conf file for enabled services)
             LogText "Searching for services at startup (rc.conf)"
-            FIND=$(${EGREPBINARY} -v -i '^#|none' ${ROOTDIR}etc/rc.conf | ${EGREPBINARY} -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | ${SEDBINARY} 's/_enable//')
+            FIND=$(${GREPBINARY} -E -v -i '^#|none' ${ROOTDIR}etc/rc.conf | ${GREPBINARY} -E -i '_enable.*(yes|on|1)' | ${SORTBINARY} | ${AWKBINARY} -F= '{ print $1 }' | ${SEDBINARY} 's/_enable//')
         fi
         COUNT=0
         for ITEM in ${FIND}; do
@@ -715,7 +714,7 @@
             if [ -n "${CHKCONFIGBINARY}" ]; then
                 LogText "Result: chkconfig binary found, trying that to discover information"
                 LogText "Searching for services at startup (chkconfig, runlevel 3 and 5)"
-                FIND=$(${CHKCONFIGBINARY} --list | ${EGREPBINARY} '3:on|5:on' | ${AWKBINARY} '{ print $1 }')
+                FIND=$(${CHKCONFIGBINARY} --list | ${GREPBINARY} -E '3:on|5:on' | ${AWKBINARY} '{ print $1 }')
                 COUNT=0
                 Report "boot_service_tool=chkconfig"
                 for ITEM in ${FIND}; do
@@ -785,7 +784,7 @@
             if [ -d ${DIR} ]; then
                 LogText "Result: directory ${DIR} found"
                 LogText "Test: checking for available files in directory"
-                FIND=$(${FINDBINARY} ${DIR} -type f -print | ${SORTBINARY})
+                FIND=$(${FINDBINARY} -L ${DIR} -type f -print | ${SORTBINARY})
                 if [ -n "${FIND}" ]; then
                     LogText "Result: found files in directory, checking permissions now"
                     for FILE in ${FIND}; do
@@ -809,7 +808,7 @@
         for NO in 0 1 2 3 4 5 6; do
             LogText "Test: Checking ${ROOTDIR}etc/rc${NO}.d scripts for writable bit"
             if [ -d ${ROOTDIR}etc/rc${NO}.d ]; then
-                FIND=$(${FINDBINARY} ${ROOTDIR}etc/rc${NO}.d -type f -print | ${SORTBINARY})
+                FIND=$(${FINDBINARY} -L ${ROOTDIR}etc/rc${NO}.d -type f -print | ${SORTBINARY})
                 for I in ${FIND}; do
                     if IsWorldWritable ${I}; then
                         FOUND=1
@@ -947,7 +946,7 @@
         if [ -f ${ROOTDIR}usr/lib/systemd/system/rescue.service ]; then
             LogText "Result: file /usr/lib/systemd/system/rescue.service"
             LogText "Test: checking presence sulogin for single user mode"
-            FIND=$(${EGREPBINARY} "^ExecStart=.*sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
+            FIND=$(${GREPBINARY} -E "^ExecStart=.*sulogin" ${ROOTDIR}usr/lib/systemd/system/rescue.service)
             if [ -n "${FIND}" ]; then
                 FOUND=1
                 LogText "Result: found sulogin, so single user is protected"
@@ -981,14 +980,14 @@
                 Report "running_service[]=${ITEM}"
                 COUNT=$((COUNT + 1 ))
             done
-            LogText "Note: Run rcctl ls all | egrep  '^(pf|check_quotas|library_aslr)$' to see all daemons"
+            LogText "Note: Run rcctl ls all | grep -E '^(pf|check_quotas|library_aslr)$' to see all daemons"
             Display --indent 2 --text "- Check running daemons (rcctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} running daemons"
             LogText "Result: Found ${COUNT} running daemons"
 
             # OpenBSD (Ask rcctl(8) for enabled daemons)
             LogText "Searching for enabled daemons (rcctl)"
-            FIND=$(${RCCTLBINARY} ls on | ${EGREPBINARY} -v '^(pf|check_quotas|library_aslr)$')
+            FIND=$(${RCCTLBINARY} ls on | ${GREPBINARY} -E -v '^(pf|check_quotas|library_aslr)$')
             COUNT=0
             Report "boot_service_tool=rcctl"
             for ITEM in ${FIND}; do
@@ -996,7 +995,7 @@
                 Report "boot_service[]=${ITEM}"
                 COUNT=$((COUNT + 1 ))
             done
-            LogText "Note: Run rcctl ls all | egrep  '^(pf|check_quotas|library_aslr)$' to see all daemons"
+            LogText "Note: Run rcctl ls all | grep -E  '^(pf|check_quotas|library_aslr)$' to see all daemons"
             Display --indent 2 --text "- Check enabled daemons at boot (rcctl)" --result "${STATUS_DONE}" --color GREEN
             Display --indent 8 --text "Result: found ${COUNT} enabled daemons at boot"
             LogText "Result: Found ${COUNT} enabled daemons at boot"
@@ -1017,7 +1016,7 @@
             LogText "Result: directory ${DIR} found"
             LogText "Test: checking for available files in directory"
             # OpenBSD uses symlinks to create another instance of daemons
-            FIND=$(${FINDBINARY} ${CHECKDIR} \( -type f -o -type l \) -print | ${SORTBINARY})
+            FIND=$(${FINDBINARY} -L ${CHECKDIR} -type f -print | ${SORTBINARY})
             if [ -n "${FIND}" ]; then
                 LogText "Result: found files in directory, checking permissions now"
                 for FILE in ${FIND}; do
@@ -1090,6 +1089,8 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Run systemd-analyze security"
         Display --indent 2 --text "- Running 'systemd-analyze security'"
+        Display --indent 6 --text "Unit name (exposure value) and predicate"
+        Display --indent 6 --text "--------------------------------"
         ${SYSTEMDANALYZEBINARY} security | while read UNIT EXPOSURE PREDICATE HAPPY; do
             if [ "${UNIT}" = "UNIT" ]; then
                 continue
@@ -1111,11 +1112,11 @@
                 ;;
                 UNSAFE | DANGEROUS)
                     STATUS="${STATUS_UNSAFE}"
-                    COLOR=RED
+                    COLOR=YELLOW
                 ;;
             esac
-            Display --indent 8 --text "- ${UNIT}:" --result "${STATUS}" --color "${COLOR}"
-            LogText "Result: ${UNIT}: ${EXPOSURE} ${STATUS}"
+            Display --indent 4 --text "- ${UNIT} (value=${EXPOSURE})" --result "${STATUS}" --color "${COLOR}"
+            LogText "Result: ${UNIT} has exposure value ${EXPOSURE} with predicate '${STATUS}'"
         done
         ReportSuggestion "${TEST_NO}" "Consider hardening system services" "Run '${SYSTEMDANALYZEBINARY} security SERVICE' for each service"
     fi

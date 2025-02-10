@@ -5,11 +5,10 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2021, CISOfy
+# Copyright (c) Michael Boelen, CISOfy, and many contributors.
 #
 # Website  : https://cisofy.com
-# Blog     : http://linux-audit.com
+# Blog     : https://linux-audit.com/
 # GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -22,7 +21,7 @@
 #
 #################################################################################
 #
-    SSH_DAEMON_CONFIG_LOCS="/etc /etc/ssh /usr/local/etc/ssh /opt/csw/etc/ssh"
+    SSH_DAEMON_CONFIG_LOCS="/etc /etc/ssh /usr/local/etc/ssh /opt/csw/etc/ssh /usr/etc/ssh"
     SSH_DAEMON_CONFIG=""
     SSH_DAEMON_PORT=""
     SSH_DAEMON_RUNNING=0
@@ -74,7 +73,7 @@
                 LogText "Result: ${I}/sshd_config exists"
                 if [ ${FOUND} -eq 1 ]; then
                     ReportException "${TEST_NO}:01"
-                    LogText "Result: we already had found another sshd_config file. Using this new file then."
+                    LogText "Result: we already found another sshd_config file. Using this new file instead of the previous one."
                 fi
                 FileIsReadable ${I}/sshd_config
                 if [ ${CANREAD} -eq 1 ]; then
@@ -135,7 +134,6 @@
         SSHOPS="AllowTcpForwarding:NO,LOCAL,YES:=\
                 ClientAliveCountMax:2,4,16:<\
                 ClientAliveInterval:300,600,900:<\
-                Compression:NO,,YES:=\
                 FingerprintHash:SHA256,MD5,:=\
                 GatewayPorts:NO,,YES:=\
                 IgnoreRhosts:YES,,NO:=\
@@ -158,12 +156,12 @@
         # OpenSSH had some options removed over time. Based on the version we add some additional options to check
         if [ ${OPENSSHD_VERSION_MAJOR} -lt 7 ]; then
             LogText "Result: added additional options for OpenSSH 6.x and lower"
-            SSHOPS="${SSHOPS} UsePrivilegeSeparation:SANDBOX,YES,NO:=  Protocol:2,,1:="
+            SSHOPS="${SSHOPS} Compression:(DELAYED|NO),,YES:= UsePrivilegeSeparation:SANDBOX,YES,NO:=  Protocol:2,,1:="
         elif [ ${OPENSSHD_VERSION_MAJOR} -eq 7 ]; then
             # Protocol 1 support removed (OpenSSH 7.4 and later)
             if [ ${OPENSSHD_VERSION_MINOR} -lt 4 ]; then
                 LogText "Result: added additional options for OpenSSH < 7.4"
-                SSHOPS="${SSHOPS} Protocol:2,,1:="
+                SSHOPS="${SSHOPS} Compression:(DELAYED|NO),,YES:= Protocol:2,,1:="
             fi
             # UsePrivilegedSeparation removed (OpenSSH 7.5 and later)
             if [ ${OPENSSHD_VERSION_MINOR} -lt 5 ]; then
@@ -300,7 +298,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         # AllowUsers
-        FIND=$(${EGREPBINARY} -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
+        FIND=$(${GREPBINARY} -E -i "^AllowUsers" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
         if [ -n "${FIND}" ]; then
             LogText "Result: AllowUsers set, with value ${FIND}"
             Display --indent 4 --text "- OpenSSH option: AllowUsers" --result "${STATUS_FOUND}" --color GREEN
@@ -311,9 +309,9 @@
         fi
 
         # AllowGroups
-        FIND=$(${EGREPBINARY} -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
+        FIND=$(${GREPBINARY} -E -i "^AllowGroups" ${SSH_DAEMON_OPTIONS_FILE} | ${AWKBINARY} '{ print $2 }')
         if [ -n "${FIND}" ]; then
-            LogText "Result: AllowUsers set ${FIND}"
+            LogText "Result: AllowGroups set ${FIND}"
             Display --indent 4 --text "- OpenSSH option: AllowGroups" --result "${STATUS_FOUND}" --color GREEN
             FOUND=1
         else

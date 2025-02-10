@@ -5,11 +5,10 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2021, CISOfy
+# Copyright (c) Michael Boelen, CISOfy, and many contributors.
 #
 # Website  : https://cisofy.com
-# Blog     : http://linux-audit.com
+# Blog     : https://linux-audit.com/
 # GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -45,7 +44,7 @@
     # Description : Check if MySQL is being used
     Register --test-no DBS-1804 --weight L --network NO --category security --description "Checking active MySQL process"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "mariadb|mysqld|mysqld_safe" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} -E "mariadb|mysqld|mysqld_safe" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- MySQL process status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: MySQL process not active"
@@ -85,7 +84,7 @@
         LogText "Test: Trying to login to local MySQL server without password"
 
         # "-u root --password=" avoids ~/.my.cnf authentication settings
-        # "plugin = 'mysql_native_password' AND authentication_string = ''" avoids false positives when secure plugins are used 
+        # "plugin = 'mysql_native_password' AND authentication_string = ''" avoids false positives when secure plugins are used
         FIND=$(${MYSQLCLIENTBINARY} --default-auth=mysql_native_password  --no-defaults -u root --password= --silent --batch --execute="SELECT count(*) FROM mysql.user WHERE user = 'root' AND plugin = 'mysql_native_password' AND authentication_string = ''" mysql > /dev/null 2>&1; echo $?)
         if [ "${FIND}" = "0" ]; then
            LogText "Result: Login succeeded, no MySQL root password set!"
@@ -127,12 +126,25 @@
             for FILE in ${MONGO_CONF_FILES}; do
                 if [ -f ${FILE} ]; then
                     LogText "Result: found MongoDB configuration file (${FILE})"
-                    LogText "Test: determine authorization setting in new style YAML format"
-                    AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
-                    if HasData "${AUTH_IN_CONFIG}"; then
-                        LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format)"
-                        MONGODB_AUTHORIZATION_ENABLED=1
-                    else
+                    # YAML with quotes
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                        LogText "Test: determine authorization setting in new style YAML format"
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: \"enabled\"" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if HasData "${AUTH_IN_CONFIG}"; then
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format with quotes)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
+                        fi
+                    fi
+                    # YAML without quotes
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
+                        AUTH_IN_CONFIG=$(${GREPBINARY} "authorization: enabled" ${FILE} | ${GREPBINARY} -E -v "(^#|#auth)")
+                        if HasData "${AUTH_IN_CONFIG}"; then
+                            LogText "Result: GOOD, found authorization option enabled in configuration file (YAML format without quotes)"
+                            MONGODB_AUTHORIZATION_ENABLED=1
+                        fi
+                    fi
+                    # Old style
+                    if [ ${MONGODB_AUTHORIZATION_ENABLED} -eq 0 ]; then
                         LogText "Result: did NOT find authorization option enabled in configuration file (with YAML format)"
                         LogText "Test: now searching for old style configuration (auth = true) in configuration file"
                         AUTH_IN_CONFIG=$(${GREPBINARY} "auth = true" ${FILE} | ${GREPBINARY} -v "noauth" | ${GREPBINARY} -E -v "(^#|#auth)")
@@ -173,8 +185,10 @@
     # Test        : DBS-1826
     # Description : Check if PostgreSQL is being used
     Register --test-no DBS-1826 --weight L --network NO --category security --description "Checking active PostgreSQL processes"
+    for PROCES in postgres postmaster
+    do
     if [ ${SKIPTEST} -eq 0 ]; then
-        if IsRunning "postgres"; then
+        if IsRunning "${PROCES}"; then
             Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: PostgreSQL is active"
             POSTGRESQL_RUNNING=1
@@ -182,9 +196,10 @@
             Report "postgresql_running=${POSTGRESQL_RUNNING}"
         else
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- PostgreSQL processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
-            LogText "Result: PostgreSQL process not active"
+            LogText "Result: PostgreSQL process ${PROCES} not active"
         fi
     fi
+    done
 #
 #################################################################################
 #
@@ -198,13 +213,15 @@
     # Arch            /var/lib/postgres/data/postgresql.conf
     # CentOS/Fedora   /var/lib/pgsql/data/postgresql.conf
     # Ubuntu          /etc/postgresql/x.y/main/postgresql.conf
+    # FreeBSD         /var/db/postgres/data[0-9][0-9]/postgresql.conf
 
     if [ "${POSTGRESQL_RUNNING}" -eq 1 ]; then PREQS_MET="YES"; SKIPREASON=""; else PREQS_MET="NO"; SKIPREASON="PostgreSQL not installed or not running"; fi
 
     Register --test-no DBS-1828 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Test PostgreSQL configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND_PATHS="${ROOTDIR}etc/postgres ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data"
-        CONFIG_FILES=$(${FINDBINARY} ${FIND_PATHS} -type f -name "*.conf" -print0 2> /dev/null | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} -d '\n' | ${TRBINARY} '\0' '\n' | xargs -i sh -c 'test -r "{}" && echo "{}"' | ${SEDBINARY} "s/ /:space:/g")
+        FIND_PATHS=$(${LSBINARY} -d ${ROOTDIR}usr/local/pgsql/data* 2> /dev/null)
+        FIND_PATHS="${FIND_PATHS} ${ROOTDIR}etc/postgres ${ROOTDIR}etc/postgresql ${ROOTDIR}var/lib/postgres/data ${ROOTDIR}usr/local/pgsql/data ${ROOTDIR}var/lib/pgsql/data ${ROOTDIR}var/db/postgres/data[0-9][0-9]"
+        CONFIG_FILES=$(${FINDBINARY} -L ${FIND_PATHS} -type f -name "*.conf" -print0 2> /dev/null | ${TRBINARY} -cd '[:print:]\0' | ${TRBINARY} -d '\n' | ${TRBINARY} '\0' '\n' | xargs -I'{}' sh -c 'test -r "{}" && echo "{}"' | ${SEDBINARY} "s/ /:space:/g")
         for CF in ${CONFIG_FILES}; do
             Report "postgresql_config_file[]=${CF}"
             LogText "Found configuration file (${CF})"
@@ -213,7 +230,7 @@
                 ReportWarning "${TEST_NO}" "PostgreSQL configuration file ${CF} is world readable and might leak sensitive details" "${CF}" "Use chmod 600 to change file permissions"
             else
                 LogText "Result: great, configuration file ${CF} is not world readable"
-            fi            
+            fi
         done
     fi
 #
@@ -231,7 +248,7 @@
     #               reco: recovery (optional)
     Register --test-no DBS-1840 --weight L --network NO --category security --description "Checking active Oracle processes"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} -E "ora_pmon|ora_smon|tnslsnr" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
             if [ ${DEBUG} -eq 1 ]; then Display --indent 2 --text "- Oracle processes status" --result "${STATUS_NOT_FOUND}" --color WHITE --debug; fi
             LogText "Result: Oracle process(es) not active"
@@ -298,10 +315,16 @@
     if [ ${REDIS_RUNNING} -eq 1 ]; then PREQS_METS="YES"; else PREQS_MET="NO"; SKIPREASON="Redis not running"; fi
     Register --test-no DBS-1882 --weight L --network NO --preqs-met "${PREQS_MET}" --skip-reason "${SKIPREASON}" --category security --description "Redis configuration file"
     if [ ${SKIPTEST} -eq 0 ]; then
-        PATHS="${ROOTDIR}etc/redis ${ROOTDIR}usr/local/etc/redis ${ROOTDIR}usr/local/redis/etc"
+        PATHS="${ROOTDIR}etc/redis ${ROOTDIR}usr/local/etc ${ROOTDIR}usr/local/etc/redis ${ROOTDIR}usr/local/redis/etc"
         if [ ${QNAP_DEVICE} -eq 1 ]; then
             PATHS="${PATHS} ${ROOTDIR}share/CACHEDEV1_DATA/.qpkg/QKVM/usr/etc/redis.conf"
         fi
+        if [ -d "${ROOTDIR}snap" ]; then
+          for SNAP_PATH in $(${FINDBINARY} ${ROOTDIR}snap -name 'redis.conf' -type f | ${SEDBINARY} 's/redis.conf$//g'); do
+            PATHS="${PATHS} ${SNAP_PATH}"
+          done
+        fi
+
         ALLFILES=$(${LSBINARY} ${ROOTDIR}etc/redis.conf 2> /dev/null)
         FOUND=0
         for DIR in ${PATHS}; do

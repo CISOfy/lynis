@@ -5,11 +5,10 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2021, CISOfy
+# Copyright (c) Michael Boelen, CISOfy, and many contributors.
 #
 # Website  : https://cisofy.com
-# Blog     : http://linux-audit.com
+# Blog     : https://linux-audit.com/
 # GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -41,28 +40,17 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         # Checking if we can find the systemd default target
         LogText "Test: Checking for systemd default.target"
-        if [ -L ${ROOTDIR}etc/systemd/system/default.target ]; then
-            LogText "Result: symlink found"
-            if HasData "${READLINKBINARY}"; then
-                FIND=$(${READLINKBINARY} ${ROOTDIR}etc/systemd/system/default.target)
-                if ! HasData "${FIND}"; then
-                    LogText "Exception: can't find the target of the symlink of /etc/systemd/system/default.target"
-                    ReportException "${TEST_NO}:01"
-                else
-                    FIND2=$(${ECHOCMD} ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
-                    if HasData "${FIND2}"; then
-                        LogText "Result: Found match on runlevel5/graphical"
-                        Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
-                        Report "linux_default_runlevel=5"
-                    else
-                        LogText "Result: No match found on runlevel, defaulting to runlevel 3"
-                        Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
-                        Report "linux_default_runlevel=3"
-                    fi
-                fi
+        if [ $( [ ! -z ${SYSTEMCTLBINARY} ] && ${SYSTEMCTLBINARY} get-default) ]; then
+            FIND=$(${SYSTEMCTLBINARY} get-default)
+            FIND2=$(${ECHOCMD} ${FIND} | ${EGREPBINARY} "runlevel5|graphical")
+            if HasData "${FIND2}"; then
+                LogText "Result: Found match on runlevel5/graphical"
+                Display --indent 2 --text "- Checking default runlevel" --result "runlevel 5" --color GREEN
+                Report "linux_default_runlevel=5"
             else
-                LogText "Result: No readlink binary, can't determine where symlink is pointing to"
-                Display --indent 2 --text "- Checking default run level" --result "${STATUS_UNKNOWN}" --color YELLOW
+                LogText "Result: No match found on runlevel, defaulting to runlevel 3"
+                Display --indent 2 --text "- Checking default runlevel" --result "runlevel 3" --color GREEN
+                Report "linux_default_runlevel=3"
             fi
         else
             LogText "Result: no systemd found, so trying inittab"
@@ -187,6 +175,7 @@
             # Checking if any modules are loaded
             FIND=$(${LSMODBINARY} | ${GREPBINARY} -v "^Module" | wc -l | ${TRBINARY} -s ' ' | ${TRBINARY} -d ' ')
             Display --indent 2 --text "- Checking kernel type" --result "${STATUS_DONE}" --color GREEN
+            MONOLITHIC_KERNEL_TESTED=1
             if [ "${FIND}" = "0" ]; then
                 LogText "Result: Found monolithic kernel"
                 Report "linux_kernel_type=monolithic"
@@ -368,14 +357,14 @@
 #
     # Test        : KRNL-5788
     # Description : Checking availability new kernel
-    if [ "${LINUX_VERSION}" = "Debian" ] || [ "${LINUX_VERSION}" = "Ubuntu" ] ||
-           [ "${LINUX_VERSION_LIKE}" = "Debian" ] || [ "${LINUX_VERSION_LIKE}" = "Ubuntu" ]; then
+    if [ "${LINUX_VERSION}" = "Debian" ] || [ "${LINUX_VERSION}" = "Ubuntu" ] || [ "${LINUX_VERSION_LIKE}" = "Debian" ] || [ "${LINUX_VERSION_LIKE}" = "Ubuntu" ]; then
         PREQS_MET="YES"
     else
         PREQS_MET="NO"
     fi
     Register --test-no KRNL-5788 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking availability new Linux kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
+        FINDKERNEL=""
         HAS_VMLINUZ=0
         LogText "Test: Searching apt-cache, to determine if a newer kernel is available"
         if [ -x ${ROOTDIR}usr/bin/apt-cache ]; then
@@ -384,62 +373,69 @@
             if [ -f ${ROOTDIR}vmlinuz -o -f ${ROOTDIR}boot/vmlinuz ]; then
                 HAS_VMLINUZ=1
                 if [ -f ${ROOTDIR}vmlinuz ]; then
-                    FINDVMLINUZ=${ROOTDIR}vmlinuz
+                    FINDVMLINUZ="${ROOTDIR}vmlinuz"
                 else
-                    FINDVMLINUZ=${ROOTDIR}boot/vmlinuz
+                    FINDVMLINUZ="${ROOTDIR}boot/vmlinuz"
                 fi
                 LogText "Result: found ${FINDVMLINUZ}"
                 LogText "Test: checking readlink location of ${FINDVMLINUZ}"
                 FINDKERNFILE=$(readlink -f ${FINDVMLINUZ})
                 LogText "Output: readlink reported file ${FINDKERNFILE}"
-                LogText "Test: checking package from dpkg -S"
+                LogText "Test: checking relevant package using output from dpkg -S"
                 FINDKERNEL=$(dpkg -S ${FINDKERNFILE} 2> /dev/null | ${AWKBINARY} -F : '{print $1}')
                 LogText "Output: dpkg -S reported package ${FINDKERNEL}"
             elif [ -e ${ROOTDIR}dev/grsec ]; then
-                FINDKERNEL=linux-image-$(uname -r)
+                FINDKERNEL="linux-image-$(uname -r)"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to grsecurity; assuming ${FINDKERNEL}"
             elif [ -e ${ROOTDIR}etc/rpi-issue ]; then
-                FINDKERNEL=raspberrypi-kernel
+                FINDKERNEL="raspberrypi-kernel"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to Raspbian"
-            elif `${EGREPBINARY} -q 'do_symlinks.*=.*No' ${ROOTDIR}etc/kernel-img.conf`; then
-                FINDKERNEL=linux-image-$(uname -r)
+            elif $(${GREPBINARY} -E -q 'do_symlinks.*=.*No' ${ROOTDIR}etc/kernel-img.conf); then
+                FINDKERNEL="linux-image-$(uname -r)"
                 LogText "Result: ${ROOTDIR}vmlinuz missing due to /etc/kernel-img.conf item do_symlinks = No"
             else
-                LogText "This system is missing ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz.  Unable to check whether kernel is up-to-date."
+                LogText "This system is missing ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz. Unable to check whether kernel is up-to-date."
                 ReportSuggestion "${TEST_NO}" "Determine why ${ROOTDIR}vmlinuz or ${ROOTDIR}boot/vmlinuz is missing on this Debian/Ubuntu system." "/vmlinuz or /boot/vmlinuz"
             fi
-            LogText "Test: Using apt-cache policy to determine if there is an update available"
-            FINDINST=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
-            FINDCAND=$(apt-cache policy ${FINDKERNEL} | ${EGREPBINARY} 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
-            LogText "Kernel installed: ${FINDINST}"
-            LogText "Kernel candidate: ${FINDCAND}"
-            if IsEmpty "${FINDINST}"; then
-                Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
-                LogText "Result: Exception occurred, no output from apt-cache policy"
-                if [ ${HAS_VMLINUZ} -eq 1 ]; then
-                    ReportException "${TEST_NO}:01"
-                    ReportSuggestion "${TEST_NO}" "Check the output of apt-cache policy to determine why its output is empty"
-                fi
-                LogText "Result: apt-cache policy did not return an installed kernel version"
+
+            if IsEmpty "${FINDKERNEL}"; then
+                LogText "Result: could not check kernel update status as kernel is unknown"
             else
-                if [ "${FINDINST}" = "${FINDCAND}" ]; then
-                    if [ -e /dev/grsec ]; then
-                        Display --indent 2 --text "- Checking for available kernel update" --result GRSEC --color GREEN
-                        LogText "Result: Grsecurity is installed; unable to determine if there's a newer kernel available"
-                        ReportManual "Manually check to confirm you're using a recent kernel and grsecurity patch"
-                    else
-                        Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_OK}" --color GREEN
-                        LogText "Result: no kernel update available"
+                LogText "Result: found kernel '${FINDKERNEL}' which will be used for further testing"
+                LogText "Test: Using apt-cache policy to determine if there is an update available"
+                FINDINSTALLED=$(apt-cache policy ${FINDKERNEL} | ${GREPBINARY} -E 'Installed' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
+                FINDCANDIDATE=$(apt-cache policy ${FINDKERNEL} | ${GREPBINARY} -E 'Candidate' | ${CUTBINARY} -d ':' -f2 | ${TRBINARY} -d ' ')
+                LogText "Kernel installed: ${FINDINSTALLED}"
+                LogText "Kernel candidate: ${FINDCANDIDATE}"
+                if IsEmpty "${FINDINSTALLED}"; then
+                    Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_UNKNOWN}" --color YELLOW
+                    LogText "Result: Exception occurred, no output from apt-cache policy"
+                    if [ ${HAS_VMLINUZ} -eq 1 ]; then
+                        ReportException "${TEST_NO}:01" "Found vmlinuz (${FINDVMLINUZ}) but could not determine the installed kernel using apt-cache policy"
+                        ReportSuggestion "${TEST_NO}" "Check the output of apt-cache policy to determine why its output is empty"
                     fi
+                    LogText "Result: apt-cache policy did not return an installed kernel version"
                 else
-                    Display --indent 2 --text "- Checking for available kernel update" --result "UPDATE AVAILABLE" --color YELLOW
-                    LogText "Result: kernel update available according 'apt-cache policy'."
-                    ReportSuggestion "${TEST_NO}" "Determine priority for available kernel update"
+                    if [ "${FINDINSTALLED}" = "${FINDCANDIDATE}" ]; then
+                        if [ -e /dev/grsec ]; then
+                            Display --indent 2 --text "- Checking for available kernel update" --result GRSEC --color GREEN
+                            LogText "Result: Grsecurity is installed; unable to determine if there's a newer kernel available"
+                            ReportManual "Manually check to confirm you're using a recent kernel and grsecurity patch"
+                        else
+                            Display --indent 2 --text "- Checking for available kernel update" --result "${STATUS_OK}" --color GREEN
+                            LogText "Result: no kernel update available"
+                        fi
+                    else
+                        Display --indent 2 --text "- Checking for available kernel update" --result "UPDATE AVAILABLE" --color YELLOW
+                        LogText "Result: kernel update available according 'apt-cache policy'."
+                        ReportSuggestion "${TEST_NO}" "Determine priority for available kernel update"
+                    fi
                 fi
             fi
         else
-            LogText "Result: could NOT find /usr/bin/apt-cache, skipped other tests."
+            LogText "Result: could NOT find ${ROOTDIR}usr/bin/apt-cache, skipped other tests."
         fi
+        unset FINDCANDIDATE FINDINSTALLED FINDKERNEL HAS_VMLINUZ
     fi
 #
 #################################################################################
@@ -460,12 +456,12 @@
             SYSD_CORED_BASE_STORAGE_FOUND=$(${GREPBINARY} -v "^ *#" ${ROOTDIR}etc/systemd/coredump.conf 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
             SYSD_CORED_BASE_STORAGE_NR_ENABLED=$(${ECHOCMD} "${SYSD_CORED_BASE_STORAGE_FOUND}" | ${SEDBINARY} 's/none//g' | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             SYSD_CORED_BASE_STORAGE_NR_DISABLED=$(${ECHOCMD} "${SYSD_CORED_BASE_STORAGE_FOUND}" | ${GREPBINARY} -o "none" | ${WCBINARY} | ${AWKBINARY} '{print $2}')
-            # check conf files in possibly existing coredump.conf.d folders 
+            # check conf files in possibly existing coredump.conf.d folders
             # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
             # while there could be multiple files overwriting each other, we are checking the number of occurrences
-            SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0 *$" | ${WCBINARY} -l)
-            SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0 *$" | ${WCBINARY} -l)
-            SYSD_CORED_SUB_STORAGE_FOUND=$(${FINDBINARY} /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_DISABLED=$(${FINDBINARY} -L /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} "^0 *$" | ${WCBINARY} -l)
+            SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED=$(${FINDBINARY} -L /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^ProcessSizeMax=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g' | ${GREPBINARY} -v "^0 *$" | ${WCBINARY} -l)
+            SYSD_CORED_SUB_STORAGE_FOUND=$(${FINDBINARY} -L /etc/systemd/coredump.conf.d/ /run/systemd/coredump.conf.d/ /usr/lib/systemd/coredump.conf.d/ -type f -iname "*.conf" -exec ${SEDBINARY} 's/^ *//g' {} \; 2> /dev/null | ${GREPBINARY} -i "^Storage=" | ${CUTBINARY} -d'=' -f2 | ${SEDBINARY} 's/ .*$//g')
             SYSD_CORED_SUB_STORAGE_NR_ENABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${SEDBINARY} 's/none//g' | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             SYSD_CORED_SUB_STORAGE_NR_DISABLED=$(${ECHOCMD} "${SYSD_CORED_SUB_STORAGE_FOUND}" | ${GREPBINARY} -o "none" | ${WCBINARY} | ${AWKBINARY} '{print $2}')
             if ( [ ${SYSD_CORED_BASE_PROCSIZEMAX_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_BASE_STORAGE_NR_DISABLED} -ge 1 ] && [ ${SYSD_CORED_SUB_PROCSIZEMAX_NR_ENABLED} -eq 0 ] && [ ${SYSD_CORED_SUB_STORAGE_NR_ENABLED} -eq 0 ] ) || \
@@ -505,82 +501,85 @@
         if [ -f "${ROOTDIR}etc/profile" ]; then
             LogText "Test: Checking if 'ulimit -c 0' exists in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"
             # use tail -1 in the following commands to get the last entry, which is the one that counts (in case of profile.d/ probably counts)
-            ULIMIT_C_VALUE="$(${GREPBINARY} "ulimit -c " ${ROOTDIR}etc/profile 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
-            ULIMIT_C_VALUE_SUB="$(${FINDBINARY} ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} "ulimit -c " | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
+            ULIMIT_C_VALUE="$(${GREPBINARY} "ulimit -H\?c " ${ROOTDIR}etc/profile 2> /dev/null | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
+            ULIMIT_C_VALUE_SUB="$(${FINDBINARY} -L ${ROOTDIR}etc/profile.d -name "*.sh" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} "ulimit -H\?c " | ${SEDBINARY} 's/^ *//g' | ${GREPBINARY} -v "^#" | ${TAILBINARY} -1 | ${CUTBINARY} -d' ' -f3 | ${SEDBINARY} 's/ .*$//g ; s/\([A-Z][a-z]*\)*$//g')"
             if ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE_SUB}" = "0" ] ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ "${ULIMIT_C_VALUE}" = "0" ] ); then
                 LogText "Result: core dumps are disabled by 'ulimit -c 0' in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh"
                 Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_DISABLED}" --color GREEN
                 AddHP 1 1
             elif [ -z "${ULIMIT_C_VALUE_SUB}" ] && [ -z "${ULIMIT_C_VALUE}" ]; then
                 LogText "Result: core dumps are not disabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. Didn't find setting 'ulimit -c 0'"
-                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_DEFAULT}" --color WHITE
+                Display --indent 4 --text "- configuration in ${ROOTDIR}etc/profile" --result "${STATUS_DEFAULT}" --color WHITE
                 AddHP 0 1
             elif ( [ -n "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE_SUB}" = "unlimited" ] || [ "${ULIMIT_C_VALUE_SUB}" != "0" ] ) ) || ( [ -n "${ULIMIT_C_VALUE}" ] && [ -z "${ULIMIT_C_VALUE_SUB}" ] && ( [ "${ULIMIT_C_VALUE}" = "unlimited" ] || [ "${ULIMIT_C_VALUE}" != "0" ] ) ); then
                 LogText "Result: core dumps are enabled in ${ROOTDIR}etc/profile or ${ROOTDIR}etc/profile.d/*.sh config files. A value higher than 0 is configured for 'ulimit -c'"
-                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_ENABLED}" --color RED
+                Display --indent 4 --text "- configuration in ${ROOTDIR}etc/profile" --result "${STATUS_ENABLED}" --color RED
                 AddHP 0 1
             else
                 LogText "Result: ERROR - something went wrong. Unexpected result during check of ${ROOTDIR}etc/profile and ${ROOTDIR}etc/profile.d/*.sh config files. Please report on Github!"
-                Display --indent 4 --text "- configuration in etc/profile" --result "${STATUS_ERROR}" --color YELLOW
+                Display --indent 4 --text "- configuration in ${ROOTDIR}etc/profile" --result "${STATUS_ERROR}" --color YELLOW
             fi
         fi
-        # Limits option
-        LogText "Test: Checking presence ${ROOTDIR}etc/security/limits.conf"
-        if [ -f "${ROOTDIR}etc/security/limits.conf" ]; then
-            LogText "Result: file ${ROOTDIR}etc/security/limits.conf exists"
-            LogText "Test: Checking if core dumps are disabled in ${ROOTDIR}etc/security/limits.conf and ${LIMITS_DIRECTORY}/*"
-            # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
-            FIND1=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
-            FIND2=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
-            FIND3=$(${FINDBINARY} "${ROOTDIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="-" && $3=="core" && $4=="0") { print "core dumps disabled" } else if ($1=="*" && $2=="-" && $3=="core" && $4!="0") { print "core dumps enabled" } }' | ${TAILBINARY} -1)
 
-            # When "* - core [value]" is used, then this sets both soft and core. In that case we set the values, as they the type 'hard' and 'soft' will not be present in the configuration file.
-            if [ "${FIND3}" = "core dumps disabled" ]; then
-                FIND1="soft core disabled"
-                FIND2="hard core disabled"
-            elif [ "${FIND3}" = "core dumps enabled" ]; then
-                FIND1="soft core enabled"
-                FIND2="hard core enabled"
-            fi
+        # Limits options
+        for DIR in "/" "/usr/"; do
+            LogText "Test: Checking presence ${DIR}etc/security/limits.conf"
+            if [ -f "${DIR}etc/security/limits.conf" ]; then
+                LogText "Result: file ${DIR}etc/security/limits.conf exists"
+                LogText "Test: Checking if core dumps are disabled in ${DIR}etc/security/limits.conf and ${LIMITS_DIRECTORY}/*"
+                # using find instead of grep -r to stay POSIX compliant. On AIX and HPUX grep -r is not available.
+                FIND1=$(${FINDBINARY} -L "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="soft" && $3=="core" && $4=="0") { print "soft core disabled" } else if ($1=="*" && $2=="soft" && $3=="core" && $4!="0") { print "soft core enabled" } }' | ${TAILBINARY} -1)
+                FIND2=$(${FINDBINARY} -L "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="hard" && $3=="core" && $4=="0") { print "hard core disabled" } else if ($1=="*" && $2=="hard" && $3=="core" && $4!="0") { print "hard core enabled" } }' | ${TAILBINARY} -1)
+                FIND3=$(${FINDBINARY} -L "${DIR}etc/security/limits.conf" "${LIMITS_DIRECTORY}" -type f -exec ${CAT_BINARY} {} \; 2> /dev/null | ${GREPBINARY} -v "^$" | ${AWKBINARY} '{ if ($1=="*" && $2=="-" && $3=="core" && $4=="0") { print "core dumps disabled" } else if ($1=="*" && $2=="-" && $3=="core" && $4!="0") { print "core dumps enabled" } }' | ${TAILBINARY} -1)
 
-            IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
-            IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
-
-            if [ "${FIND2}" = "hard core disabled" ]; then
-                LogText "Result: core dumps are hard disabled"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "GREEN"
-                if [ "${FIND1}" = "soft core disabled" ]; then
-                    Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
-                else
-                    Display --indent 4 --text "- 'soft' config in security/limits.conf (implicit)" --result "${STATUS_DISABLED}" --color "GREEN"
+                # When "* - core [value]" is used, then this sets both soft and core. In that case we set the values, as they the type 'hard' and 'soft' will not be present in the configuration file.
+                if [ "${FIND3}" = "core dumps disabled" ]; then
+                    FIND1="soft core disabled"
+                    FIND2="hard core disabled"
+                elif [ "${FIND3}" = "core dumps enabled" ]; then
+                    FIND1="soft core enabled"
+                    FIND2="hard core enabled"
                 fi
-                AddHP 3 3
-            elif [ "${FIND1}" = "soft core enabled" ] && [ "${FIND2}" = "hard core enabled" ]; then
-                LogText "Result: core dumps (soft and hard) are enabled"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
-                ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in /etc/security/limits.conf file"
-                AddHP 0 3
-            elif [ "${FIND1}" = "soft core disabled" ]; then
-                LogText "Result: core dumps are disabled for 'soft' ('hard'=${IS_HARDCORE_DISABLED})"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
-                AddHP 2 3
-            elif [ "${FIND1}" = "soft core enabled" ] || [ "${FIND2}" = "hard core enabled" ]; then
-                LogText "Result: core dumps are partially enabled ('hard'=${IS_HARDCORE_DISABLED}, 'soft'=${IS_SOFTCORE_DISABLED})"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "$(if [ "${IS_SOFTCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_SOFTCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
-                AddHP 0 3
+
+                IS_SOFTCORE_DISABLED="$(if [ "${FIND1}" = "soft core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND1}" = "soft core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
+                IS_HARDCORE_DISABLED="$(if [ "${FIND2}" = "hard core disabled" ]; then ${ECHOCMD} DISABLED; elif [ "${FIND2}" = "hard core enabled" ]; then ${ECHOCMD} ENABLED; else ${ECHOCMD} ${STATUS_DEFAULT}; fi)"
+
+                if [ "${FIND2}" = "hard core disabled" ]; then
+                    LogText "Result: core dumps are hard disabled"
+                    Display --indent 4 --text "- 'hard' configuration in ${DIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "GREEN"
+                    if [ "${FIND1}" = "soft core disabled" ]; then
+                        Display --indent 4 --text "- 'soft' configuration in ${DIR}etc/security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
+                    else
+                        Display --indent 4 --text "- 'soft' config in ${DIR}etc/security/limits.conf (implicit)" --result "${STATUS_DISABLED}" --color "GREEN"
+                    fi
+                    AddHP 3 3
+                elif [ "${FIND1}" = "soft core enabled" ] && [ "${FIND2}" = "hard core enabled" ]; then
+                    LogText "Result: core dumps (soft and hard) are enabled"
+                    Display --indent 4 --text "- 'hard' configuration in ${DIR}etc/security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
+                    Display --indent 4 --text "- 'soft' configuration in ${DIR}etc/security/limits.conf" --result "${STATUS_ENABLED}" --color "RED"
+                    ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in /etc/security/limits.conf file"
+                    AddHP 0 3
+                elif [ "${FIND1}" = "soft core disabled" ]; then
+                    LogText "Result: core dumps are disabled for 'soft' ('hard'=${IS_HARDCORE_DISABLED})"
+                    Display --indent 4 --text "- 'hard' configuration in ${DIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                    Display --indent 4 --text "- 'soft' configuration in ${DIR}etc/security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "GREEN"
+                    AddHP 2 3
+                elif [ "${FIND1}" = "soft core enabled" ] || [ "${FIND2}" = "hard core enabled" ]; then
+                    LogText "Result: core dumps are partially enabled ('hard'=${IS_HARDCORE_DISABLED}, 'soft'=${IS_SOFTCORE_DISABLED})"
+                    Display --indent 4 --text "- 'hard' configuration in ${DIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "$(if [ "${IS_HARDCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_HARDCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                    Display --indent 4 --text "- 'soft' configuration in ${DIR}etc/security/limits.conf" --result "${IS_SOFTCORE_DISABLED}" --color "$(if [ "${IS_SOFTCORE_DISABLED}" = "ENABLED" ]; then ${ECHOCMD} RED; elif [ "${IS_SOFTCORE_DISABLED}" = "DISABLED" ]; then ${ECHOCMD} GREEN; else ${ECHOCMD} WHITE; fi)"
+                    AddHP 0 3
+                else
+                    LogText "Result: core dumps are not explicitly disabled"
+                    Display --indent 4 --text "- 'hard' configuration in ${DIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
+                    Display --indent 4 --text "- 'soft' configuration in ${DIR}etc/security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
+                    ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in ${DIR}etc/security/limits.conf file"
+                    AddHP 1 3
+                fi
             else
-                LogText "Result: core dumps are not explicitly disabled"
-                Display --indent 4 --text "- 'hard' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
-                Display --indent 4 --text "- 'soft' configuration in security/limits.conf" --result "${IS_HARDCORE_DISABLED}" --color "WHITE"
-                ReportSuggestion "${TEST_NO}" "If not required, consider explicit disabling of core dump in ${ROOTDIR}etc/security/limits.conf file"
-                AddHP 1 3
+                LogText "Result: file ${DIR}etc/security/limits.conf does not exist, skipping test for this file"
             fi
-        else
-            LogText "Result: file ${ROOTDIR}etc/security/limits.conf does not exist, skipping test"
-        fi
+        done
 
         # Sysctl option
         LogText "Test: Checking sysctl value of fs.suid_dumpable"
@@ -615,25 +614,29 @@
     Register --test-no KRNL-5830 --os Linux --weight L --network NO --category security --description "Checking if system is running on the latest installed kernel"
     if [ ${SKIPTEST} -eq 0 ]; then
         REBOOT_NEEDED=2
-        FILE="${ROOTDIR}var/run/reboot-required.pkgs"
-        LogText "Test: Checking presence ${FILE}"
-        if [ -f ${FILE} ]; then
-            LogText "Result: file ${FILE} exists"
-            FIND=$(${WCBINARY} -l < ${FILE})
-            if [ "${FIND}" = "0" ]; then
-                LogText "Result: No reboot needed (file empty)"
-                REBOOT_NEEDED=0
+        for FILE in "${ROOTDIR}var/run/reboot-required.pkgs" "${ROOTDIR}var/run/needs_restarting"
+        do
+            LogText "Test: Checking presence ${FILE}"
+            if [ -f ${FILE} ]; then
+                LogText "Result: file ${FILE} exists"
+                FIND=$(${WCBINARY} -l < ${FILE})
+                if [ "${FIND}" = "0" ]; then
+                    LogText "Result: No reboot needed (file empty)"
+                    REBOOT_NEEDED=0
+                    break
+                else
+                    PKGSCOUNT=$(${WCBINARY} -l < ${FILE})
+                    LogText "Result: reboot is needed, related to ${PKGSCOUNT} packages"
+                    for I in ${FIND}; do
+                        LogText "Package: ${I}"
+                    done
+                    REBOOT_NEEDED=1
+                    break
+                fi
             else
-                PKGSCOUNT=$(${WCBINARY} -l < ${FILE})
-                LogText "Result: reboot is needed, related to ${PKGSCOUNT} packages"
-                for I in ${FIND}; do
-                    LogText "Package: ${I}"
-                done
-                REBOOT_NEEDED=1
+                LogText "Result: file ${FILE} not found"
             fi
-        else
-            LogText "Result: file ${FILE} not found"
-        fi
+        done
 
         # Check if /boot exists
         if [ -d "${ROOTDIR}boot" ]; then
@@ -663,7 +666,10 @@
                         ReportException "${TEST_NO}:1" "Can't determine kernel version on disk, need debug data"
                     fi
                 elif [ -f ${ROOTDIR}boot/vmlinuz-linux ] || [ -f ${ROOTDIR}boot/vmlinuz-linux-lts ] || [ -f "$(${LSBINARY} -t ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${HEADBINARY} -1)" ]; then
-                    if [ -f ${ROOTDIR}boot/vmlinuz-linux ]; then
+                    if [ -f ${ROOTDIR}boot/vmlinuz ]; then
+                          LogText "Result: found ${ROOTDIR}boot/vmlinuz"
+                          FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz
+                    elif [ -f ${ROOTDIR}boot/vmlinuz-linux ]; then
                         LogText "Result: found ${ROOTDIR}boot/vmlinuz-linux"
                         FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz-linux
                     elif [ -f ${ROOTDIR}boot/vmlinuz-linux-lts ]; then
@@ -675,7 +681,7 @@
                     else
                         # Match on items like /boot/vm5.3.7 or /boot/vmlinuz-5.3.7-1-default. Sort based on versions (-v) and then find the last item
                         # Note: ignore a rescue kernel (e.g. CentOS)
-                        FOUND_VMLINUZ=$(${LSBINARY} -v ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue\-' | ${TAILBINARY} -1)
+                        FOUND_VMLINUZ=$(${LSBINARY} -v ${ROOTDIR}boot/vm[l0-9]* 2> /dev/null | ${GREPBINARY} -v '\-rescue-' | ${TAILBINARY} -1)
                         LogText "Result: found ${FOUND_VMLINUZ}"
                     fi
 
@@ -809,7 +815,7 @@
             LogText "Check: try to find raspberrypi-kernel file in ${APT_ARCHIVE_DIRECTORY} and extract package date from file name"
 
             FOUND_KERNEL_DATE=$(${FINDBINARY} ${APT_ARCHIVE_DIRECTORY} -name "raspberrypi-kernel*" -printf "%T@ %Tc %p\n" 2> /dev/null \
-            | ${SORTBINARY} -nr | ${HEADBINARY} -1 | ${GREPBINARY} -o "raspberrypi-kernel.*deb" | ${EGREPBINARY} -o "\.[0-9]+" | ${SEDBINARY} 's/\.//g')
+            | ${SORTBINARY} -nr | ${HEADBINARY} -1 | ${GREPBINARY} -o "raspberrypi-kernel.*deb" | ${GREPBINARY} -E -o "\.[0-9]+" | ${SEDBINARY} 's/\.//g')
 
             if [ -n "${FOUND_KERNEL_DATE}" ]; then
                 FOUND_KERNEL_IN_SECONDS=$(date -d "${FOUND_KERNEL_DATE}" "+%s" 2> /dev/null)
@@ -823,7 +829,7 @@
             else
                 LogText "Result: Skipping this test, as extracting the seconds of package date failed"
             fi
-            
+
             if [ -n "${UNAME_OUTPUT}" ]; then
                 LogText "Result: Got an output from 'uname -v'"
                 LogText "Check: Trying to extract kernel build date from 'uname -v' output"
@@ -834,21 +840,21 @@
                             next="month"
                         fi
                     elif [ "$next" = "month" ]; then
-                        if [ $(${ECHOCMD} "${part}" | ${EGREPBINARY} -c "[A-Z][a-z]") -ge 1 ]; then
+                        if [ $(${ECHOCMD} "${part}" | ${GREPBINARY} -E -c "[A-Z][a-z]") -ge 1 ]; then
                             UNAME_DATE_MONTH="${part}"
                             next="day"
                         fi
                     elif [ "${next}" = "day" ]; then
-                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                        if [ $(${ECHOCMD} ${part} | ${GREPBINARY} -E -c "[0-9][0-9]") -ge 1 ]; then
                             UNAME_DATE_DAY="${part}"
                             next="time"
                         fi
                     elif [ "${next}" = "time" ]; then
-                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c ":[0-9][0-9]:") -ge 1 ]; then
+                        if [ $(${ECHOCMD} ${part} | ${GREPBINARY} -E -c ":[0-9][0-9]:") -ge 1 ]; then
                             next="year"
                         fi
                     elif [ "${next}" = "year" ]; then
-                        if [ $(${ECHOCMD} ${part} | ${EGREPBINARY} -c "[0-9][0-9]") -ge 1 ]; then
+                        if [ $(${ECHOCMD} ${part} | ${GREPBINARY} -E -c "[0-9][0-9]") -ge 1 ]; then
                             UNAME_DATE_YEAR="${part}"
                             break
                         fi
@@ -894,8 +900,7 @@
             else
                 LogText "Result: Did not get output from 'uname -v'. Skipping test."
             fi
-                
-            
+
         else
             LogText "Result: /var/cache/apt/archives/ does not exist"
         fi
@@ -918,6 +923,4 @@
 
 WaitForKeyPress
 
-#
-#================================================================================
-# Lynis - Copyright 2007-2021, CISOfy - https://cisofy.com
+# EOF

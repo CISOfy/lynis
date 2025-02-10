@@ -1,0 +1,188 @@
+#!/bin/sh
+
+InsertSection "${SECTION_KERBEROS}"
+
+#
+#########################################################################
+#
+
+    # Test        : KRB-1000
+    # Description : Check that Kerberos principals have passwords that expire
+    Register --test-no KRB-1000 --weight L --network NO --description "Check for Kerberos KDC tools"
+    if [ -n "${KADMINLOCALBINARY}" ] && [ -n "${KDB5UTILBINARY}" ]
+    then
+        PREQS_MET="YES"
+        # Make sure krb5 debugging doesn't mess up the output
+        unset KRB5_TRACE
+        PRINCS="$(${KADMINLOCALBINARY} listprincs 2>/dev/null | ${TRBINARY:-tr} '\n' ' ')"
+        if [ -z "${PRINCS}" ]
+        then
+            PREQS_MET="NO"
+        fi
+    else
+        PREQS_MET="NO"
+    fi
+    if [ "${PREQS_MET}" = "YES" ]; then
+        Display --indent 2 --text "- Check for Kerberos KDC and principals" --result "${STATUS_FOUND}" --color GREEN
+    else
+        Display --indent 2 --text "- Check for Kerberos KDC and principals" --result "${STATUS_NOT_FOUND}" --color WHITE
+    fi
+
+    # Test        : KRB-1010
+    # Description : Check that Kerberos principals have passwords that expire
+    Register --test-no KRB-1010 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check that Kerberos principals have passwords that expire"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        for I in ${PRINCS}
+        do
+            FIND="$(${KADMINLOCALBINARY} getprinc "${I}" | ${GREPBINARY} '^Password expiration date:')"
+            if [ "${FIND}" = "Password expiration date: [never]" ]
+            then
+                LogText "Result: Kerberos principal ${I} has a password/key that never expires"
+                FOUND=1
+            fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 4 --text "- Principals without expiring password" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Make sure all your Kerberos principals have expiring passwords"
+        else
+            Display --indent 4 --text "- Principals without expiring password" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+#
+#################################################################################
+#
+
+    # Test        : KRB-1020
+    # Description : Check last password change for Kerberos principals
+    Register --test-no KRB-1020 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check last password change for Kerberos principals"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        for I in ${PRINCS}
+        do
+            FIND="$(${KADMINLOCALBINARY} getprinc "${I}" | ${SEDBINARY} -n '/^Last password change:\s\+/s/^Last password change:\s\+//p')"
+            if [ "${FIND}" = "[never]" ]
+            then
+                LogText "Result: Kerberos principal ${I} has a password/key that has never been changed"
+                FOUND=1
+            else
+                J="$(date -d "${FIND}" +%s)"
+                if [ ${J} -lt $((NOW - 60 * 60 * 24 * 365)) ]
+                then
+                    LogText "Result: Kerberos principal ${I} has had a password/key change over a year ago"
+                    FOUND=1
+                fi
+            fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 4 --text "- Principals with late password change" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Enforce frequent password/key change for your Kerberos principals"
+        else
+            Display --indent 4 --text "- Principals with late password change" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+
+#
+#################################################################################
+#
+
+    # Test        : KRB-1030
+    # Description : Check that Kerberos principals have a policy associated to them
+    Register --test-no KRB5-1030 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check that Kerberos principals have a policy associated to them"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        for I in ${PRINCS}
+        do
+            FIND="$(${KADMINLOCALBINARY} getprinc "${I}" | ${GREPBINARY} '^Policy:')"
+            if [ "${FIND}" = "Policy: [none]" ]
+            then
+                LogText "Result: Kerberos principal ${I} does not have a policy associated to it"
+                FOUND=1
+            fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 4 --text "- Principals without associated policy" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Make sure all your Kerberos principals have a policy associated to them"
+        else
+            Display --indent 4 --text "- Principals without associated policy" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+
+#
+#################################################################################
+#
+
+    # Test        : KRB-1040
+    # Description : Check various attributes for Kerberos principals
+    Register --test-no KRB5-1040 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check various attributes for Kerberos principals"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUND=0
+        for I in ${PRINCS}
+        do
+            J="$(${KADMINLOCALBINARY} getprinc "${I}" | ${SEDBINARY} -n 's/^Attributes:\s\+\(.\+\)$/\1/p')"
+            if ContainsString "^K/M@" "${I}" || \
+                ContainsString "^kadmin/admin@" "${I}" || \
+                ContainsString "^kadmin/changepw@" "${I}" || \
+                ContainsString "^krbtgt/" "${I}"
+            then
+                if ! ContainsString "\bLOCKDOWN_KEYS\b" "${J}"
+                then
+                    LogText "Result: Sensitive Kerberos principal ${I} does not have the lockdown_keys attribute"
+                    FOUND=1
+                fi
+            elif ContainsString "/admin@" "${I}"
+            then
+                if ! ContainsString "\bDISALLOW_TGT_BASED\b" "${J}"
+                then
+                    LogText "Result: Kerberos admin principal ${I} does not have the disallow_tgt_based attribute"
+                    FOUND=1
+                fi
+            elif ContainsString "^[^/$]+@" "${I}"
+            then
+                if ! ContainsString "\bREQUIRES_PRE_AUTH\b.+\bDISALLOW_SVR\b" "${J}"
+                then
+                    LogText "Result: Regular Kerberos user principal ${I} does not have the requires_pre_auth and/or the disallow_svr attribute"
+                    FOUND=1
+                fi
+            fi
+        done
+        if [ ${FOUND} -eq 1 ]; then
+            Display --indent 4 --text "- Checking principals for various attributes" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Harden your Kerberos principals with appropriate attributes"
+        else
+            Display --indent 4 --text "- Checking principals for various attributes" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+
+#
+#################################################################################
+#
+
+    # Test        : KRB-1050
+    # Description : Check for weak crypto
+    Register --test-no KRB-1050 --preqs-met ${PREQS_MET} --weight L --network NO --description "Check for weak crypto"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FIND=$(${KDB5UTILBINARY} tabdump keyinfo | ${AWKBINARY} '$4 ~ /(des|arcfour|cbc|sha1)/{print$1,$4}')
+        if [ -n "${FIND}" ]; then
+            while read I J
+            do
+                LogText "Result: Kerberos principal ${I} has a key with weak cryptographic algorithm ${J}"
+            done << EOF
+${FIND}
+EOF
+            Display --indent 4 --text "- Principals with weak crypto" --result "${STATUS_WARNING}" --color RED
+            ReportSuggestion "${TEST_NO}" "Remove weak (des|arcfour|cbc|sha1) cryptographic keys from principals"
+        else
+            Display --indent 4 --text "- Principals with weak crypto" --result "${STATUS_OK}" --color GREEN
+        fi
+    fi
+
+#
+#################################################################################
+#
+
+unset PRINCS
+unset I
+unset J
+
+#EOF

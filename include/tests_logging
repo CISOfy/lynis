@@ -5,11 +5,10 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2021, CISOfy
+# Copyright (c) Michael Boelen, CISOfy, and many contributors.
 #
 # Website  : https://cisofy.com
-# Blog     : http://linux-audit.com
+# Blog     : https://linux-audit.com/
 # GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -28,6 +27,7 @@
     METALOG_RUNNING=0
     RFC3195D_RUNNING=0
     RSYSLOG_RUNNING=0
+    WAZUH_AGENT_RUNNING=0
     SOLARIS_LOGHOST=""
     SOLARIS_LOGHOST_FOUND=0
     SOLARIS_LOGHOST_LOCALHOST=0
@@ -45,7 +45,7 @@
     Register --test-no LOGG-2130 --weight L --network NO --category security --description "Check for running syslog daemon"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Searching for a logging daemon"
-        FIND=$(${PSBINARY} ax | ${EGREPBINARY} "syslogd|syslog-ng|metalog|systemd-journal" | ${GREPBINARY} -v "grep")
+        FIND=$(${PSBINARY} ax | ${GREPBINARY} -E "syslogd|syslog-ng|metalog|systemd-journal" | ${GREPBINARY} -v "grep")
         if [ -z "${FIND}" ]; then
             Display --indent 2 --text "- Checking for a running log daemon" --result "${STATUS_WARNING}" --color RED
             LogText "Result: Could not find a syslog daemon like syslog, syslog-ng, rsyslog, metalog, systemd-journal"
@@ -221,6 +221,23 @@
 #
 #################################################################################
 #
+    # Test        : LOGG-2144
+    # Description : Check for wazuh-agent presence on Linux systems
+    Register --test-no LOGG-2144 --os Linux --weight L --network NO --category security --description "Checking wazuh-agent"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Result: Searching for wazuh-agent instances in the process list"
+        if IsRunning "wazuh-agent"; then
+            LogText "Result: Found wazuh-agent in process list"
+            Display --indent 4 --text "- Checking wazuh-agent status" --result "${STATUS_FOUND}" --color GREEN
+            WAZUH_AGENT_RUNNING=1
+        else
+            LogText "Result: wazuh-agent NOT found in process list"
+            Display --indent 4 --text "- Checking wazuh-agent daemon status" --result "${STATUS_NOT_FOUND}" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : LOGG-2146
     # Description : Check for logrotate (/etc/logrotate.conf and logrotate.d)
     Register --test-no LOGG-2146 --weight L --os Linux --network NO --category security --description "Checking logrotate.conf and logrotate.d"
@@ -261,7 +278,7 @@
     Register --test-no LOGG-2148 --weight L --preqs-met ${PREQS_MET} --network NO --category security --description "Checking logrotated files"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking which files are rotated with logrotate and if they exist"
-        FIND=$(${LOGROTATEBINARY} -d -v ${ROOTDIR}etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }')
+        FIND=$(${LOGROTATEBINARY} -d -v ${ROOTDIR}etc/logrotate.conf 2>&1 | ${GREPBINARY} -E "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2!="log") { print "File:"$2":does_not_exist" } else { print "File:"$3":exists" } }')
         if [ -z "${FIND}" ]; then
             LogText "Result: nothing found"
         else
@@ -280,7 +297,7 @@
     Register --test-no LOGG-2150 --weight L --preqs-met ${PREQS_MET} --network NO --category security --description "Checking directories in logrotate configuration"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking which directories can be found in logrotate configuration"
-        FIND=$(${LOGROTATEBINARY} -d -v ${ROOTDIR}etc/logrotate.conf 2>&1 | ${EGREPBINARY} "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2=="log") { print $3 } }' | ${SEDBINARY} 's@/[^/]*$@@g' | ${SORTBINARY} -u)
+        FIND=$(${LOGROTATEBINARY} -d -v ${ROOTDIR}etc/logrotate.conf 2>&1 | ${GREPBINARY} -E "considering log|skipping" | ${GREPBINARY} -v '*' | ${SORTBINARY} -u | ${AWKBINARY} '{ if ($2=="log") { print $3 } }' | ${SEDBINARY} 's@/[^/]*$@@g' | ${SORTBINARY} -u)
         if IsEmpty "${FIND}"; then
             LogText "Result: nothing found"
         else
@@ -345,7 +362,7 @@
     if [ ${SOLARIS_LOGHOST_FOUND} -eq 1 ] && [ -n "${SOLARIS_LOGHOST}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
     Register --test-no LOGG-2153 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking loghost is localhost"
     if [ ${SKIPTEST} -eq 0 ]; then
-        FIND=$(echo "${SOLARIS_LOGHOST}" | ${AWKBINARY} '{ print $1 }' | ${EGREPBINARY} "::1|127.0.0.1|127.1")
+        FIND=$(echo "${SOLARIS_LOGHOST}" | ${AWKBINARY} '{ print $1 }' | ${GREPBINARY} -E "::1|127.0.0.1|127.1")
         if [ -n "${FIND}" ]; then
             SOLARIS_LOGHOST_LOCALHOST=1
             LogText "Result: loghost entry is localhost (default)"
@@ -371,7 +388,7 @@
             TARGET="${ROOTDIR}etc/rsyslog.conf"
             if [ -f ${TARGET} ]; then
                 LogText "Test: analyzing file ${TARGET} for remote target"
-                DATA=$(${EGREPBINARY} "@@?([a-zA-Z0-9\-])+(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?" ${TARGET} | ${GREPBINARY} -v "#" | ${TRBINARY} -cd "[:print:]\n" | ${SEDBINARY} 's/[[:blank:]]\{1,\}/:space:/g')
+                DATA=$(${GREPBINARY} -E "@@?([a-zA-Z0-9\-])+(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?" ${TARGET} | ${GREPBINARY} -v "#" | ${TRBINARY} -cd "[:print:]\n" | ${SEDBINARY} 's/[[:blank:]]\{1,\}/:space:/g')
                 if [ -z "${DATA}" ]; then
                     LogText "Result: no remote target found"
                 else
@@ -387,11 +404,11 @@
             fi
             TARGET="${ROOTDIR}etc/rsyslog.d"
             if [ -d ${TARGET} ]; then
-                FILES=$(${FINDBINARY} ${TARGET} -type f -print0 | ${TRBINARY} -cd '[:print:]\0' | ${SEDBINARY} 's/[[:blank:]]/:space:/g' | ${TRBINARY} '\0' ' ')
+                FILES=$(${FINDBINARY} -L ${TARGET} -type f -print0 | ${TRBINARY} -cd '[:print:]\0' | ${SEDBINARY} 's/[[:blank:]]/:space:/g' | ${TRBINARY} '\0' ' ')
                 for F in ${FILES}; do
                     F=$(echo ${F} | ${SEDBINARY} 's/:space:/ /g')
                     LogText "Test: analyzing file ${F} for remote target"
-                    DATA=$(${EGREPBINARY} "@@?([a-zA-Z0-9\-])+(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?" ${F} | ${GREPBINARY} -v "#" | ${TRBINARY} -cd "[:print:]\n" | ${SEDBINARY} 's/[[:blank:]]\{1,\}/:space:/g')
+                    DATA=$(${GREPBINARY} -E "@@?([a-zA-Z0-9\-])+(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?(\.)?(([a-zA-Z0-9-])+)?" ${F} | ${GREPBINARY} -v "#" | ${TRBINARY} -cd "[:print:]\n" | ${SEDBINARY} 's/[[:blank:]]\{1,\}/:space:/g')
                     if [ -n "${DATA}" ]; then
                         LogText "Result: found remote target"
                         REMOTE_LOGGING_ENABLED=1
@@ -403,7 +420,7 @@
                         done
                     else
                         # Check new style configuration (omrelp/omfwd). This can be all on one line or even split over multiple lines.
-                        DATA=$(${EGREPBINARY} "target=\"([a-zA-Z0-9\-])" ${F})
+                        DATA=$(${GREPBINARY} -E "target=\"([a-zA-Z0-9\-])" ${F})
                         if [ -n "${DATA}" ]; then
                             LogText "Result: most likely remote log host is used, as keyword 'target' is used"
                             REMOTE_LOGGING_ENABLED=1
@@ -424,7 +441,7 @@
 
         if [ -f ${SYSLOGD_CONF} ]; then
             LogText "Test: check if logs are also logged to a remote logging host"
-            FIND=$(${EGREPBINARY} "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
+            FIND=$(${GREPBINARY} -E "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
             if [ -n "${FIND}" ]; then
                 FIND2=$(echo "${FIND}" | ${GREPBINARY} -v "@loghost")
                 if [ ${SOLARIS_LOGHOST_LOCALHOST} -eq 1 ] && [ -z "${FIND2}" ]; then
@@ -435,14 +452,29 @@
                 fi
             else
                 # Search for configured destinations with an IP address or hostname, then determine which ones are used as a log destination
-                DESTINATIONS=$(${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${EGREPBINARY} "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}')
+                DESTINATIONS=$(${GREPBINARY} "^destination" ${SYSLOGD_CONF} | ${GREPBINARY} -E "(udp|tcp)" | ${GREPBINARY} "port" | ${AWKBINARY} '{print $2}')
                 for DESTINATION in ${DESTINATIONS}; do
-                    FIND2=$(${GREPBINARY} "log" ${SYSLOGD_CONF} | ${GREPBINARY} "source" | ${EGREPBINARY} "destination\(${DESTINATION}\)")
+                    FIND2=$(${GREPBINARY} "log" ${SYSLOGD_CONF} | ${GREPBINARY} "source" | ${GREPBINARY} -E "destination\(${DESTINATION}\)")
                     if [ -n "${FIND2}" ]; then
                         LogText "Result: found destination ${DESTINATION} configured for remote logging"
                         REMOTE_LOGGING_ENABLED=1
                     fi
                 done
+            fi
+        fi
+
+        # Test wazuh-agent configuration for syslog configuration
+        if [ ${WAZUH_AGENT_RUNNING} ]; then
+            WAZUH_AGENT_CONF="/var/ossec/etc/ossec.conf"
+        fi
+
+        if [ -f ${WAZUH_AGENT_CONF} ]; then
+            LogText "Test: Checking Wazuh agent configuration for remote syslog forwarding"
+            FIND=$(${EGREPBINARY} '<location>/var/log/syslog</location>' ${WAZUH_AGENT_CONF})
+            if [ "${FIND}" ]; then
+                DESTINATION=$(${EGREPBINARY} -o '<address>([A-Za-z0-9\.\-\_]*)</address>' ${WAZUH_AGENT_CONF} | sed 's/<address>//' | sed 's/<\/address>//')
+                LogText "Result: found destination ${DESTINATION} configured for remote logging with wazuh"
+                REMOTE_LOGGING_ENABLED=1
             fi
         fi
 
@@ -539,7 +571,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: checking open log files with lsof"
         if [ -n "${LSOFBINARY}" ]; then
-            FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -n 2>&1 | ${GREPBINARY} "log$" | ${EGREPBINARY} -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$")
+            FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -n 2>&1 | ${GREPBINARY} "log$" | ${GREPBINARY} -E -v "WARNING|Output information" | ${AWKBINARY} '{ if ($5=="REG") { print $9 } }' | ${SORTBINARY} -u | ${GREPBINARY} -v "^$")
             for I in ${FIND}; do
                 LogText "Found logfile: ${I}"
             done
@@ -572,7 +604,7 @@
             LSOF_GREP="${LSOF_GREP}|anacron|awk|run-parts"
         fi
 
-        FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -n +L 1 2>&1 | ${EGREPBINARY} -vw "${LSOF_GREP}" | ${EGREPBINARY} -v '/dev/zero|/\[aio\]' | ${AWKBINARY} '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
+        FIND=$(${LSOFBINARY}${LSOF_EXTRA_OPTIONS} -n +L 1 2>&1 | ${GREPBINARY} -E -vw "${LSOF_GREP}" | ${GREPBINARY} -E -v '/dev/zero|/\[aio\]' | ${AWKBINARY} '{ if ($5=="REG") { printf "%s(%s)\n", $10, $1 } }' | ${GREPBINARY} -v "^$" | ${SORTBINARY} -u)
         if [ -n "${FIND}" ]; then
             LogText "Result: found one or more files which are deleted, but still in use"
             for I in ${FIND}; do

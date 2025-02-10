@@ -5,11 +5,10 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2021, CISOfy
+# Copyright (c) Michael Boelen, CISOfy, and many contributors.
 #
-# Website  : https://cisofy.com
-# Blog     : http://linux-audit.com
+# Website  : https://cisofy.com/
+# Blog     : https://linux-audit.com/
 # GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -134,6 +133,7 @@
                             aide)                   AIDEBINARY=${BINARY};              LogText "  Found known binary: aide (file integrity checker) - ${BINARY}" ;;
                             apache2)                HTTPDBINARY=${BINARY};             LogText "  Found known binary: apache2 (web server) - ${BINARY}" ;;
                             apt)                    APTBINARY=${BINARY};               LogText "  Found known binary: apt (package manager) - ${BINARY}" ;;
+                            apk)                    APKBINARY=${BINARY};               LogText "  Found known binary: apk (package manager) - ${BINARY}" ;;
                             arch-audit)             ARCH_AUDIT_BINARY="${BINARY}";     LogText "  Found known binary: arch-audit (auditing utility to test for vulnerable packages) - ${BINARY}" ;;
                             auditd)                 AUDITDBINARY=${BINARY};            LogText "  Found known binary: auditd (audit framework) - ${BINARY}" ;;
                             awk)                    AWKBINARY=${BINARY};               LogText "  Found known binary: awk (string tool) - ${BINARY}" ;;
@@ -168,7 +168,6 @@
                             domainname)             DOMAINNAMEBINARY="${BINARY}";      LogText "  Found known binary: domainname (NIS domain) - ${BINARY}" ;;
                             dpkg)                   DPKGBINARY="${BINARY}";            LogText "  Found known binary: dpkg (package management) - ${BINARY}" ;;
                             xbps-query)             XBPSBINARY="${BINARY}";            LogText "  Found known binary: xbps (package management) - ${BINARY}" ;;
-                            egrep)                  EGREPBINARY=${BINARY};             LogText "  Found known binary: egrep (text search) - ${BINARY}" ;;
                             equery)                 EQUERYBINARY="${BINARY}";          LogText "  Found known binary: query (package manager) - ${BINARY}" ;;
                             evmctl)                 EVMCTLBINARY=${BINARY};            LogText "  Found known binary: evmctl (IMA/EVM tool) - ${BINARY}" ;;
                             exim)                   EXIMBINARY="${BINARY}";            EXIMVERSION=$(${BINARY} -bV | grep 'Exim version' | awk '{ print $3 }' | xargs); LogText "  Found known binary ${BINARY} (version ${EXIMVERSION})" ;;
@@ -196,6 +195,8 @@
                             iptables-save)          IPTABLESSAVEBINARY="${BINARY}";    LogText "  Found known binary: iptables-save (firewall) - ${BINARY}" ;;
                             istat)                  ISTATBINARY="${BINARY}";           LogText "  Found known binary: istat (file information) - ${BINARY}" ;;
                             journalctl)             JOURNALCTLBINARY="${BINARY}";      LogText "  Found known binary: journalctl (systemd journal) - ${BINARY}" ;;
+                            kadmin.local)           KADMINLOCALBINARY="${BINARY}";     LogText "  Found known binary: kadmin.local (krb5) - ${BINARY}" ;;
+                            kdb5_util)              KDB5UTILBINARY="${BINARY}";        LogText "  Found known binary: kdb5_util (krb5) - ${BINARY}" ;;
                             kldstat)                KLDSTATBINARY="${BINARY}";         LogText "  Found known binary: kldstat (kernel modules) - ${BINARY}" ;;
                             kstat)                  KSTATBINARY="${BINARY}";           LogText "  Found known binary: kstat (kernel statistics) - ${BINARY}" ;;
                             launchctl)              LAUNCHCTL_BINARY="${BINARY}";      SERVICE_MANAGER="launchd"; LogText "  Found known binary: launchctl (launchd client) - ${BINARY}" ;;
@@ -336,11 +337,19 @@
         Report "binaries_sgid_count=${SGID_BINARIES}"
         Report "binary_paths=${BINARY_PATHS_FOUND}"
 
+	# If grep is capable of extended regexp, use that instead of egrep to avoid annoying warning
+	if [ "${GREPBINARY:-}" ] ; then
+		${GREPBINARY} --help 2> /dev/null | ${GREPBINARY} -e "extended-regexp" > /dev/null
+		if [ $? -eq 0 ] ; then
+			EGREPBINARY="${GREPBINARY} -E"
+		fi
+	fi
+	
+
         # Test if the basic system tools are defined. These will be used during the audit.
         [ "${AWKBINARY:-}" ] || ExitFatal "awk binary not found"
         [ "${CAT_BINARY:-}" ] || ExitFatal "cat binary not found"
         [ "${CUTBINARY:-}" ] || ExitFatal "cut binary not found"
-        [ "${EGREPBINARY:-}" ] || ExitFatal "egrep binary not found"
         [ "${FINDBINARY:-}" ] || ExitFatal "find binary not found"
         [ "${GREPBINARY:-}" ] || ExitFatal "grep binary not found"
         [ "${HEADBINARY:-}" ] || ExitFatal "head binary not found"
@@ -365,6 +374,4 @@
     fi
 
 
-#
-#================================================================================
-# Lynis - Security Auditing and System Hardening for Linux and UNIX - https://cisofy.com
+# EOF

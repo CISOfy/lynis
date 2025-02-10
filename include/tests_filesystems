@@ -5,11 +5,10 @@
 #   Lynis
 # ------------------
 #
-# Copyright 2007-2013, Michael Boelen
-# Copyright 2007-2021, CISOfy
+# Copyright (c) Michael Boelen, CISOfy, and many contributors.
 #
-# Website  : https://cisofy.com
-# Blog     : http://linux-audit.com
+# Website  : https://cisofy.com/
+# Blog     : https://linux-audit.com/
 # GitHub   : https://github.com/CISOfy/lynis
 #
 # Lynis comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
@@ -346,7 +345,13 @@
         LINUX_KERNEL_MAJOR=$(echo $OS_KERNELVERSION | ${AWKBINARY} -F. '{print $1}')
         LINUX_KERNEL_MINOR=$(echo $OS_KERNELVERSION | ${AWKBINARY} -F. '{print $2}')
         if [ -n "${LINUX_KERNEL_MAJOR}" -a -n "${LINUX_KERNEL_MINOR}" ]; then
-            if [ ${LINUX_KERNEL_MAJOR} -ge 3 -a ${LINUX_KERNEL_MINOR} -ge 3 ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+            if [ ${LINUX_KERNEL_MAJOR} -ge 3 -a ${LINUX_KERNEL_MINOR} -ge 3 ]; then
+                PREQS_MET="YES";
+            elif [ ${LINUX_KERNEL_MAJOR} -ge 4 ]; then
+                PREQS_MET="YES";
+            else
+                PREQS_MET="NO";
+            fi
         else
             PREQS_MET="NO";
         fi
@@ -356,7 +361,7 @@
         # Proc should be mounted with 'hidepid=2' or 'hidepid=1' at least
         # https://www.kernel.org/doc/html/latest/filesystems/proc.html#chapter-4-configuring-procfs
         LogText "Test: check proc mount with incorrect mount options"
-        FIND=$(${MOUNTBINARY} | ${EGREPBINARY} "${ROOTDIR}proc " | ${EGREPBINARY} -o "hidepid=([0-9]|[a-z][a-z]*)")
+        FIND=$(${MOUNTBINARY} | ${GREPBINARY} -E "${ROOTDIR}proc " | ${GREPBINARY} -E -o "hidepid=([0-9]|[a-z][a-z]*)")
         if [ "${FIND}" = "hidepid=4" -o "${FIND}" = "hidepid=ptraceable" ]; then  # https://lwn.net/Articles/817137/
             Display --indent 2 --text "- Testing /proc mount (hidepid)" --result "${STATUS_OK}" --color GREEN
             LogText "Result: proc mount mounted with ${FIND}"
@@ -504,7 +509,7 @@
         fi
 
         LogText "Test: Checking acl option on xfs root file system"
-        FIND=$(${MOUNTBINARY} | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | ${EGREPBINARY} 'no_acl|no_user_xattr')
+        FIND=$(${MOUNTBINARY} | ${AWKBINARY} '{ if ($3=="/" && $5~/xfs/) { print $6 } }' | ${GREPBINARY} -E 'no_acl|no_user_xattr')
         if [ -z "${FIND}" ]; then
             FOUND=1
             # some other tests to do ?
@@ -638,7 +643,7 @@
         NDEVMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v nodev | ${WCBINARY} -l)
         NEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${WCBINARY} -l)
         NSUIDMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v nosuid | ${WCBINARY} -l)
-        NWRITEANDEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${EGREPBINARY} -v '^\(ro[,)]' | ${WCBINARY} -l)
+        NWRITEANDEXECMOUNTS=$(mount | ${AWKBINARY} '{print $6}' | ${GREPBINARY} -v noexec | ${GREPBINARY} -E -v '^\(ro[,)]' | ${WCBINARY} -l)
         LogText "Result: Total without nodev:${NDEVMOUNTS} noexec:${NEXECMOUNTS} nosuid:${NSUIDMOUNTS} ro or noexec (W^X): ${NWRITEANDEXECMOUNTS}, of total ${NMOUNTS}"
         Display --indent 2 --text "- Total without nodev:${NDEVMOUNTS} noexec:${NEXECMOUNTS} nosuid:${NSUIDMOUNTS} ro or noexec (W^X): ${NWRITEANDEXECMOUNTS} of total ${NMOUNTS}"
     fi
@@ -726,11 +731,51 @@
 #
 #################################################################################
 #
-    # Test        : FILE-6398 TODO
+    # Test        : FILE-6398
     # Description : Check if JBD (Journal Block Device) driver is loaded
-
-    # Want to contribute to Lynis? Create this test
-
+    # Notes       : Test is temporarily disabled, as JBD might be in a kernel (built-in) - https://github.com/CISOfy/lynis/issues/1508
+#    Register --test-no FILE-6398 --os Linux --weight L --network NO --category security --description "Checking if JBD (Journal Block Device) driver is loaded"
+#    if [ ${SKIPTEST} -eq 0 ]; then
+#        LogText "Test: Checking if JBD (Journal Block Device) driver is loaded"
+#        NOTINUSE=0
+#        # Only perform testing if we know that KRNL-5723 performed tests
+#        if [ ${MONOLITHIC_KERNEL_TESTED} -eq 1 ]; then
+#            # Cannot check if driver is loaded/present if kernel is monolithic
+#            if [ ${MONOLITHIC_KERNEL} -eq 0 ]; then
+#                JBD=$(${LSMODBINARY} | ${GREPBINARY} ^jbd)
+#                if [ -n "${JBD}" ]; then
+#                    LogText "Result: JBD driver is loaded"
+#                    INUSE=$(echo ${JBD} | ${AWKBINARY} '{if ($3 -ne 0) {print $4}}')
+#                    if [ -n "${INUSE}" ]; then
+#                        LogText "Result: JBD driver is in use by drivers: ${INUSE}"
+#                        Report "JBD driver is in use by drivers: ${INUSE}"
+#                        Display --indent 2 --text "- JBD driver loaded and in use" --result "${STATUS_OK}" --color GREEN
+#                    else
+#                        NOTINUSE=1
+#                        LogText "Result: JBD driver loaded, but not in use"
+#                        Report "JBD driver is loaded, but not in use."
+#                        Display --indent 2 --text "- JBD driver loaded, but not in use" --result "${STATUS_SUGGESTION}" --color YELLOW
+#                    fi
+#                else
+#                    NOTINUSE=2
+#                    LogText "Result: JBD driver not loaded"
+#                    Report "JBD driver not loaded."
+#                    Display --indent 2 --text "- JBD driver is not loaded" --result "${STATUS_CHECK_NEEDED}" --color YELLOW
+#                fi
+#                if [ ${NOTINUSE} -eq 1 ]; then
+#                    ReportSuggestion "${TEST_NO}" "The JBD (Journal Block Device) driver is loaded but not in use." "You are currently not using any filesystems with journaling, i.e. you have greater risk of data corruption in case of system crash."
+#                elif [ ${NOTINUSE} -eq 2 ]; then
+#                    ReportSuggestion "${TEST_NO}" "The JBD (Journal Block Device) driver is not loaded." "Since boot-time, you have not been using any filesystems with journaling. Alternatively, reason could be driver is blacklisted."
+#                fi
+#            else
+#                Display --indent 2 --text "- JBD driver: unable to check" --result "${STATUS_UNKNOWN}" --color YELLOW
+#                LogText "Kernel is monolithic - cannot check if JBD driver is part of compiled kernel."
+#            fi
+#        else
+#            Display --indent 2 --text "- JBD driver: test skipped" --result "${STATUS_UNKNOWN}" --color YELLOW
+#            LogText "Test skipped as the kernel type (monolithic/modular) is unknown"
+#        fi
+#    fi
 #
 #################################################################################
 #
@@ -744,7 +789,7 @@
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking locate database"
         FOUND=0
-        LOCATE_DBS="${ROOTDIR}var/lib/mlocate/mlocate.db ${ROOTDIR}var/lib/locate/locatedb ${ROOTDIR}var/lib/locatedb ${ROOTDIR}var/lib/slocate/slocate.db ${ROOTDIR}var/cache/locate/locatedb ${ROOTDIR}var/db/locate.database"
+        LOCATE_DBS="${ROOTDIR}var/cache/locate/locatedb ${ROOTDIR}var/db/locate.database ${ROOTDIR}var/lib/locate/locatedb ${ROOTDIR}var/lib/locatedb ${ROOTDIR}var/lib/mlocate/mlocate.db ${ROOTDIR}var/lib/plocate/plocate.db ${ROOTDIR}var/lib/slocate/slocate.db"
         for FILE in ${LOCATE_DBS}; do
             if [ -f ${FILE} ]; then
                 LogText "Result: locate database found (${FILE})"
@@ -814,13 +859,13 @@
             AVAILABLE_MODPROBE_FS=""
             for FS in ${LIST_FS_NOT_SUPPORTED}; do
                 # Check if filesystem is present in modprobe output
-                FIND=$(${MODPROBEBINARY} -v -n ${FS} 2>/dev/null | ${EGREPBINARY} "/${FS}.ko" | ${TAILBINARY} -1)
+                FIND=$(${MODPROBEBINARY} -v -n ${FS} 2>/dev/null | ${GREPBINARY} -E "/${FS}.ko" | ${TAILBINARY} -1)
                 if [ -n "${FIND}" ]; then
                     LogText "Result: found ${FS} support in the kernel (output = ${FIND})"
                     Debug "Module ${FS} present in the kernel"
                     LogText "Test: Checking if ${FS} is active"
                     # Check if FS is present in lsmod output
-                    FIND=$(${LSMODBINARY} | ${EGREPBINARY} "^${FS}")
+                    FIND=$(${LSMODBINARY} | ${GREPBINARY} -E "^${FS}")
                     if IsEmpty "${FIND}"; then
                         LogText "Result: module ${FS} is currently not loaded in the kernel."
                         AddHP 2 3
@@ -835,15 +880,19 @@
                     AddHP 3 3
                     if IsDebug; then Display --indent 6 --text "- Module ${FS} not present in the kernel" --result OK --color GREEN; fi
                 fi
-                for SUBDIR in "${ROOTDIR}etc" "/usr/lib"; do
-                    FIND=$(${LSBINARY} ${SUBDIR}/modprobe.d/* 2> /dev/null)
-                    if [ -n "${FIND}" ]; then
-                        FIND1=$(${EGREPBINARY} "^blacklist ${FS}$" ${SUBDIR}/modprobe.d/* | ${GREPBINARY} -v "#")
-                        FIND2=$(${EGREPBINARY} "^install ${FS} /bin/true$" ${SUBDIR}/modprobe.d/* | ${GREPBINARY} -v "#")
-                        if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
-                            Display --indent 4 --text "- Module $FS is blacklisted" --result "OK" --color GREEN
-                            LogText "Result: module ${FS} is blacklisted"
-                            break
+                
+                for SUBDIR in "${ROOTDIR}etc" "${ROOTDIR}usr/lib"; do
+                    if [ -d "${SUBDIR}/modprobe.d" ]; then
+                        LogText "Result: directory ${SUBDIR}/modprobe.d exists"
+                        FIND=$(${LSBINARY} "${SUBDIR}/modprobe.d/*" 2> /dev/null)
+                        if [ -n "${FIND}" ]; then
+                            FIND1=$(${GREPBINARY} -E "^blacklist[[:space:]]+${FS}$" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+                            FIND2=$(${GREPBINARY} -E "^install[[:space:]]+${FS}[[:space:]]+/bin/(true|false)$" ${ROOTDIR}etc/modprobe.d/* | ${GREPBINARY} -v "#")
+                            if [ -n "${FIND1}" ] || [ -n "${FIND2}" ]; then
+                                Display --indent 4 --text "- Module $FS is blacklisted" --result "OK" --color GREEN
+                                LogText "Result: module ${FS} is blacklisted"
+                                break
+                            fi
                         fi
                     fi
                 done

@@ -8,6 +8,7 @@
 ### Changed
 - Corrected detection of service manager SMF
 - Extended GetHostID function to allow HostID and HostID2 creation on OpenWrt
+- Check modules also under /usr/lib/modules.d
 
 ---------------------------------------------------------------------------------
 

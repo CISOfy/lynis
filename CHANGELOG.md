@@ -2,8 +2,12 @@
 
 ## Lynis 3.1.5 (not released yet)
 
+### Added
+- Support for OpenWrt
+
 ### Changed
 - Corrected detection of service manager SMF
+- Extended GetHostID function to allow HostID and HostID2 creation on OpenWrt
 
 ---------------------------------------------------------------------------------
 

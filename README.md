@@ -21,7 +21,7 @@ We believe software should be **simple**, **updated on a regular basis**, and **
 
 ## Goals
 
-The main goals are:
+The main goals of Lynis include:
 - Automated security auditing
 - Compliance testing (e.g. ISO27001, PCI-DSS, HIPAA)
 - Vulnerability detection
@@ -46,7 +46,7 @@ Typical users of the software:
 
 There are multiple options available to install Lynis.
 
-### Software Package
+### Software package
 
 For systems running Linux, BSD, and macOS, there is typically a package available. This is the preferred method of obtaining Lynis, as it is quick to install and easy to update. The Lynis project itself also provides [packages](https://packages.cisofy.com/) in RPM or DEB format suitable for systems systems running:
 `CentOS`, `Debian`, `Fedora`, `OEL`, `openSUSE`, `RHEL`, `Ubuntu`, and others.
@@ -70,27 +70,20 @@ The very latest developments can be obtained via git.
 If you want to run the software as `root` (or sudo), we suggest changing the ownership of the files. Use `chown -R 0:0` to recursively alter the owner and group and set it to user ID `0` (`root`). Otherwise Lynis will warn you about the file permissions. After all, you are executing files owned by a non-privileged user.
 
 
-### Enterprise Version
-
-This software component is also part of an enterprise solution. Same quality, yet with more functionality.
-
-Focus areas include compliance (`PCI DSS`, `HIPAA`, `ISO27001`, and others). The Enterprise version comes with:
-* a web interface;
-* dashboard and reporting;
-* hardening snippets;
-* improvement plan (based on risk);
-* commercial support.
-
 ## Documentation
-Full documentation: https://cisofy.com/documentation/lynis/.
+
+Have a look at the [Lynis documentation](https://cisofy.com/documentation/lynis/) to learn more about the configuration and usage of Lynis. When you are interested in reading more articles about Linux security, then check out the [Linux security blog](https://linux-audit.com/) named Linux Audit. For some suggestions by Lynis, this is also the source used to learn more about specific findings.
 
 ## Customization
+
 If you want to create your own tests, have a look at the [Lynis software development kit](https://github.com/CISOfy/lynis-sdk).
 
 ## Security
-We participate in the [CII best practices](https://bestpractices.coreinfrastructure.org/projects/96) badge program of the Linux Foundation.
+
+We participate in the [CII best practices](https://www.bestpractices.dev/en/projects/96) badge program of the Linux Foundation.
 
 ## Media and Awards
+
 Lynis is collecting some awards along the way and we are proud of that.
 
 * 2016
@@ -120,6 +113,17 @@ You can also simply contribute to the project by _starring_ the project and show
 
 Thanks!
 
-### License
+## License
 
 > GPLv3
+
+## Enterprise version for companies
+
+This software component is also part of an enterprise solution and focuses on companies. Same quality, yet with more functionality.
+
+Focus areas include compliance (`PCI DSS`, `HIPAA`, `ISO27001`, and others). The Enterprise version comes with:
+* a web interface;
+* dashboard and reporting;
+* hardening snippets;
+* improvement plan (based on risk);
+* commercial support.

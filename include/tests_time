@@ -81,10 +81,14 @@
 
         # Check for OpenNTPD, ntpctl comes with a "regular" install
         if [ -n "${NTPCTLBINARY}" ]; then
+            PSOPTIONS="ax"
+            if [ "${SHELL_IS_BUSYBOX}" -eq 1 ]; then
+                PSOPTIONS="-w"
+            fi
             # In contrast to timectl, "synchronised: yes" is not grepped.
             # Reason: openntpd syncs only if large time corrections are not required or -s is passed.
             #         This might be not intended by the administrator (-s is NOT the default!)
-            FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd: ntp engine" | ${GREPBINARY} -v "grep")
+            FIND=$(${PSBINARY} ${PSOPTIONS} | ${GREPBINARY} "ntpd: ntp engine" | ${GREPBINARY} -v "grep")
             # Status code 0 is when communication over the socket is successful
             if ${NTPCTLBINARY} -s status > /dev/null 2> /dev/null; then
                 FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="openntpd"
@@ -107,7 +111,11 @@
         # Check running processes (ntpd from ntp.org)
         # As checking by process name is ambiguous (openntpd has the same process name),
         # this check will be skipped if openntpd has been found.
-        FIND=$(${PSBINARY} ax | ${GREPBINARY} "ntpd" | ${GREPBINARY} -v "dntpd" | ${GREPBINARY} -v "ntpd: " | ${GREPBINARY} -v "grep")
+        PSOPTIONS="ax"
+        if [ "${SHELL_IS_BUSYBOX}" -eq 1 ]; then
+            PSOPTIONS="-w"
+        fi
+        FIND=$(${PSBINARY} ${PSOPTIONS} | ${GREPBINARY} "ntpd" | ${GREPBINARY} -v "dntpd" | ${GREPBINARY} -v "ntpd: " | ${GREPBINARY} -v "grep")
         if [ "${NTP_DAEMON}" != "openntpd" ] && [  -n "${FIND}" ]; then
             FOUND=1; NTPD_RUNNING=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1
             NTP_DAEMON="ntpd"
@@ -122,7 +130,12 @@
         fi
 
         # Check timedate daemon (systemd)
-        if IsRunning 'systemd-timesyncd'; then
+        PSOPTIONS="ax"
+        if [ "${SHELL_IS_BUSYBOX}" -eq 1 ]; then
+            PSOPTIONS="-w"
+        fi
+        FIND=$(${PSBINARY} ${PSOPTIONS} | ${GREPBINARY} "systemd-timesyncd" | ${GREPBINARY} -v "grep")
+        if [  -n "${FIND}" ]; then
             FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="systemd-timesyncd"
             Display --indent 2 --text "- NTP daemon found: systemd (timesyncd)" --result "${STATUS_FOUND}" --color GREEN
             LogText "Result: Found running systemd-timesyncd in process list"

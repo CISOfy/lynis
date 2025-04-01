@@ -231,23 +231,25 @@
     Register --test-no ACCT-9634 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for auditd log file"
     if [ ${SKIPTEST} -eq 0 ]; then
         LogText "Test: Checking auditd log file"
+        DEFAULT_LOCATION="/var/log/audit/audit.log"
         FIND=$(${GREPBINARY} "^log_file" ${AUDITD_CONF_FILE} | ${AWKBINARY} '{ if ($1=="log_file" && $2=="=") { print $3 } }')
         if [ -n "${FIND}" ]; then
             LogText "Result: log file is defined"
             LogText "Defined value: ${FIND}"
-            if [ -f ${FIND} ]; then
-                LogText "Result: log file ${FIND} exists on disk"
-                Display --indent 4 --text "- Checking auditd log file" --result "${STATUS_FOUND}" --color GREEN
-                Report "logfile[]=${FIND}"
-            else
-                LogText "Result: can't find log file ${FIND} on disk"
-                Display --indent 4 --text "- Checking auditd log file" --result "${STATUS_SUGGESTION}" --color YELLOW
-                ReportSuggestion "${TEST_NO}" "Check auditd log file location"
-            fi
         else
-            LogText "Result: no log file found"
-            Display --indent 4 --text "- Checking auditd log file" --result "${STATUS_WARNING}" --color RED
-            ReportWarning "${TEST_NO}" "Auditd log file is defined but can not be found on disk"
+            LogText "Result: log file is not defined"
+            LogText "Assumed default location: ${DEFAULT_LOCATION}"
+            FIND="${DEFAULT_LOCATION}"
+        fi
+
+        if [ -f ${FIND} ]; then
+            LogText "Result: log file ${FIND} exists on disk"
+            Display --indent 4 --text "- Checking auditd log file" --result "${STATUS_FOUND}" --color GREEN
+            Report "logfile[]=${FIND}"
+        else
+            LogText "Result: can't find log file ${FIND} on disk"
+            Display --indent 4 --text "- Checking auditd log file" --result "${STATUS_SUGGESTION}" --color RED
+            ReportWarning "${TEST_NO}" "Check auditd log file location"
         fi
     fi
 #

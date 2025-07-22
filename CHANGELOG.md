@@ -4,6 +4,7 @@
 
 ### Added
 - Support for OpenWrt
+- Bitdefender detection on Linux
 
 ### Changed
 - Corrected detection of service manager SMF

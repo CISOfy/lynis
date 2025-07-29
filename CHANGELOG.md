@@ -1,10 +1,20 @@
 # Lynis Changelog
 
-## Lynis 3.1.5 (not released yet)
+## Lynis 3.1.6 (not released yet)
+
+### Added
+
+### Changed
+- Updated end-of-life database
+
+---------------------------------------------------------------------------------
+
+## Lynis 3.1.5 (2025-07-29)
 
 ### Added
 - Support for OpenWrt
 - Bitdefender detection on Linux
+- Detection of openSUSE Tumbleweed-Slowroll
 
 ### Changed
 - Corrected detection of service manager SMF

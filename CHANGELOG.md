@@ -5,6 +5,7 @@
 ### Added
 
 ### Changed
+- ACCT-9634 - Define default auditd log file location
 - MALW-3280 - Adjusted detection of Wazuh agent
 - Updated end-of-life database
 

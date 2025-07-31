@@ -3,11 +3,15 @@
 ## Lynis 3.1.6 (not released yet)
 
 ### Added
+- Add notice to screen output if end-of-life state is unclear
 
 ### Changed
+- Releases are now considered to be old if they are 6 months or older
+- Removed generic suggestion for outdated/old Lynis release, instead show to screen output
+- Generic clarifications on variable usage for operating system and its version 
+- Updated end-of-life database
 - ACCT-9634 - Define default auditd log file location
 - MALW-3280 - Adjusted detection of Wazuh agent
-- Updated end-of-life database
 
 ---------------------------------------------------------------------------------
 

@@ -43,16 +43,16 @@
     PROGRAM_WEBSITE="https://cisofy.com/lynis/"
 
     # Version details
-    PROGRAM_RELEASE_DATE="2025-01-28"
-    PROGRAM_RELEASE_TIMESTAMP=1738061140
+    PROGRAM_RELEASE_DATE="2025-07-29"
+    PROGRAM_RELEASE_TIMESTAMP=1753773496
     PROGRAM_RELEASE_TYPE="pre-release" # pre-release or release
-    PROGRAM_VERSION="3.1.5"
+    PROGRAM_VERSION="3.1.6"
 
     # Source, documentation and license
     PROGRAM_SOURCE="https://github.com/CISOfy/lynis"
     PROGRAM_PACKAGE="https://packages.cisofy.com/"
     PROGRAM_DOCUMENTATION="https://cisofy.com/docs/"
-    PROGRAM_COPYRIGHT="2007-2024, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
+    PROGRAM_COPYRIGHT="2007-2025, ${PROGRAM_AUTHOR} - ${PROGRAM_WEBSITE}"
     PROGRAM_LICENSE="${PROGRAM_NAME} comes with ABSOLUTELY NO WARRANTY. This is free software, and you are
   welcome to redistribute it under the terms of the GNU General Public License.
   See the LICENSE file for details about using this software."
@@ -676,12 +676,14 @@ ${NORMAL}
         echo "  Operating system name:     ${OS_NAME}"
         echo "  Operating system version:  ${OS_VERSION}"
         LogText "EOL check: ${EOL}"
-        if [ ${EOL} -eq 1 ]; then
-            echo "  End-of-life:               ${WARNING}YES${NORMAL}"
+        if [ ${EOL} -eq 0 ]; then
+            echo "  End-of-life:               ${STATUS_NO}"
+        elif [ ${EOL} -eq 1 ]; then
+            echo "  End-of-life:               ${WARNING}${STATUS_YES}${NORMAL}"
             ReportWarning "GEN-0010" "This version ${OS_VERSION} is marked end-of-life as of ${EOL_DATE}"
         elif [ ${EOL} -eq 255 ]; then
-            # TODO - mark as item where community can provide help
-            LogText "Note: the end-of-life of '${OS_FULLNAME}' could not be checked. Entry missing in software-eol.db?"
+            echo "  End-of-life:               ${WARNING}${STATUS_UNKNOWN}${NORMAL}"
+            LogText "Note: the end-of-life of '${OS_FULLNAME}' could not be checked. Entry is missing in db/software-eol.db?"
         fi
 
         if [ -n "${OS_MODE}" ]; then echo "  Operating system mode:     ${OS_MODE}"; fi
@@ -789,44 +791,51 @@ ${NORMAL}
     fi
 
     OLD_RELEASE=0
-    TIME_DIFFERENCE_CHECK=10368000 # 4 months
+    TIME_DIFFERENCE_CHECK=15552000 # approx 6 months
     RELEASE_PLUS_TIMEDIFF=$((PROGRAM_RELEASE_TIMESTAMP + TIME_DIFFERENCE_CHECK))
     NOW=$(date "+%s")
     if [ ${NOW} -gt ${RELEASE_PLUS_TIMEDIFF} ]; then
-        # Show if release is old, only if we didn't show it with normal update check
-        if [ ${UPDATE_AVAILABLE} -eq 0 ]; then
-            ReportSuggestion "LYNIS" "This release is more than 4 months old. Check the website or GitHub to see if there is an update available."
-        fi
         OLD_RELEASE=1
     fi
 
-    # Show on screen message if release is very outdated (unless --quiet/--silent is used)
-    if [ ${UPDATE_AVAILABLE} -eq 1 -a ${QUIET} -eq 0 ]; then
-        echo ""
-        echo "      ==============================================================================="
-        echo "        ${CYAN}${PROGRAM_NAME} ${TEXT_UPDATE_AVAILABLE}${NORMAL}"
-        echo "      ==============================================================================="
-        echo ""
-        if [ ${OLD_RELEASE} -eq 1 ]; then
-            echo "        ${YELLOW}Current version is more than 4 months old${NORMAL}"
+    # Show on screen message if there is an update available or when the release is outdated
+    # Do not show any output when quiet mode is used (--quiet/--silent)
+    if [ ${QUIET} -eq 0 ]; then
+        if [ ${UPDATE_AVAILABLE} -eq 1 ]; then
             echo ""
-        fi
-        if [ ${PROGRAM_LV} -gt 0 ]; then
-            echo "        Current version : ${YELLOW}${PROGRAM_AC}${NORMAL}   Latest version : ${GREEN}${PROGRAM_LV}${NORMAL}"
+            echo "      ==============================================================================="
+            echo "        ${CYAN}${PROGRAM_NAME} ${TEXT_UPDATE_AVAILABLE}${NORMAL}"
+            echo "      ==============================================================================="
             echo ""
+            if [ ${PROGRAM_LV} -gt 0 ]; then
+                echo "        Current version : ${YELLOW}${PROGRAM_AC}${NORMAL}   Latest version : ${GREEN}${PROGRAM_LV}${NORMAL}"
+                echo ""
+            fi
+            echo "        ${WHITE}Please update to the latest version.${NORMAL}"
+            echo "        New releases include additional features, bug fixes, and tests.${NORMAL}"
+        elif [ ${OLD_RELEASE} -eq 1 ]; then
+            echo ""
+            echo "      ==============================================================================="
+            echo "        ${CYAN}${PROGRAM_NAME} might be outdated${NORMAL}"
+            echo "      ==============================================================================="
+            echo ""
+            echo "        ${YELLOW}Current version is more than 6 months old${NORMAL}"
+            echo "        This version might be ${WHITE}Please check if there is a more recent version available.${NORMAL}"
+            echo ""
+            echo "        ${WHITE}Please check if there is a more recent version available.${NORMAL}"
         fi
-        echo "        ${WHITE}Please update to the latest version.${NORMAL}"
-        echo "        New releases include additional features, bug fixes, tests, and baselines.${NORMAL}"
-        echo ""
-        echo "        Download the latest version:"
-        echo ""
-        echo "        Packages (DEB/RPM) -  https://packages.cisofy.com"
-        echo "        Website (TAR)      -  https://cisofy.com/downloads/"
-        echo "        GitHub (source)    -  https://github.com/CISOfy/lynis"
-        echo ""
-        echo "      ==============================================================================="
-        echo ""
-        sleep 5
+        if [ ${OLD_RELEASE} -eq 1 -o ${UPDATE_AVAILABLE} -eq 1 ]; then
+            echo ""
+            echo "        Download locations:"
+            echo ""
+            echo "        Packages (DEB/RPM) -  https://packages.cisofy.com/"
+            echo "        Website (TAR)      -  https://cisofy.com/downloads/"
+            echo "        GitHub             -  https://github.com/CISOfy/lynis"
+            echo ""
+            echo "      ==============================================================================="
+            echo ""
+            sleep 5
+        fi
     fi
 
     LogTextBreak

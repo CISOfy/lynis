@@ -20,6 +20,14 @@
 # Operating System detection
 #
 #################################################################################
+# 
+# Variables:
+# OS is primary operating system name (e.g. Linux)
+# OS_NAME is typically the name that people will refer it to (e.g. Debian)
+# OS_VERSION is usually the major version (12) or major and minor version (12.9)
+# OS_FULLNAME is the operating system name and version (often OS_NAME + OS_VERSION)
+#
+#################################################################################
 #
     # Check operating system
     case $(uname) in
@@ -247,6 +255,7 @@
                             OS_NAME="Debian"
                             OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                             OS_VERSION_FULL=$(grep "^VERSION=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                            OS_FULLNAME="${OS_NAME} ${OS_VERSION}"
                         ;;                     
                         "devuan")
                             LINUX_VERSION="Devuan"
@@ -398,7 +407,8 @@
                             OS_NAME="openSUSE"
                         ;;
                         "opensuse-slowroll")
-                            LINUX_VERSION="openSUSE Slowroll"
+                            LINUX_VERSION="openSUSE Tumbleweed-Slowroll"
+                            # It's rolling release but has a snapshot version (the date of the snapshot)
                             OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                             OS_NAME="openSUSE"
                         ;;
@@ -951,24 +961,40 @@
     # Check if this OS is end-of-life
     EOL=255
     EOL_DATE=""
+    EOL_OS_MATCH=""
+    EOL_STATE=""
     EOL_TIMESTAMP=0
+    Debug "Info: determining if we can find end-of-life of this operating system"
     if [ -n "${OS_VERSION}" ]; then
         if [ -f "${DBDIR}/software-eol.db" ]; then
             FIND="${OS_FULLNAME}"
+            Debug "Info: using '${OS_FULLNAME}' to search for end-of-life (partial) match"
             EOL_TIMESTAMP=$(awk -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $4}}' ${DBDIR}/software-eol.db | head -n 1)
             if [ -n "${EOL_TIMESTAMP}" ]; then
                 EOL_DATE=$(awk -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $3}}' ${DBDIR}/software-eol.db | head -n 1)
                 if [ -n "${EOL_DATE}" ]; then
+                    EOL_OS_MATCH=$(awk -v value="${FIND}" -F: '{if ($1=="os" && value ~ $2){print $2}}' ${DBDIR}/software-eol.db | head -n 1)
+                    Debug "Found a matching line: ${EOL_OS_MATCH} (timestamp=${EOL_TIMESTAMP}, date=${EOL_DATE})"
                     if [ ${NOW} -gt ${EOL_TIMESTAMP} ]; then
                         EOL=1
+                        EOL_STATE="This operating system seems be end-of-life and may no longer receive updates or support!"
+                        Debug "Outcome: OS is end-of-life!"
                     else
                         EOL=0
+                        EOL_STATE="This operating system seems not to be end-of-life yet"
+                        Debug "Outcome: OS is not end-of-life yet"
                     fi
                 else
                     EOL=0
                 fi
+            else
+                Debug "Could not find a related OS entry. Maybe it needs to be added to the database (${DBDIR}/software-eol.db)?" 
             fi
+        else
+            Debug "No end-of-life database found (${DBDIR}/software-eol.db)"
         fi
+    else
+        Debug "No OS version known, so skipped end-of-life check"
     fi
 
 

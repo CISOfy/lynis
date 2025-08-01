@@ -4,6 +4,7 @@
 
 ### Added
 - Add notice to screen output if end-of-life state is unclear
+- Support for OpenMandriva Lx
 
 ### Changed
 - Releases are now considered to be old if they are 6 months or older

@@ -12,6 +12,7 @@
 - Generic clarifications on variable usage for operating system and its version 
 - Updated end-of-life database
 - Updated Japanese translation
+- For Debian and similar systems ignore kernel packages with 'rc' state
 - ACCT-9634 - Define default auditd log file location
 - MALW-3280 - Adjusted detection of Wazuh agent
 

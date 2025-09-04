@@ -253,22 +253,39 @@
     if HasData "${LINUXCONFIGFILE}"; then
         if [ -f ${LINUXCONFIGFILE} ]; then PREQS_MET="YES"; fi
     fi
+    FIND_DEVICES=$(${LSBINARY} /sys/block 2>/dev/null)
+    for DEVICE in ${FIND_DEVICES}; do
+        BLOCK_DEVICE_SCHEDULER="/sys/block/${DEVICE}/queue/scheduler"
+    done
+    if [ -f ${BLOCK_DEVICE_SCHEDULER} ]; then
+        LINUX_KERNEL_IOSCHED=$(${GREPBINARY} -E '\[[a-z-]+\]' ${BLOCK_DEVICE_SCHEDULER} |cut -d[ -f2|cut -d] -f 1)
+        PREQS_MET="YES"
+    fi
+
     Register --test-no KRNL-5730 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking disk I/O kernel scheduler"
     if [ ${SKIPTEST} -eq 0 ]; then
-        if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
-        if [ -n "${GREPTOOL}" ]; then
-            LogText "Test: Checking the default I/O kernel scheduler"
-            LINUX_KERNEL_IOSCHED=$(${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | ${SEDBINARY} s/\"//g)
-            if [ -n "${LINUX_KERNEL_IOSCHED}" ]; then
-                LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
-                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
-                Report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
+        # Only check LINUXCONFIGFILE if we didn't find scheduler in
+        # /sys/block/
+        if [ -z "${LINUX_KERNEL_IOSCHED}" ]; then
+            if [ ${LINUXCONFIGFILE_ZIPPED} -eq 1 ]; then GREPTOOL="${ZGREPBINARY}"; else GREPTOOL="${GREPBINARY}"; fi
+            if [ -n "${GREPTOOL}" ]; then
+                LogText "Test: Checking the default I/O kernel scheduler"
+                LINUX_KERNEL_IOSCHED=$(${GREPTOOL} "CONFIG_DEFAULT_IOSCHED" ${LINUXCONFIGFILE} | ${AWKBINARY} -F= '{ print $2 }' | ${SEDBINARY} s/\"//g)
+                if [ -n "${LINUX_KERNEL_IOSCHED}" ]; then
+                    LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
+                    Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
+                    Report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
+                else
+                    LogText "Result: no default I/O kernel scheduler found"
+                    Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_NOT_FOUND}" --color WHITE
+                fi
             else
-                LogText "Result: no default I/O kernel scheduler found"
-                Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_NOT_FOUND}" --color WHITE
+                ReportException "${TEST_NO}" "No valid ${GREPBINARY} tool found to search kernel settings"
             fi
         else
-            ReportException "${TEST_NO}" "No valid ${GREPBINARY} tool found to search kernel settings"
+            LogText "Result: found IO scheduler '${LINUX_KERNEL_IOSCHED}'"
+            Display --indent 2 --text "- Checking default I/O kernel scheduler" --result "${STATUS_FOUND}" --color GREEN
+            Report "linux_kernel_io_scheduler[]=${LINUX_KERNEL_IOSCHED}"
         fi
    fi
 #

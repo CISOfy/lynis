@@ -1,6 +1,6 @@
 # Lynis Changelog
 
-## Lynis 3.1.6 (not released yet)
+## Lynis 3.1.6 (2025-10-22)
 
 ### Added
 - Add notice to screen output if end-of-life state is unclear
@@ -15,6 +15,7 @@
 - For Debian and similar systems ignore kernel packages with 'rc' state
 - ACCT-9634 - Define default auditd log file location
 - MALW-3280 - Adjusted detection of Wazuh agent
+- FIRE-4586 - Also accept NFLOG as a logging target for iptables
 
 ---------------------------------------------------------------------------------
 

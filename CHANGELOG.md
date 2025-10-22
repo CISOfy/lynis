@@ -14,8 +14,8 @@
 - Updated Japanese translation
 - For Debian and similar systems ignore kernel packages with 'rc' state
 - ACCT-9634 - Define default auditd log file location
-- MALW-3280 - Adjusted detection of Wazuh agent
 - FIRE-4586 - Also accept NFLOG as a logging target for iptables
+- MALW-3280 - Adjusted detection of Wazuh agent
 
 ---------------------------------------------------------------------------------
 

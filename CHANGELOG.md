@@ -1,5 +1,13 @@
 # Lynis Changelog
 
+## Lynis 3.1.7 (not released yet)
+
+### Changed
+- Detection of CachyOS
+- Updated end-of-life-database
+
+---------------------------------------------------------------------------------
+
 ## Lynis 3.1.6 (2025-10-22)
 
 ### Added

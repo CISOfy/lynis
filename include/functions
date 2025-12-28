@@ -90,6 +90,7 @@
 #    ReportManual               Log manual actions to report file
 #    ReportSuggestion           Add a suggestion to report file
 #    ReportWarning              Add a warning and priority to report file
+#    RunCmdAsUser               Run commands as a normal user instead of root
 #    SafeFile                   Security tests to perform on a file before using it
 #    SafePerms                  Check if a file has safe permissions
 #    SafeInput                  Test provided string to see if it contains unwanted characters
@@ -3054,6 +3055,44 @@
         fi
         Report "warning[]=${TEST}|${MESSAGE}|${DETAILS}|${SOLUTION}|"
         LogText "Warning: ${MESSAGE} [test:${TEST}] [details:${DETAILS}] [solution:${SOLUTION}]"
+    }
+
+
+    ################################################################################
+    # Name        : RunCmdAsUser()
+    # Description : Run commands as a normal user instead of root
+    #
+    # Parameters  : $@ = command arguments
+    # Returns     : None (executes the command as the appropriate user)
+	# Notes       : This allows dropping permissions for specific commands when
+	#               lynis is invoked as root, preventing privilege escalation
+	#               risks (CWE-250, CWE-271).
+	#
+	#               By isolating privileged code and dropping said privileges as
+	#               soon as possible, we can execute tools with their proper
+	#               permissions, such as in the case of Homebrew.
+	#
+	#               When available, we use `sudo` and `su`. For a strictly
+	#               POSIX-compliant environment, a C implementation could be
+	#               made using `setgid()` and `setuid()`.
+    ################################################################################
+    ################################################################################
+
+    RunCmdAsUser() {
+        case "$(id -u)" in
+            0)
+                if command -v sudo >/dev/null
+                then
+                    sudo -u "$SUDO_USER" "$@"
+                elif command -v su >/dev/null
+                then
+                    su "$(id -un)" -c "$@"
+                else
+                    "$@"
+                fi
+                ;;
+            *) "$@"
+        esac
     }
 
 

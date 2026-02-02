@@ -22,6 +22,8 @@
     CREDITS_U_PASSWORD=""
     MAX_PASSWORD_RETRY=""
     MIN_PASSWORD_CLASS=""
+    MIN_PASSPHRASE_WORDS=""
+    MIN_PASSPHRASE_LENGTH=""
     PAM_DIRECTORY="${ROOTDIR}etc/pam.d"
 #
 #########################################################################
@@ -239,6 +241,62 @@
                                 pam_mail | pam_mkhomedir | pam_motd) ;;
                                 pam_namespace | pam_nologin | pam_ntlm) ;;
                                 pam_opendirectory) ;;
+
+                                # Password quality check
+                                pam_passwdqc)
+                                    LogText "Result: found ${PAM_MODULE} module (password quality check)"
+                                    if [ ! "${PAM_MODULE_OPTIONS}" = "" ]; then
+                                        for I in ${PAM_MODULE_OPTIONS}; do
+                                            OPTION=$(echo ${I} | awk -F= '{ print $1 }')
+                                            VALUE=$(echo ${I} | awk -F= '{ print $2 }')
+                                            case ${OPTION} in
+                                                min)
+                                                    LogText "Result: minimum length (min) configured for pam_passwdqc"
+                                                    OIFS=$IFS
+                                                    IFS=","
+                                                    i=-1
+                                                    for option in $VALUE; do
+                                                        i=$(($i+1))
+                                                        Debug "pam_passwdqc min: N$i - $option"
+
+                                                        # Option is disabled.
+                                                        if [ $option = 'disabled' ]; then
+                                                            # It may be worth checking that N0 (characters from
+                                                            # one class) and N1 (characters from two classes) are
+                                                            # disabled, as they're weak.
+                                                            continue;
+                                                        fi
+
+                                                        DigitsOnly $option
+
+                                                        if [ $i -ne 2 ]; then
+                                                            # Not the passphrase field (N2).
+                                                            if [ -z $MIN_PASSWORD_LENGTH -o $MIN_PASSWORD_LENGTH = -1 -o $MIN_PASSWORD_LENGTH -gt $option ]; then
+                                                                MIN_PASSWORD_LENGTH=$option
+                                                            fi
+                                                        else
+                                                            # Passphrase field.
+                                                            MIN_PASSPHRASE_LENGTH=$option
+                                                        fi
+                                                    done
+                                                    IFS=$OIFS
+
+                                                    Debug "Found password quality enabled with module ${PAM_MODULE_NAME} and minimum password length ${MIN_PASSWORD_LENGTH}"
+                                                    Debug "Found password quality enabled with module ${PAM_MODULE_NAME} and minimum passphrase length ${MIN_PASSPHRASE_LENGTH}"
+                                                ;;
+
+                                                passphrase)
+                                                    LogText "Result: passphrase min words (passphrase) configured for pam_passwdqc"
+                                                    DigitsOnly $VALUE
+                                                    MIN_PASSPHRASE_WORDS=$VALUE
+
+                                                    Debug "Found password quality enabled with module ${PAM_MODULE_NAME} and minimum passphrase words ${MIN_PASSPHRASE_WORDS}"
+                                                ;;
+                                            esac
+                                        done
+                                    fi
+                                ;;
+
                                 pam_permit) ;;
 
                                 # Password history - Can be configured via pam_unix or pam_pwhistory
@@ -444,6 +502,21 @@ if [ ! "${MIN_PASSWORD_LENGTH}" = "-1" ]; then
 else
     LogText "[PAM] Minimum password length: not configured"
 fi
+
+if [ ! "${MIN_PASSPHRASE_LENGTH}" = "-1" ]; then
+    LogText "[PAM] Minimum passphrase length: ${MIN_PASSPHRASE_LENGTH}"
+    Report "minimum_passphrase_length=${MIN_PASSPHRASE_LENGTH}"
+else
+    LogText "[PAM] Minimum passphrase length: not configured"
+fi
+
+if [ ! "${MIN_PASSPHRASE_WORDS}" = "-1" ]; then
+    LogText "[PAM] Minimum passphrase words: ${MIN_PASSPHRASE_WORDS}"
+    Report "minimum_passphrase_words=${MIN_PASSPHRASE_WORDS}"
+else
+    LogText "[PAM] Minimum passphrase words: not configured"
+fi
+
 
 LogText "[PAM] Password strength testing enabled: ${PAM_PASSWORD_STRENGTH_TESTED}"
 if [ ${PAM_PASSWORD_STRENGTH_TESTED} -eq 1 ]; then

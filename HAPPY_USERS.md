@@ -6,7 +6,6 @@ Since 2007, the Lynis project helped many system administrators and security
 professionals to scan their systems and perform system hardening. Happy users
 and contributors are the foundation of a healthy project.
 
-
 ## Your contribution
 
 Are you also using Lynis? Contribute to the project by let others know:
@@ -20,12 +19,18 @@ about how Lynis can help them.
 
 Create a pull request and add your name above the first entry. Thanks!
 
-
 ## Our guestbook
-
 
 * YOUR NAME AND STORY
 
+* Nicolas CARPi - January 2026
+Lynis is a great tool for discovering security hardening opportunities you might not even know to look for. It works out of the box, keeps improving over time, and provides clear guidance you can act on. Highly recommended!
+
+* David Osipov - October 2021
+Lynis opened my eyes on Linux security hardening best practices. As a newbie, I learn a lot about Linux system architecture while trying to harden my system.
+
+* Catalyst.net IT - January 2020
+Lynis gave us great insight in to the security state of our systems, as well as where we can improve.
 
 * Michael Boelen - September 2019
 The development of Lynis learned me a lot about Linux and Unix security. It is
@@ -33,8 +38,3 @@ installed on all my systems to uncover unexpected configuration issues. The
 valuable feedback and contributions give me the energy to continue to work on
 its development, even after 12+ years!
 
-* Catalyst.net IT - January 2020
-Lynis gave us great insight in to the security state of our systems, as well as where we can improve.
-
-* David Osipov - October 2021
-Lynis opened my eyes on Linux security hardening best practices. As a newbie, I learn a lot about Linux system architecture while trying to harden my system.

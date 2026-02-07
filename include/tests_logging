@@ -442,6 +442,17 @@
         if [ -f ${SYSLOGD_CONF} ]; then
             LogText "Test: check if logs are also logged to a remote logging host"
             FIND=$(${GREPBINARY} -E "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" ${SYSLOGD_CONF} | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
+            TARGET="${ROOTDIR}etc/syslog.d"
+            if [ -z "${FIND}" -a -d "${TARGET}" ]; then
+                FILES=$(${FINDBINARY} -L ${TARGET} -type f -print0 | ${TRBINARY} -cd '[:print:]\0' | ${SEDBINARY} 's/[[:blank:]]/:space:/g' | ${TRBINARY} '\0' ' ')
+                for F in ${FILES}; do
+                    LogText "Test: analyzing file ${F} for remote target"
+                    FIND=$(${GREPBINARY} -E "@[a-zA-Z0-9]|destination\s.+(udp|tcp).+\sport" "${F}" | ${GREPBINARY} -v "^#" | ${GREPBINARY} -v "[a-zA-Z0-9]@")
+                    if [ -n "${FIND}" ]; then
+                        break
+                    fi
+                done
+            fi
             if [ -n "${FIND}" ]; then
                 FIND2=$(echo "${FIND}" | ${GREPBINARY} -v "@loghost")
                 if [ ${SOLARIS_LOGHOST_LOCALHOST} -eq 1 ] && [ -z "${FIND2}" ]; then

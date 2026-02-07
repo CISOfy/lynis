@@ -30,6 +30,7 @@
     FAIL2BAN_FOUND=0
     FAIL2BAN_EMAIL=0
     FAIL2BAN_SILENT=0
+    CROWDSEC_FOUND=0
     PERFORM_FAIL2BAN_TESTS=0
     SNORT_FOUND=0
     SNORT_RUNNING=0
@@ -188,6 +189,51 @@
 #################################################################################
 #
 # Intrusion Detection and Prevention tools
+#
+#################################################################################
+#
+    # Test        : TOOL-5103
+    # Description : Check for CrowdSec
+    Register --test-no TOOL-5103 --weight L --network NO --category security --description "Check for presence of CrowdSec"
+    if [ ${SKIPTEST} -eq 0 ]; then
+
+        # CrowdSec presence
+        if [ -n "${CROWDSECCLIBINARY}" ]; then
+            CROWDSEC_FOUND=1
+            IDS_IPS_TOOL_FOUND=1
+            LogText "Result: CrowdSec is installed (${CROWDSECCLIBINARY})"
+            Report "ids_ips_tooling[]=fail2ban"
+            Display --indent 2 --text "- Checking presence of CrowdSec" --result "${STATUS_FOUND}" --color GREEN
+        else
+            LogText "Result: CrowdSec not present (fail2ban-server not found)"            
+        fi
+
+        # CrowdSec configuration
+        LogText "Checking CrowdSec configuration file"
+        if [ -f /etc/crowdsec/config.yaml ]; then
+            CROWDSEC_CONFIG="/etc/crowdsec/config.yaml"        
+        else
+            CROWDSEC_CONFIG=""
+        fi
+
+        # Continue if tooling is available and configuration file found
+        if [ ${CROWDSEC_FOUND} -eq 1 -a -n "${CROWDSEC_CONFIG}" ]; then
+            Report "crowdsec_config=${CROWDSEC_CONFIG}"
+            CROWDSECCLIENT=$(which cscli 2> /dev/null | grep -v "no [^ ]* in ")
+            if [ -n "${CROWDSECCLIENT}" ]; then 
+                CROWDSEC_METRICS=$(cscli metrics 2> /dev/null)
+                if [ $? -gt 0 ]; then
+                    LogText "Result: CrowdSec is not running"
+                    Display --indent 4 --text "- Checking CrowdSec status" --result "${STATUS_NOT_RUNNING}" --color YELLOW
+                    AddHP 0 3
+                else
+                    LogText "Result: CrowdSec is running"
+                    Display --indent 4 --text "- Checking CrowdSec status" --result "${STATUS_RUNNING}" --color GREEN
+                    AddHP 3 3
+                fi                
+            fi
+        fi
+    fi
 #
 #################################################################################
 #

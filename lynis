@@ -514,22 +514,32 @@ ${NORMAL}
     . ${INCLUDEDIR}/osdetection
     Display --indent 2 --text "- Detecting OS... " --result "${STATUS_DONE}" --color GREEN
 
-    # Check hostname and get timestamp
+    # Detect hostname and domain
+    FQDN=$(hostname 2> /dev/null)
     case ${OS} in
         HP-UX)
-                    HOSTNAME=$(hostname) ;;
+            HOSTNAME=$(hostname) ;;
+        Linux)
+            if [ "${LINUX_VERSION}" = "OpenWrt" ]; then
+                HOSTNAME=$(uname -n)
+                FQDN="${HOSTNAME:+$HOSTNAME.}$(uci -q get dhcp.@dnsmasq[0].domain)"
+            else
+                HOSTNAME=$(hostname -s 2> /dev/null)
+                if [ -z "${HOSTNAME}" ]; then
+                  HOSTNAME="${FQDN:-no-hostname}"
+                fi
+                if [ "${HOSTNAME}" = "${FQDN}" ]; then
+                    FQDN=$(hostname -f 2> /dev/null)
+                fi
+            fi
+            ;;
         Solaris)
-                    HOSTNAME=$(uname -n) ;;
+            HOSTNAME=$(uname -n) ;;
         *)
-                    HOSTNAME=$(hostname -s 2> /dev/null) ;;
+            HOSTNAME=$(hostname -s 2> /dev/null) ;;
     esac
     if [ -z "${HOSTNAME}" ]; then
-        HOSTNAME=$(hostname 2> /dev/null)
-        if [ -z "${HOSTNAME}" ]; then HOSTNAME="no-hostname"; fi
-    fi
-    FQDN=$(hostname 2> /dev/null)
-    if [ "${OS}" = "Linux" -a "${HOSTNAME}" = "${FQDN}" ]; then
-        FQDN=$(hostname -f 2> /dev/null)
+        HOSTNAME="${FQDN:-no-hostname}"
     fi
 #
 #################################################################################

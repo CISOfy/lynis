@@ -1080,8 +1080,17 @@ EOF
                 fi
             fi
             if [ -d /etc/apt/sources.list.d ]; then
-                LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
-                FIND=$(${GREPBINARY} -E -r "security.debian.org|security.ubuntu.com|security/? " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                LogText "Searching for Sources List format : deb822 (newer) or older"
+                FORMATLIST=$(${GREPBINARY} -E -r -- "^Types: deb" /etc/apt/sources.list.d/*.sources | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                if [ -n "$FORMATLIST" ]; then
+                    LogText "Sources is written in deb822"
+                    LogText "Searching for debian-security/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
+                    FIND=$(${GREPBINARY} -E -r "debian-security|security.ubuntu.com|security/? " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                else
+                    LogText "Searching for security.debian.org/security.ubuntu.com or security repositories in /etc/apt/sources.list.d directory"
+                    FIND=$(${GREPBINARY} -E -r "security.debian.org|security.ubuntu.com|security/? " /etc/apt/sources.list.d | ${GREPBINARY} -v '#' | ${SEDBINARY} 's/ /!space!/g')
+                fi
+
                 if [ -n "${FIND}" ]; then
                     FOUND=1
                     Display --indent 2 --text "- Checking security repository in sources.list.d directory" --result "${STATUS_OK}" --color GREEN

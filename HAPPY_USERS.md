@@ -23,6 +23,11 @@ Create a pull request and add your name above the first entry. Thanks!
 
 * YOUR NAME AND STORY
 
+* Jarema - May 2026
+Lynis has been a reliable sanity check for me across multiple environments. It catches
+things you'd otherwise only find out about after you've already set things up.
+Really straightforward to run and the output is helpful. 10/10 would use again :3
+
 * Nicolas CARPi - January 2026
 Lynis is a great tool for discovering security hardening opportunities you might not even know to look for. It works out of the box, keeps improving over time, and provides clear guidance you can act on. Highly recommended!
 

@@ -78,7 +78,7 @@
         fi
         # Check password file
         if [ -f ${PASSWD_FILE} ]; then
-            FIND=$(${GREPBINARY} -v '^#' ${PASSWD_FILE} | ${CUTBINARY} -d ':' -f3 | ${SORTBINARY} | uniq -d)
+            FIND=$(${GREPBINARY} -v '^#' ${PASSWD_FILE} | grep -v '^git:\*:' | ${CUTBINARY} -d ':' -f3 | ${SORTBINARY} | uniq -d)
             if [ "${FIND}" = "" ]; then
                 Display --indent 2 --text "- Unique UIDs" --result "${STATUS_OK}" --color GREEN
                 LogText "Result: all accounts found in ${PASSWD_FILE} are unique"
@@ -162,7 +162,7 @@
         LogText "Test: Checking login shells"
         if [ -f ${ROOTDIR}etc/master.passwd ]; then
             # Check for all shells, except: (/usr)/sbin/nologin /nonexistent
-            FIND=$(${GREPBINARY} "[a-z]:\*:" ${ROOTDIR}etc/master.passwd | ${GREPBINARY} -E -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g')
+            FIND=$(${GREPBINARY} "[a-z]:\*:" ${ROOTDIR}etc/master.passwd | ${GREPBINARY} -E -v '^#|/sbin/nologin|/usr/sbin/nologin|/nonexistent' | ${SEDBINARY} 's/ /!space!/g' | ${GREPBINARY} -vE '^(git|_gitea|_forgejo):\*:')
             if [ -z "${FIND}" ]; then
                 Display --indent 2 --text "- Login shells" --result "${STATUS_OK}" --color GREEN
             else
@@ -659,7 +659,12 @@
 #
     # Test        : AUTH-9262
     # Description : Search for PAM password strength testing libraries
-    Register --test-no AUTH-9262 --weight L --network NO --category security --description "Checking presence password strength testing tools (PAM)"
+    if [ ! "${OS}" = "OpenBSD" ]; then
+        PREQS_MET="YES"
+    else
+        PREQS_MET="NO"
+    fi
+    Register --test-no AUTH-9262 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking presence password strength testing tools (PAM)"
     if [ ${SKIPTEST} -eq 0 ]; then
         FOUND=0
         FOUND_CRACKLIB=0

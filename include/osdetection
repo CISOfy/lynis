@@ -951,16 +951,23 @@
     esac
     
     # Check if we have full featured commands, or are using BusyBox as a shell
-    if [ -x /bin/busybox ]; then
-        if [ -L /bin/ps ]; then
-            ShowSymlinkPath /bin/ps
-            if [ "${SYMLINK}" = "/bin/busybox" ]; then
-                SHELL_IS_BUSYBOX=1
-                LogText "Result: The device is using Busybox."
-            else
-                LogText "Result: The device is NOT using Busybox."
-            fi
-        fi
+    HAS_BUSYBOX=$(which busybox 2> /dev/null | grep -v "no [^ ]* in ")
+    if [ ! "${HAS_BUSYBOX}" = "" ]; then
+         BUSYBOX_PATH=$(which busybox)
+         ShowSymlinkPath $(which busybox)
+         if [ ! -z "${BUSYBOX_PATH}" ]; then
+             BUSYBOX_PATH=${SYMLINK}
+         fi
+
+         if [ -L /bin/ps ]; then
+             ShowSymlinkPath /bin/ps
+             if [ "${SYMLINK}" = ${BUSYBOX_PATH} ]; then
+                 SHELL_IS_BUSYBOX=1
+                 LogText "Result: The device is using Busybox."
+             else
+                 LogText "Result: The device is NOT using Busybox."
+             fi
+         fi
     fi
 
     # Specific checks for hardware

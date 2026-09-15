@@ -382,12 +382,6 @@
                             OS_REDHAT_OR_CLONE=1
                             OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                         ;;
-                        "nixos")
-                            LINUX_VERSION="NixOS"
-                            OS_NAME="NixOS"
-                            OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
-                            OS_VERSION_FULL=$(grep "^VERSION=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
-                        ;;
                         "ol")
                             LINUX_VERSION="Oracle Linux"
                             OS_NAME="Oracle Linux"
@@ -539,7 +533,7 @@
                             OS_VERSION_FULL=$(grep "^VERSION=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
                         ;;
                         *)
-                            ReportException "OS Detection" "Unknown OS found in /etc/os-release - Please create an issue on GitHub and share the contents (cat /etc/os-release): ${PROGRAM_SOURCE}"
+                            ETC_RELEASE_DETECT_FAILED=1
                         ;;
                     esac
                 fi
@@ -701,6 +695,15 @@
 
             fi
 
+            # NixOS
+            if [ -e "/run/current-system" ]; then
+                LINUX_VERSION="NixOS"
+                OS_NAME="NixOS"
+                OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                OS_VERSION_FULL=$(grep "^VERSION=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+                ETC_RELEASE_DETECT_FAILED=0
+            fi
+
             # PCLinuxOS
             if [ -f /etc/pclinuxos-release ]; then
                 FIND=$(grep "^PCLinuxOS" /etc/pclinuxos-release)
@@ -763,6 +766,9 @@
             # If Linux version (full name) is unknown, use uname value
             if [ "${OS_FULLNAME}" = "" ]; then OS_FULLNAME=$(uname -s -r); fi
             SYSCTL_READKEY="sysctl -n"
+            if [ "${ETC_RELEASE_DETECT_FAILED}" = "1" ]; then
+                ReportException "OS Detection" "Unknown OS found in /etc/os-release - Please create an issue on GitHub and share the contents (cat /etc/os-release): ${PROGRAM_SOURCE}"
+            fi
         ;;
 
         # NetBSD

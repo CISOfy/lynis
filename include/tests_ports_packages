@@ -415,6 +415,35 @@ EOF
 #
 #################################################################################
 #
+    # Test        : PKGS-7329
+    # Description : Check vulnerable packages with vulnix
+    if [ -n "${VULNIXBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no PKGS-7329 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Querying vulnix for vulnerable packages"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        PACKAGE_AUDIT_TOOL_FOUND=1
+        PACKAGE_AUDIT_TOOL="vulnix"
+        FIND=$(${VULNIXBINARY} --system)
+        if [ $? -eq 0 ]; then
+            LogText "Result: No vulnerabilities found with vulnix"
+            Display --indent 2 --text "- Using vulnix to find vulnerable packages" --result "${STATUS_NONE}" --color GREEN
+        else
+            Display --indent 2 --text "- Using vulnix to find vulnerable packages" --result "${STATUS_WARNING}" --color RED
+            LogText "Result: Vulnix found one or more installed packages which are vulnerable."
+            ReportWarning "${TEST_NO}" "Found one or more vulnerable packages installed"
+            LogText "List of vulnerable packages/version:"
+            FIND=$(echo "$FIND" | ${SEDBINARY} -n '/^[-]\{5,\}$/ { n; s/-[0-9].*$//; p }' | ${UNIQBINARY})
+            for PKG in ${FIND}; do
+                VULNERABLE_PACKAGES_FOUND=1
+                Report "vulnerable_package[]=${PKG}"
+                LogText "Vulnerable package: ${PKG}"
+                # Decrease hardening points for every found vulnerable package
+                AddHP 1 2
+            done
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : PKGS-7330
     # Description : Check vulnerable packages with Zypper
     if [ -n "${ZYPPERBINARY}" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi

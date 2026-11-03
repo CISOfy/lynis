@@ -6,6 +6,7 @@
 - Support for Omarchy Linux and poky-altcfg
 
 ### Changed
+- FILE-6430 - Fix blacklisted filesystems detection and modprobe paths
 - AUTH-9230 - skip SHA_CRYPT rounds check when ENCRYPT_METHOD is YESCRYPT
 - PKGS-7370 - Strip quotes from CRON_CHECK in debsums test
 - Adjusted end-of-life entries in database: FreeBSD, OpenBSD

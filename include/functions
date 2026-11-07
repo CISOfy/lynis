@@ -1404,7 +1404,10 @@
                 DATA=$(echo "${DATA}" | ${AWKBINARY} '{printf "%03d",$1}')
 
                 if [ -n "${DATA}" ]; then
-                    if [ "${DATA}" -le "${CHECK_PERMISSION}" ]; then
+                    # Modes are octal. A decimal comparison treats 606 as more
+                    # restrictive than 644, even though 606 is world-writable.
+                    # Accept the file when every actual bit is allowed.
+                    if [ $((0${DATA} & ~0${CHECK_PERMISSION})) -eq 0 ]; then
                         LogText "Outcome: correct permissions (${DATA})"
                         return 0
                     fi

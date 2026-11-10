@@ -94,8 +94,16 @@
         IPV6_ONLY=255
         IPV6_MISCONFIGURED=0
         IPV6_MISCONFIGURED_MTU=0
-        FIND=$(sysctl -a 2> /dev/null | ${GREPBINARY} "^net.ipv6" | ${SEDBINARY} "s/ = /=/")
-        if [ -n "${FIND}" ]; then
+        if [ -z "${SYSCTLBINARY}" ]; then
+            LogText "Result: sysctl binary not found; IPv6 configuration was not read"
+            Display --indent 2 --text "- Checking IPv6 configuration" --result "${STATUS_NOT_FOUND}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "sysctl was not found, so IPv6 mode could not be determined"
+            FIND=""
+            IPV6_MODE="unknown"
+        else
+            FIND=$(${SYSCTLBINARY} -a 2> /dev/null | ${GREPBINARY} "^net.ipv6" | ${SEDBINARY} "s/ = /=/")
+        fi
+        if [ -n "${SYSCTLBINARY}" ] && [ -n "${FIND}" ]; then
             IPV6_CONFIGURED=1
             for I in ${FIND}; do
                 SYSCTL_KEY=$(echo ${I} | ${AWKBINARY} -F= '{ print $1 }')
@@ -121,28 +129,28 @@
                     #fi
                 esac
             done
-        else
+        elif [ -n "${SYSCTLBINARY}" ]; then
             IPV6_MODE="disabled"
         fi
         # Check if we are manually configured (not accepting automatic configuration)
-        if [ ${IPV6_ACCEPT_RA} -eq 0 -a ${IPV6_ACCEPT_REDIRECTS} -eq 0 ]; then
+        if [ -n "${SYSCTLBINARY}" ] && [ ${IPV6_ACCEPT_RA} -eq 0 -a ${IPV6_ACCEPT_REDIRECTS} -eq 0 ]; then
             IPV6_MANUAL_CONFIGURED=1
             IPV6_MODE="manual"
-        elif [ ${IPV6_ACCEPT_RA} -eq 1 -o ${IPV6_ACCEPT_REDIRECTS} -eq 1 ]; then
+        elif [ -n "${SYSCTLBINARY}" ] && [ ${IPV6_ACCEPT_RA} -eq 1 -o ${IPV6_ACCEPT_REDIRECTS} -eq 1 ]; then
             IPV6_MODE="auto"
-        else
+        elif [ -n "${SYSCTLBINARY}" ]; then
             IPV6_MODE="disabled"
         fi
 
         LogText "Result: IPV6 mode is ${IPV6_MODE}"
-        if [ ${IPV6_CONFIGURED} -eq 1 ]; then
+        if [ -n "${SYSCTLBINARY}" ] && [ ${IPV6_CONFIGURED} -eq 1 ]; then
             Display --indent 2 --text "- Checking IPv6 configuration" --result "${STATUS_ENABLED}" --color WHITE
             STATUS=$(echo ${IPV6_MODE} | ${TRBINARY} '[:lower:]' '[:upper:]')
             Display --indent 6 --text "Configuration method" --result "${STATUS}" --color WHITE
             if [ ${IPV6_ONLY} -eq 1 ]; then STATUS="${STATUS_YES}"; else STATUS="${STATUS_NO}"; fi
             LogText "Result: IPv6 only configuration: ${STATUS}"
             Display --indent 6 --text "IPv6 only" --result "${STATUS}" --color WHITE
-        else
+        elif [ -n "${SYSCTLBINARY}" ]; then
             Display --indent 2 --text "- Checking IPv6 configuration" --result "${STATUS_DISABLED}" --color WHITE
         fi
         # Configuration errors

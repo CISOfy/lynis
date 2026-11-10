@@ -48,9 +48,27 @@
 
         # Test if our PATH variable provides a set of paths. If so, reverse the order. If we discover the same binary
         # multiple times, the one first in PATH should be used.
+        # PATH replaces the built-in list, so a login without /sbin never finds sysctl or modprobe.
+        # Directories from the built-in list are searched first and do not override a PATH match.
         if [ -n "${PATH}" ]; then
+            DEFAULT_BIN_PATHS="${BIN_PATHS}"
             PATH_REVERSED=$(echo "${PATH}" | sed 's/ /!!space!!/g' | awk -F: '{ for (i=NF; i>1; i--) printf("%s ",$i); print $1; }')
             BIN_PATHS=$(echo "${PATH_REVERSED}" | tr ':' ' ')
+            for SCANDIR in ${DEFAULT_BIN_PATHS}; do
+                case " ${BIN_PATHS} " in
+                    *" ${SCANDIR} "*) ;;
+                    *) BIN_PATHS="${SCANDIR} ${BIN_PATHS}" ;;
+                esac
+            done
+            case ":${PATH}:" in
+                *:/sbin:*|*:/usr/sbin:*|*:/usr/local/sbin:*) ;;
+                *)
+                    LogText "Result: PATH has no sbin directory; built-in binary locations were added to the search"
+                    if [ ${PRIVILEGED} -eq 1 ]; then
+                        ReportWarning "${TEST_NO}" "PATH has no sbin directory" "text:tools such as sysctl were searched in the built-in locations as well"
+                    fi
+                ;;
+            esac
         fi
 
         # First test available locations that may be suspicious or dangerous

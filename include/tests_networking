@@ -244,7 +244,7 @@
     if [ -n "${RESOLVECTLBINARY}" ]; then
         PREQS_MET="YES"
         RESOLVE_CMD="${RESOLVECTLBINARY}"
-        RESOLVE_CMD_PARAM="statistics"
+        RESOLVE_CMD_PARAM="status"
     elif [ -n "$(command -v systemd-resolve 2> /dev/null)" ]; then
         PREQS_MET="YES"
         RESOLVE_CMD="$(command -v systemd-resolve 2> /dev/null)"
@@ -255,7 +255,8 @@
     Register --test-no NETW-2706 --preqs-met "${PREQS_MET}" --weight L --network YES --category security --description "Check systemd-resolved and upstream DNSSEC status"
     if [ ${SKIPTEST} -eq 0 ]; then
         SKIP=0
-        DNSSEC_STATUS=$(${RESOLVE_CMD} ${RESOLVE_CMD_PARAM} 2> /dev/null | ${AWKBINARY} -F ":" '/DNSSEC supported/ { print $2 }' | ${TRBINARY} -d ' ')
+        DNSSEC_STATUS=$(${RESOLVE_CMD} ${RESOLVE_CMD_PARAM} 2> /dev/null | ${GREPBINARY} -o 'DNSSEC=[^ ]*' | ${CUTBINARY} -d'=' -f2 | ${CUTBINARY} -d'/' -f1 | head -n 1)
+LogText ${DNSSEC_STATUS}
         if [ "${DNSSEC_STATUS}" = "yes" ]; then
             Display --indent 4 --text "- DNSSEC supported (systemd-resolved)" --result "${STATUS_YES}" --color GREEN
             LogText "Result: DNSSEC supported by systemd-resolved and upstream DNS servers"

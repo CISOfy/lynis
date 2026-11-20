@@ -787,8 +787,12 @@
         exitcode=1
         file=$1
         find=""
+        pattern=""
         if [ -n "${DPKGBINARY}" ]; then
             find=$(${DPKGBINARY} -S "${file}" 2> /dev/null | ${AWKBINARY} -F: '{print $1}')
+        elif [ "${OS_NAME}" = "Slackware Linux" -a -d "${ROOTDIR}/var/lib/pkgtools/packages" ]; then
+            pattern="${file//./\\.}"
+            find=$(${GREPBINARY} -l "^${pattern#/}\(\.new\)\?$" ${ROOTDIR}/var/lib/pkgtools/packages/* | ${SEDBINARY} 's/^.\+\///')
         elif [ -n "${RPMBINARY}" ]; then
             find=$(${RPMBINARY} -qf "${file}" 2> /dev/null | ${AWKBINARY} -F- '{print $1}')
         fi

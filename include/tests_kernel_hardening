@@ -68,13 +68,21 @@
         # Sort the results
         DATA_TO_SCAN=$(echo ${DATA_TO_SCAN} | ${TRBINARY} ' ' '\n' | sort)
 
+        # SYSCTL_READKEY is the bare command "sysctl -n". Use the binary CORE-1000
+        # located, including one found outside PATH.
+        if [ -n "${SYSCTLBINARY}" ]; then
+            SYSCTL_SHOW="${SYSCTLBINARY} -n"
+        else
+            SYSCTL_SHOW="${SYSCTL_READKEY}"
+        fi
+
         for line in ${DATA_TO_SCAN}; do
             tFINDkey=$(echo ${line} | ${AWKBINARY} -F\; '{ print $2 }')
             if ! SkipAtomicTest "${TEST_NO}:${tFINDkey}"; then
                 tFINDexpvalue=$(echo ${line} | ${AWKBINARY} -F\; '{ print $3 }' | ${TRBINARY} '|' ' ')
                 tFINDhp=$(echo ${line} | ${AWKBINARY} -F\; '{ print $4 }' | ${GREPBINARY} "[0-9]")
                 tFINDdesc=$(echo ${line} | ${AWKBINARY} -F\; '{ print $5 }' | ${SEDBINARY} 's/-space-/ /g')
-                tFINDcurvalue=$(${SYSCTL_READKEY} ${tFINDkey} 2> /dev/null)
+                tFINDcurvalue=$(${SYSCTL_SHOW} ${tFINDkey} 2> /dev/null)
                 if [ -n "${tFINDcurvalue}" ]; then
                     positive_match=0
                     for value in ${tFINDexpvalue}; do

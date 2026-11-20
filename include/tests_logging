@@ -470,7 +470,18 @@
 
         if [ -f ${WAZUH_AGENT_CONF} ]; then
             LogText "Test: Checking Wazuh agent configuration for remote syslog forwarding"
-            FIND=$(${EGREPBINARY} '<location>/var/log/syslog</location>' ${WAZUH_AGENT_CONF})
+            # When Wazuh central management is used, log files are found in merged file
+            WAZUH_MERGED_CONF="/var/ossec/etc/shared/merged.mg"
+            WAZUH_LOG_CONFIGS="${WAZUH_AGENT_CONF} ${WAZUH_MERGED_CONF}"
+            # first is typical on Linux, second on FreeBSD
+            WAZUH_LOG_SOURCES="/var/log/syslog /var/log/messages"
+            for _log_loc in ${WAZUH_LOG_CONFIGS}; do
+                if [ -f ${_log_loc} ]; then
+                    for _log_src in ${WAZUH_LOG_SOURCES}; do
+                        FIND=$(${EGREPBINARY} "<location>${_log_src}</location>" ${_log_loc})
+                    done
+                fi
+            done
             if [ "${FIND}" ]; then
                 DESTINATION=$(${EGREPBINARY} -o '<address>([A-Za-z0-9\.\-\_]*)</address>' ${WAZUH_AGENT_CONF} | sed 's/<address>//' | sed 's/<\/address>//')
                 LogText "Result: found destination ${DESTINATION} configured for remote logging with wazuh"

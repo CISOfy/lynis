@@ -290,6 +290,53 @@
 #
 #################################################################################
 #
+    # Test        : SSH-7410
+    # Description : Check if the SSH daemon offers a post-quantum hybrid key exchange algorithm
+    # Notes       : OpenSSH added sntrup761x25519-sha512@openssh.com to the default KexAlgorithms list in 8.9 and made
+    #               mlkem768x25519-sha256 the default in 10.0. Recorded traffic of a session without one of these could be
+    #               decrypted later by a quantum computer ("store now, decrypt later"). A KexAlgorithms line copied from an
+    #               older hardening guide silently removes them, so we query the effective value from the daemon itself.
+    if [ ${OPENSSHD_RUNNING} -eq 1 -a -n "${SSH_DAEMON_OPTIONS_FILE}" -a \( ${OPENSSHD_VERSION_MAJOR} -gt 8 -o ${OPENSSHD_VERSION_MAJOR} -eq 8 -a ${OPENSSHD_VERSION_MINOR} -ge 9 \) ]; then PREQS_MET="YES"; else PREQS_MET="NO"; SKIPREASON="No running OpenSSH daemon 8.9 or later"; fi
+    Register --test-no SSH-7410 --preqs-met ${PREQS_MET} --skip-reason "${SKIPREASON}" --weight L --network NO --category security --description "Check SSH key exchange algorithms for post-quantum hybrid"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        LogText "Test: Checking KexAlgorithms in ${SSH_DAEMON_OPTIONS_FILE}"
+        FOUND=0
+        FOUNDVALUE=$(${AWKBINARY} '$1 == "kexalgorithms" { print $2 }' ${SSH_DAEMON_OPTIONS_FILE} | tail -1)
+        # ML-KEM hybrid is available from OpenSSH 9.9, before that only the Streamlined NTRU Prime hybrid exists
+        if [ ${OPENSSHD_VERSION_MAJOR} -gt 9 -o ${OPENSSHD_VERSION_MAJOR} -eq 9 -a ${OPENSSHD_VERSION_MINOR} -ge 9 ]; then
+            PREFERREDVALUE="mlkem768x25519-sha256"
+        else
+            PREFERREDVALUE="sntrup761x25519-sha512@openssh.com"
+        fi
+        if [ -n "${FOUNDVALUE}" ]; then
+            LogText "Result: KexAlgorithms value is ${FOUNDVALUE}"
+            for ALGORITHM in $(echo "${FOUNDVALUE}" | ${TRBINARY} ',' ' '); do
+                case "${ALGORITHM}" in
+                    "mlkem768x25519-sha256" | "sntrup761x25519-sha512" | "sntrup761x25519-sha512@openssh.com")
+                        LogText "Result: found post-quantum hybrid key exchange algorithm ${ALGORITHM}"
+                        FOUND=1
+                    ;;
+                esac
+            done
+            if [ ${FOUND} -eq 1 ]; then
+                LogText "Result: SSH daemon offers a post-quantum hybrid key exchange algorithm"
+                Display --indent 4 --text "- OpenSSH option: KexAlgorithms" --result "${STATUS_OK}" --color GREEN
+                AddHP 3 3
+            else
+                LogText "Result: SSH daemon offers no post-quantum hybrid key exchange algorithm, sessions may be recorded now and decrypted later"
+                ReportSuggestion "${TEST_NO}" "Consider hardening SSH configuration" "KexAlgorithms (add ${PREFERREDVALUE})" "text:Add ${PREFERREDVALUE} to KexAlgorithms, or remove the KexAlgorithms line to use the OpenSSH defaults"
+                ReportDetails --test "${TEST_NO}" --service "sshd" --field "KexAlgorithms" --value "${FOUNDVALUE}" --preferredvalue "${PREFERREDVALUE}" --description "sshd option KexAlgorithms"
+                Display --indent 4 --text "- OpenSSH option: KexAlgorithms" --result "${STATUS_SUGGESTION}" --color YELLOW
+                AddHP 0 3
+            fi
+        else
+            LogText "Result: Option KexAlgorithms not found in output"
+            Display --indent 4 --text "- OpenSSH option: KexAlgorithms" --result "${STATUS_NOT_FOUND}" --color WHITE
+        fi
+    fi
+#
+#################################################################################
+#
     # Test        : SSH-7440
     # Description : OpenSSH - AllowUsers / AllowGroups
     # Goal        : Check if only a specific amount of users/groups can log in to the system

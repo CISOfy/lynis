@@ -8,6 +8,7 @@
 ### Changed
 - AUTH-9230 - skip SHA_CRYPT rounds check when ENCRYPT_METHOD is YESCRYPT
 - PKGS-7370 - Strip quotes from CRON_CHECK in debsums test
+- SCHD-7704 - Fix filename variable and crontab check in cron loops
 - Adjusted end-of-life entries in database: FreeBSD, OpenBSD
 - Fix for empty machine ID detection
 

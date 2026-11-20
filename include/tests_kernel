@@ -645,6 +645,7 @@
             if [ -n "${FIND}" ]; then
                 if [ -f ${ROOTDIR}boot/vmlinuz -a ! -L ${ROOTDIR}boot/vmlinuz ]; then
                     LogText "Result: found /boot/vmlinuz (not symlinked)"
+		    FOUND_VMLINUZ=${ROOTDIR}boot/vmlinuz
                     NEXTLINE=0
                     FINDVERSION=""
                     for I in $(file ${ROOTDIR}boot/vmlinuz-linux); do
@@ -656,6 +657,15 @@
                             if [ "${I}" = "version" ]; then NEXTLINE=1; fi
                         fi
                     done
+		    # Fallback method for distributions where the
+		    # previous parsing logic fails (e.g. OpenWrt)
+		    if [ -z "${FINDVERSION}" ]; then
+			    FINDVERSION=$(${FILEBINARY} -b "${FOUND_VMLINUZ}" | ${AWKBINARY} '{ if ($1=="Linux" && $7=="version") { print $8 } }')
+			    if [ -n "${FINDVERSION}" ]; then
+				    LogText "Result: found version on disk via file utility: ${FINDVERSION}"
+			    fi
+		    fi
+
                     if [ -n "${FINDVERSION}" ]; then
                         CURRENT_KERNEL=$(uname -r)
                         if [ ! "${CURRENT_KERNEL}" = "${FINDVERSION}" ]; then

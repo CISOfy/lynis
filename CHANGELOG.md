@@ -3,7 +3,7 @@
 ## Lynis 3.1.8 (not released yet)
 
 ### Added
-- Support for Omarchy Linux and poky-altcfg
+- Support for Omarchy Linux, poky-altcfg, Ultramarine Linux
 
 ### Changed
 - AUTH-9230 - skip SHA_CRYPT rounds check when ENCRYPT_METHOD is YESCRYPT

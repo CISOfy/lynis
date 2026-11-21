@@ -863,20 +863,20 @@
             case ${LINUX_VERSION} in
                 "SuSE")
                     PREQS_MET="YES"
-                    FIND_P=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND_P=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="P") print $1 }')
                     FIND2=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
                     FIND3=$(passwd -a -S 2> /dev/null | ${AWKBINARY} '{ if ($2=="L") print $1 }' | sort | uniq)
                     ;;
                 *)
                     PREQS_MET="YES"
-                    FIND_P=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="P" && $5=="99999") print $1 }')
+                    FIND_P=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="P") print $1 }')
                     FIND2=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="NP") print $1 }')
                     FIND3=$(passwd --all --status 2> /dev/null | ${AWKBINARY} '{ if ($2=="L") print $1 }' | sort | uniq)
                     ;;
             esac
         elif [ "${OS_REDHAT_OR_CLONE}" -eq 1 ]; then
             PREQS_MET="YES"
-            FIND_P=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="PS" && $5=="99999") print $1 }' ; done)
+            FIND_P=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="PS") print $1 }' ; done)
             FIND2=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="NP") print $1 }' ; done)
             FIND3=$(for I in $(${AWKBINARY} -F: '{print $1}' "${ROOTDIR}etc/passwd") ; do passwd -S "$I" | ${AWKBINARY} '{ if ($2=="L" || $2=="LK") print $1 }' | sort | uniq ; done)
         else
@@ -893,7 +893,20 @@
 
     # Test        : AUTH-9282
     # Description : Search password protected accounts without expire (Linux)
-    Register --test-no AUTH-9282 --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Checking password protected account without expire date"
+    AUTH_9282_PREQS_MET="${PREQS_MET}"
+    if [ "${AUTH_9282_PREQS_MET}" = "YES" ]; then
+        if FileIsReadable "${ROOTDIR}etc/shadow"; then
+            # passwd status reports password age, not account expiration.
+            # Match password protected accounts against shadow's expiry field.
+            FIND_P=$(${AWKBINARY} -F: -v accounts="${FIND_P}" '
+                BEGIN { split(accounts, names, /[[:space:]]+/); for (i in names) protected[names[i]]=1 }
+                ($1 in protected) && ($8=="" || $8=="-1") { print $1 }
+            ' "${ROOTDIR}etc/shadow")
+        else
+            AUTH_9282_PREQS_MET="NO"
+        fi
+    fi
+    Register --test-no AUTH-9282 --preqs-met ${AUTH_9282_PREQS_MET} --weight L --network NO --category security --description "Checking password protected account without expire date"
     if [ "${SKIPTEST}" -eq 0 ]; then
         LogText "Test: Checking Linux version and password expire date status"
         if [ -z "${FIND_P}" ]; then

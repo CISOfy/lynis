@@ -58,10 +58,22 @@
         LogText "Test: Searching for a running NTP daemon or available client"
         FOUND=0
 
-        SEARCH_FILES="${ROOTDIR}etc/chrony.conf ${ROOTDIR}etc/chrony/chrony.conf"
+        SEARCH_FILES="${ROOTDIR}etc/chrony.conf ${ROOTDIR}etc/chrony/chrony.conf ${ROOTDIR}usr/etc/chrony.conf ${ROOTDIR}usr/etc/chrony/chrony.conf"
         for FILE in ${SEARCH_FILES}; do
             if [ -f ${FILE} ]; then LogText "result: found chrony configuration: ${FILE}"; CHRONY_CONF_FILE="${FILE}"; fi
         done
+        if [ -z "${CHRONY_CONF_FILE}" ]; then
+            for DIR in "${ROOTDIR}etc/chrony.d" "${ROOTDIR}usr/etc/chrony.d"; do
+                if [ -d "${DIR}" ]; then
+                    FIND=$(${LSBINARY} ${DIR}/*.conf 2> /dev/null)
+                    if [ -n "${FIND}" ]; then
+                        LogText "result: found chrony configuration directory: ${DIR}"
+                        CHRONY_CONF_FILE="${DIR}"
+                        break
+                    fi
+                fi
+            done
+        fi
         if [ -n "${CHRONY_CONF_FILE}" ]; then
             if IsRunning "chronyd"; then
                 FOUND=1; NTP_DAEMON_RUNNING=1; NTP_CONFIG_TYPE_DAEMON=1; NTP_DAEMON="chronyd"
@@ -486,9 +498,17 @@
     #               Group owner should have only read access
     #               Other should preferably have no access, or read-only at max
 
-    FILE_ARRAY="${ROOTDIR}etc/chrony.conf ${ROOTDIR}usr/pkg/etc/chrony.conf \
+    FILE_ARRAY="${ROOTDIR}etc/chrony.conf ${ROOTDIR}etc/chrony/chrony.conf ${ROOTDIR}usr/etc/chrony.conf ${ROOTDIR}usr/etc/chrony/chrony.conf ${ROOTDIR}usr/pkg/etc/chrony.conf \
         ${ROOTDIR}etc/inet/ntp.conf ${ROOTDIR}etc/ntp.conf ${ROOTDIR}usr/local/etc/ntp.conf\
         ${ROOTDIR}etc/ntpd.conf ${ROOTDIR}etc/openntpd/ntpd.conf ${ROOTDIR}usr/local/etc/ntpd.conf"
+    for DIR in "${ROOTDIR}etc/chrony.d" "${ROOTDIR}usr/etc/chrony.d"; do
+        if [ -d "${DIR}" ]; then
+            FIND=$(${LSBINARY} ${DIR}/*.conf 2> /dev/null)
+            if [ -n "${FIND}" ]; then
+                FILE_ARRAY="${FILE_ARRAY} ${FIND}"
+            fi
+        fi
+    done
 
     Register --test-no TIME-3170 --weight L --network NO --category security --description "Check configuration files"
     if [ ${SKIPTEST} -eq 0 ]; then

@@ -140,6 +140,47 @@
 #
 #################################################################################
 #
+    # Test        : CRYP-7903
+    # Description : Check for extraneous CA certificates
+    if [ "${LINUX_VERSION}" = "Debian" ]; then PREQS_MET="YES"; else PREQS_MET="NO"; fi
+    Register --test-no CRYP-7903 --os Linux --preqs-met ${PREQS_MET} --weight L --network NO --category security --description "Check for extraneous CA certificates"
+    if [ ${SKIPTEST} -eq 0 ]; then
+        FOUNDPROBLEM=0
+        # CERTSDIR and LOCALCERTSDIR from update-ca-certificates
+        for DIR in /usr/share/ca-certificates /usr/local/share/ca-certificates; do
+            if [ -d "${DIR}" ]; then
+                FileIsReadable "${DIR}"
+                if [ ${CANREAD} -eq 0 ]; then
+                    LogText "Result: can not read directory ${DIR} (no permission)"
+                    continue
+                fi
+                FILES=$(${FINDBINARY} ${DIR} -type f 2> /dev/null | ${GREPBINARY} -E ".cer$|.crt$|.der$|.pem$|^cert" | ${SORTBINARY} | ${SEDBINARY} 's/ /__space__/g')
+                for FILE in ${FILES}; do
+                    FILE="$(echo "${FILE}" | ${SEDBINARY} 's/__space__/ /g')"
+                    FileIsReadable "${FILE}"
+                    if [ ${CANREAD} -eq 0 ]; then
+                        LogText "Result: can not read file ${FILE} (no permission)"
+                        continue
+                    fi
+                    if ! FileInstalledByPackage "${FILE}"
+                    then
+                        LogText "Result: certificate ${FILE} not provided by any package"
+                        FOUNDPROBLEM=1
+                    fi
+                done
+            fi
+        done
+        if [ ${FOUNDPROBLEM} -eq 0 ]; then
+            Display --indent 2 --text "- Checking for extraneous CA certificates" --result "${STATUS_NONE}" --color GREEN
+        else
+            Display --indent 2 --text "- Checking for extraneous CA certificates" --result "${STATUS_FOUND}" --color YELLOW
+            ReportSuggestion "${TEST_NO}" "Check your CA certificates that are not provided by any package and verify that they are legit"
+        fi
+    fi
+
+#
+#################################################################################
+#
     # Test        : CRYP-7930
     # Description : Determine if system uses LUKS block device encryption
     Register --test-no CRYP-7930 --os Linux --weight L --network NO --root-only YES --category security --description "Determine if system uses LUKS block device encryption"
